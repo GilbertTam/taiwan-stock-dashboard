@@ -448,15 +448,6 @@ SIMPLE_JWT = {
 # -------------- END - SimpleJWT Setting --------------
 
 
-# -------------- START - APIProxy Setting --------------
-API_URL = os.environ.get("API_URL")
-API_VERSION = os.environ.get("API_VERSION")
-ROUTE_PATH='proxy' # default route
-TARGET_PATH='api' # target route path
-print(f"---------- API Proxy: {TARGET_PATH} -> {ROUTE_PATH}")
-# -------------- END - APIProxy Setting --------------
-
-
 # -------------- START - Redis Setting --------------
 REDIS_PORT = 6379
 REDIS_HOST = "redis://backend-redis"
