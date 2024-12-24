@@ -33,12 +33,19 @@ x-airflow-common:
     - ./airflow/plugins:/opt/airflow/plugins
     - ./airflow/utils:/opt/airflow/utils
 
+x-depends-on-airflow-postgres:
+  &airflow-postgres-depends-on
+  depends_on:
+    backend-airflow-postgres:
+      condition: service_healthy
+    #airflow-init:
+    #  condition: service_completed_successfully
+
 services:
   backend-postgres:
     <<: [ *restart, *networks ]
     container_name: ${PROJECT_NAME}-postgres
     hostname: ${PROJECT_NAME}-postgres
-    platform: linux/amd64
     image: postgres:latest
     environment:
       - POSTGRES_DB=${DB_NAME}
@@ -71,8 +78,6 @@ services:
     command: bash docker-entrypoint.sh
     environment:
       - DEBUG=${DEBUG}
-      - API_URL=${API_URL}
-      - API_VERSION=${API_VERSION}
       - WAIT_HOSTS=${DB_HOST}:${DB_PORT}
       - WAIT_HOSTS_TIMEOUT=300
       - WAIT_SLEEP_INTERVAL=15
@@ -100,6 +105,35 @@ services:
       - ./frontend:/src # 若前端爲build過的靜態檔案，則直接導入頁面位置
     extra_hosts: # 若前端頁面爲前端自己建立的server則必須設定這項去讓nginx可以接同一臺機器的其他port
       - "host.docker.internal:host-gateway"
+
+  backend-airflow-postgres:
+    <<: [*networks, *env-file]
+    image: postgres:13
+    container_name: ${PROJECT_NAME}-airflow-postgres
+    volumes:
+      - ./airflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  backend-airflow-scheduler:
+    <<: [*airflow-common, *airflow-postgres-depends-on, *extra-hosts]
+    image: ${PROJECT_NAME}-airflow
+    build:
+      context: .
+      dockerfile: ./airflow/Dockerfile
+    container_name: ${PROJECT_NAME}-airflow-scheduler
+    hostname: ${PROJECT_NAME}-airflow-scheduler
+    command: "airflow scheduler"
+    restart: on-failure
+
+  backend-airflow-webserver:
+    <<: [*airflow-image, *airflow-common, *airflow-postgres-depends-on]
+    container_name: ${PROJECT_NAME}-airflow-webserver
+    restart: always
+    command: "airflow webserver"
+    hostname: ${PROJECT_NAME}-airflow-webserver
 
 networks:
   net:
