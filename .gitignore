@@ -9,6 +9,7 @@ desktop.ini
 00*_*.py
 backend/staticfiles
 *.pid
+airflow-postgres-data/
 
 
 # Byte-compiled / optimized / DLL files
