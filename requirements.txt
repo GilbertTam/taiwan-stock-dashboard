@@ -1,0 +1,54 @@
+# Handle two or more services
+supervisor
+
+# Control the dependencies
+numpy==1.26.4
+
+# Django
+Django==5.1.4
+# Django Packages
+django-cors-headers==3.11.0
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-simple-history==3.7.0
+django-allauth==64.0.0
+# Static files
+whitenoise==6.5.0
+# Redis
+django-redis==5.4.0
+# Admin panel customization
+django-import-export==4.1.1
+
+# Swagger documentation
+drf-yasg==1.21.4
+
+# Database
+psycopg2-binary  # PostgreSQL adapter
+
+pyparsing==3.0.8
+
+pandas
+loguru
+google-auth
+
+# Task scheduler
+django-q2
+
+# Debug
+ipython
+ipdb
+django-debug-toolbar
+django-cprofile-middleware
+pyinstrument
+django-silk
+
+# Database visualization and extensions
+django-schema-graph
+django_extensions
+pygraphviz
+pydot
+
+# Websocket
+channels==4.0.0
+channels_redis==4.1.0
+daphne==4.0.0
