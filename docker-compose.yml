@@ -8,6 +8,31 @@ x-common-restart:
   &restart
   restart: always
 
+x-extra-hosts:
+  &extra-hosts
+  extra_hosts: # 若前端頁面爲前端自己建立的server則必須設定這項去讓nginx可以接同一臺機器的其他port
+    - "host.docker.internal:host-gateway"
+
+x-env:
+  &env-file
+  env_file: 
+    - ./.env
+
+x-airflow-image:
+  &airflow-image
+  image: ${PROJECT_NAME}-airflow
+
+x-airflow-common:
+  &airflow-common
+  <<: [*env-file, *networks]
+  user: "airflow"
+  volumes:
+    - ./backend:/backend
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/plugins:/opt/airflow/plugins
+    - ./airflow/utils:/opt/airflow/utils
+
 services:
   backend-postgres:
     <<: [ *restart, *networks ]
@@ -68,7 +93,7 @@ services:
     image: nginx:latest
     hostname: ${PROJECT_NAME}-nginx
     ports:
-      - "${HOST_PORT}:80"
+      - "${PROJECT_PORT}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
