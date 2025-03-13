@@ -153,6 +153,18 @@ INSTALLED_APPS = [
     "django_login_history",
     # 使用者額外資訊
     "userprofile",
+    # QUICK API
+    "quick_api",
+    # 日本區域
+    "area",
+    # 電力市場價格
+    "spot_market",
+    # 電力市場價格預測
+    "spot_market_predict",
+    # 天氣
+    "weather_actual",
+    # 天氣預測
+    "weather_forecast",
     # ==================
     # Test Apps
     # ==================
@@ -198,7 +210,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -489,5 +500,11 @@ CACHE_TTL = 60 * 60
 print(f"---------- CACHE PAGE: {CACHE_PAGE}")
 print(f"---------- CACHE TTL: {CACHE_TTL} sec(s)")
 # -------------- END - Cache Page Setting --------------
+
+# -------------- START - QUICK API Setting --------------
+QUICK_API_USERNAME = os.environ.get("QUICK_API_USERNAME")
+QUICK_API_PASSWORD = os.environ.get("QUICK_API_PASSWORD")
+# -------------- END - QUICK API Setting --------------
+
 
 print("-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-")
