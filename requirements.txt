@@ -30,6 +30,7 @@ pyparsing==3.0.8
 pandas
 loguru
 google-auth
+tqdm
 
 # Task scheduler
 django-q2
