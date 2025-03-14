@@ -401,6 +401,11 @@ LOGGING = {
             "propagate": False,
             "level": "DEBUG"
         },
+        "weather_data": {
+            "handlers": ["api"],
+            "propagate": False,
+            "level": "DEBUG"
+        },
     }
 }
 
