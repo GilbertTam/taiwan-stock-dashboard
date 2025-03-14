@@ -146,7 +146,7 @@ class QuickPredictViewSet(viewsets.ViewSet):
                         name_jp
                     FROM latest_predictions
                     WHERE rn = 1
-                    ORDER BY trade_date, time_code, area_name
+                    ORDER BY trade_date, time_code, name
                 """
             else:
                 # 獲取所有預測
