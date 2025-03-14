@@ -54,6 +54,8 @@ urlpatterns += [
     path(f"{URL_PREFIX}/", include('area.urls')),
     # Spot Market API
     path(f"{URL_PREFIX}/", include('spot_market.urls')),
+    # Spot Market Predict API
+    path(f"{URL_PREFIX}/", include('spot_market_predict.urls')),
     # 天氣資料 API
     path(f"{URL_PREFIX}/", include('weather_data.urls')),
 ]
