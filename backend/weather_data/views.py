@@ -42,7 +42,7 @@ class WeatherViewSet(viewsets.ViewSet):
                 required=True
             ),
             openapi.Parameter(
-                'area', 
+                'name', 
                 openapi.IN_QUERY, 
                 description="電力區域名稱 (選填)", 
                 type=openapi.TYPE_STRING,
@@ -102,7 +102,7 @@ class WeatherViewSet(viewsets.ViewSet):
             )
             
             # 可選的區域過濾
-            area_name = request.query_params.get('area')
+            area_name = request.query_params.get('name')
             
             # 使用原生 SQL 查詢
             sql_query = """
@@ -209,7 +209,7 @@ class WeatherViewSet(viewsets.ViewSet):
                 required=True
             ),
             openapi.Parameter(
-                'area', 
+                'name', 
                 openapi.IN_QUERY, 
                 description="電力區域名稱 (選填)", 
                 type=openapi.TYPE_STRING,
@@ -276,7 +276,7 @@ class WeatherViewSet(viewsets.ViewSet):
             )
             
             # 可選參數
-            area_name = request.query_params.get('area')
+            area_name = request.query_params.get('name')
             latest_only = request.query_params.get('latest_only', 'true').lower() == 'true'
             
             # 處理時區問題
