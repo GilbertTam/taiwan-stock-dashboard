@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.conf import settings
 
-from quick_api.utils.quickapi import QuickAPI
+from quick_api.quickapi import QuickAPI
 from area.models import Area
 from area.constants import AREA_EN_CH_MAP, AREA_EN_JP_MAP
 from spot_market.models import SpotTrade, AreaPrice
