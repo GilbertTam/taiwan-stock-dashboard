@@ -401,6 +401,13 @@ LOGGING = {
             "propagate": False,
             "level": "DEBUG"
         },
+        # spot_market相關
+        "spot_market": {
+            "handlers": ["api"],
+            "propagate": False,
+            "level": "DEBUG"
+        },
+        # 天氣資料
         "weather_data": {
             "handlers": ["api"],
             "propagate": False,
