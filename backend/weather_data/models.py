@@ -76,6 +76,9 @@ class ActualWeather(WeatherBase):
             models.Index(fields=['city', 'weather_datetime']),
         ]
         ordering = ['weather_datetime', 'area']
+        # 設定資料表名稱
+        db_table = "actual_weather"
+
 
     def __str__(self):
         return f"{self.city} {self.weather_datetime:%Y-%m-%d %H:%M} {self.temperature}°C"
@@ -102,6 +105,8 @@ class WeatherForecast(WeatherBase):
             models.Index(fields=['city', 'weather_datetime']),
         ]
         ordering = ['get_datetime', 'weather_datetime', 'area']
+        # 設定資料表名稱
+        db_table = "weather_forecast"
 
     def __str__(self):
         return f"{self.city} 在 {self.get_datetime:%Y-%m-%d %H:%M} 預測 {self.weather_datetime:%Y-%m-%d %H:%M} 的天氣"
