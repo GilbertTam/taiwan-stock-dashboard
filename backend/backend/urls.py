@@ -50,8 +50,9 @@ urlpatterns += [
 # Custom APP route
 # =================
 urlpatterns += [
+    # 天氣資料 API
+    path(f"{URL_PREFIX}/", include('weather_data.urls')),
 ]
-
 
 # -------------- START - Swagger View --------------
 
