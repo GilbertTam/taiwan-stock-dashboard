@@ -1,3 +1,10 @@
 from django.contrib import admin
+from django.contrib.admin import ModelAdmin
 
-# Register your models here.
+from area.models import Area
+
+
+@admin.register(Area)
+class AreaAdmin(ModelAdmin):
+    list_display = ('id', 'name', 'name_ch', 'name_jp')
+    search_fields = ('name', 'name_ch', 'name_jp')
