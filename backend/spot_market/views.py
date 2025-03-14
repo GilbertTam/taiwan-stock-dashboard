@@ -86,7 +86,7 @@ class SpotMarketViewSet(viewsets.ViewSet):
             )
         },
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='trades')
     def trades(self, request):
         """獲取現貨市場交易資料"""
         try:
@@ -237,7 +237,7 @@ class SpotMarketViewSet(viewsets.ViewSet):
             )
         },
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='area-prices')
     def area_prices(self, request):
         """獲取區域價格資料"""
         try:
