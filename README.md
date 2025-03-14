@@ -14,6 +14,34 @@ Please specify the required variables in `.env` for this project.
 docker-compose build && docker-compose up
 ```
 
+### Fetch Data
+
+You need to enter the shell at the first time to fetch data.
+
+```bash
+bash dev-tool.sh shell
+```
+
+Then you can run the following commands to fetch data.
+
+#### Spot Market
+
+```bash
+# Basic usage
+python manage.py download_spot 20240101 20240131
+# Use --days-interval to set the interval between two dates
+python manage.py download_spot 20240101 20240131 --days-interval 15 --page-size 5000
+```
+
+#### Spot Market Predict
+
+```bash
+# Basic usage
+python manage.py download_spot_predict 20250101 20250131
+# Use --days-interval to set the interval between two dates
+python manage.py download_spot_predict 20250101 20250131 --days-interval 15 --page-size 5000
+```
+
 ### Rebuild
 
 Clean up and rebuild.
