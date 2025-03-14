@@ -49,6 +49,7 @@ class QuickAreaPricePredict(models.Model):
         indexes = [
             models.Index(fields=['trade_date', 'time_code', 'area']),
         ]
+        db_table = 'quick_area_price_predict'
 
     def __str__(self):
         return f"{self.trade_date} {self.area.name} {self.price_50}"
