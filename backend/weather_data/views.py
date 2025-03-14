@@ -2,15 +2,17 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
 import datetime
 from django.db.models import Q
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from django.db import connection
 
 from .models import ActualWeather, WeatherForecast
 from .serializers import ActualWeatherSerializer, WeatherForecastSerializer
+from area.models import Area
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ class WeatherViewSet(viewsets.ViewSet):
     """
     天氣資料 API
     """
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     
     @swagger_auto_schema(
         operation_summary="獲取實際天氣資料",
@@ -40,9 +42,9 @@ class WeatherViewSet(viewsets.ViewSet):
                 required=True
             ),
             openapi.Parameter(
-                'city', 
+                'area', 
                 openapi.IN_QUERY, 
-                description="城市名稱 (選填)", 
+                description="電力區域名稱 (選填)", 
                 type=openapi.TYPE_STRING,
                 required=False
             ),
@@ -56,8 +58,8 @@ class WeatherViewSet(viewsets.ViewSet):
                         "code": 0,
                         "data": [
                             {
-                                "area_name": "東京電力",
-                                "area_name_jp": "東京電力",
+                                "name": "東京",
+                                "name_jp": "東京",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
                                 "rainfall": 0.0,
@@ -99,38 +101,74 @@ class WeatherViewSet(viewsets.ViewSet):
                 'end_date'
             )
             
-            # 可選的城市過濾
-            city = request.query_params.get('city')
+            # 可選的區域過濾
+            area_name = request.query_params.get('area')
             
-            # 建立查詢（不包含時間範圍的結束日期）
-            queryset = ActualWeather.objects.filter(
-                weather_datetime__range=(
-                    start_date,
-                    end_date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-                )
-            )
+            # 使用原生 SQL 查詢
+            sql_query = """
+                SELECT 
+                    aw.id,
+                    aw.weather_datetime,
+                    aw.temperature,
+                    aw.rainfall,
+                    aw.snowfall,
+                    aw.wind_speed,
+                    aw.wind_direction,
+                    aw.relative_humidity,
+                    aw.weather_id,
+                    aw.city,
+                    aw.deepest_snow,
+                    aw.sunshine_hours,
+                    a.name as name,
+                    a.name_jp as name_jp,
+                    a.name_ch as name_ch
+                FROM actual_weather aw
+                JOIN area_area a ON aw.area_id = a.id
+                WHERE aw.weather_datetime BETWEEN %s AND %s
+                {area_filter}
+                ORDER BY aw.weather_datetime, a.name
+            """
             
-            if city:
-                queryset = queryset.filter(city=city)
+            # 處理時區問題
+            from django.utils import timezone
+            start_date_aware = timezone.make_aware(start_date) if timezone.is_naive(start_date) else start_date
+            end_date_aware = timezone.make_aware(end_date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)) if timezone.is_naive(end_date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)) else (end_date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1))
             
-            # 序列化資料
-            serializer = ActualWeatherSerializer(queryset, many=True)
-
+            # 準備查詢參數
+            params = [start_date_aware, end_date_aware]
+            
+            # 根據是否有區域名稱過濾條件來修改 SQL
+            area_filter = ""
+            if area_name:
+                area_filter = "AND a.name = %s"
+                params.append(area_name)
+            
+            # 格式化 SQL 查詢
+            sql_query = sql_query.format(area_filter=area_filter)
+            
+            # 執行查詢
+            with connection.cursor() as cursor:
+                cursor.execute(sql_query, params)
+                columns = [col[0] for col in cursor.description]
+                results = []
+                for row in cursor.fetchall():
+                    result_dict = dict(zip(columns, row))
+                    # 處理時區 - 將 UTC 時間轉換回本地時間
+                    if result_dict['weather_datetime'] and timezone.is_aware(result_dict['weather_datetime']):
+                        result_dict['weather_datetime'] = timezone.localtime(result_dict['weather_datetime'])
+                    results.append(result_dict)
+            
             # 本次查詢資訊
             logger.debug(f"==== 查詢天氣實際資料 ====")
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
-            # 實際查詢到的日期範圍
-            actual_dates = queryset.values_list('weather_datetime', flat=True).distinct()
-            logger.debug(f"實際查詢到的日期範圍：{actual_dates.first()} 到 {actual_dates.last()}")
-            logger.debug(f"查詢城市：{city if city else '所有城市'}")
-            logger.debug(f"查詢結果數量：{len(serializer.data)}")
+            logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
+            logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
-
 
             return Response({
                 "result": [{"Message": "Success"}],
                 "code": 0,
-                "data": serializer.data
+                "data": results
             })
             
         except ValueError as e:
@@ -140,6 +178,16 @@ class WeatherViewSet(viewsets.ViewSet):
                     "code": 1,
                 },
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            import traceback
+            logger.error(f"查詢天氣實際資料錯誤：{str(e)}\n{traceback.format_exc()}")
+            return Response(
+                {
+                    "result": [{"Message": "Error", "Detail": str(e)}],
+                    "code": 1,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @swagger_auto_schema(
@@ -161,9 +209,9 @@ class WeatherViewSet(viewsets.ViewSet):
                 required=True
             ),
             openapi.Parameter(
-                'city', 
+                'area', 
                 openapi.IN_QUERY, 
-                description="城市名稱 (選填)", 
+                description="電力區域名稱 (選填)", 
                 type=openapi.TYPE_STRING,
                 required=False
             ),
@@ -184,8 +232,8 @@ class WeatherViewSet(viewsets.ViewSet):
                         "code": 0,
                         "data": [
                             {
-                                "area_name": "東京電力",
-                                "area_name_jp": "東京電力",
+                                "name": "東京",
+                                "name_jp": "東京",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
                                 "rainfall": 0.0,
@@ -228,64 +276,137 @@ class WeatherViewSet(viewsets.ViewSet):
             )
             
             # 可選參數
-            city = request.query_params.get('city')
+            area_name = request.query_params.get('area')
             latest_only = request.query_params.get('latest_only', 'true').lower() == 'true'
             
-            # 建立查詢
-            queryset = WeatherForecast.objects.filter(
-                weather_datetime__range=(
-                    start_date,
-                    end_date + datetime.timedelta(days=1)
-                )
-            )
+            # 處理時區問題
+            from django.utils import timezone
+            start_date_aware = timezone.make_aware(start_date) if timezone.is_naive(start_date) else start_date
+            end_date_aware = timezone.make_aware(end_date + datetime.timedelta(days=1)) if timezone.is_naive(end_date + datetime.timedelta(days=1)) else (end_date + datetime.timedelta(days=1))
             
-            if city:
-                queryset = queryset.filter(city=city)
-            
+            # 構建 SQL 查詢
             if latest_only:
-                # 獲取每個組合的最新預測資料
-                from django.db.models import Max, F, OuterRef, Subquery
-                
-                # 子查詢：找出每個組合的最新 get_datetime
-                latest_times = WeatherForecast.objects.filter(
-                    weather_datetime__range=(start_date, end_date + datetime.timedelta(days=1))
-                )
-                if city:
-                    latest_times = latest_times.filter(city=city)
-                
-                latest_times = latest_times.values('weather_datetime', 'area', 'city').annotate(
-                    latest_get_datetime=Max('get_datetime')
-                )
-
-                # 使用組合條件過濾
-                filter_q = Q()
-                for item in latest_times:
-                    filter_q |= Q(
-                        weather_datetime=item['weather_datetime'],
-                        area=item['area'],
-                        city=item['city'],
-                        get_datetime=item['latest_get_datetime']
+                # 使用窗口函數獲取最新預測
+                sql_query = """
+                    WITH latest_forecasts AS (
+                        SELECT 
+                            wf.id,
+                            wf.area_id,
+                            wf.city,
+                            wf.weather_datetime,
+                            wf.get_datetime,
+                            wf.temperature,
+                            wf.rainfall,
+                            wf.snowfall,
+                            wf.wind_speed,
+                            wf.wind_direction,
+                            wf.relative_humidity,
+                            wf.weather_id,
+                            wf.clouds_all,
+                            a.name as name,
+                            a.name_jp as name_jp,
+                            a.name_ch as name_ch,
+                            ROW_NUMBER() OVER(
+                                PARTITION BY wf.weather_datetime, wf.area_id, wf.city 
+                                ORDER BY wf.get_datetime DESC
+                            ) as rn
+                        FROM weather_forecast wf
+                        JOIN area_area a ON wf.area_id = a.id
+                        WHERE 
+                            wf.weather_datetime BETWEEN %s AND %s
+                            {area_filter}
                     )
+                    SELECT 
+                        id,
+                        area_id,
+                        city,
+                        weather_datetime,
+                        get_datetime,
+                        temperature,
+                        rainfall,
+                        snowfall,
+                        wind_speed,
+                        wind_direction,
+                        relative_humidity,
+                        weather_id,
+                        clouds_all,
+                        name,
+                        name_jp,
+                        name_ch
+                    FROM latest_forecasts
+                    WHERE rn = 1
+                    ORDER BY weather_datetime, name, city
+                """
+            else:
+                # 獲取所有預測
+                sql_query = """
+                    SELECT 
+                        wf.id,
+                        wf.area_id,
+                        wf.city,
+                        wf.weather_datetime,
+                        wf.get_datetime,
+                        wf.temperature,
+                        wf.rainfall,
+                        wf.snowfall,
+                        wf.wind_speed,
+                        wf.wind_direction,
+                        wf.relative_humidity,
+                        wf.weather_id,
+                        wf.clouds_all,
+                        a.name as name,
+                        a.name_jp as name_jp,
+                        a.name_ch as name_ch
+                    FROM weather_forecast wf
+                    JOIN area_area a ON wf.area_id = a.id
+                    WHERE 
+                        wf.weather_datetime BETWEEN %s AND %s
+                        {area_filter}
+                    ORDER BY wf.weather_datetime, a.name, wf.city, wf.get_datetime DESC
+                """
+            
+            # 添加區域過濾條件
+            area_filter = ""
+            params = [start_date_aware, end_date_aware]
+            if area_name:
+                area_filter = "AND a.name = %s"
+                params.append(area_name)
+            
+            # 格式化 SQL 查詢
+            sql_query = sql_query.format(area_filter=area_filter)
+            
+            # 執行原生 SQL 查詢
+            with connection.cursor() as cursor:
+                cursor.execute(sql_query, params)
                 
-                queryset = queryset.filter(filter_q)
-
-            serializer = WeatherForecastSerializer(queryset, many=True)
-
+                # 獲取列名
+                columns = [col[0] for col in cursor.description]
+                
+                # 獲取結果
+                results = []
+                for row in cursor.fetchall():
+                    # 將查詢結果轉換為字典
+                    result_dict = dict(zip(columns, row))
+                    
+                    # 處理時區 - 將 UTC 時間轉換回本地時間
+                    for dt_field in ['weather_datetime', 'get_datetime']:
+                        if result_dict[dt_field] and timezone.is_aware(result_dict[dt_field]):
+                            result_dict[dt_field] = timezone.localtime(result_dict[dt_field])
+                    
+                    results.append(result_dict)
+            
             # 本次查詢資訊
             logger.debug(f"==== 查詢天氣預測資料 ====")
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
-            # 實際查詢到的日期範圍
-            actual_dates = queryset.values_list('weather_datetime', flat=True).distinct()
-            logger.debug(f"實際查詢到的日期範圍：{actual_dates.first()} 到 {actual_dates.last()}")
-            logger.debug(f"查詢城市：{city if city else '所有城市'}")
+            logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
             logger.debug(f"是否只返回最新預測：{latest_only}")
-            logger.debug(f"查詢結果數量：{len(serializer.data)}")
+            logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
 
             return Response({
                 "result": [{"Message": "Success"}],
                 "code": 0,
-                "data": serializer.data
+                "data": results
             })
             
         except ValueError as e:
@@ -295,6 +416,16 @@ class WeatherViewSet(viewsets.ViewSet):
                     "code": 1,
                 },
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            import traceback
+            logger.error(f"查詢天氣預測資料錯誤：{str(e)}\n{traceback.format_exc()}")
+            return Response(
+                {
+                    "result": [{"Message": "Error", "Detail": str(e)}],
+                    "code": 1,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def validate_date_param(self, date_str, param_name):
