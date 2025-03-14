@@ -1,4 +1,4 @@
-FROM apache/airflow:slim-2.10.4-python3.12
+FROM apache/airflow:slim-2.10.5-python3.12
 ENV PYTHONUNBUFFERED=1
 
 # ========================
