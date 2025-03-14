@@ -119,9 +119,9 @@ class SpotMarketViewSet(viewsets.ViewSet):
                     a.name_jp as name_jp,
                     ap.price,
                     ap.avoidable_cost
-                FROM spot_market_spottrade st
-                JOIN spot_market_areaprice ap ON st.id = ap.spot_trade_id
-                JOIN area_area a ON ap.area_id = a.id
+                FROM spot_trade st
+                JOIN area_price ap ON st.id = ap.spot_trade_id
+                JOIN area a ON ap.area_id = a.id
                 WHERE 
                     st.trade_date BETWEEN %s AND %s
                     {area_filter}
@@ -273,9 +273,9 @@ class SpotMarketViewSet(viewsets.ViewSet):
                     a.name_jp as name_jp,
                     ap.price,
                     ap.avoidable_cost
-                FROM spot_market_spottrade st
-                JOIN spot_market_areaprice ap ON st.id = ap.spot_trade_id
-                JOIN area_area a ON ap.area_id = a.id
+                FROM spot_trade st
+                JOIN area_price ap ON st.id = ap.spot_trade_id
+                JOIN area a ON ap.area_id = a.id
                 WHERE 
                     st.trade_date BETWEEN %s AND %s
                     AND a.name = %s

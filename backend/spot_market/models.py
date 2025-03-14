@@ -26,6 +26,7 @@ class SpotTrade(models.Model):
         indexes = [
             models.Index(fields=['trade_date', 'time_code']),
         ]
+        db_table = 'spot_trade'
 
     def __str__(self):
         return f"{self.trade_date} 時段{self.time_code}"
@@ -64,6 +65,7 @@ class AreaPrice(models.Model):
         indexes = [
             models.Index(fields=['spot_trade', 'area']),
         ]
+        db_table = 'area_price'
 
     def __str__(self):
         return f"{self.spot_trade} {self.area.name} {self.price}"

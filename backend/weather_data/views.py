@@ -123,7 +123,7 @@ class WeatherViewSet(viewsets.ViewSet):
                     a.name_jp as name_jp,
                     a.name_ch as name_ch
                 FROM actual_weather aw
-                JOIN area_area a ON aw.area_id = a.id
+                JOIN area a ON aw.area_id = a.id
                 WHERE aw.weather_datetime BETWEEN %s AND %s
                 {area_filter}
                 ORDER BY aw.weather_datetime, a.name
@@ -311,7 +311,7 @@ class WeatherViewSet(viewsets.ViewSet):
                                 ORDER BY wf.get_datetime DESC
                             ) as rn
                         FROM weather_forecast wf
-                        JOIN area_area a ON wf.area_id = a.id
+                        JOIN area a ON wf.area_id = a.id
                         WHERE 
                             wf.weather_datetime BETWEEN %s AND %s
                             {area_filter}
@@ -358,7 +358,7 @@ class WeatherViewSet(viewsets.ViewSet):
                         a.name_jp as name_jp,
                         a.name_ch as name_ch
                     FROM weather_forecast wf
-                    JOIN area_area a ON wf.area_id = a.id
+                    JOIN area a ON wf.area_id = a.id
                     WHERE 
                         wf.weather_datetime BETWEEN %s AND %s
                         {area_filter}

@@ -10,6 +10,7 @@ class Area(models.Model):
         verbose_name = "電力區域"
         verbose_name_plural = "電力區域"
         ordering = ['name']
-        
+        db_table = 'area'
+
     def __str__(self):
         return self.name
