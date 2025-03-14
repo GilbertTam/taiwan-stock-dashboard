@@ -42,6 +42,25 @@ python manage.py download_spot_predict 20250101 20250131
 python manage.py download_spot_predict 20250101 20250131 --days-interval 15 --page-size 5000
 ```
 
+#### Weather Data
+
+```bash
+# 基本用法
+python manage.py download_weather_actual 20250101 20250101
+# 指定每頁資料筆數
+python manage.py download_weather_actual 20250101 20250101 --page-size 1000
+```
+
+#### Weather Data Predict
+
+```bash
+# 基本用法
+python manage.py download_weather_forecast 20250101 20250131
+# 指定每頁資料筆數
+python manage.py download_weather_forecast 20250101 20250131 --page-size 1000
+````
+
+
 ### Rebuild
 
 Clean up and rebuild.
