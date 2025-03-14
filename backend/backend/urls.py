@@ -50,6 +50,10 @@ urlpatterns += [
 # Custom APP route
 # =================
 urlpatterns += [
+    # 電力區域 API
+    path(f"{URL_PREFIX}/", include('area.urls')),
+    # Spot Market API
+    path(f"{URL_PREFIX}/", include('spot_market.urls')),
     # 天氣資料 API
     path(f"{URL_PREFIX}/", include('weather_data.urls')),
 ]
