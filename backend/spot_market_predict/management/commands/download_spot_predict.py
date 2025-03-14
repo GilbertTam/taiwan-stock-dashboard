@@ -7,7 +7,7 @@ from django.db import transaction
 from django.conf import settings
 from loguru import logger
 
-from quick_api.utils.quickapi import QuickAPI
+from quick_api.quickapi import QuickAPI
 from area.models import Area
 from spot_market_predict.models import QuickAreaPricePredict
 
@@ -140,7 +140,7 @@ class Command(BaseCommand):
         }
         
         self.stdout.write(f"現有資料筆數: {len(existing_prices)}")
-        self.stdout.write(f"新資料筆數: {len(df)}")
+        self.stdout.write(f"從API取得資料筆數: {len(df)}")
         
         # 初始化要新增和更新的列表
         prices_to_create = []
