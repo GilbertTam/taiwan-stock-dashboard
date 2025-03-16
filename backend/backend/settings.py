@@ -161,6 +161,8 @@ INSTALLED_APPS = [
     "spot_market",
     # 電力市場價格預測
     "spot_market_predict",
+    # 自定義電力市場價格預測
+    "custom_spot_market_predict",
     # 天氣資料（實際與預測）
     "weather_data",
     # ==================
