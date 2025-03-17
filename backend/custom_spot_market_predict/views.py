@@ -180,7 +180,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
                             ) as rn
                         FROM custom_area_price_predict cap
                         JOIN prediction_model pm ON cap.model_id = pm.id
-                        JOIN area_area a ON cap.area_id = a.id
+                        JOIN area a ON cap.area_id = a.id
                         WHERE 
                             cap.trade_date BETWEEN %s AND %s
                             AND pm.name = %s
@@ -226,7 +226,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
                         a.name_jp as area_name_jp
                     FROM custom_area_price_predict cap
                     JOIN prediction_model pm ON cap.model_id = pm.id
-                    JOIN area_area a ON cap.area_id = a.id
+                    JOIN area a ON cap.area_id = a.id
                     WHERE 
                         cap.trade_date BETWEEN %s AND %s
                         AND pm.name = %s
@@ -401,7 +401,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
                     cap.calculating_date
                 FROM custom_area_price_predict cap
                 JOIN prediction_model pm ON cap.model_id = pm.id
-                JOIN area_area a ON cap.area_id = a.id
+                JOIN area a ON cap.area_id = a.id
                 WHERE 
                     cap.trade_date BETWEEN %s AND %s
                     AND a.name = %s
