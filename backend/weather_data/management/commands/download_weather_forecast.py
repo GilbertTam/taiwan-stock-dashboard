@@ -68,7 +68,7 @@ class Command(BaseCommand):
                                 to_datetime=to_datetime,
                                 area=area_name_jp,
                                 section=api.weather.section.ALL,
-                                page=1,
+                                page=1, # 只需要第一頁資料，因為page_size夠大
                                 page_size=page_size
                             )
                         all_results.extend(result['results'])
