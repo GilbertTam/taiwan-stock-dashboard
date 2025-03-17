@@ -35,15 +35,15 @@ python manage.py download_spot 20240101 20240131
 python manage.py download_spot 20240101 20240131 --days-interval 15 --page-size 5000
 ```
 
-#### Spot Market Predict
+#### QUICK Spot Market Predict
 
-Spot market prediction data is fetched from the API.
+QUICK Spot market prediction data is fetched from the QUICK API.
 
 ```bash
-# Basic usage
-python manage.py download_spot_predict 20250101 20250131
-# Use --days-interval to set the interval between two dates
-python manage.py download_spot_predict 20250101 20250131 --days-interval 15 --page-size 5000
+# 基本用法
+python manage.py download_quick_spot_predict 20230101 20230131
+# 指定其他參數
+python manage.py download_quick_spot_predict 20230101 20230131 --days-interval=10 --page-size=50000
 ```
 
 #### Weather Data
