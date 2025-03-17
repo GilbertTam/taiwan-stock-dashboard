@@ -41,6 +41,18 @@ class Command(BaseCommand):
             default=30000, # 一次最多取得 X 筆資料
             help='每頁資料筆數'
         )
+        parser.add_argument(
+            '--max-retries',
+            type=int,
+            default=10,
+            help='最大重試次數'
+        )
+        parser.add_argument(
+            '--retry-delay',
+            type=int,
+            default=5,
+            help='重試延遲時間 (秒)'
+        )
 
     def generate_date_pairs(self, from_date: str, to_date: str, days_interval: int = 14) -> list:
         """生成日期區間pairs"""
@@ -68,6 +80,8 @@ class Command(BaseCommand):
         to_date: str,
         days_interval: int = 7,
         page_size: int = 30000,
+        max_retries: int = 10,
+        retry_delay: int = 5
     ) -> pd.DataFrame:
         """取得指定條件的所有電力現貨價格預測資料"""
         all_results = []
@@ -75,8 +89,6 @@ class Command(BaseCommand):
 
         for start_date, end_date in tqdm(date_pairs, desc="下載資料進度"):
             page = 1
-            max_retries = 3
-            retry_delay = 5
             
             while True:
                 retry_count = 0
@@ -241,6 +253,8 @@ class Command(BaseCommand):
         to_date = options['to_date']
         days_interval = options['days_interval']
         page_size = options['page_size']
+        max_retries = options['max_retries']
+        retry_delay = options['retry_delay']
         model_name = options['model_name']
         model_version = options['model_version']
 
@@ -255,7 +269,9 @@ class Command(BaseCommand):
             from_date,
             to_date,
             days_interval,
-            page_size
+            page_size,
+            max_retries,
+            retry_delay
         )
 
         if len(df) == 0:
