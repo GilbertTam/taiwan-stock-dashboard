@@ -43,27 +43,26 @@ class Command(BaseCommand):
             for x in range(0, (end_datetime-start_datetime).days+1)
         ]
 
-        with QuickAPI(username=username, password=password) as api:
+        for area in Area.objects.all():
 
-            for area in Area.objects.all():
+            # 取得區域名稱
+            area_name_jp = area.name_jp
 
-                # 取得區域名稱
-                area_name_jp = area.name_jp
+            # 下載天氣實際資料
+            self.stdout.write(self.style.SUCCESS(f"下載 {area_name_jp} 的天氣實際資料..."))
 
-                # 下載天氣實際資料
-                self.stdout.write(self.style.SUCCESS(f"下載 {area_name_jp} 的天氣實際資料..."))
+            for date in tqdm(date_list, desc="下載天氣預測資料"):
+                # 不需要調整時區，因為預測資料的時間戳記已經是正確的
+                from_datetime = date.strftime("%Y%m%d%H0000")
+                to_datetime = (date + datetime.timedelta(hours=23)).strftime("%Y%m%d%H0000")
 
-                for date in tqdm(date_list, desc="下載天氣預測資料"):
-                    # 不需要調整時區，因為預測資料的時間戳記已經是正確的
-                    from_datetime = date.strftime("%Y%m%d%H0000")
-                    to_datetime = (date + datetime.timedelta(hours=23)).strftime("%Y%m%d%H0000")
-
-                    max_retries = 3
-                    retry_delay = 5
-                    retry_count = 0
-                    
-                    while retry_count < max_retries:
-                        try:
+                max_retries = 3
+                retry_delay = 5
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        with QuickAPI(username=username, password=password) as api:
                             result = api.weather.get_weather_forecast(
                                 from_datetime=from_datetime,
                                 to_datetime=to_datetime,
@@ -72,23 +71,23 @@ class Command(BaseCommand):
                                 page=1,
                                 page_size=page_size
                             )
-                            all_results.extend(result['results'])
-                            break
-                        except Exception as e:
-                            retry_count += 1
-                            if retry_count < max_retries:
-                                self.stdout.write(
-                                    self.style.WARNING(
-                                        f"第 {retry_count} 次嘗試失敗: {str(e)}，{retry_delay} 秒後重試..."
-                                    )
+                        all_results.extend(result['results'])
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"第 {retry_count} 次嘗試失敗: {str(e)}，{retry_delay} 秒後重試..."
                                 )
-                                time.sleep(retry_delay)
-                            else:
-                                self.stdout.write(
-                                    self.style.ERROR(
-                                        f"已重試 {max_retries} 次仍然失敗: {str(e)}"
-                                    )
+                            )
+                            time.sleep(retry_delay)
+                        else:
+                            self.stdout.write(
+                                self.style.ERROR(
+                                    f"已重試 {max_retries} 次仍然失敗: {str(e)}"
                                 )
+                            )
 
         df = pd.DataFrame(all_results)
         df['get_datetime'] = pd.to_datetime(df['get_datetime'])  # 預測時間

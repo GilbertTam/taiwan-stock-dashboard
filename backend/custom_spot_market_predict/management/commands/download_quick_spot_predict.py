@@ -73,19 +73,19 @@ class Command(BaseCommand):
         all_results = []
         date_pairs = self.generate_date_pairs(from_date, to_date, days_interval)
 
-        with QuickAPI(username=username, password=password) as api:
+        for start_date, end_date in tqdm(date_pairs, desc="下載資料進度"):
+            page = 1
+            max_retries = 3
+            retry_delay = 5
+            
+            while True:
+                retry_count = 0
+                while retry_count < max_retries:
+                    try:
+                        start_time = time.time()
+                        self.stdout.write(f"正在取得 {start_date} 到 {end_date} 的第 {page} 頁預測資料")
 
-            for start_date, end_date in tqdm(date_pairs, desc="下載資料進度"):
-                page = 1
-                max_retries = 3
-                retry_delay = 5
-                
-                while True:
-                    retry_count = 0
-                    while retry_count < max_retries:
-                        try:
-                            start_time = time.time()
-                            self.stdout.write(f"正在取得 {start_date} 到 {end_date} 的第 {page} 頁預測資料")
+                        with QuickAPI(username=username, password=password) as api:
                             result = api.price_predict.get_spot_power_price_prediction(
                                 from_date=start_date,
                                 to_date=end_date,
@@ -93,31 +93,32 @@ class Command(BaseCommand):
                                 page=str(page),
                                 page_size=page_size
                             )
-                            all_results.extend(result['results'])
-                            end_time = time.time()
-                            self.stdout.write(f"取得 {len(result['results'])} 筆資料，耗時 {end_time - start_time:.2f} 秒")
-                            
-                            if not result['next']:
-                                break
 
-                            page += 1
+                        all_results.extend(result['results'])
+                        end_time = time.time()
+                        self.stdout.write(f"取得 {len(result['results'])} 筆資料，耗時 {end_time - start_time:.2f} 秒")
+                        
+                        if not result['next']:
                             break
 
-                        except Exception as e:
-                            retry_count += 1
-                            if retry_count < max_retries:
-                                self.stdout.write(self.style.WARNING(
-                                    f"第 {retry_count} 次嘗試失敗: {str(e)}，{retry_delay} 秒後重試..."
-                                ))
-                                time.sleep(retry_delay)
-                            else:
-                                self.stdout.write(self.style.ERROR(
-                                    f"已重試 {max_retries} 次仍然失敗: {str(e)}"
-                                ))
-                                break
-                    
-                    if retry_count >= max_retries or not result['next']:
+                        page += 1
                         break
+
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            self.stdout.write(self.style.WARNING(
+                                f"第 {retry_count} 次嘗試失敗: {str(e)}，{retry_delay} 秒後重試..."
+                            ))
+                            time.sleep(retry_delay)
+                        else:
+                            self.stdout.write(self.style.ERROR(
+                                f"已重試 {max_retries} 次仍然失敗: {str(e)}"
+                            ))
+                            break
+                
+                if retry_count >= max_retries or not result['next']:
+                    break
 
             df = pd.DataFrame(all_results)
             
