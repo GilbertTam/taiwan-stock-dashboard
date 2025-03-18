@@ -470,7 +470,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
                 description="參數錯誤",
                 examples={
                     "application/json": {
-                        "result": [{"Message": "Error", "Detail": "預測數據格式錯誤"}],
+                        "result": [{"Message": "Error", "Detail": "預測資料格式錯誤"}],
                         "code": 1,
                     }
                 },
@@ -478,21 +478,11 @@ class CustomPredictViewSet(viewsets.ViewSet):
         },
     )
     @action(detail=False, methods=['post'], url_path='upload-predictions')
-    @transaction.atomic  # 使用事務確保數據一致性
+    @transaction.atomic  # 使用atomic確保資料庫一致性
     def upload_predictions(self, request):
         """批量上傳預測資料"""
-        # 需要身份驗證
-        if not request.user.is_authenticated:
-            return Response(
-                {
-                    "result": [{"Message": "Error", "Detail": "需要身份驗證"}],
-                    "code": 1,
-                },
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
         try:
-            # 驗證請求數據
+            # 驗證請求資料
             serializer = CustomAreaPricePredictBulkCreateSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(
@@ -503,13 +493,13 @@ class CustomPredictViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 獲取驗證後的數據
+            # 獲取驗證後的資料
             validated_data = serializer.validated_data
             model = validated_data['model']
             calculating_date = validated_data['calculating_date']
             predictions = validated_data['predictions']
             
-            # 創建或更新預測數據
+            # 創建或更新預測　
             created_count = 0
             updated_count = 0
             
