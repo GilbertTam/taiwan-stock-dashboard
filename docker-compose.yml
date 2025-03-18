@@ -42,6 +42,18 @@ x-depends-on-airflow-postgres:
     #  condition: service_completed_successfully
 
 services:
+
+  frontend:
+    <<: [ *restart, *networks ]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend-api:8000
+    depends_on:
+      - backend-api
+
   backend-postgres:
     <<: [ *restart, *networks ]
     container_name: ${PROJECT_NAME}-postgres
