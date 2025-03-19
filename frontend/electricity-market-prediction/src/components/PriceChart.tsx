@@ -22,6 +22,7 @@ interface PriceChartProps {
     name: string;
     version: string;
     color: string;
+    calculatingDate: string;
   }[];
 }
 
@@ -365,6 +366,9 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                     <TableRow key={`model-${modelKey}`}>
                       <TableCell sx={{ color: modelColor }}>
                         {`${model.name} ${model.version}:`}
+                        <Typography variant="caption" display="block" sx={{ color: colors.subText }}>
+                          {model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}
+                        </Typography>
                       </TableCell>
                       {actualDisplayPoints.map((point, index) => {
                         const modelPrediction = point.data.modelPredictions.find(
@@ -645,7 +649,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             return (
               <Chip 
                 key={`legend-${modelKey}`}
-                label={`${model.name} ${model.version}`} 
+                label={`${model.name} ${model.version} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`} 
                 size="small" 
                 sx={{ 
                   backgroundColor: 'transparent', 
