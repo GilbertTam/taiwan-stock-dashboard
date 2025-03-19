@@ -6,7 +6,8 @@ import {
   Container, Box, Grid, Paper, Typography, FormControl, 
   InputLabel, Select, MenuItem, Button, Switch, 
   FormControlLabel, SelectChangeEvent, Alert, Divider,
-  Tooltip, IconButton, Chip, Checkbox, ListItemText, OutlinedInput
+  Tooltip, IconButton, Chip, Checkbox, ListItemText, OutlinedInput,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -17,7 +18,8 @@ import {
   fetchPredictionModels, 
   fetchPredictions, 
   fetchActualPrices,
-  fetchAvailableCalculatingDates 
+  fetchAvailableCalculatingDates,
+  fetchSpecificPredictions 
 } from '@/services/api';
 import PriceChart from '@/components/PriceChart';
 import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate } from '@/types';
@@ -47,18 +49,18 @@ export default function ElectricityPriceComparison() {
   // 狀態管理
   const [areas, setAreas] = useState<Area[]>([]);
   const [models, setModels] = useState<PredictionModel[]>([]);
-  const [calculatingDates, setCalculatingDates] = useState<CalculatingDate[]>([]);
+  const [calculatingDatesByModel, setCalculatingDatesByModel] = useState<{ [key: string]: CalculatingDate[] }>({});
   const [selectedArea, setSelectedArea] = useState<string>('');
   
-  // 多模型選擇
+  // 多模型選擇，並為每個模型添加 calculatingDate 屬性
   const [selectedModels, setSelectedModels] = useState<{
     id: number;
     name: string;
     version: string;
     color: string;
+    calculatingDate: string; // 'latest' 或特定日期
   }[]>([]);
   
-  const [selectedCalculatingDate, setSelectedCalculatingDate] = useState<string>('');
   const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [actualPrices, setActualPrices] = useState<AreaPrice[]>([]);
@@ -84,13 +86,14 @@ export default function ElectricityPriceComparison() {
         }
         
         if (modelsData.length > 0) {
-          // 默認選擇第一個模型
+          // 默認選擇第一個模型，並設置 calculatingDate 為 'latest'
           const firstModel = modelsData[0];
           setSelectedModels([{
             id: firstModel.id,
             name: firstModel.name,
             version: firstModel.version,
-            color: MODEL_COLORS[0]
+            color: MODEL_COLORS[0],
+            calculatingDate: 'latest'
           }]);
         }
       } catch (err: any) {
@@ -112,9 +115,9 @@ export default function ElectricityPriceComparison() {
     fetchInitialData();
   }, [logout]);
   
-  // 當選擇區域和模型後，獲取可用的計算日期
+  // 當選擇區域和模型後，獲取每個模型可用的計算日期
   useEffect(() => {
-    const fetchCalculatingDates = async () => {
+    const fetchAllCalculatingDates = async () => {
       if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
         return;
       }
@@ -123,24 +126,44 @@ export default function ElectricityPriceComparison() {
         const formattedStartDate = format(startDate, 'yyyyMMdd');
         const formattedEndDate = format(endDate, 'yyyyMMdd');
         
-        // 使用第一個選擇的模型來獲取計算日期
-        const firstModel = selectedModels[0];
+        // 為每個選擇的模型獲取可用的計算日期
+        const datesPromises = selectedModels.map(model => 
+          fetchAvailableCalculatingDates({
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
+            area_name: selectedArea,
+            model_name: model.name,
+            model_version: model.version
+          }).then(dates => ({
+            modelKey: `${model.id}|${model.name}|${model.version}`,
+            dates
+          }))
+        );
         
-        const dates = await fetchAvailableCalculatingDates({
-          start_date: formattedStartDate,
-          end_date: formattedEndDate,
-          area_name: selectedArea,
-          model_name: firstModel.name,
-          model_version: firstModel.version
+        const results = await Promise.all(datesPromises);
+        
+        // 更新每個模型的可用計算日期
+        const newCalculatingDatesByModel: { [key: string]: CalculatingDate[] } = {};
+        results.forEach(result => {
+          newCalculatingDatesByModel[result.modelKey] = result.dates;
         });
         
-        setCalculatingDates(dates);
+        setCalculatingDatesByModel(newCalculatingDatesByModel);
         
-        if (dates.length > 0) {
-          setSelectedCalculatingDate(dates[0].calculating_date);
-        } else {
-          setSelectedCalculatingDate('');
-        }
+        // 更新每個模型的計算日期，如果之前沒有設置或之前的日期不在新的可用日期中
+        setSelectedModels(prev => prev.map(model => {
+          const modelKey = `${model.id}|${model.name}|${model.version}`;
+          const availableDates = newCalculatingDatesByModel[modelKey] || [];
+          
+          // 如果當前選擇的不是 'latest' 且不在可用日期中，則設為 'latest'
+          if (model.calculatingDate !== 'latest' && 
+              !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
+            return { ...model, calculatingDate: 'latest' };
+          }
+          
+          return model;
+        }));
+        
       } catch (err: any) {
         console.error('獲取計算日期失敗', err);
         
@@ -153,8 +176,8 @@ export default function ElectricityPriceComparison() {
       }
     };
     
-    fetchCalculatingDates();
-  }, [selectedArea, selectedModels, startDate, endDate, logout]);
+    fetchAllCalculatingDates();
+  }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}|${m.version}`).join(','), startDate, endDate, logout]);
   
   // 獲取數據的函數
   const fetchData = async () => {
@@ -183,17 +206,36 @@ export default function ElectricityPriceComparison() {
       
       // 使用 Promise.all 並行獲取所有模型的預測
       await Promise.all(selectedModels.map(async (model) => {
-        const modelPredictions = await fetchPredictions({
-          start_date: formattedStartDate,
-          end_date: formattedEndDate,
-          area_name: selectedArea,
-          model_name: model.name,
-          model_version: model.version,
-          latest_only: true,
-          calculating_date: selectedCalculatingDate || undefined
-        });
-        
         const modelKey = `${model.id}|${model.name}|${model.version}`;
+        
+        let modelPredictions;
+
+        if (model.calculatingDate === 'latest') {
+          // 使用 fetchPredictions 獲取最新預測
+          modelPredictions = await fetchPredictions({
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
+            area_name: selectedArea,
+            model_name: model.name,
+            model_version: model.version,
+            latest_only: true
+          });
+        } else {
+          // 使用 fetchSpecificPredictions 獲取特定日期的預測
+          // ！！注意！！
+          // 這裡的 calculating_date 是模型計算日期
+          // calculating_date格式是 'yyyy-MM-dd'
+          // 送進API的時候需要轉換成 'yyyyMMdd'
+          const formattedCalculatingDate = format(new Date(model.calculatingDate), 'yyyyMMdd');
+          modelPredictions = await fetchSpecificPredictions({
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
+            area_name: selectedArea,
+            model_name: model.name,
+            model_version: model.version,
+            calculating_date: formattedCalculatingDate
+          });
+        }
         predictionsData[modelKey] = modelPredictions;
       }));
       
@@ -216,10 +258,10 @@ export default function ElectricityPriceComparison() {
   
   // 當選擇變更時自動獲取數據
   useEffect(() => {
-    if (selectedArea && selectedModels.length > 0 && selectedCalculatingDate) {
+    if (selectedArea && selectedModels.length > 0) {
       fetchData();
     }
-  }, [selectedArea, selectedModels, selectedCalculatingDate]);
+  }, [selectedArea, JSON.stringify(selectedModels)]);
   
   // 處理日期變更
   const handleDateChange = () => {
@@ -238,20 +280,32 @@ export default function ElectricityPriceComparison() {
     // 將選擇的模型 ID 轉換為完整的模型對象
     const newSelectedModels = selectedModelIds.map((modelId, index) => {
       const [id, name, version] = modelId.split('|');
+      
+      // 檢查這個模型是否已經在之前的選擇中
+      const existingModel = selectedModels.find(
+        m => m.id === parseInt(id) && m.name === name && m.version === version
+      );
+      
+      // 如果存在，保留其 calculatingDate，否則設為 'latest'
       return {
         id: parseInt(id),
         name,
         version,
-        color: MODEL_COLORS[index % MODEL_COLORS.length]
+        color: MODEL_COLORS[index % MODEL_COLORS.length],
+        calculatingDate: existingModel ? existingModel.calculatingDate : 'latest'
       };
     });
     
     setSelectedModels(newSelectedModels);
   };
   
-  // 處理計算日期變更
-  const handleCalculatingDateChange = (event: SelectChangeEvent) => {
-    setSelectedCalculatingDate(event.target.value);
+  // 處理模型計算日期變更
+  const handleModelCalculatingDateChange = (modelIndex: number, newCalculatingDate: string) => {
+    setSelectedModels(prev => {
+      const updated = [...prev];
+      updated[modelIndex] = { ...updated[modelIndex], calculatingDate: newCalculatingDate };
+      return updated;
+    });
   };
   
   // 準備模型選擇列表
@@ -339,7 +393,7 @@ export default function ElectricityPriceComparison() {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={8}>
               <FormControl fullWidth size="small">
                 <InputLabel>選擇模型 (最多5個)</InputLabel>
                 <Select
@@ -389,51 +443,29 @@ export default function ElectricityPriceComparison() {
               )}
             </Grid>
             
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>計算日期</InputLabel>
-                <Select
-                  value={selectedCalculatingDate}
-                  onChange={handleCalculatingDateChange}
-                  label="計算日期"
-                  disabled={calculatingDates.length === 0}
-                >
-                  {calculatingDates.map((date) => (
-                    <MenuItem key={date.calculating_date} value={date.calculating_date}>
-                      {date.calculating_date}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {calculatingDates.length === 0 && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                    沒有可用的計算日期
-                  </Typography>
-                )}
-              </FormControl>
-            </Grid>
-            
             {/* 第二行：日期選擇和操作按鈕 */}
             <Grid item xs={12} md={3}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="開始日期"
                   value={startDate}
-                  onChange={(newValue) => setStartDate(newValue)}
+                  onChange={(newValue: Date | null) => setStartDate(newValue)}
                   slotProps={{ textField: { size: 'small', fullWidth: true } }}
                 />
               </LocalizationProvider>
             </Grid>
-            
+
             <Grid item xs={12} md={3}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="結束日期"
                   value={endDate}
-                  onChange={(newValue) => setEndDate(newValue)}
+                  onChange={(newValue: Date | null) => setEndDate(newValue)}
                   slotProps={{ textField: { size: 'small', fullWidth: true } }}
                 />
               </LocalizationProvider>
             </Grid>
+
             
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
@@ -465,6 +497,72 @@ export default function ElectricityPriceComparison() {
               </Box>
             </Grid>
           </Grid>
+          
+          {/* 新增：模型計算日期選擇表格 */}
+          {selectedModels.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                模型計算日期設定
+              </Typography>
+              <TableContainer component={Paper} sx={{ backgroundColor: 'background.paper' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>模型</TableCell>
+                      <TableCell>計算日期</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {selectedModels.map((model, index) => {
+                      const modelKey = `${model.id}|${model.name}|${model.version}`;
+                      const availableDates = calculatingDatesByModel[modelKey] || [];
+                      
+                      return (
+                        <TableRow key={modelKey}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box 
+                                sx={{ 
+                                  width: 12, 
+                                  height: 12, 
+                                  borderRadius: '50%', 
+                                  backgroundColor: model.color,
+                                  mr: 1
+                                }} 
+                              />
+                              {`${model.name} ${model.version}`}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <FormControl fullWidth size="small">
+                              <Select
+                                value={model.calculatingDate}
+                                onChange={(e) => handleModelCalculatingDateChange(index, e.target.value)}
+                                displayEmpty
+                                sx={{ minWidth: 150 }}
+                              >
+                                <MenuItem value="latest">
+                                  <em>最新 (Latest)</em>
+                                </MenuItem>
+                                {availableDates.map((date) => (
+                                  <MenuItem key={date.calculating_date} value={date.calculating_date}>
+                                    {date.calculating_date}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                * 選擇 "最新 (Latest)" 將顯示每個時間點的最新預測結果。選擇特定日期將顯示該日期計算的預測結果。
+              </Typography>
+            </Box>
+          )}
         </Paper>
         
         <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 3, minHeight: '600px' }}>
@@ -473,14 +571,20 @@ export default function ElectricityPriceComparison() {
               {selectedArea ? `${getAreaChineseName(selectedArea)} - 電力價格比較` : '請選擇地區'}
             </Typography>
             
-            {selectedCalculatingDate && (
-              <Chip 
-                label={`計算日期: ${selectedCalculatingDate}`} 
-                size="small" 
-                color="primary" 
-                variant="outlined"
-              />
-            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {selectedModels.map((model) => (
+                <Chip 
+                  key={`${model.id}-${model.name}-${model.version}`}
+                  label={`${model.name}: ${model.calculatingDate === 'latest' ? '最新' : model.calculatingDate}`}
+                  size="small" 
+                  sx={{ 
+                    borderColor: model.color,
+                    color: model.color,
+                  }}
+                  variant="outlined"
+                />
+              ))}
+            </Box>
           </Box>
 
           {isLoading ? (
@@ -554,6 +658,9 @@ export default function ElectricityPriceComparison() {
                           MAE: <strong>{modelMAE.toFixed(2)} ¥/KWh</strong>
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1 }}>
+                          計算日期: <strong>{model.calculatingDate === 'latest' ? '最新' : model.calculatingDate}</strong>
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
                           模型描述: {models.find(m => m.id === model.id)?.description || '無描述'}
                         </Typography>
                       </Box>
@@ -575,6 +682,9 @@ export default function ElectricityPriceComparison() {
               </Typography>
               <Typography variant="body2">
                 • 特定時間點的預測差異可通過懸停在圖表上查看詳細比較
+              </Typography>
+              <Typography variant="body2">
+                • 不同計算日期的預測結果可反映模型在不同時間點的預測能力
               </Typography>
             </Box>
           </Paper>
