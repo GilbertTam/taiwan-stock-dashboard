@@ -263,7 +263,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             logger.debug(f"==== 查詢自定義區域價格預測資料 ====")
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
             logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
-            logger.debug(f"查詢模型：{model_name} v{model_version}")
+            logger.debug(f"查詢模型：{model_name} {model_version}")
             logger.debug(f"是否只返回最新預測：{latest_only}")
             logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
@@ -628,7 +628,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
             logger.debug(f"特定計算日期：{calculating_date}")
             logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
-            logger.debug(f"查詢模型：{model_name} v{model_version}")
+            logger.debug(f"查詢模型：{model_name} {model_version}")
             logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
 
