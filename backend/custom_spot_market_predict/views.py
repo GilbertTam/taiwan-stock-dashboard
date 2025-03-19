@@ -537,8 +537,8 @@ class CustomPredictViewSet(viewsets.ViewSet):
             )
         },
     )
-    @action(detail=False, methods=['get'], url_path='special-calculating-date')
-    def special_calculating_date(self, request):
+    @action(detail=False, methods=['get'], url_path='specific-calculating-date-predictions')
+    def specific_calculating_date_predictions(self, request):
         """獲取特定計算日期的預測資料"""
         try:
             # 獲取並驗證日期參數
