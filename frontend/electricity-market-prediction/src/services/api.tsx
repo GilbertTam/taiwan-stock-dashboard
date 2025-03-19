@@ -88,7 +88,6 @@ export interface PredictionsParams {
   model_name: string;
   model_version: string;
   latest_only?: boolean;
-  calculating_date?: string;
 }
 
 export const fetchPredictions = async (params: PredictionsParams): Promise<PricePrediction[]> => {
@@ -99,6 +98,26 @@ export const fetchPredictions = async (params: PredictionsParams): Promise<Price
   const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-predict/predictions', { params });
   return response.data.data;
 };
+
+
+export interface SpecificPredictionsParams {
+  start_date: string;
+  end_date: string;
+  area_name: string;
+  model_name: string;
+  model_version: string;
+  calculating_date: string;
+}
+
+export const fetchSpecificPredictions = async (params: SpecificPredictionsParams): Promise<PricePrediction[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-predict/specific-calculating-date-predictions', { params });
+  return response.data.data;
+};
+
 
 export interface ActualPricesParams {
   start_date: string;
