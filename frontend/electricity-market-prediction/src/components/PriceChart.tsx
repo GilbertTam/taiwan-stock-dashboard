@@ -7,9 +7,9 @@ import {
 } from 'recharts';
 import { format, parseISO, addDays, subDays } from 'date-fns';
 import { Box, Typography, Switch, FormControlLabel, Paper, useTheme as useMuiTheme, 
-  Select, MenuItem, FormControl, Grid, Chip, Table, TableBody, TableCell, TableRow,
+  Select, MenuItem, FormControl, Grid, Chip, Table, TableBody, TableCell, TableRow, TableHead,
   Slider, IconButton, Tooltip as MuiTooltip } from '@mui/material';
-import { ChartDataPoint } from '@/utils/chartUtils';
+import { ChartDataPoint, ModelPrediction } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import InfoIcon from '@mui/icons-material/Info';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -17,9 +17,29 @@ import SettingsIcon from '@mui/icons-material/Settings';
 interface PriceChartProps {
   chartData: ChartDataPoint[];
   areaName: string;
+  selectedModels: {
+    id: number;
+    name: string;
+    version: string;
+    color: string;
+  }[];
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
+// 生成不同的顏色給不同模型
+const MODEL_COLORS = [
+  '#36cfc9', // 青色
+  '#597ef7', // 藍色
+  '#f759ab', // 粉紅色
+  '#9254de', // 紫色
+  '#73d13d', // 綠色
+  '#ffa940', // 橙色
+  '#ff7a45', // 橘紅色
+  '#40a9ff', // 天藍色
+  '#ffec3d', // 黃色
+  '#ff4d4f'  // 紅色 (最後一個，因為已經用於實際價格)
+];
+
+const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedModels }) => {
   const { darkMode } = useTheme();
   const muiTheme = useMuiTheme();
   const [showPredictionRange, setShowPredictionRange] = useState(true);
@@ -30,9 +50,6 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
   // 顏色設定
   const colors = {
     actual: '#ff4d4f',
-    predicted: '#36cfc9',
-    p5p95Area: 'rgba(54, 207, 201, 0.2)',
-    nowLine: '#52c41a',
     grid: '#333',
     background: '#1a1a1a',
     text: '#d9d9d9',
@@ -40,12 +57,26 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
     tooltipBg: 'rgba(33, 33, 33, 0.95)',
     tooltipBorder: '#444',
     tooltipHeaderBg: '#2a2a2a',
+    warning: '#faad14',
+    nowLine: '#1890ff', // 當前時間線顏色
+    predicted: '#36cfc9', // 預測顏色 (用於開關和滑塊)
     delta: {
       positive: '#52c41a',
       negative: '#f5222d',
       neutral: '#a6a6a6'
     }
   };
+
+  
+  // 為每個模型分配顏色
+  const modelColorMap = useMemo(() => {
+    const colorMap: Record<string, string> = {};
+    selectedModels.forEach((model, index) => {
+      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      colorMap[modelKey] = model.color || MODEL_COLORS[index % MODEL_COLORS.length];
+    });
+    return colorMap;
+  }, [selectedModels]);
   
   // 計算價格範圍
   const priceRange = useMemo(() => {
@@ -53,9 +84,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
     
     const allPrices = chartData.flatMap(item => [
       item.actualPrice,
-      item.predictedPrice,
-      item.predictedPrice5,
-      item.predictedPrice95
+      ...item.modelPredictions.flatMap(mp => [
+        mp.predictedPrice,
+        mp.predictedPrice5,
+        mp.predictedPrice95
+      ])
     ].filter(Boolean) as number[]);
     
     const min = Math.floor(Math.min(...allPrices) * 0.9);
@@ -64,41 +97,62 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
     return { min: Math.max(0, min), max: Math.max(35, max) };
   }, [chartData]);
   
-  // 找出實際價格和預測價格的分界點
-  const nowReference = useMemo(() => {
-    const now = new Date();
-    const today = format(now, 'yyyy-MM-dd');
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute < 30 ? '00' : '30'}`;
-    return `${today} ${currentTimeStr}`;
-  }, []);
-  
-  // 計算 MAE (Mean Absolute Error)
-  const mae = useMemo(() => {
-    const pointsWithBothValues = chartData.filter(
-      point => point.actualPrice !== null && point.predictedPrice !== null
-    );
+  // 計算每個模型的 MAE (Mean Absolute Error)
+  const modelMAEs = useMemo(() => {
+    const maes: Record<string, number> = {};
     
-    if (pointsWithBothValues.length === 0) return null;
+    selectedModels.forEach(model => {
+      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      
+      const pointsWithBothValues = chartData.filter(point => {
+        const modelPrediction = point.modelPredictions.find(
+          mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+        );
+        return point.actualPrice !== null && modelPrediction?.predictedPrice !== null;
+      });
+      
+      if (pointsWithBothValues.length === 0) {
+        maes[modelKey] = 0;
+        return;
+      }
+      
+      const totalError = pointsWithBothValues.reduce((sum, point) => {
+        const modelPrediction = point.modelPredictions.find(
+          mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+        );
+        if (!modelPrediction) return sum;
+        return sum + Math.abs((point.actualPrice as number) - (modelPrediction.predictedPrice as number));
+      }, 0);
+      
+      maes[modelKey] = totalError / pointsWithBothValues.length;
+    });
     
-    const totalError = pointsWithBothValues.reduce(
-      (sum, point) => sum + Math.abs((point.actualPrice as number) - (point.predictedPrice as number)),
-      0
-    );
-    
-    return totalError / pointsWithBothValues.length;
-  }, [chartData]);
-  
+    return maes;
+  }, [chartData, selectedModels]);
+
   // 處理數據，為 P5-P95 區間添加正確的數據結構
   // 同時添加唯一的 key 以解決重複 key 問題
   const processedChartData = useMemo(() => {
     return chartData.map((point, index) => {
-      // 計算預測與實際值的差距（如果兩者都存在）
-      const difference = 
-        point.actualPrice !== null && point.predictedPrice !== null
-          ? point.predictedPrice - point.actualPrice
-          : null;
+      // 為每個模型計算差異
+      const modelDifferences: Record<string, number | null> = {};
+      const modelAreaTops: Record<string, number | null> = {};
+      const modelAreaBottoms: Record<string, number | null> = {};
+      
+      point.modelPredictions.forEach(mp => {
+        const modelKey = `${mp.modelId}|${mp.modelName}|${mp.modelVersion}`;
+        
+        // 計算預測與實際值的差距（如果兩者都存在）
+        modelDifferences[modelKey] = 
+          point.actualPrice !== null && mp.predictedPrice !== null
+            ? mp.predictedPrice - point.actualPrice
+            : null;
+            
+        // 為區間圖準備數據 - 確保有值
+        // 使用預測值作為備用值
+        modelAreaTops[modelKey] = mp.predictedPrice95 !== null ? mp.predictedPrice95 : mp.predictedPrice;
+        modelAreaBottoms[modelKey] = mp.predictedPrice5 !== null ? mp.predictedPrice5 : mp.predictedPrice;
+      });
       
       // 計算與上一個時間點實際值的差異（如果有提供）
       const actualDelta = 
@@ -108,38 +162,15 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
       
       return {
         ...point,
-        // 為了正確顯示 P5-P95 區間
-        areaBottom: point.predictedPrice5,
-        areaTop: point.predictedPrice95,
-        // 添加差距
-        difference: difference,
-        // 添加與上一個時間點實際值的差異
-        actualDelta: actualDelta,
-        // 添加唯一 key 解決重複 key 問題
+        modelDifferences,
+        modelAreaTops,
+        modelAreaBottoms,
+        actualDelta,
         uniqueKey: `${point.dateTime}-${index}`
       };
     });
   }, [chartData]);
-  
-  // 計算默認顯示區間 - 顯示最近 3 天的數據
-  const defaultDisplayRange = useMemo(() => {
-    if (processedChartData.length === 0) return { startIndex: 0, endIndex: 0 };
-    
-    const now = new Date();
-    const threeDaysAgo = subDays(now, 3);
-    const threeDaysAgoStr = format(threeDaysAgo, 'yyyy-MM-dd');
-    
-    // 找到 3 天前的索引
-    const startIndex = processedChartData.findIndex(point => 
-      point.dateTime.split(' ')[0] >= threeDaysAgoStr
-    );
-    
-    return {
-      startIndex: startIndex >= 0 ? startIndex : 0,
-      endIndex: processedChartData.length - 1
-    };
-  }, [processedChartData]);
-  
+
   // 生成 X 軸的刻度位置 - 動態調整以避免重疊
   const generateXAxisTicks = useCallback(() => {
     if (processedChartData.length === 0) return [];
@@ -208,7 +239,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
     return `${hour}:${minute}`;
   }, []);
   
-  // 自定義工具提示 - 表格式顯示，參考附圖
+  // 自定義工具提示 - 表格式顯示，支援多模型比較
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -232,8 +263,25 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
         });
       }
       
-      // 計算表格寬度，根據顯示的時間點數量動態調整
-      const tableWidth = Math.min(1200, Math.max(400, 120 + displayPoints.length * 120));
+      // 計算每個時間點需要的寬度（單位：像素）
+      const pointWidth = 110; // 每個時間點需要的寬度
+      const baseWidth = 120;  // 基礎寬度（左側標籤等）
+      
+      // 計算可用的螢幕寬度（考慮邊距）
+      const availableWidth = Math.min(window.innerWidth * 0.95 - 40, 1200);
+      
+      // 計算最多可以顯示的時間點數量
+      const maxPoints = Math.floor((availableWidth - baseWidth) / pointWidth);
+      // 確保至少顯示 3 個時間點
+      const maxDisplayPoints = Math.max(3, maxPoints);
+      
+      // 根據當前顯示的時間點數量和最大可顯示數量決定實際顯示的時間點
+      const actualDisplayPoints = displayPoints.length > maxDisplayPoints 
+        ? displayPoints.slice(0, maxDisplayPoints) 
+        : displayPoints;
+      
+      // 動態計算表格寬度
+      const tableWidth = baseWidth + actualDisplayPoints.length * pointWidth;
       
       return (
         <Paper elevation={3} sx={{ 
@@ -242,8 +290,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
           borderRadius: '4px',
           border: `1px solid ${colors.tooltipBorder}`,
           overflow: 'hidden',
-          width: `${tableWidth}px`, // 使用更寬的動態寬度
-          maxWidth: '98vw', //  98vw 確保在大多數設備上能顯示完整
+          width: `${tableWidth}px`,
+          maxWidth: '95vw',
           boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
         }}>
           <Box sx={{ 
@@ -265,22 +313,28 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
             </Box>
           </Box>
           
+          {/* 如果有被截斷的數據，顯示提示信息 */}
+          {displayPoints.length > maxDisplayPoints && (
+            <Typography variant="caption" sx={{ px: 2, py: 0.5, color: colors.warning, display: 'block' }}>
+              顯示 {actualDisplayPoints.length}/{displayPoints.length} 個時間點。滑動圖表查看更多。
+            </Typography>
+          )}
+          
           <Box sx={{ overflowX: 'auto', width: '100%' }}>
             <Table size="small" sx={{ 
-              minWidth: `${displayPoints.length * 100}px`, // 確保表格足夠寬
+              minWidth: `${actualDisplayPoints.length * 100}px`,
               '& .MuiTableCell-root': { 
                 borderBottom: 'none', 
                 py: 0.5,
-                px: 1.5, // 增加水平內邊距
-                minWidth: '90px', // 確保每個單元格有足夠寬度
-                whiteSpace: 'nowrap' // 防止文字換行
+                px: 1.5,
+                minWidth: '90px',
+                whiteSpace: 'nowrap'
               } 
             }}>
-              <TableBody>
-                {/* 顯示時間行 */}
+              <TableHead>
                 <TableRow>
                   <TableCell sx={{ color: colors.subText, width: '100px', minWidth: '100px' }}>Date/Time:</TableCell>
-                  {displayPoints.map((point, index) => {
+                  {actualDisplayPoints.map((point, index) => {
                     const [_, pointTime] = point.data.dateTime.split(' ');
                     return (
                       <TableCell 
@@ -299,55 +353,86 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
                     );
                   })}
                 </TableRow>
-                
-                {/* 預測價格行 */}
-                <TableRow>
-                  <TableCell sx={{ color: colors.predicted }}>Forecasting:</TableCell>
-                  {displayPoints.map((point, index) => (
-                    <TableCell 
-                      key={`forecast-${index}`}
-                      align="center" 
-                      sx={{ 
-                        color: colors.predicted,
-                        fontWeight: point.isCurrent ? 'bold' : 'normal',
-                        backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
-                      }}
-                    >
-                      {point.data.predictedPrice !== null 
-                        ? point.data.predictedPrice.toFixed(2) 
-                        : '-'}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                {/* 顯示預測與實際值的差異 */}
-                <TableRow>
-                  <TableCell sx={{ color: colors.subText }}>Forecast-Actual:</TableCell>
-                  {displayPoints.map((point, index) => (
-                    <TableCell 
-                      key={`diff-${index}`}
-                      align="center" 
-                      sx={{ 
-                        color: point.data.difference > 0 
-                          ? colors.delta.positive 
-                          : point.data.difference < 0 
-                            ? colors.delta.negative 
-                            : colors.delta.neutral,
-                        fontWeight: point.isCurrent ? 'bold' : 'normal',
-                        backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
-                      }}
-                    >
-                      {point.data.difference !== null 
-                        ? point.data.difference.toFixed(2) 
-                        : '-'}
-                    </TableCell>
-                  ))}
-                </TableRow>
+              </TableHead>
+              
+              <TableBody>
+                {/* 為每個模型顯示預測價格行 */}
+                {selectedModels.map((model) => {
+                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const modelColor = modelColorMap[modelKey];
+                  
+                  return (
+                    <TableRow key={`model-${modelKey}`}>
+                      <TableCell sx={{ color: modelColor }}>
+                        {`${model.name} ${model.version}:`}
+                      </TableCell>
+                      {actualDisplayPoints.map((point, index) => {
+                        const modelPrediction = point.data.modelPredictions.find(
+                          mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                        );
+                        
+                        return (
+                          <TableCell 
+                            key={`forecast-${modelKey}-${index}`}
+                            align="center" 
+                            sx={{ 
+                              color: modelColor,
+                              fontWeight: point.isCurrent ? 'bold' : 'normal',
+                              backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
+                            }}
+                          >
+                            {modelPrediction?.predictedPrice !== null && modelPrediction?.predictedPrice !== undefined
+                              ? modelPrediction.predictedPrice.toFixed(2) 
+                              : '-'}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+
+                {/* 為每個模型顯示預測與實際值的差異 */}
+                {selectedModels.map((model) => {
+                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  
+                  return (
+                    <TableRow key={`diff-${modelKey}`}>
+                      <TableCell sx={{
+                        color: model.color || colors.subText // 如果模型有定義顏色就使用模型顏色，否則使用預設的 subText 顏色
+                      }}>
+                        {`${model.name} Δ:`}
+                      </TableCell>
+                      {actualDisplayPoints.map((point, index) => {
+                        const difference = point.data.modelDifferences?.[modelKey];
+                        
+                        return (
+                          <TableCell 
+                            key={`diff-${modelKey}-${index}`}
+                            align="center" 
+                            sx={{ 
+                              color: (difference ?? 0) > 0 
+                                ? colors.delta.positive 
+                                : (difference ?? 0) < 0 
+                                  ? colors.delta.negative 
+                                  : colors.delta.neutral,
+                              fontWeight: point.isCurrent ? 'bold' : 'normal',
+                              backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
+                            }}
+                          >
+                            {difference !== null && difference !== undefined
+                              ? difference.toFixed(2) 
+                              : '-'}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
                 
                 {/* 實際價格行 */}
                 <TableRow>
                   <TableCell sx={{ color: colors.actual }}>Observation:</TableCell>
-                  {displayPoints.map((point, index) => (
+                  {actualDisplayPoints.map((point, index) => (
                     <TableCell 
                       key={`actual-${index}`}
                       align="center" 
@@ -367,21 +452,21 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
                 {/* 顯示與上一個時間點實際值的差異 */}
                 <TableRow>
                   <TableCell sx={{ color: colors.subText }}>Actual Delta:</TableCell>
-                  {displayPoints.map((point, index) => (
+                  {actualDisplayPoints.map((point, index) => (
                     <TableCell 
                       key={`actualDelta-${index}`}
                       align="center" 
                       sx={{ 
-                        color: point.data.actualDelta > 0 
+                        color: (point.data.actualDelta ?? 0) > 0 
                           ? colors.delta.positive 
-                          : point.data.actualDelta < 0 
+                          : (point.data.actualDelta ?? 0) < 0 
                             ? colors.delta.negative 
                             : colors.delta.neutral,
                         fontWeight: point.isCurrent ? 'bold' : 'normal',
                         backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                       }}
                     >
-                      {point.data.actualDelta !== null 
+                      {point.data.actualDelta !== null && point.data.actualDelta !== undefined
                         ? point.data.actualDelta.toFixed(2) 
                         : '-'}
                     </TableCell>
@@ -407,7 +492,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
     }
     return null;
   };
-  
+
   return (
     <Paper 
       elevation={3} 
@@ -427,19 +512,28 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
                 {`Price ${areaName} Japan`}
               </Typography>
               
-              {/* 顯示 MAE */}
-              {mae !== null && (
-                <Chip 
-                  label={`MAE: ${mae.toFixed(2)} ¥/KWh`} 
-                  size="small" 
-                  sx={{ 
-                    backgroundColor: '#333',
-                    color: colors.text,
-                    fontWeight: 'bold',
-                    ml: 1
-                  }} 
-                />
-              )}
+              {/* 顯示每個模型的 MAE */}
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {selectedModels.map((model) => {
+                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const mae = modelMAEs[modelKey];
+                  
+                  if (mae === undefined) return null;
+                  
+                  return (
+                    <Chip 
+                      key={`mae-${modelKey}`}
+                      label={`${model.name} MAE: ${mae.toFixed(2)}`} 
+                      size="small" 
+                      sx={{ 
+                        backgroundColor: '#333',
+                        color: modelColorMap[modelKey],
+                        fontWeight: 'bold',
+                      }} 
+                    />
+                  );
+                })}
+              </Box>
               
               {/* 設定按鈕 */}
               <MuiTooltip title="Chart Settings">
@@ -542,27 +636,39 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
               '& .MuiChip-label': { fontWeight: 'bold' }
             }} 
           />
-          <Chip 
-            label="Forecasting" 
-            size="small" 
-            sx={{ 
-              backgroundColor: 'transparent', 
-              border: `1px solid ${colors.predicted}`,
-              color: colors.predicted,
-              '& .MuiChip-label': { fontWeight: 'bold' }
-            }} 
-          />
+          
+          {/* 為每個模型顯示圖例 */}
+          {selectedModels.map((model) => {
+            const modelKey = `${model.id}|${model.name}|${model.version}`;
+            const modelColor = modelColorMap[modelKey];
+            
+            return (
+              <Chip 
+                key={`legend-${modelKey}`}
+                label={`${model.name} ${model.version}`} 
+                size="small" 
+                sx={{ 
+                  backgroundColor: 'transparent', 
+                  border: `1px solid ${modelColor}`,
+                  color: modelColor,
+                  '& .MuiChip-label': { fontWeight: 'bold' }
+                }} 
+              />
+            );
+          })}
+          
           {showPredictionRange && (
             <Chip 
               label="Forecast range (P5-P95)" 
               size="small" 
               sx={{ 
                 backgroundColor: 'transparent', 
-                border: `1px solid ${colors.p5p95Area}`,
+                border: `1px solid rgba(255,255,255,0.2)`,
                 color: colors.subText,
               }} 
             />
           )}
+
           <Box sx={{ ml: 'auto' }}>
             <Typography variant="caption" sx={{ color: colors.subText }}>
               All data in ¥/KWh
@@ -576,7 +682,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
         <ResponsiveContainer width="100%" height={450}>
           <ComposedChart
             data={processedChartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 25 }} // 增加底部邊距
+            margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
           >
             <CartesianGrid 
               strokeDasharray="3 3" 
@@ -611,47 +717,73 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
             />
             <Tooltip content={<CustomTooltip />} />
             
-            {/* 預測區間 (P5-P95) */}
-            {showPredictionRange && (
-              <Area
-                type={chartType === 'stepLine' ? 'step' : 'monotone'}
-                dataKey="areaTop"
-                strokeOpacity={0}
-                stroke={colors.predicted}
-                fill={colors.p5p95Area}
-                fillOpacity={0.5}
-                name="Forecast range (P5-P95)"
-                activeDot={false}
-                isAnimationActive={false}
-              />
-            )}
-            
-            {showPredictionRange && (
-              <Area
-                type={chartType === 'stepLine' ? 'step' : 'monotone'}
-                dataKey="areaBottom"
-                stroke={colors.predicted}
-                strokeOpacity={0}
-                fill={colors.p5p95Area}
-                fillOpacity={0.5}
-                name="Forecast range (P5-P95)"
-                activeDot={false}
-                isAnimationActive={false}
-                baseValue={priceRange.min}
-              />
-            )}
-            
-            {/* 預測價格線 */}
-            <Line 
-              type={chartType === 'stepLine' ? 'step' : 'monotone'} 
-              dataKey="predictedPrice" 
-              stroke={colors.predicted} 
-              name="Forecasting" 
-              dot={false}
-              strokeWidth={1.5}
-              connectNulls={true}
-              isAnimationActive={false}
-            />
+            {/* 為每個模型顯示預測區間 (P5-P95) */}
+            {showPredictionRange && selectedModels.map((model) => {
+              const modelKey = `${model.id}|${model.name}|${model.version}`;
+              const modelColor = modelColorMap[modelKey];
+              
+              // 創建一個半透明的顏色
+              const areaColor = modelColor.includes('rgb') 
+                ? modelColor.replace(')', ', 0.2)').replace('rgb', 'rgba')
+                : `${modelColor}33`; // 添加 33 (20% 透明度) 到十六進制顏色
+              
+              return (
+                <Area
+                  key={`area-${modelKey}`}
+                  type={chartType === 'stepLine' ? 'step' : 'monotone'}
+                  dataKey={(datum) => {
+                    const prediction = datum.modelPredictions.find(
+                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                    );
+                    
+                    if (!prediction) return null;
+                    
+                    const p5 = prediction.predictedPrice5;
+                    const p95 = prediction.predictedPrice95;
+
+                    // 如果 p5 或 p95 不存在，則使用 predictedPrice
+                    const bottom = p5 !== null ? p5 : prediction.predictedPrice;
+                    const top = p95 !== null ? p95 : prediction.predictedPrice;
+                    
+                    if (bottom === null || top === null) return null;
+                    
+                    return [bottom, top];
+                  }}
+                  stroke="none"
+                  fill={areaColor}
+                  fillOpacity={0.5}
+                  name={`${model.name} ${model.version} (P5-P95)`}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                />
+              );
+            })}
+
+            {/* 為每個模型顯示預測價格線 */}
+            {selectedModels.map((model) => {
+              const modelKey = `${model.id}|${model.name}|${model.version}`;
+              const modelColor = modelColorMap[modelKey];
+              
+              return (
+                <Line 
+                  key={`line-${modelKey}`}
+                  type={chartType === 'stepLine' ? 'step' : 'monotone'} 
+                  dataKey={(datum) => {
+                    const prediction = datum.modelPredictions.find(
+                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                    );
+                    return prediction?.predictedPrice ?? null;
+                  }}
+                  stroke={modelColor} 
+                  name={`${model.name} ${model.version}`} 
+                  dot={false}
+                  strokeWidth={1.5}
+                  connectNulls={true}
+                  isAnimationActive={false}
+                />
+              );
+            })}
             
             {/* 實際價格線 */}
             <Line 
@@ -664,62 +796,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName }) => {
               connectNulls={true}
               isAnimationActive={false}
             />
-            
-            {/* 現在時間線 */}
-            <ReferenceLine 
-              x={nowReference} 
-              stroke={colors.nowLine} 
-              strokeDasharray="5 5" 
-              strokeWidth={2}
-              label={{ 
-                value: "Now", 
-                position: "insideTopRight", 
-                fill: colors.nowLine,
-                fontSize: 12,
-                fontWeight: 'bold'
-              }} 
-              z={1000}
-            />
+
           </ComposedChart>
         </ResponsiveContainer>
       </Box>
-      
-      {/* 底部日期指示器 - 不可拖曳 */}
-      <Box sx={{ 
-        mt: 1, 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        borderTop: `1px solid ${colors.grid}`,
-        pt: 1
-      }}>
-        {processedChartData.length > 0 && (
-          <>
-            <Typography variant="caption" sx={{ color: colors.subText }}>
-              {format(parseISO(processedChartData[0].dateTime.split(' ')[0]), 'MM/dd')}
-            </Typography>
-            <Typography variant="caption" sx={{ color: colors.subText }}>
-              {format(parseISO(processedChartData[processedChartData.length - 1].dateTime.split(' ')[0]), 'MM/dd')}
-            </Typography>
-          </>
-        )}
-      </Box>
-      
-      {/* 添加 Tokyo time 標籤 */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'flex-end', 
-        mt: 1
-      }}>
-        <Chip 
-          label="Tokyo time" 
-          size="small" 
-          sx={{ 
-            backgroundColor: 'rgba(54, 207, 201, 0.2)', 
-            color: colors.text,
-            '& .MuiChip-label': { fontSize: '0.7rem' }
-          }} 
-        />
-      </Box>
+
     </Paper>
   );
 };
