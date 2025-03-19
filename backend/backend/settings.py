@@ -407,8 +407,8 @@ LOGGING = {
             "propagate": False,
             "level": "DEBUG"
         },
-        # spot_market_predict相關
-        "spot_market_predict": {
+        # custom_spot_market_predict
+        "custom_spot_market_predict": {
             "handlers": ["api"],
             "propagate": False,
             "level": "DEBUG"
