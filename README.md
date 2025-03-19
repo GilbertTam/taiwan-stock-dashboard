@@ -1,5 +1,7 @@
 # Quick API Backend
 
+![](./docs/dashboard.png)
+
 This is Quick API Backend.
 
 ## Requirements
