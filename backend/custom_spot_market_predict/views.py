@@ -81,7 +81,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             openapi.Parameter(
                 'latest_only', 
                 openapi.IN_QUERY, 
-                description="是否只返回最新預測 (預設為true)", 
+                description="是否只返回最新預測 (預設為true)，選擇false則返回該模型所有時間的預測", 
                 type=openapi.TYPE_BOOLEAN,
                 required=False
             ),
@@ -271,6 +271,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             return Response({
                 "result": [{"Message": "Success"}],
                 "code": 0,
+                "count": len(results),
                 "data": results
             })
             
@@ -278,6 +279,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             return Response(
                 {
                     "result": [{"Message": "Error", "Detail": str(e)}],
+                    "count": 0,
                     "code": 1,
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -288,6 +290,7 @@ class CustomPredictViewSet(viewsets.ViewSet):
             return Response(
                 {
                     "result": [{"Message": "Error", "Detail": str(e)}],
+                    "count": 0,
                     "code": 1,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -447,6 +450,216 @@ class CustomPredictViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+    @swagger_auto_schema(
+        operation_summary="獲取特定計算日期的預測資料",
+        operation_description="根據指定的計算日期獲取自定義區域價格預測資料",
+        manual_parameters=[
+            openapi.Parameter(
+                'start_date', 
+                openapi.IN_QUERY, 
+                description="開始日期 (YYYYMMDD)", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'end_date', 
+                openapi.IN_QUERY, 
+                description="結束日期 (YYYYMMDD)", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'area_name', 
+                openapi.IN_QUERY, 
+                description="電力區域名稱 (選填，如不提供則返回所有區域預測)", 
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'model_name', 
+                openapi.IN_QUERY, 
+                description="模型名稱", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'model_version', 
+                openapi.IN_QUERY, 
+                description="模型版本", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'calculating_date', 
+                openapi.IN_QUERY, 
+                description="特定計算日期 (YYYYMMDD)", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        responses={
+            "200": openapi.Response(
+                description="成功獲取資料",
+                examples={
+                    "application/json": {
+                        "result": [{"Message": "Success"}],
+                        "code": 0,
+                        "data": [
+                            {
+                                "id": 1,
+                                "model_name": "MyModel",
+                                "model_version": "1.0.0",
+                                "trade_date": "2025-01-01",
+                                "time_code": 1,
+                                "calculating_date": "2024-12-31",
+                                "area_name": "東京",
+                                "area_name_ch": "東京",
+                                "area_name_jp": "東京",
+                                "price_5": "8.50",
+                                "price_50": "10.50",
+                                "price_95": "12.50",
+                                "additional_data": {"confidence": 0.95}
+                            }
+                        ]
+                    }
+                },
+            ),
+            "400": openapi.Response(
+                description="參數錯誤",
+                examples={
+                    "application/json": {
+                        "result": [{"Message": "Error", "Detail": "日期格式錯誤，應為 YYYYMMDD"}],
+                        "code": 1,
+                    }
+                },
+            )
+        },
+    )
+    @action(detail=False, methods=['get'], url_path='special-calculating-date')
+    def special_calculating_date(self, request):
+        """獲取特定計算日期的預測資料"""
+        try:
+            # 獲取並驗證日期參數
+            start_date = self.validate_date_param(
+                request.query_params.get('start_date'),
+                'start_date'
+            )
+            end_date = self.validate_date_param(
+                request.query_params.get('end_date'),
+                'end_date'
+            )
+            calculating_date = self.validate_date_param(
+                request.query_params.get('calculating_date'),
+                'calculating_date'
+            )
+            
+            # 必須提供模型名稱和版本
+            model_name = request.query_params.get('model_name')
+            model_version = request.query_params.get('model_version')
+            if not model_name or not model_version:
+                return Response(
+                    {
+                        "result": [{"Message": "Error", "Detail": "必須提供 model_name 和 model_version 參數"}],
+                        "code": 1,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 可選參數
+            area_name = request.query_params.get('area_name')
+            
+            # 構建 SQL 查詢
+            sql_query = """
+                SELECT 
+                    cap.id,
+                    pm.name as model_name,
+                    pm.version as model_version,
+                    cap.trade_date,
+                    cap.time_code,
+                    cap.calculating_date,
+                    cap.price_5,
+                    cap.price_50,
+                    cap.price_95,
+                    cap.additional_data,
+                    a.id as area_id,
+                    a.name as area_name,
+                    a.name_ch as area_name_ch,
+                    a.name_jp as area_name_jp
+                FROM custom_area_price_predict cap
+                JOIN prediction_model pm ON cap.model_id = pm.id
+                JOIN area a ON cap.area_id = a.id
+                WHERE 
+                    cap.trade_date BETWEEN %s AND %s
+                    AND pm.name = %s
+                    AND pm.version = %s
+                    AND cap.calculating_date = %s
+                    {area_filter}
+                ORDER BY cap.trade_date, cap.time_code, a.name
+            """
+            
+            # 添加區域過濾條件
+            area_filter = ""
+            params = [start_date, end_date, model_name, model_version, calculating_date]
+            if area_name:
+                area_filter = "AND a.name = %s"
+                params.append(area_name)
+            
+            # 格式化 SQL 查詢
+            sql_query = sql_query.format(area_filter=area_filter)
+            
+            # 執行原生 SQL 查詢
+            with connection.cursor() as cursor:
+                cursor.execute(sql_query, params)
+                
+                # 獲取列名
+                columns = [col[0] for col in cursor.description]
+                
+                # 獲取結果
+                results = []
+                for row in cursor.fetchall():
+                    # 將查詢結果轉換為字典
+                    result_dict = dict(zip(columns, row))
+                    results.append(result_dict)
+            
+            # 本次查詢資訊
+            logger.debug(f"==== 查詢特定計算日期的預測資料 ====")
+            logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
+            logger.debug(f"特定計算日期：{calculating_date}")
+            logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
+            logger.debug(f"查詢模型：{model_name} v{model_version}")
+            logger.debug(f"查詢結果數量：{len(results)}")
+            logger.debug(f"=========================")
+
+            return Response({
+                "result": [{"Message": "Success"}],
+                "count": len(results),
+                "code": 0,
+                "data": results
+            })
+            
+        except ValueError as e:
+            return Response(
+                {
+                    "result": [{"Message": "Error", "Detail": str(e)}],
+                    "count": 0,
+                    "code": 1,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            import traceback
+            logger.error(f"查詢特定計算日期的預測資料錯誤：{str(e)}\n{traceback.format_exc()}")
+            return Response(
+                {
+                    "result": [{"Message": "Error", "Detail": str(e)}],
+                    "count": 0,
+                    "code": 1,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
     @swagger_auto_schema(
         operation_summary="批量上傳預測資料",
