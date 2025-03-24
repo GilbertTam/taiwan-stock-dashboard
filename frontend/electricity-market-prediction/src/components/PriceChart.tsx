@@ -9,7 +9,7 @@ import { format, parseISO, addDays, subDays } from 'date-fns';
 import { Box, Typography, Switch, FormControlLabel, Paper, useTheme as useMuiTheme, 
   Select, MenuItem, FormControl, Grid, Chip, Table, TableBody, TableCell, TableRow, TableHead,
   Slider, IconButton, Tooltip as MuiTooltip } from '@mui/material';
-import { ChartDataPoint, ModelPrediction } from '@/utils/chartUtils';
+import { ModelPrediction, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import InfoIcon from '@mui/icons-material/Info';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -25,20 +25,6 @@ interface PriceChartProps {
     calculatingDate: string;
   }[];
 }
-
-// 生成不同的顏色給不同模型
-const MODEL_COLORS = [
-  '#36cfc9', // 青色
-  '#597ef7', // 藍色
-  '#f759ab', // 粉紅色
-  '#9254de', // 紫色
-  '#73d13d', // 綠色
-  '#ffa940', // 橙色
-  '#ff7a45', // 橘紅色
-  '#40a9ff', // 天藍色
-  '#ffec3d', // 黃色
-  '#ff4d4f'  // 紅色 (最後一個，因為已經用於實際價格)
-];
 
 const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedModels }) => {
   const { darkMode } = useTheme();
@@ -74,7 +60,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     const colorMap: Record<string, string> = {};
     selectedModels.forEach((model, index) => {
       const modelKey = `${model.id}|${model.name}|${model.version}`;
-      colorMap[modelKey] = model.color || MODEL_COLORS[index % MODEL_COLORS.length];
+      colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
     });
     return colorMap;
   }, [selectedModels]);

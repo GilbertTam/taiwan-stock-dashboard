@@ -98,3 +98,47 @@ export const prepareChartData = (
     return a.time - b.time;
   });
 };
+
+
+// 雜湊函數
+export const hashString = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+};
+
+// 生成 RGB 顏色
+export const generateColor = (hash: number) => {
+  // 預定義基礎顏色組合，確保顏色間隔足夠大
+  const baseColors = [
+    [230, 125, 115],  // 紅
+    [230, 180, 115],  // 橙
+    [210, 215, 115],  // 黃綠
+    [150, 205, 125],  // 綠
+    [115, 205, 180],  // 青綠
+    [115, 185, 215],  // 青藍
+    [125, 150, 215],  // 藍
+    [160, 140, 215],  // 藍紫
+    [190, 130, 215],  // 紫
+    [215, 125, 190],  // 紫紅
+    [215, 125, 160],  // 粉紅
+    [215, 125, 135]   // 玫瑰
+  ];
+
+  // 選擇基礎顏色
+  const baseColor = baseColors[hash % baseColors.length];
+  
+  // 添加小幅度的隨機變化（±15）
+  const variation = (hash >> 8) % 31 - 15;
+  
+  // 應用變化並確保值在 0-255 範圍內
+  const r = Math.min(255, Math.max(0, baseColor[0] + variation));
+  const g = Math.min(255, Math.max(0, baseColor[1] + variation));
+  const b = Math.min(255, Math.max(0, baseColor[2] + variation));
+
+  return `rgb(${r}, ${g}, ${b})`;
+};

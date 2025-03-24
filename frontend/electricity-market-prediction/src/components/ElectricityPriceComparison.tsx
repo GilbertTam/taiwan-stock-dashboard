@@ -23,23 +23,10 @@ import {
 } from '@/services/api';
 import PriceChart from '@/components/PriceChart';
 import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate } from '@/types';
-import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
+import { prepareChartData, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-
-// 生成不同的顏色給不同模型
-const MODEL_COLORS = [
-  '#36cfc9', // 青色
-  '#597ef7', // 藍色
-  '#f759ab', // 粉紅色
-  '#9254de', // 紫色
-  '#73d13d', // 綠色
-  '#ffa940', // 橙色
-  '#ff7a45', // 橘紅色
-  '#40a9ff', // 天藍色
-  '#ffec3d', // 黃色
-];
 
 export default function ElectricityPriceComparison() {
   const { darkMode, setDarkMode } = useTheme();
@@ -86,18 +73,22 @@ export default function ElectricityPriceComparison() {
         }
         
         if (modelsData.length > 0) {
-          // 默認選擇第一個模型，並設置 calculatingDate 為 'latest'
+
           const firstModel = modelsData[0];
+          const modelKey = `${firstModel.id}|${firstModel.name}|${firstModel.version}`;
+          const hash = hashString(modelKey);
+          const color = generateColor(hash);
+
           setSelectedModels([{
             id: firstModel.id,
             name: firstModel.name,
             version: firstModel.version,
-            color: MODEL_COLORS[0],
+            color: color,
             calculatingDate: 'latest'
           }]);
         }
       } catch (err: any) {
-        console.error('獲取初始數據失敗', err);
+        console.error('獲取初始資料失敗', err);
         
         if (err.response && err.response.status === 401) {
           setError('認證已過期，請重新登入');
@@ -105,7 +96,7 @@ export default function ElectricityPriceComparison() {
             logout();
           }, 2000);
         } else {
-          setError('獲取初始數據失敗');
+          setError('獲取初始資料失敗');
         }
       } finally {
         setIsLoading(false);
@@ -291,7 +282,7 @@ export default function ElectricityPriceComparison() {
         id: parseInt(id),
         name,
         version,
-        color: MODEL_COLORS[index % MODEL_COLORS.length],
+        color: generateColor(hashString(modelId)),
         calculatingDate: existingModel ? existingModel.calculatingDate : 'latest'
       };
     });
@@ -370,7 +361,7 @@ export default function ElectricityPriceComparison() {
         
         <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
           <Typography variant="h6" gutterBottom fontWeight="bold">
-            數據選擇
+            資料選擇
           </Typography>
           <Divider sx={{ mb: 3 }} />
           
