@@ -100,45 +100,78 @@ export const prepareChartData = (
 };
 
 
-// 雜湊函數
+// 改進的雜湊函數
 export const hashString = (str: string) => {
-  let hash = 0;
+  // 使用 FNV-1a 雜湊算法
+  let hash = 2166136261; // FNV offset basis
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+    hash ^= str.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
   }
   return Math.abs(hash);
 };
 
 // 生成 RGB 顏色
 export const generateColor = (hash: number) => {
-  // 預定義基礎顏色組合，確保顏色間隔足夠大
+  // 預定義對比度較大的基礎顏色組合
   const baseColors = [
-    [230, 125, 115],  // 紅
-    [230, 180, 115],  // 橙
-    [210, 215, 115],  // 黃綠
-    [150, 205, 125],  // 綠
-    [115, 205, 180],  // 青綠
-    [115, 185, 215],  // 青藍
-    [125, 150, 215],  // 藍
-    [160, 140, 215],  // 藍紫
-    [190, 130, 215],  // 紫
-    [215, 125, 190],  // 紫紅
-    [215, 125, 160],  // 粉紅
-    [215, 125, 135]   // 玫瑰
+    [255, 89, 94],    // 鮮紅
+    [255, 202, 58],   // 明黃
+    [138, 201, 38],   // 鮮綠
+    [25, 130, 196],   // 深藍
+    [106, 76, 147],   // 深紫
+    [255, 121, 0],    // 橙色
+    [0, 168, 150],    // 青綠
+    [225, 86, 177],   // 洋紅
+    [87, 117, 144],   // 灰藍
+    [255, 157, 167],  // 粉紅
+    [47, 201, 226],   // 天藍
+    [182, 73, 38]     // 褐紅
   ];
 
-  // 選擇基礎顏色
-  const baseColor = baseColors[hash % baseColors.length];
+  // 使用雜湊值的不同部分來增加變化
+  const primaryIndex = hash % baseColors.length;
+  const secondaryIndex = (hash >> 16) % baseColors.length;
   
-  // 添加小幅度的隨機變化（±15）
-  const variation = (hash >> 8) % 31 - 15;
+  // 確保 secondaryIndex 與 primaryIndex 有足夠距離
+  let adjustedSecondaryIndex = (primaryIndex + baseColors.length/2) % baseColors.length;
   
-  // 應用變化並確保值在 0-255 範圍內
-  const r = Math.min(255, Math.max(0, baseColor[0] + variation));
-  const g = Math.min(255, Math.max(0, baseColor[1] + variation));
-  const b = Math.min(255, Math.max(0, baseColor[2] + variation));
+  // 選擇兩個基礎顏色
+  const color1 = baseColors[primaryIndex];
+  const color2 = baseColors[Math.floor(adjustedSecondaryIndex)];
+  
+  // 根據雜湊值決定混合比例
+  const mix = (hash >> 8) % 4; // 0-3 的混合級別
+  
+  // 混合兩個顏色
+  const r = Math.round(color1[0] * (4-mix)/4 + color2[0] * mix/4);
+  const g = Math.round(color1[1] * (4-mix)/4 + color2[1] * mix/4);
+  const b = Math.round(color1[2] * (4-mix)/4 + color2[2] * mix/4);
 
-  return `rgb(${r}, ${g}, ${b})`;
+  // 確保顏色差異
+  const ensureColorDifference = (r: number, g: number, b: number) => {
+    const minDifference = 50; // 增加最小差異值
+    let result = [r, g, b];
+    
+    // 如果三個顏色分量太接近，增加其中一個的差異
+    if (Math.abs(r - g) < minDifference && 
+        Math.abs(g - b) < minDifference && 
+        Math.abs(r - b) < minDifference) {
+      
+      const maxComponent = Math.max(r, g, b);
+      if (maxComponent === r) {
+        result[0] = Math.min(255, r + minDifference);
+      } else if (maxComponent === g) {
+        result[1] = Math.min(255, g + minDifference);
+      } else {
+        result[2] = Math.min(255, b + minDifference);
+      }
+    }
+    
+    return result;
+  };
+
+  const [finalR, finalG, finalB] = ensureColorDifference(r, g, b);
+  
+  return `rgb(${finalR}, ${finalG}, ${finalB})`;
 };
