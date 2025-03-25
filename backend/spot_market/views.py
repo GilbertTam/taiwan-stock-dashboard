@@ -65,7 +65,7 @@ class SpotMarketViewSet(viewsets.ViewSet):
                                 "buy_quantity": 1000,
                                 "contract_quantity": 1000,
                                 "system_price": "10.50",
-                                "name": "東京",
+                                "name": "tokyo",
                                 "name_ch": "東京",
                                 "name_jp": "東京",
                                 "price": "10.50",

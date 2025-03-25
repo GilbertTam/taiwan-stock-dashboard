@@ -58,7 +58,7 @@ class WeatherViewSet(viewsets.ViewSet):
                         "code": 0,
                         "data": [
                             {
-                                "name": "東京",
+                                "name": "tokyo",
                                 "name_jp": "東京",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
@@ -232,7 +232,7 @@ class WeatherViewSet(viewsets.ViewSet):
                         "code": 0,
                         "data": [
                             {
-                                "name": "東京",
+                                "name": "tokyo",
                                 "name_jp": "東京",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
