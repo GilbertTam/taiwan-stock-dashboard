@@ -34,9 +34,9 @@ Then you can run the following commands to fetch data.
 
   ```bash
   # Basic usage
-  python manage.py download_spot 20240101 20240131
+  python manage.py download_spot_quick 20240101 20240131
   # Use --days-interval to set the interval between two dates
-  python manage.py download_spot 20240101 20240131 --days-interval 15 --page-size 5000
+  python manage.py download_spot_quick 20240101 20240131 --days-interval 15 --page-size 5000
   ```
 
 - From JEPX
