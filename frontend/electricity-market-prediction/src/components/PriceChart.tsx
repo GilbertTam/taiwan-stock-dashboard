@@ -35,24 +35,25 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   const [showSettings, setShowSettings] = useState(false);
   
   // 顏色設定
-  const colors = {
-    actual: '#ff4d4f',
-    grid: '#333',
-    background: '#1a1a1a',
-    text: '#d9d9d9',
-    subText: '#a6a6a6',
-    tooltipBg: 'rgba(33, 33, 33, 0.95)',
-    tooltipBorder: '#444',
-    tooltipHeaderBg: '#2a2a2a',
-    warning: '#faad14',
-    nowLine: '#1890ff', // 當前時間線顏色
-    predicted: '#36cfc9', // 預測顏色 (用於開關和滑塊)
+  // 根據 dark mode 動態設定顏色
+  const colors = useMemo(() => ({
+    actual: darkMode ? '#ff4d4f' : '#cf1322',
+    grid: darkMode ? '#333' : '#e6e6e6',
+    background: darkMode ? '#1a1a1a' : '#ffffff',
+    text: darkMode ? '#d9d9d9' : '#000000',
+    subText: darkMode ? '#a6a6a6' : '#595959',
+    tooltipBg: darkMode ? 'rgba(33, 33, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    tooltipBorder: darkMode ? '#444' : '#d9d9d9',
+    tooltipHeaderBg: darkMode ? '#2a2a2a' : '#f0f0f0',
+    warning: darkMode ? '#faad14' : '#d48806',
+    nowLine: darkMode ? '#1890ff' : '#0050b3',
+    predicted: darkMode ? '#36cfc9' : '#13a8a8',
     delta: {
-      positive: '#52c41a',
-      negative: '#f5222d',
-      neutral: '#a6a6a6'
+      positive: darkMode ? '#52c41a' : '#389e0d',
+      negative: darkMode ? '#f5222d' : '#cf1322',
+      neutral: darkMode ? '#a6a6a6' : '#8c8c8c'
     }
-  };
+  }), [darkMode]);
 
   
   // 為每個模型分配顏色
