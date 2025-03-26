@@ -16,7 +16,7 @@ class WeatherError(Exception):
 
 class Area(str, Enum):
     HOKKAIDO = "北海道"
-    TOHOKU = "東北"
+    TOUHOKU = "東北"
     TOKYO = "東京"
     CHUBU = "中部"
     HOKURIKU = "北陸"

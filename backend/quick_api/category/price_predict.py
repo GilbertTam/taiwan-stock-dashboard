@@ -27,7 +27,7 @@ class Area(str, Enum):
     """區域列舉"""
     # 北海道/東北/東京/中部/北陸/関西/中国/四国/九州
     HOKKAIDO = "北海道"
-    TOHOKU = "東北"
+    TOUHOKU = "東北"
     TOKYO = "東京"
     CHUBU = "中部"
     HOKURIKU = "北陸"
@@ -41,7 +41,7 @@ class PriceType(str, Enum):
     # XXX_dailyを指定可能。(XXXにはareaが入る)
     # (hokkaido, touhoku, tokyo, chubu, hokuriku, kansai, chugoku, shikoku, kyushuのいずれか)"
     HOKKAIDO = "hokkaido_daily"
-    TOHOKU = "tohoku_daily"
+    TOUHOKU = "touhoku_daily"
     TOKYO = "tokyo_daily"
     CHUBU = "chubu_daily"
     HOKURIKU = "hokuriku_daily"
@@ -192,7 +192,7 @@ class PricePredict:
             from_date: 取得期間(From) (yyyymmdd形式)
             to_date: 取得期間(To) (yyyymmdd形式)
             calculating_date: 計算日 (yyyymmdd形式，2023/11/XX より前はデータがないので選択不可)
-            price_type: 價格類型 (hokkaido, tohoku, tokyo, chubu, hokuriku, kansai, chugoku, shikoku, kyushu)
+            price_type: 價格類型 (hokkaido, touhoku, tokyo, chubu, hokuriku, kansai, chugoku, shikoku, kyushu)
             unit:
                     monthly_avg=月平均值
                     latest_calculating_date=最近一個月的計算結果

@@ -45,7 +45,7 @@ class PowerGenMethod(str, Enum):
 class Area(str, Enum):
     """地區列舉"""
     HOKKAIDO = "北海道"  # 北海道
-    TOHOKU = "東北"    # 東北
+    TOUHOKU = "東北"    # 東北
     TOKYO = "東京"      # 東京
     CHUBU = "中部"     # 中部
     HOKURIKU = "北陸"  # 北陸

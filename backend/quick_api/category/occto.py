@@ -33,7 +33,7 @@ class CrossSection(str, Enum):
 class Area(str, Enum):
     """區域列舉"""
     HOKKAIDO = "北海道"  # 北海道
-    TOHOKU = "東北"      # 東北
+    TOUHOKU = "東北"      # 東北
     TOKYO = "東京"        # 東京
     CHUBU = "中部"       # 中部
     HOKURIKU = "北陸"  # 北陸
@@ -45,7 +45,7 @@ class Area(str, Enum):
 class AreaEng(str, Enum):
     """地區列舉"""
     HOKKAIDO = "hokkaido"  # 北海道
-    TOHOKU = "touhoku"    # 東北
+    TOUHOKU = "touhoku"    # 東北
     TOKYO = "tokyo"      # 東京
     CHUBU = "chubu"       # 中部
     HOKURIKU = "hokuriku"  # 北陸
@@ -62,7 +62,7 @@ class Unit(str, Enum):
 
 class InterconnectionLine(str, Enum):
     """連系線列舉"""
-    HOKKAIDO_TO_TOHOKU = "北海道本州間連系設備"
+    HOKKAIDO_TO_TOUHOKU = "北海道本州間連系設備"
     SOUMA_FUTABA = "相馬双葉幹線"
     HIGASHI_SHIMIZU = "東清水周波数変換設備"
     SHIN_SHINANO = "新信濃周波数変換設備"
@@ -377,7 +377,7 @@ class OCCTO:
             from_date: 対象日(FROM) (yyyymmdd形式)
             to_date: 対象日(TO) (yyyymmdd形式)
             area: 地區（可輸入多個）
-                (hokkaido, tohoku, tokyo, chubu, hokuriku, kansai, chugoku, shikoku, kyushu)
+                (hokkaido, touhoku, tokyo, chubu, hokuriku, kansai, chugoku, shikoku, kyushu)
             page: ページ番号
             page_size: 1ページあたりのデータ件数
         """
