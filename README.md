@@ -28,14 +28,24 @@ Then you can run the following commands to fetch data.
 
 #### Spot Market
 
-Spot market data is fetched from the API.
+- From QUICK API
 
-```bash
-# Basic usage
-python manage.py download_spot 20240101 20240131
-# Use --days-interval to set the interval between two dates
-python manage.py download_spot 20240101 20240131 --days-interval 15 --page-size 5000
-```
+  Spot market data is fetched from the API.
+
+  ```bash
+  # Basic usage
+  python manage.py download_spot 20240101 20240131
+  # Use --days-interval to set the interval between two dates
+  python manage.py download_spot 20240101 20240131 --days-interval 15 --page-size 5000
+  ```
+
+- From JEPX
+
+  Spot market data is fetched from the JEPX API.
+
+  ```bash
+  python manage.py download_spot_jepx 2023 --batch-size 1000
+  ```
 
 #### QUICK Spot Market Predict
 
