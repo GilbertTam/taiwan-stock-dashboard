@@ -517,9 +517,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                       label={`${model.name} MAE: ${mae.toFixed(2)}`} 
                       size="small" 
                       sx={{ 
-                        backgroundColor: '#333',
+                        backgroundColor: darkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0)',
                         color: modelColorMap[modelKey],
                         fontWeight: 'bold',
+                        border: `1px solid ${modelColorMap[modelKey]}`,
                       }} 
                     />
                   );
