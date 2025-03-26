@@ -1,7 +1,7 @@
 
 AREA_EN_CH_MAP = {
     'hokkaido':'北海道',
-    'touhoku':'東北',
+    'tohoku':'東北',
     'tokyo':'東京',
     'chubu':'中部',
     'hokuriku':'北陸',
@@ -13,7 +13,7 @@ AREA_EN_CH_MAP = {
 
 AREA_EN_JP_MAP = {
     'hokkaido':'北海道',
-    'touhoku':'東北',
+    'tohoku':'東北',
     'tokyo':'東京',
     'chubu':'中部',
     'hokuriku':'北陸',

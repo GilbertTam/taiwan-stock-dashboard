@@ -39,7 +39,7 @@ class GroupingArea(str, Enum):
 class Area(str, Enum):
     #（北海道, 東北, 東京, 中部, 北陸, 関西, 中国, 四国, 九州）のいずれか
     HOKKAIDO = "北海道"
-    TOUHOKU = "東北"
+    TOHOKU = "東北"
     TOKYO = "東京"
     CHUBU = "中部"
     HOKURIKU = "北陸"
