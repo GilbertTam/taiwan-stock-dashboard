@@ -123,6 +123,11 @@ class Command(BaseCommand):
         """將資料儲存到資料庫"""
         self.stdout.write("開始儲存資料到資料庫...")
 
+        df.rename(columns={
+            'eria_price_touhoku': 'eria_price_tohoku',
+            'aboidable_cost_touhoku': 'aboidable_cost_tohoku',
+        }, inplace=True)
+            
         # ===========================
         # 從df的columns取得所有區域（eria_price_開頭的欄位）
         # 並將區域名稱轉換為小寫
