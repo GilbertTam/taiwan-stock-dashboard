@@ -34,6 +34,14 @@ enum TimeSlot {
   NIGHT = '22-24'
 }
 
+enum TimeSlotDescription {
+  ALL = '全時段',
+  MORNING = '8點至10點',
+  EVENING = '17點至19點',
+  NIGHT = '22點至24點'
+}
+
+
 const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedModels }) => {
   const { darkMode } = useTheme();
   const muiTheme = useMuiTheme();
@@ -903,16 +911,16 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               }}
             >
               <ToggleButton value={TimeSlot.ALL}>
-                全時段
+                {TimeSlotDescription.ALL}
               </ToggleButton>
               <ToggleButton value={TimeSlot.MORNING}>
-                8-10 時
+                {TimeSlotDescription.MORNING}
               </ToggleButton>
               <ToggleButton value={TimeSlot.EVENING}>
-                17-19 時
+                {TimeSlotDescription.EVENING}
               </ToggleButton>
               <ToggleButton value={TimeSlot.NIGHT}>
-                22-24 時
+                {TimeSlotDescription.NIGHT}
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
