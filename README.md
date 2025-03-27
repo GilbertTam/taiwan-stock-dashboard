@@ -44,7 +44,7 @@ Then you can run the following commands to fetch data.
   Spot market data is fetched from the JEPX API.
 
   ```bash
-  python manage.py download_spot_jepx 2023 --batch-size 1000
+  python manage.py download_spot_jepx 2024 --batch-size 10000
   ```
 
 #### QUICK Spot Market Predict
