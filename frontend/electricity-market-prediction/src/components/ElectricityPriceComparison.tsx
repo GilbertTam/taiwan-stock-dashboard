@@ -609,7 +609,7 @@ export default function ElectricityPriceComparison() {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ height: 500 }}>
+            <Box sx={{ minHeight: 500 }}>
               <PriceChart 
                 chartData={chartData} 
                 areaName={selectedArea}
