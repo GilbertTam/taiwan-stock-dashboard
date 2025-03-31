@@ -12,7 +12,7 @@ from custom_spot_market_predict.models import PredictionModel, CustomAreaPricePr
 
 
 class Command(BaseCommand):
-    help = '從D-Price網站抓取電力價格預測數據並存入數據庫'
+    help = '從D-Price網站抓取電力價格預測資料並存入資料庫'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--dry-run',
             action='store_true',
-            help='只顯示將要執行的操作，不實際寫入數據庫',
+            help='只顯示將要執行的操作，不實際寫入資料庫',
         )
         parser.add_argument(
             '--verbose',
@@ -50,7 +50,7 @@ class Command(BaseCommand):
         # 確定要抓取的地區
         areas_to_fetch = options['areas'] if options['areas'] else list(AREA_EN_JP_MAP.keys())
         
-        # 統計數據
+        # 統計資料
         stats = {
             'total': 0,
             'new': 0,
@@ -59,7 +59,7 @@ class Command(BaseCommand):
             'errors': 0
         }
         
-        # 遍歷每個地區抓取數據
+        # 遍歷每個地區抓取資料
         for area_name in areas_to_fetch:
             if area_name not in AREA_EN_JP_MAP:
                 self.stdout.write(self.style.WARNING(f"未知地區: {area_name}，跳過"))
@@ -71,17 +71,17 @@ class Command(BaseCommand):
                 # 獲取地區對象
                 area = Area.objects.get(name=area_name)
                 
-                self.stdout.write(f"正在抓取 {area.name} ({area.name_ch}) 的預測數據...")
+                self.stdout.write(f"正在抓取 {area.name} ({area.name_ch}) 的預測資料...")
                 
-                # 抓取數據
+                # 抓取資料
                 df, prediction_date = self.fetch_dprice_data(area_jp)
                 
                 if df is None:
-                    self.stdout.write(self.style.ERROR(f"無法抓取 {area.name} 的數據"))
+                    self.stdout.write(self.style.ERROR(f"無法抓取 {area.name} 的資料"))
                     stats['errors'] += 1
                     continue
                 
-                # 處理數據並保存到數據庫
+                # 處理資料並保存到資料庫
                 if not options['dry_run']:
                     area_stats = self.process_and_save_data(df, model, area, prediction_date, options['verbose'])
                     for key in stats:
@@ -93,7 +93,7 @@ class Command(BaseCommand):
                     stats['total'] += len(df)
                 
             except Area.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"數據庫中不存在地區: {area_name}"))
+                self.stdout.write(self.style.ERROR(f"資料庫中不存在地區: {area_name}"))
                 stats['errors'] += 1
                 continue
             except Exception as e:
@@ -111,8 +111,8 @@ class Command(BaseCommand):
         ))
 
     def fetch_dprice_data(self, area_jp):
-        """從D-Price網站抓取指定地區的數據"""
-        # 設定請求頭和數據
+        """從D-Price網站抓取指定地區的資料"""
+        # 設定請求頭和　
         headers = {
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -207,7 +207,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def process_and_save_data(self, df, model, area, prediction_date, verbose=False):
-        """處理並保存數據到數據庫"""
+        """處理並保存資料到資料庫"""
         stats = {
             'new': 0,
             'updated': 0,
@@ -227,7 +227,7 @@ class Command(BaseCommand):
             minute = row['datetime'].minute
             time_code = hour * 2 + (1 if minute == 0 else 2)
             
-            # 準備額外數據 - 包含所有預測區間和實際值
+            # 準備額外資料 - 包含所有預測區間和實際值
             additional_data = {
                 'price_q2_5': float(row['price_q2_5']),  # 95% 下限值
                 'price_q25': float(row['price_q25']),    # 50% 下限值
@@ -249,7 +249,7 @@ class Command(BaseCommand):
                     calculating_date=calculating_date
                 ).first()
                 
-                # 準備數據 - 根據模型定義映射數據
+                # 準備資料 - 根據模型定義映射資料
                 price_5 = float(row['price_q2_5'])
                 price_50 = float(row['price_q50'])
                 price_95 = float(row['price_q97_5'])
