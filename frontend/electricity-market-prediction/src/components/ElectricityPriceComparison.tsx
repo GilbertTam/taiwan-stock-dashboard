@@ -691,18 +691,26 @@ function calculateModelMAE(chartData: ChartDataPoint[], modelId: number, modelNa
     const modelPrediction = point.modelPredictions.find(
       mp => mp.modelId === modelId && mp.modelName === modelName && mp.modelVersion === modelVersion
     );
-    return point.actualPrice !== null && modelPrediction?.predictedPrice !== null;
+    // 確保 actualPrice 和 predictedPrice 都是有效的數值
+    return typeof point.actualPrice === 'number' && 
+           modelPrediction?.predictedPrice !== null && 
+           modelPrediction?.predictedPrice !== undefined;
   });
   
   if (pointsWithBothValues.length === 0) return 0;
   
+  let validPointsCount = 0;
   const totalError = pointsWithBothValues.reduce((sum, point) => {
     const modelPrediction = point.modelPredictions.find(
       mp => mp.modelId === modelId && mp.modelName === modelName && mp.modelVersion === modelVersion
     );
-    if (!modelPrediction) return sum;
-    return sum + Math.abs((point.actualPrice as number) - (modelPrediction.predictedPrice as number));
+    
+    if (!modelPrediction || typeof modelPrediction.predictedPrice !== 'number') return sum;
+    
+    validPointsCount++;
+    return sum + Math.abs(point.actualPrice as number - modelPrediction.predictedPrice);
   }, 0);
   
-  return totalError / pointsWithBothValues.length;
+  // 使用實際有效點的數量來計算平均值
+  return validPointsCount > 0 ? totalError / validPointsCount : 0;
 }
