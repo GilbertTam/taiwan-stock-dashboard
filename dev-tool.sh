@@ -75,6 +75,14 @@ case "$1" in
         shift
         execute_script "dev-clean-migrations" "$@"
         ;;
+    update)
+        shift
+        execute_script "dev-update" "$@"
+        ;;
+    generate-test-data)
+        shift
+        execute_script "dev-generate-test-data" "$@"
+        ;;
     *)
         print_message "$YELLOW" "Usage: $0 sub-command [args]"
         print_message "$BLUE" "Sub-commands:"
@@ -88,5 +96,6 @@ case "$1" in
         print_message "$GREEN" "  django-startapp: Create a new Django app."
         print_message "$GREEN" "  reload-nginx: Reload Nginx configuration."
         print_message "$GREEN" "  clean-migrations: Clean up migration files."
+        print_message "$GREEN" "  Update: Update the database with the latest data."
         ;;
 esac
