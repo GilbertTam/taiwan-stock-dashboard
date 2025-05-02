@@ -22,3 +22,15 @@ AREA_EN_JP_MAP = {
     'shikoku':'四国',
     'kyushu':'九州',
 }
+
+AREA_ORDER = [
+    'tokyo',
+    'hokkaido',
+    'tohoku',
+    'chubu',
+    'hokuriku',
+    'kansai',
+    'chugoku',
+    'shikoku',
+    'kyushu',
+]
