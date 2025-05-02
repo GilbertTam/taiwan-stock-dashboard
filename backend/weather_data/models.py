@@ -49,6 +49,10 @@ class WeatherBase(models.Model):
         max_length=50,
         help_text="城市名稱"
     )
+    source = models.CharField(
+        max_length=50,
+        help_text="資料來源"
+    )
 
     class Meta:
         abstract = True
@@ -70,7 +74,7 @@ class ActualWeather(WeatherBase):
         verbose_name = "實際天氣資料"
         verbose_name_plural = "實際天氣資料"
         # 確保每個區域在特定時間只有一筆資料
-        unique_together = ['area', 'weather_datetime', 'city']
+        unique_together = ['area', 'weather_datetime', 'city', 'source']
         indexes = [
             models.Index(fields=['weather_datetime', 'area']),
             models.Index(fields=['city', 'weather_datetime']),
@@ -81,7 +85,7 @@ class ActualWeather(WeatherBase):
 
 
     def __str__(self):
-        return f"{self.city} {self.weather_datetime:%Y-%m-%d %H:%M} {self.temperature}°C"
+        return f"[{self.source}] {self.city} {self.weather_datetime:%Y-%m-%d %H:%M} {self.temperature}°C"
 
 class WeatherForecast(WeatherBase):
     """天氣預測資料"""
@@ -98,7 +102,7 @@ class WeatherForecast(WeatherBase):
         verbose_name = "天氣預測資料"
         verbose_name_plural = "天氣預測資料"
         # 確保每個區域在特定預測時間只有一筆特定獲取時間的預測資料
-        unique_together = ['area', 'weather_datetime', 'get_datetime', 'city']
+        unique_together = ['area', 'weather_datetime', 'get_datetime', 'city', 'source']
         indexes = [
             models.Index(fields=['weather_datetime', 'area']),
             models.Index(fields=['get_datetime']),
@@ -109,4 +113,4 @@ class WeatherForecast(WeatherBase):
         db_table = "weather_forecast"
 
     def __str__(self):
-        return f"{self.city} 在 {self.get_datetime:%Y-%m-%d %H:%M} 預測 {self.weather_datetime:%Y-%m-%d %H:%M} 的天氣"
+        return f"[{self.source}] {self.city} 在 {self.get_datetime:%Y-%m-%d %H:%M} 預測 {self.weather_datetime:%Y-%m-%d %H:%M} 的天氣"

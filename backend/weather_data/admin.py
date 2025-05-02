@@ -44,6 +44,7 @@ class DateTimeFilter(admin.SimpleListFilter):
 @admin.register(ActualWeather)
 class ActualWeatherAdmin(admin.ModelAdmin):
     list_display = (
+        'source',
         'weather_datetime',
         'city',
         'area',
@@ -63,6 +64,7 @@ class ActualWeatherAdmin(admin.ModelAdmin):
         'wind_direction',
     )
     search_fields = (
+        'source',
         'city',
         'area__name',
         'area__name_jp',
@@ -77,6 +79,7 @@ class ActualWeatherAdmin(admin.ModelAdmin):
     fieldsets = (
         ('基本資訊', {
             'fields': (
+                'source',
                 'weather_datetime',
                 'area',
                 'city',
@@ -104,6 +107,7 @@ class ActualWeatherAdmin(admin.ModelAdmin):
 @admin.register(WeatherForecast)
 class WeatherForecastAdmin(admin.ModelAdmin):
     list_display = (
+        'source',
         'get_datetime',
         'weather_datetime',
         'city',
@@ -122,6 +126,7 @@ class WeatherForecastAdmin(admin.ModelAdmin):
         'wind_direction',
     )
     search_fields = (
+        'source',
         'city',
         'area__name',
         'area__name_jp',
@@ -136,6 +141,7 @@ class WeatherForecastAdmin(admin.ModelAdmin):
     fieldsets = (
         ('預測資訊', {
             'fields': (
+                'source',
                 'get_datetime',
                 'weather_datetime',
                 'area',

@@ -11,7 +11,7 @@ class WeatherBaseSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'name_jp', 'name_ch', 'weather_datetime', 
             'temperature', 'rainfall', 'snowfall', 'wind_speed',
-            'wind_direction', 'relative_humidity', 'weather_id', 'city'
+            'wind_direction', 'relative_humidity', 'weather_id', 'city', 'source',
         ]
 
 class ActualWeatherSerializer(serializers.ModelSerializer):
@@ -25,7 +25,7 @@ class ActualWeatherSerializer(serializers.ModelSerializer):
             'name', 'name_jp', 'name_ch', 'weather_datetime', 
             'temperature', 'rainfall', 'snowfall', 'wind_speed',
             'wind_direction', 'relative_humidity', 'weather_id', 'city',
-            'deepest_snow', 'sunshine_hours'
+            'deepest_snow', 'sunshine_hours', 'source',
         ]
 
 class WeatherForecastSerializer(serializers.ModelSerializer):
@@ -39,5 +39,5 @@ class WeatherForecastSerializer(serializers.ModelSerializer):
             'name', 'name_jp', 'name_ch', 'weather_datetime', 
             'temperature', 'rainfall', 'snowfall', 'wind_speed',
             'wind_direction', 'relative_humidity', 'weather_id', 'city',
-            'get_datetime', 'clouds_all'
+            'get_datetime', 'clouds_all', 'source',
         ]
