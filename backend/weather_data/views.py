@@ -44,9 +44,17 @@ class WeatherViewSet(viewsets.ViewSet):
             openapi.Parameter(
                 'name', 
                 openapi.IN_QUERY, 
-                description="電力區域名稱 (選填)", 
+                description="電力區域名稱 (選填，預設為所有區域)",
                 type=openapi.TYPE_STRING,
                 required=False
+            ),
+            openapi.Parameter(
+                'source', 
+                openapi.IN_QUERY, 
+                description="資料來源 (選填，預設為全部來源)",
+                type=openapi.TYPE_STRING,
+                required=False,
+                default="quick",
             ),
         ],
         responses={
@@ -60,6 +68,7 @@ class WeatherViewSet(viewsets.ViewSet):
                             {
                                 "name": "tokyo",
                                 "name_jp": "東京",
+                                "source": "quick",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
                                 "rainfall": 0.0,
@@ -103,11 +112,14 @@ class WeatherViewSet(viewsets.ViewSet):
             
             # 可選的區域過濾
             area_name = request.query_params.get('name')
-            
+            # 可選的資料來源過濾
+            source = request.query_params.get('source')
+
             # 使用原生 SQL 查詢
             sql_query = """
                 SELECT 
                     aw.id,
+                    aw.source,
                     aw.weather_datetime,
                     aw.temperature,
                     aw.rainfall,
@@ -126,6 +138,7 @@ class WeatherViewSet(viewsets.ViewSet):
                 JOIN area a ON aw.area_id = a.id
                 WHERE aw.weather_datetime BETWEEN %s AND %s
                 {area_filter}
+                {source_filter}
                 ORDER BY aw.weather_datetime, a.name
             """
             
@@ -142,9 +155,15 @@ class WeatherViewSet(viewsets.ViewSet):
             if area_name:
                 area_filter = "AND a.name = %s"
                 params.append(area_name)
-            
+
+            # 根據是否有資料來源過濾條件來修改 SQL
+            source_filter = ""
+            if source:
+                source_filter = "AND aw.source = %s"
+                params.append(source)
+
             # 格式化 SQL 查詢
-            sql_query = sql_query.format(area_filter=area_filter)
+            sql_query = sql_query.format(area_filter=area_filter, source_filter=source_filter)
             
             # 執行查詢
             with connection.cursor() as cursor:
@@ -157,11 +176,12 @@ class WeatherViewSet(viewsets.ViewSet):
                     if result_dict['weather_datetime'] and timezone.is_aware(result_dict['weather_datetime']):
                         result_dict['weather_datetime'] = timezone.localtime(result_dict['weather_datetime'])
                     results.append(result_dict)
-            
+
             # 本次查詢資訊
             logger.debug(f"==== 查詢天氣實際資料 ====")
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
             logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
+            logger.debug(f"查詢資料來源：{source if source else '所有來源'}")
             logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
 
@@ -211,7 +231,7 @@ class WeatherViewSet(viewsets.ViewSet):
             openapi.Parameter(
                 'name', 
                 openapi.IN_QUERY, 
-                description="電力區域名稱 (選填)", 
+                description="電力區域名稱 (選填，預設為所有區域)", 
                 type=openapi.TYPE_STRING,
                 required=False
             ),
@@ -221,6 +241,14 @@ class WeatherViewSet(viewsets.ViewSet):
                 description="是否只返回最新預測 (預設為true)", 
                 type=openapi.TYPE_BOOLEAN,
                 required=False
+            ),
+            openapi.Parameter(
+                'source', 
+                openapi.IN_QUERY, 
+                description="資料來源 (選填，預設為全部來源)",
+                type=openapi.TYPE_STRING,
+                required=False,
+                default="quick",
             ),
         ],
         responses={
@@ -234,6 +262,7 @@ class WeatherViewSet(viewsets.ViewSet):
                             {
                                 "name": "tokyo",
                                 "name_jp": "東京",
+                                "source": "quick",
                                 "weather_datetime": "2025-01-01T12:00:00Z",
                                 "temperature": 10.5,
                                 "rainfall": 0.0,
@@ -278,7 +307,8 @@ class WeatherViewSet(viewsets.ViewSet):
             # 可選參數
             area_name = request.query_params.get('name')
             latest_only = request.query_params.get('latest_only', 'true').lower() == 'true'
-            
+            source = request.query_params.get('source')
+
             # 處理時區問題
             from django.utils import timezone
             start_date_aware = timezone.make_aware(start_date) if timezone.is_naive(start_date) else start_date
@@ -293,6 +323,7 @@ class WeatherViewSet(viewsets.ViewSet):
                             wf.id,
                             wf.area_id,
                             wf.city,
+                            wf.source,
                             wf.weather_datetime,
                             wf.get_datetime,
                             wf.temperature,
@@ -315,11 +346,13 @@ class WeatherViewSet(viewsets.ViewSet):
                         WHERE 
                             wf.weather_datetime BETWEEN %s AND %s
                             {area_filter}
+                            {source_filter}
                     )
                     SELECT 
                         id,
                         area_id,
                         city,
+                        source,
                         weather_datetime,
                         get_datetime,
                         temperature,
@@ -344,6 +377,7 @@ class WeatherViewSet(viewsets.ViewSet):
                         wf.id,
                         wf.area_id,
                         wf.city,
+                        wf.source,
                         wf.weather_datetime,
                         wf.get_datetime,
                         wf.temperature,
@@ -362,26 +396,34 @@ class WeatherViewSet(viewsets.ViewSet):
                     WHERE 
                         wf.weather_datetime BETWEEN %s AND %s
                         {area_filter}
+                        {source_filter}
                     ORDER BY wf.weather_datetime, a.name, wf.city, wf.get_datetime DESC
                 """
-            
+
+
             # 添加區域過濾條件
             area_filter = ""
             params = [start_date_aware, end_date_aware]
             if area_name:
                 area_filter = "AND a.name = %s"
                 params.append(area_name)
-            
+
+            # 添加資料來源過濾條件
+            source_filter = ""
+            if source:
+                source_filter = "AND wf.source = %s"
+                params.append(source)
+
             # 格式化 SQL 查詢
-            sql_query = sql_query.format(area_filter=area_filter)
+            sql_query = sql_query.format(area_filter=area_filter, source_filter=source_filter)
             
             # 執行原生 SQL 查詢
             with connection.cursor() as cursor:
                 cursor.execute(sql_query, params)
-                
+
                 # 獲取列名
                 columns = [col[0] for col in cursor.description]
-                
+
                 # 獲取結果
                 results = []
                 for row in cursor.fetchall():
@@ -394,11 +436,12 @@ class WeatherViewSet(viewsets.ViewSet):
                             result_dict[dt_field] = timezone.localtime(result_dict[dt_field])
                     
                     results.append(result_dict)
-            
+
             # 本次查詢資訊
             logger.debug(f"==== 查詢天氣預測資料 ====")
             logger.debug(f"查詢日期範圍：{start_date} 到 {end_date}")
             logger.debug(f"查詢電力區域：{area_name if area_name else '所有區域'}")
+            logger.debug(f"查詢資料來源：{source if source else '所有來源'}")
             logger.debug(f"是否只返回最新預測：{latest_only}")
             logger.debug(f"查詢結果數量：{len(results)}")
             logger.debug(f"=========================")
@@ -427,6 +470,100 @@ class WeatherViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+    @swagger_auto_schema(
+        operation_summary="獲取所有資料來源",
+        operation_description="獲取系統中所有唯一的天氣資料來源",
+        responses={
+            "200": openapi.Response(
+                description="成功獲取資料",
+                examples={
+                    "application/json": {
+                        "result": [{"Message": "Success"}],
+                        "code": 0,
+                        "data": {
+                            "actual_sources": ["quick", "jma", "other_source"],
+                            "forecast_sources": ["quick", "ecmwf", "other_source"]
+                        }
+                    }
+                },
+            ),
+            "500": openapi.Response(
+                description="伺服器錯誤",
+                examples={
+                    "application/json": {
+                        "result": [{"Message": "Error", "Detail": "內部伺服器錯誤"}],
+                        "code": 1,
+                    }
+                },
+            )
+        },
+    )
+    @action(detail=False, methods=['get'])
+    def sources(self, request):
+        """獲取所有唯一的資料來源"""
+        try:
+            # 查詢實際天氣資料的唯一來源
+            actual_sources_query = """
+                SELECT DISTINCT source 
+                FROM actual_weather 
+                WHERE source IS NOT NULL 
+                ORDER BY source
+            """
+            
+            # 查詢天氣預測資料的唯一來源
+            forecast_sources_query = """
+                SELECT DISTINCT source 
+                FROM weather_forecast 
+                WHERE source IS NOT NULL 
+                ORDER BY source
+            """
+            
+            # 執行查詢
+            actual_sources = []
+            forecast_sources = []
+            
+            with connection.cursor() as cursor:
+                # 查詢實際天氣資料來源
+                cursor.execute(actual_sources_query)
+                for row in cursor.fetchall():
+                    actual_sources.append(row[0])
+                    
+                # 查詢天氣預測資料來源
+                cursor.execute(forecast_sources_query)
+                for row in cursor.fetchall():
+                    forecast_sources.append(row[0])
+            
+            # 記錄查詢結果
+            logger.debug(f"==== 查詢天氣資料來源 ====")
+            logger.debug(f"實際天氣資料來源數量：{len(actual_sources)}")
+            logger.debug(f"實際天氣資料來源：{actual_sources}")
+            logger.debug(f"天氣預測資料來源數量：{len(forecast_sources)}")
+            logger.debug(f"天氣預測資料來源：{forecast_sources}")
+            logger.debug(f"=========================")
+            
+            # 返回結果
+            return Response({
+                "result": [{"Message": "Success"}],
+                "code": 0,
+                "data": {
+                    "actual_sources": actual_sources,
+                    "forecast_sources": forecast_sources
+                }
+            })
+            
+        except Exception as e:
+            import traceback
+            logger.error(f"查詢天氣資料來源錯誤：{str(e)}\n{traceback.format_exc()}")
+            return Response(
+                {
+                    "result": [{"Message": "Error", "Detail": str(e)}],
+                    "code": 1,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
     def validate_date_param(self, date_str, param_name):
         """驗證日期參數"""
