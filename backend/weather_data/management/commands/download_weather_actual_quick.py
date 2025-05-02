@@ -141,6 +141,7 @@ class Command(BaseCommand):
                 'relative_humidity': row['relative_humidity'],
                 'weather_id': row['weather_id'],
                 'city': row['city'],
+                'source': 'quick',
             }
 
             if key in existing_weather:

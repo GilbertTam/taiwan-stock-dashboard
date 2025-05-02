@@ -151,6 +151,7 @@ class Command(BaseCommand):
                 'weather_id': row['weather_id'],
                 'city': row['city'],
                 'clouds_all': row['clouds_all'],
+                'source': 'quick',
             }
 
             if key in existing_forecasts:
