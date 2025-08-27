@@ -129,19 +129,6 @@ importer = DataImporter(config)
 importer.run('spot_market.csv')
 ```
 
-### 3. Weather Data
-
-```python
-config = {
-    'datetime_column': 'Timestamp',
-    'price_column': 'Temperature',
-    'datetime_format': '%Y-%m-%d %H:%M',
-    'model_name': 'WeatherModel'
-}
-
-importer = DataImporter(config)
-importer.run('weather.csv', upload=False)  # Test without upload
-```
 
 ## Command Line Interface
 
