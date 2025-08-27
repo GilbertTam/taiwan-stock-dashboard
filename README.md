@@ -1,8 +1,8 @@
-# Quick API Backend
+# JP Electricity Price Dashboard
 
 ![](./docs/dashboard.png)
 
-This is Quick API Backend.
+This is a dashboard for visualizing predicted and raw electricity price.
 
 ## Requirements
 
