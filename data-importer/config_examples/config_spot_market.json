@@ -1,0 +1,14 @@
+{
+  "base_url": "http://localhost:8787/api",
+  "username": "admin",
+  "password": "1234",
+  "model_name": "SpotMarketModel",
+  "model_version": "2.0.0",
+  "area_name": "tokyo",
+  "datetime_column": "DateTime",
+  "price_column": "Price",
+  "price_5_column": "Price_5",
+  "price_95_column": "Price_95",
+  "datetime_format": "%Y-%m-%d %H:%M:%S",
+  "skip_rows": 1
+}

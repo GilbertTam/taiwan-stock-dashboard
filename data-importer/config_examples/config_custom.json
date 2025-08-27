@@ -1,0 +1,12 @@
+{
+  "base_url": "http://localhost:8787/api",
+  "username": "admin",
+  "password": "1234",
+  "model_name": "CustomSpotMarketModel",
+  "model_version": "1.0.0",
+  "area_name": "tokyo",
+  "datetime_column": "Time",
+  "price_column": "Price",
+  "datetime_format": "%Y-%m-%d %H:%M",
+  "skip_rows": 0
+}
