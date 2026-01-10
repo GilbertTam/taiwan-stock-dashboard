@@ -58,6 +58,8 @@ urlpatterns += [
     path(f"{URL_PREFIX}/", include('custom_spot_market_predict.urls')),
     # 天氣資料 API
     path(f"{URL_PREFIX}/", include('weather_data.urls')),
+    # Market Information API
+    path(f"{URL_PREFIX}/market-info/", include('market_information.urls')),
 ]
 
 # -------------- START - Swagger View --------------

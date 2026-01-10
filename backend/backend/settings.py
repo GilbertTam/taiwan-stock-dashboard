@@ -123,6 +123,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # ==================
+    "backend",
+    # ==================
     # Third party pkgs
     # ==================
     "rest_framework", # API framework
@@ -153,8 +155,6 @@ INSTALLED_APPS = [
     "django_login_history",
     # 使用者額外資訊
     "userprofile",
-    # QUICK API
-    "quick_api",
     # 日本區域
     "area",
     # 電力市場價格
@@ -163,10 +163,12 @@ INSTALLED_APPS = [
     "custom_spot_market_predict",
     # 天氣資料（實際與預測）
     "weather_data",
+    # 市場資訊
+    "market_information",
     # ==================
     # Test Apps
     # ==================
-    "ping"
+    "ping",
 ]
 
 SITE_ID = 1  # Make sure SITE_ID is set
@@ -419,6 +421,12 @@ LOGGING = {
             "propagate": False,
             "level": "DEBUG"
         },
+        # 市場資訊
+        "market_information": {
+            "handlers": ["api"],
+            "propagate": False,
+            "level": "DEBUG"
+        },
     }
 }
 
@@ -517,10 +525,12 @@ print(f"---------- CACHE PAGE: {CACHE_PAGE}")
 print(f"---------- CACHE TTL: {CACHE_TTL} sec(s)")
 # -------------- END - Cache Page Setting --------------
 
-# -------------- START - QUICK API Setting --------------
-QUICK_API_USERNAME = os.environ.get("QUICK_API_USERNAME")
-QUICK_API_PASSWORD = os.environ.get("QUICK_API_PASSWORD")
-# -------------- END - QUICK API Setting --------------
+# -------------- START - Elasticsearch Setting --------------
+ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
+ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
+ELASTICSEARCH_USERNAME = os.environ.get("ELASTICSEARCH_USERNAME", "")
+ELASTICSEARCH_PASSWORD = os.environ.get("ELASTICSEARCH_PASSWORD", "")
+# -------------- END - Elasticsearch Setting --------------
 
 
 print("-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-")

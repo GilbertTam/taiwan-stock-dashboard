@@ -7,7 +7,17 @@ import {
   ApiResponse, 
   CalculatingDate,
   LoginCredentials,
-  AuthTokens
+  AuthTokens,
+  ImbalanceData,
+  HjksOutage,
+  InterconnectionFlow,
+  IntradayData,
+  Earthquake,
+  OcctoAreaData,
+  OcctoInterconnection,
+  OcctoEvent,
+  TdgcData,
+  WeatherData
 } from '@/types';
 import Cookies from 'js-cookie';
 
@@ -148,5 +158,106 @@ export const fetchAvailableCalculatingDates = async (params: CalculatingDatesPar
   
   const api = createApiInstance(token);
   const response = await api.get<ApiResponse<CalculatingDate[]>>('/custom-predict/available-calculating-dates', { params });
+  return response.data.data;
+};
+
+export interface DateRangeParams {
+  start_date: string;
+  end_date: string;
+}
+
+export interface AreaDateRangeParams extends DateRangeParams {
+  area_name?: string;
+}
+
+export interface InterconnectionParams extends DateRangeParams {
+  line_name?: string;
+}
+
+export const fetchImbalance = async (params: DateRangeParams): Promise<ImbalanceData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<ImbalanceData[]>>('/market-info/imbalance', { params });
+  return response.data.data;
+};
+
+export const fetchHjksOutages = async (params: AreaDateRangeParams): Promise<HjksOutage[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<HjksOutage[]>>('/market-info/hjks', { params });
+  return response.data.data;
+};
+
+export const fetchInterconnectionFlows = async (params: InterconnectionParams): Promise<InterconnectionFlow[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<InterconnectionFlow[]>>('/market-info/interconnection', { params });
+  return response.data.data;
+};
+
+export const fetchIntraday = async (params: DateRangeParams): Promise<IntradayData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<IntradayData[]>>('/market-info/intraday', { params });
+  return response.data.data;
+};
+
+export const fetchEarthquakes = async (params: DateRangeParams): Promise<Earthquake[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<Earthquake[]>>('/market-info/earthquakes', { params });
+  return response.data.data;
+};
+
+export const fetchOcctoArea = async (params: AreaDateRangeParams): Promise<OcctoAreaData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<OcctoAreaData[]>>('/market-info/occto-area', { params });
+  return response.data.data;
+};
+
+export const fetchOcctoInterconnection = async (params: DateRangeParams): Promise<OcctoInterconnection[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<OcctoInterconnection[]>>('/market-info/occto-inter', { params });
+  return response.data.data;
+};
+
+export const fetchOcctoEvents = async (params: DateRangeParams): Promise<OcctoEvent[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<OcctoEvent[]>>('/market-info/occto-event', { params });
+  return response.data.data;
+};
+
+export const fetchTdgc = async (params: AreaDateRangeParams): Promise<TdgcData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<TdgcData[]>>('/market-info/tdgc', { params });
+  return response.data.data;
+};
+
+export const fetchWeatherActual = async (params: AreaDateRangeParams): Promise<WeatherData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<WeatherData[]>>('/market-info/weather-actual', { params });
+  return response.data.data;
+};
+
+export const fetchWeatherForecast = async (params: AreaDateRangeParams): Promise<WeatherData[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<WeatherData[]>>('/market-info/weather-forecast', { params });
   return response.data.data;
 };

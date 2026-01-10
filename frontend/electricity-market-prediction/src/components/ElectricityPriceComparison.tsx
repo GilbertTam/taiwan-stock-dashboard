@@ -7,7 +7,7 @@ import {
   InputLabel, Select, MenuItem, Button, Switch, 
   FormControlLabel, SelectChangeEvent, Alert, Divider,
   Tooltip, IconButton, Chip, Checkbox, ListItemText, OutlinedInput,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -22,6 +22,9 @@ import {
   fetchSpecificPredictions 
 } from '@/services/api';
 import PriceChart from '@/components/PriceChart';
+import MaeAnalysis from '@/components/MaeAnalysis';
+import ProfitAnalysis from '@/components/ProfitAnalysis';
+import MarketInfoPanel from '@/components/MarketInfoPanel';
 import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate } from '@/types';
 import { prepareChartData, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
@@ -39,9 +42,12 @@ export default function ElectricityPriceComparison() {
   const [calculatingDatesByModel, setCalculatingDatesByModel] = useState<{ [key: string]: CalculatingDate[] }>({});
   const [selectedArea, setSelectedArea] = useState<string>('');
   
+  // Analysis Settings
+  const [topBottomPairs, setTopBottomPairs] = useState<number>(4);
+  
   // 多模型選擇，並為每個模型添加 calculatingDate 屬性
   const [selectedModels, setSelectedModels] = useState<{
-    id: number;
+    id: string | number;
     name: string;
     version: string;
     color: string;
@@ -72,21 +78,23 @@ export default function ElectricityPriceComparison() {
           setSelectedArea(areasData[0].name);
         }
         
-        if (modelsData.length > 0) {
+// ... (inside the useEffect)
+        
+        // Removed default selection logic
+        // if (modelsData.length > 0) {
+        //   const firstModel = modelsData[0];
+        //   const modelKey = `${firstModel.id}|${firstModel.name}|${firstModel.version}`;
+        //   const hash = hashString(modelKey);
+        //   const color = generateColor(hash);
 
-          const firstModel = modelsData[0];
-          const modelKey = `${firstModel.id}|${firstModel.name}|${firstModel.version}`;
-          const hash = hashString(modelKey);
-          const color = generateColor(hash);
-
-          setSelectedModels([{
-            id: firstModel.id,
-            name: firstModel.name,
-            version: firstModel.version,
-            color: color,
-            calculatingDate: 'latest'
-          }]);
-        }
+        //   setSelectedModels([{
+        //     id: firstModel.id,
+        //     name: firstModel.name,
+        //     version: firstModel.version,
+        //     color: color,
+        //     calculatingDate: 'latest'
+        //   }]);
+        // }
       } catch (err: any) {
         console.error('獲取初始資料失敗', err);
         
@@ -213,10 +221,6 @@ export default function ElectricityPriceComparison() {
           });
         } else {
           // 使用 fetchSpecificPredictions 獲取特定日期的預測
-          // ！！注意！！
-          // 這裡的 calculating_date 是模型計算日期
-          // calculating_date格式是 'yyyy-MM-dd'
-          // 送進API的時候需要轉換成 'yyyyMMdd'
           const formattedCalculatingDate = format(new Date(model.calculatingDate), 'yyyyMMdd');
           modelPredictions = await fetchSpecificPredictions({
             start_date: formattedStartDate,
@@ -266,24 +270,39 @@ export default function ElectricityPriceComparison() {
   
   // 處理模型選擇變更
   const handleModelChange = (event: SelectChangeEvent<string[]>) => {
-    const selectedModelIds = event.target.value as string[];
+    // 取得當前選中的所有值（這是一個字串數組）
+    const selectedValues = event.target.value as string[];
     
-    // 將選擇的模型 ID 轉換為完整的模型對象
-    const newSelectedModels = selectedModelIds.map((modelId, index) => {
-      const [id, name, version] = modelId.split('|');
+    // 如果沒有選擇任何模型，清除所有選擇
+    if (selectedValues.length === 0) {
+      setSelectedModels([]);
+      return;
+    }
+
+    // 過濾掉重複的值（雖然 Select multiple 不應該產生重複，但安全起見）
+    const uniqueSelectedValues = Array.from(new Set(selectedValues));
+
+    // 構建新的 selectedModels 狀態
+    const newSelectedModels = uniqueSelectedValues.map((modelValue) => {
+      const [idStr, name, version] = modelValue.split('|');
+      const id = isNaN(Number(idStr)) ? idStr : Number(idStr);
       
-      // 檢查這個模型是否已經在之前的選擇中
+      // 檢查這個模型是否已經在之前的選擇中，如果是，保留其屬性（顏色、計算日期）
       const existingModel = selectedModels.find(
-        m => m.id === parseInt(id) && m.name === name && m.version === version
+        m => m.id === id && m.name === name && m.version === version
       );
       
-      // 如果存在，保留其 calculatingDate，否則設為 'latest'
+      if (existingModel) {
+        return existingModel;
+      }
+      
+      // 如果是新選擇的模型，初始化其屬性
       return {
-        id: parseInt(id),
+        id,
         name,
         version,
-        color: generateColor(hashString(modelId)),
-        calculatingDate: existingModel ? existingModel.calculatingDate : 'latest'
+        color: generateColor(hashString(modelValue)),
+        calculatingDate: 'latest'
       };
     });
     
@@ -301,7 +320,7 @@ export default function ElectricityPriceComparison() {
   
   // 準備模型選擇列表
   const modelOptions = useMemo(() => {
-    const options: { id: number; name: string; version: string; value: string; }[] = [];
+    const options: { id: string | number; name: string; version: string; value: string; }[] = [];
     
     models.forEach(model => {
       options.push({
@@ -334,6 +353,35 @@ export default function ElectricityPriceComparison() {
   const selectedModelValues = useMemo(() => {
     return selectedModels.map(model => `${model.id}|${model.name}|${model.version}`);
   }, [selectedModels]);
+
+  // Helper function to format calculating date
+  const formatCalcDate = (dateVal: string | number) => {
+    if (dateVal === 'latest') return '最新';
+    if (!dateVal) return '';
+    
+    // Try to parse as timestamp if it looks like a large number
+    const numVal = Number(dateVal);
+    // If > 20000000 (e.g. 20250101 is 20M, timestamp is 1.7T. 100M is a safe threshold)
+    if (!isNaN(numVal) && numVal > 100000000) {
+        return format(new Date(numVal), 'yyyy-MM-dd');
+    }
+    
+    // If it is YYYYMMDD string or number
+    const strVal = String(dateVal);
+    if (strVal.length === 8 && !isNaN(Number(strVal))) {
+        return `${strVal.substring(0, 4)}-${strVal.substring(4, 6)}-${strVal.substring(6, 8)}`;
+    }
+
+    // Try parsing as standard date string
+    try {
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            return format(d, 'yyyy-MM-dd');
+        }
+    } catch (e) {}
+    
+    return String(dateVal);
+  };
   
   return (
     <Container maxWidth="xl">
@@ -401,6 +449,7 @@ export default function ElectricityPriceComparison() {
                             key={value} 
                             label={`${name} ${version}`} 
                             size="small" 
+                            style={{ backgroundColor: selectedModels.find(m => `${m.id}|${m.name}|${m.version}` === value)?.color + '33' }}
                           />
                         );
                       })}
@@ -537,7 +586,7 @@ export default function ElectricityPriceComparison() {
                                 </MenuItem>
                                 {availableDates.map((date) => (
                                   <MenuItem key={date.calculating_date} value={date.calculating_date}>
-                                    {date.calculating_date}
+                                    {formatCalcDate(date.calculating_date)}
                                   </MenuItem>
                                 ))}
                               </Select>
@@ -566,7 +615,7 @@ export default function ElectricityPriceComparison() {
               {selectedModels.map((model) => (
                 <Chip 
                   key={`${model.id}-${model.name}-${model.version}`}
-                  label={`${model.name}: ${model.calculatingDate === 'latest' ? '最新' : model.calculatingDate}`}
+                  label={`${model.name}: ${formatCalcDate(model.calculatingDate)}`}
                   size="small" 
                   sx={{ 
                     borderColor: model.color,
@@ -614,16 +663,31 @@ export default function ElectricityPriceComparison() {
                 chartData={chartData} 
                 areaName={selectedArea}
                 selectedModels={selectedModels}
+                topBottomPairs={topBottomPairs}
               />
             </Box>
           )}
         </Paper>
         
-        {/* 添加模型比較說明區塊 */}
-        {selectedModels.length > 1 && hasData && (
+        {/* Analysis Sections */}
+        {selectedModels.length > 0 && hasData && (
           <Paper sx={{ p: 2, mt: 3, borderRadius: 2, boxShadow: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
-              模型比較分析
+              模型收益分析 (Profit Analysis)
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            <ProfitAnalysis 
+              chartData={chartData} 
+              selectedModels={selectedModels} 
+              topBottomPairs={topBottomPairs}
+              setTopBottomPairs={setTopBottomPairs}
+            />
+
+            <Box sx={{ my: 4 }} /> {/* Spacing */}
+
+            <Typography variant="h6" gutterBottom fontWeight="bold">
+              模型比較分析 (MAE)
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
@@ -649,7 +713,7 @@ export default function ElectricityPriceComparison() {
                           MAE: <strong>{modelMAE.toFixed(2)} ¥/KWh</strong>
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1 }}>
-                          計算日期: <strong>{model.calculatingDate === 'latest' ? '最新' : model.calculatingDate}</strong>
+                          計算日期: <strong>{formatCalcDate(model.calculatingDate)}</strong>
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1 }}>
                           模型描述: {models.find(m => m.id === model.id)?.description || '無描述'}
@@ -661,6 +725,9 @@ export default function ElectricityPriceComparison() {
               })}
             </Grid>
             
+            {/* 插入詳細的 MAE 分析圖表 */}
+            <MaeAnalysis chartData={chartData} selectedModels={selectedModels} />
+
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
                 比較提示:
@@ -671,22 +738,25 @@ export default function ElectricityPriceComparison() {
               <Typography variant="body2">
                 • 預測區間 (P5-P95) 寬度反映了模型的不確定性
               </Typography>
-              <Typography variant="body2">
-                • 特定時間點的預測差異可通過懸停在圖表上查看詳細比較
-              </Typography>
-              <Typography variant="body2">
-                • 不同計算日期的預測結果可反映模型在不同時間點的預測能力
-              </Typography>
             </Box>
           </Paper>
         )}
+        
+        {selectedArea && startDate && endDate && (
+          <MarketInfoPanel 
+            startDate={startDate} 
+            endDate={endDate} 
+            selectedArea={selectedArea} 
+          />
+        )}
+
       </Box>
     </Container>
   );
 }
 
 // 輔助函數：計算模型的 MAE
-function calculateModelMAE(chartData: ChartDataPoint[], modelId: number, modelName: string, modelVersion: string): number {
+function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number, modelName: string, modelVersion: string): number {
   const pointsWithBothValues = chartData.filter(point => {
     const modelPrediction = point.modelPredictions.find(
       mp => mp.modelId === modelId && mp.modelName === modelName && mp.modelVersion === modelVersion
