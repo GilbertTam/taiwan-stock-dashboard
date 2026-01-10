@@ -6,6 +6,19 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 import logging
 
+from market_information.serializers import (
+    ImbalanceSerializer,
+    HjksOutageSerializer,
+    InterconnectionFlowSerializer,
+    IntradaySerializer,
+    EarthquakeSerializer,
+    OcctoAreaSerializer,
+    OcctoInterconnectionSerializer,
+    OcctoEventSerializer,
+    TdgcSerializer,
+    WeatherActualSerializer,
+    WeatherForecastSerializer
+)
 from common.es_service import ESService
 
 logger = logging.getLogger(__name__)
@@ -28,7 +41,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
-        ]
+        ],
+        responses={200: ImbalanceSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def imbalance(self, request):
@@ -49,7 +63,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="hokkaido, tohoku, etc."),
-        ]
+        ],
+        responses={200: HjksOutageSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def hjks(self, request):
@@ -71,7 +86,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('line_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Interconnection name"),
-        ]
+        ],
+        responses={200: InterconnectionFlowSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def interconnection(self, request):
@@ -92,7 +108,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
-        ]
+        ],
+        responses={200: IntradaySerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def intraday(self, request):
@@ -112,7 +129,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
-        ]
+        ],
+        responses={200: EarthquakeSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def earthquakes(self, request):
@@ -133,7 +151,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Area name"),
-        ]
+        ],
+        responses={200: OcctoAreaSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-area')
     def occto_area(self, request):
@@ -154,7 +173,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
-        ]
+        ],
+        responses={200: OcctoInterconnectionSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-inter')
     def occto_inter(self, request):
@@ -174,7 +194,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
-        ]
+        ],
+        responses={200: OcctoEventSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-event')
     def occto_event(self, request):
@@ -195,7 +216,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Area name"),
-        ]
+        ],
+        responses={200: TdgcSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def tdgc(self, request):
@@ -217,7 +239,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Area name (en)"),
-        ]
+        ],
+        responses={200: WeatherActualSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='weather-actual')
     def weather_actual(self, request):
@@ -239,7 +262,8 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Area name (en)"),
-        ]
+        ],
+        responses={200: WeatherForecastSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='weather-forecast')
     def weather_forecast(self, request):
