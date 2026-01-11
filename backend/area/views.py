@@ -5,8 +5,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from area.models import Area
 from area.serializers import AreaSerializer
+from area.constants import AREA_EN_CH_MAP, AREA_EN_JP_MAP, AREA_ORDER
 
 class AreaListView(APIView):
     """
@@ -46,11 +46,18 @@ class AreaListView(APIView):
         """
         獲取所有電力區域的列表
         """
-        areas = Area.objects.all()
-        serializer = AreaSerializer(areas, many=True)
+        # Instead of querying the database, we use the constants
+        areas = []
+        for index, name in enumerate(AREA_ORDER, start=1):
+            areas.append({
+                "id": index,
+                "name": name,
+                "name_ch": AREA_EN_CH_MAP.get(name, ""),
+                "name_jp": AREA_EN_JP_MAP.get(name, "")
+            })
 
         response_data = {
-            "result": serializer.data,
+            "result": areas,
             "code": 0
         }
         
