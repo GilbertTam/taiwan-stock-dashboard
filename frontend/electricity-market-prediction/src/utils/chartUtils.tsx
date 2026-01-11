@@ -1,7 +1,7 @@
 import { AreaPrice, PricePrediction } from '@/types';
 
 export interface ModelPrediction {
-  modelId: number;
+  modelId: string | number;
   modelName: string;
   modelVersion: string;
   predictedPrice: number | null;
@@ -70,7 +70,7 @@ export const prepareChartData = (
           const price95 = parseFloat(prediction.price_95?.toString() || '0');
           
           modelPredictions.push({
-            modelId: parseInt(modelId),
+            modelId: isNaN(Number(modelId)) ? modelId : parseInt(modelId),
             modelName,
             modelVersion,
             predictedPrice: isNaN(price50) ? null : price50,
