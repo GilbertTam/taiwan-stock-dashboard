@@ -2,22 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, Paper, Typography, FormControlLabel, Switch, 
-  CircularProgress, Grid, Divider, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow, Chip
+  Box, Paper, Typography, 
+  CircularProgress, Divider, Table, TableBody, 
+  TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
-import { 
+import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ComposedChart, Bar
+  BarChart, Bar
 } from 'recharts';
-import { format } from 'date-fns';
+import { useTheme } from '@/app/ThemeProvider';
+import { format, parseISO } from 'date-fns';
 import { 
-  fetchImbalance, fetchHjksOutages, fetchWeatherActual, fetchInterconnectionFlows,
-  fetchIntraday, fetchOcctoArea
+  fetchHjksOutages, fetchInterconnectionFlows
 } from '@/services/api';
 import { 
-  ImbalanceData, HjksOutage, WeatherData, InterconnectionFlow, IntradayData, OcctoAreaData 
+  HjksOutage, InterconnectionFlow
 } from '@/types';
+import OutageGanttChart from './OutageGanttChart';
+import OutageTable from './OutageTable';
+import InterconnectionChart from './InterconnectionChart';
+
 
 interface MarketInfoPanelProps {
   startDate: Date | null;
@@ -26,17 +30,57 @@ interface MarketInfoPanelProps {
 }
 
 export default function MarketInfoPanel({ startDate, endDate, selectedArea }: MarketInfoPanelProps) {
+  const { darkMode } = useTheme();
   const [loading, setLoading] = useState(false);
+
+  // 自定義 Tooltip 組件，與主要圖表保持一致的 style
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    const colors = {
+      background: darkMode ? '#1a1a1a' : '#ffffff',
+      text: darkMode ? '#d9d9d9' : '#000000',
+      border: darkMode ? '#444' : '#d9d9d9',
+      headerBg: darkMode ? '#2a2a2a' : '#f0f0f0',
+    };
+
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+
+      return (
+        <div style={{
+          backgroundColor: colors.background,
+          color: colors.text,
+          border: `1px solid ${colors.border}`,
+          borderRadius: '4px',
+          padding: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          fontSize: '12px'
+        }}>
+          <div style={{
+            backgroundColor: colors.headerBg,
+            padding: '4px 8px',
+            marginBottom: '4px',
+            borderBottom: `1px solid ${colors.border}`,
+            fontWeight: 'bold'
+          }}>
+            {label}
+          </div>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} style={{ marginBottom: '4px' }}>
+              <span style={{ color: entry.color }}>●</span>
+              {entry.name}: {entry.value}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
   
-  // Toggles
-  const [showImbalance, setShowImbalance] = useState(false);
-  const [showWeather, setShowWeather] = useState(false);
-  const [showOutages, setShowOutages] = useState(false);
-  const [showInterconnection, setShowInterconnection] = useState(false);
+  // 預設開啟所有市場資訊
+  const showOutages = true;
+  const showInterconnection = true;
   
   // Data
-  const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
-  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
   const [outagesData, setOutagesData] = useState<HjksOutage[]>([]);
   const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
 
@@ -50,60 +94,29 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
     };
   };
 
-  // Fetch Imbalance
+  // Fetch all market data on mount and when params change
   useEffect(() => {
     const params = getApiParams();
-    if (showImbalance && params && imbalanceData.length === 0) {
-      setLoading(true);
-      fetchImbalance(params)
-        .then(data => setImbalanceData(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
-    }
-  }, [showImbalance, startDate, endDate]);
+    if (!params) return;
 
-  // Fetch Weather
-  useEffect(() => {
-    const params = getApiParams();
-    if (showWeather && params && weatherData.length === 0) {
+    const fetchAllData = async () => {
       setLoading(true);
-      fetchWeatherActual(params)
-        .then(data => setWeatherData(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
-    }
-  }, [showWeather, startDate, endDate, selectedArea]);
+      try {
+        const [outages, interconnection] = await Promise.all([
+          fetchHjksOutages(params).catch(err => { console.error('Error fetching outages:', err); return []; }),
+          fetchInterconnectionFlows(params).catch(err => { console.error('Error fetching interconnection:', err); return []; })
+        ]);
+        
+        setOutagesData(outages);
+        setInterconnectionData(interconnection);
+      } catch (err) {
+        console.error('Error fetching market data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Fetch Outages
-  useEffect(() => {
-    const params = getApiParams();
-    if (showOutages && params && outagesData.length === 0) {
-      setLoading(true);
-      fetchHjksOutages(params)
-        .then(data => setOutagesData(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
-    }
-  }, [showOutages, startDate, endDate, selectedArea]);
-
-  // Fetch Interconnection
-  useEffect(() => {
-    const params = getApiParams();
-    if (showInterconnection && params && interconnectionData.length === 0) {
-      setLoading(true);
-      fetchInterconnectionFlows(params)
-        .then(data => setInterconnectionData(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
-    }
-  }, [showInterconnection, startDate, endDate]);
-
-  // Reset data when date or area changes
-  useEffect(() => {
-    setImbalanceData([]);
-    setWeatherData([]);
-    setOutagesData([]);
-    setInterconnectionData([]);
+    fetchAllData();
   }, [startDate, endDate, selectedArea]);
 
   if (!startDate || !endDate) return null;
@@ -114,120 +127,37 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
         市場資訊分析 (Market Information Analysis)
       </Typography>
       <Divider sx={{ mb: 2 }} />
-      
-      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <FormControlLabel 
-          control={<Switch checked={showImbalance} onChange={e => setShowImbalance(e.target.checked)} />} 
-          label="不平衡電價 (Imbalance)" 
-        />
-        <FormControlLabel 
-          control={<Switch checked={showWeather} onChange={e => setShowWeather(e.target.checked)} />} 
-          label="天氣資訊 (Weather)" 
-        />
-        <FormControlLabel 
-          control={<Switch checked={showOutages} onChange={e => setShowOutages(e.target.checked)} />} 
-          label="發電廠停機 (Outages)" 
-        />
-        <FormControlLabel 
-          control={<Switch checked={showInterconnection} onChange={e => setShowInterconnection(e.target.checked)} />} 
-          label="連系線流量 (Interconnection)" 
-        />
-      </Box>
 
       {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>}
 
-      {/* Imbalance Chart */}
-      {showImbalance && imbalanceData.length > 0 && (
-        <Box sx={{ mb: 4, height: 350 }}>
-          <Typography variant="subtitle1" gutterBottom fontWeight="bold">不平衡電價 ({selectedArea})</Typography>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={imbalanceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="datetime" tickFormatter={(t) => t.split(' ')[0].slice(5) + ' ' + t.split(' ')[1].slice(0,5)} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              {/* Imbalance has fields like 'tokyo', 'kansai', etc. We should show selected area or all? */}
-              {/* Map selectedArea to field name */}
-              <Line type="monotone" dataKey={selectedArea.toLowerCase()} stroke="#8884d8" name={`${selectedArea} Imbalance`} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Box>
-      )}
-
-      {/* Weather Chart */}
-      {showWeather && weatherData.length > 0 && (
-        <Box sx={{ mb: 4, height: 350 }}>
-          <Typography variant="subtitle1" gutterBottom fontWeight="bold">天氣 ({selectedArea})</Typography>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={weatherData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="weather_datetime" tickFormatter={(t) => t.slice(5, 16).replace('T', ' ')} />
-              <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-              <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-              <Tooltip />
-              <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperature (°C)" />
-              <Bar yAxisId="right" dataKey="rainfall" fill="#82ca9d" name="Rainfall (mm)" />
-              <Line yAxisId="right" type="monotone" dataKey="wind_speed" stroke="#ffc658" name="Wind Speed (m/s)" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </Box>
-      )}
-
-      {/* Interconnection Chart */}
+      {/* Interconnection Chart - Composed Mirror Chart */}
       {showInterconnection && interconnectionData.length > 0 && (
-        <Box sx={{ mb: 4, height: 350 }}>
-           <Typography variant="subtitle1" gutterBottom fontWeight="bold">連系線流量</Typography>
-           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={interconnectionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="datetime" tickFormatter={(t) => t.split(' ')[0].slice(5) + ' ' + t.split(' ')[1].slice(0,5)} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="forward_planned_flow" stroke="#8884d8" name="Forward Planned Flow" />
-              <Line type="monotone" dataKey="reverse_planned_flow" stroke="#82ca9d" name="Reverse Planned Flow" />
-              {/* Note: Interconnection data structure might vary, check fields */}
-            </LineChart>
-          </ResponsiveContainer>
-        </Box>
+         <InterconnectionChart data={interconnectionData} />
       )}
 
-      {/* Outages Table */}
-      {showOutages && outagesData.length > 0 && (
+      {/* Outages Gantt Chart and Table */}
+      {showOutages && outagesData.length > 0 && startDate && endDate && (
         <Box sx={{ mb: 4 }}>
-          <Typography variant="subtitle1" gutterBottom fontWeight="bold">發電廠停機 ({selectedArea})</Typography>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Company</TableCell>
-                  <TableCell>Plant</TableCell>
-                  <TableCell>Unit</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Capacity (kW)</TableCell>
-                  <TableCell>Start</TableCell>
-                  <TableCell>End</TableCell>
-                  <TableCell>Reason</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {outagesData.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.company}</TableCell>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.unit_name}</TableCell>
-                    <TableCell>{row.stop_type}</TableCell>
-                    <TableCell>{row.max_capacity?.toLocaleString()}</TableCell>
-                    <TableCell>{row.start_datetime.split(' ')[0]}</TableCell>
-                    <TableCell>{row.end_datetime.split(' ')[0]}</TableCell>
-                    <TableCell>{row.factor}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Typography variant="subtitle1" gutterBottom fontWeight="bold">Power Plant Outage ({selectedArea})</Typography>
+          
+          {/* Gantt Chart */}
+          <Paper variant="outlined" sx={{ p: 2, mb: 2, backgroundColor: darkMode ? '#1a1a1a' : '#ffffff' }}>
+            <OutageGanttChart 
+              outages={outagesData} 
+              startDate={startDate} 
+              endDate={endDate} 
+            />
+          </Paper>
+
+          {/* Outages Table */}
+          <Typography variant="h5" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
+          Detailed Information
+          </Typography>
+
+          {/* 2. 放置列表表格 */}
+          <OutageTable 
+            outages={outagesData} 
+          />
         </Box>
       )}
     </Paper>
