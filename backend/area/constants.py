@@ -24,9 +24,9 @@ AREA_EN_JP_MAP = {
 }
 
 AREA_ORDER = [
-    'tokyo',
     'hokkaido',
     'tohoku',
+    'tokyo',
     'chubu',
     'hokuriku',
     'kansai',
