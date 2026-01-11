@@ -1,3 +1,35 @@
+"""
+Market Information API
+This API provides market information data from the Elasticsearch database.
+Endpoints:
+- imbalance: Get imbalance data
+- hjks: Get HJKS outages
+- interconnection: Get interconnection flows
+- intraday: Get intraday data
+- earthquakes: Get earthquakes
+- occto-area: Get OCCTO area data
+- occto-inter: Get OCCTO interconnection
+- occto-event: Get OCCTO events
+- tdgc: Get TDGC data
+- weather-actual: Get weather actual data
+- weather-forecast: Get weather forecast data
+
+
+Example Request:
+GET /api/market-info/imbalance?start_date=20250101&end_date=20250102
+GET /api/market-info/hjks?start_date=20250101&end_date=20250102&area_name=hokkaido
+GET /api/market-info/interconnection?start_date=20250101&end_date=20250102&line_name=interconnection1
+GET /api/market-info/intraday?start_date=20250101&end_date=20250102
+GET /api/market-info/earthquakes?start_date=20250101&end_date=20250102
+GET /api/market-info/occto-area?start_date=20250101&end_date=20250102&area_name=area1
+GET /api/market-info/occto-inter?start_date=20250101&end_date=20250102
+GET /api/market-info/occto-event?start_date=20250101&end_date=20250102
+GET /api/market-info/tdgc?start_date=20250101&end_date=20250102&area_name=area1
+GET /api/market-info/weather-actual?start_date=20250101&end_date=20250102&area_name=area1
+GET /api/market-info/weather-forecast?start_date=20250101&end_date=20250102&area_name=area1
+
+"""
+
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
