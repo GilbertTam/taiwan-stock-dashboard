@@ -276,21 +276,14 @@ SWAGGER_SETTINGS = {
 
 
 # -------------- START - Database Setting --------------
-DB_NAME = os.environ["DB_NAME"]
-DB_USER = os.environ["DB_USER"]
-#DB_USER_PASSWORD = os.environ["DB_USER_PASSWORD"] # for security reasons
-DB_HOST = os.environ["DB_HOST"]
-DB_PORT = os.environ["DB_PORT"]
-SQL = {
-    "ENGINE": "django.db.backends.postgresql",
-    "NAME": DB_NAME,  # db name
-    "USER": DB_USER,  # db user
-    "PASSWORD": os.environ["DB_USER_PASSWORD"],  # db password
-    "HOST": DB_HOST,  # db host
-    "PORT": DB_PORT,  # db port
+# Using SQLite database
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
 }
-DATABASES = {"default": SQL, "OPTIONS": {"protocol": "TCP"}}
-print(f"---------- MYSQL: {DB_NAME} -> {DB_USER}@{DB_HOST}:{DB_PORT}")
+print(f"---------- Database: SQLite -> {BASE_DIR / 'db.sqlite3'}")
 # -------------- END - Database Setting --------------
 
 
@@ -530,6 +523,23 @@ ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
 ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
 ELASTICSEARCH_USERNAME = os.environ.get("ELASTICSEARCH_USERNAME", "")
 ELASTICSEARCH_PASSWORD = os.environ.get("ELASTICSEARCH_PASSWORD", "")
+
+# Elasticsearch Index Names
+ELASTICSEARCH_INDICES = {
+    'prediction': os.environ.get("ES_INDEX_PREDICTION", "prediction"),
+    'jepx': os.environ.get("ES_INDEX_JEPX", "jepx_spot_nightly"),
+    'imbalance': os.environ.get("ES_INDEX_IMBALANCE", "imbalance"),
+    'hjks': os.environ.get("ES_INDEX_HJKS", "hjks"),
+    'interconnection': os.environ.get("ES_INDEX_INTERCONNECTION", "interconnection"),
+    'intraday': os.environ.get("ES_INDEX_INTRADAY", "jepx_intraday"),
+    'earthquake': os.environ.get("ES_INDEX_EARTHQUAKE", "jma_earthquake_actual"),
+    'occto_area': os.environ.get("ES_INDEX_OCCTO_AREA", "occto_area"),
+    'occto_inter': os.environ.get("ES_INDEX_OCCTO_INTER", "occto_inter"),
+    'occto_event': os.environ.get("ES_INDEX_OCCTO_EVENT", "occto_event"),
+    'tdgc': os.environ.get("ES_INDEX_TDGC", "tdgc"),
+    'weather_actual': os.environ.get("ES_INDEX_WEATHER_ACTUAL", "weather_actual"),
+    'weather_forecast': os.environ.get("ES_INDEX_WEATHER_FORECAST", "weather_forecast"),
+}
 # -------------- END - Elasticsearch Setting --------------
 
 
