@@ -103,7 +103,7 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
     
     // 先建立群組容器
     validOutages.forEach(event => {
-      const uniqueKey = `${event.company_code || 'UNK'}_${event.name}_${event.unit_name}`;
+      const uniqueKey = `${event.company || 'UNK'}_${event.name}_${event.unit_name}`;
       if (!groups[uniqueKey]) {
         groups[uniqueKey] = {
           key: uniqueKey,
