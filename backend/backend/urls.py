@@ -59,7 +59,7 @@ urlpatterns += [
     # 天氣資料 API
     path(f"{URL_PREFIX}/", include('weather_data.urls')),
     # Market Information API
-    path(f"{URL_PREFIX}/market-info/", include('market_information.urls')),
+    path(f"{URL_PREFIX}/", include('market_information.urls')),
 ]
 
 # -------------- START - Swagger View --------------
