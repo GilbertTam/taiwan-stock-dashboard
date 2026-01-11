@@ -31,19 +31,6 @@ services:
     depends_on:
       - backend-api
 
-  backend-postgres:
-    <<: [ *restart, *networks ]
-    container_name: ${PROJECT_NAME}-postgres
-    hostname: ${PROJECT_NAME}-postgres
-    image: postgres:latest
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_USER_PASSWORD}
-      - PGDATA=/var/lib/postgresql/data
-    volumes:
-      - ./backend-db-data:/var/lib/postgresql/data
-
   backend-redis:
     <<: [ *restart, *networks ]
     image: redis
@@ -61,26 +48,30 @@ services:
     volumes:
       - ./backend:/app
       - ./supervisord.conf:/etc/supervisor/conf.d/supervisord.conf:rw
-    depends_on:
-      - backend-postgres
     command: bash docker-entrypoint.sh
     environment:
       - DEBUG=${DEBUG}
-      - WAIT_HOSTS=${DB_HOST}:${DB_PORT}
-      - WAIT_HOSTS_TIMEOUT=300
-      - WAIT_SLEEP_INTERVAL=15
-      - WAIT_HOST_CONNECT_TIMEOUT=20
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_USER_PASSWORD=${DB_USER_PASSWORD}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
       - SOCIAL_GOOGLE_CLIENT_ID=${SOCIAL_GOOGLE_CLIENT_ID}
       - SOCIAL_GOOGLE_CLIENT_SECRET=${SOCIAL_GOOGLE_CLIENT_SECRET}
       - SOCIAL_MICROSOFT_CLIENT_ID=${SOCIAL_MICROSOFT_CLIENT_ID}
       - SOCIAL_MICROSOFT_CLIENT_SECRET=${SOCIAL_MICROSOFT_CLIENT_SECRET}
-      - QUICK_API_USERNAME=${QUICK_API_USERNAME}
-      - QUICK_API_PASSWORD=${QUICK_API_PASSWORD}
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST}
+      - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT}
+      - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
+      - ES_INDEX_PREDICTION=${ES_INDEX_PREDICTION:-prediction}
+      - ES_INDEX_JEPX=${ES_INDEX_JEPX:-jepx_spot_nightly}
+      - ES_INDEX_IMBALANCE=${ES_INDEX_IMBALANCE:-imbalance}
+      - ES_INDEX_HJKS=${ES_INDEX_HJKS:-hjks}
+      - ES_INDEX_INTERCONNECTION=${ES_INDEX_INTERCONNECTION:-interconnection}
+      - ES_INDEX_INTRADAY=${ES_INDEX_INTRADAY:-jepx_intraday}
+      - ES_INDEX_EARTHQUAKE=${ES_INDEX_EARTHQUAKE:-jma_earthquake_actual}
+      - ES_INDEX_OCCTO_AREA=${ES_INDEX_OCCTO_AREA:-occto_area}
+      - ES_INDEX_OCCTO_INTER=${ES_INDEX_OCCTO_INTER:-occto_inter}
+      - ES_INDEX_OCCTO_EVENT=${ES_INDEX_OCCTO_EVENT:-occto_event}
+      - ES_INDEX_TDGC=${ES_INDEX_TDGC:-tdgc}
+      - ES_INDEX_WEATHER_ACTUAL=${ES_INDEX_WEATHER_ACTUAL:-weather_actual}
+      - ES_INDEX_WEATHER_FORECAST=${ES_INDEX_WEATHER_FORECAST:-weather_forecast}
 
   backend-nginx:
     <<: [ *restart, *networks ]

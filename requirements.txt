@@ -23,7 +23,8 @@ django-import-export==4.1.1
 drf-yasg==1.21.4
 
 # Database
-psycopg2-binary  # PostgreSQL adapter
+elasticsearch>=8.8.0
+elasticsearch-dsl>=8.8.0
 
 pyparsing==3.0.8
 
