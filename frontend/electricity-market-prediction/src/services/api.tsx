@@ -20,8 +20,9 @@ import {
   WeatherData
 } from '@/types';
 import Cookies from 'js-cookie';
+import { getApiBaseUrl } from '@/utils/apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787/api/';
+const API_BASE_URL = getApiBaseUrl();
 
 // 創建一個API實例
 const createApiInstance = (token?: string) => {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AuthTokens, LoginCredentials } from '@/types';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { getApiBaseUrl } from '@/utils/apiConfig';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   
   const login = async (credentials: LoginCredentials) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787/api';
+      const API_BASE_URL = getApiBaseUrl();
       const response = await axios.post<AuthTokens>(`${API_BASE_URL}/auth/token`, credentials);
       
       const authTokens = response.data;
