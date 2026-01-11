@@ -140,7 +140,7 @@ export const fetchActualPrices = async (params: ActualPricesParams): Promise<Are
   if (!token) throw new Error('No access token available');
   
   const api = createApiInstance(token);
-  const response = await api.get<ApiResponse<AreaPrice[]>>('/spot-market/area-prices', { params });
+  const response = await api.get<ApiResponse<AreaPrice[]>>('/market-info/spot-market-area-prices', { params });
   return response.data.data;
 };
 
