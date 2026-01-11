@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Box, Paper, Typography, Divider, Grid } from '@mui/material';
+import { Box, Paper, Typography, Divider, Grid, Alert } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import {
   ComposedChart,
@@ -160,7 +160,22 @@ const WeatherChartSection = ({ weatherActual, weatherForecast, weatherChartData 
   const Y_AXIS_LEFT_WIDTH = 40;
   const Y_AXIS_RIGHT_WIDTH = 40;
 
-  if (!weatherActual.length && !weatherForecast.length) return null;
+  // 檢查是否有資料
+  const hasData = weatherActual.length > 0 || weatherForecast.length > 0 || (sortedData && sortedData.length > 0);
+
+  if (!hasData) {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          天氣資訊 (Weather Information)
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+        <Alert severity="info">
+          該時段無天氣資料 (No weather data available for this period)
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ mt: 3 }}>

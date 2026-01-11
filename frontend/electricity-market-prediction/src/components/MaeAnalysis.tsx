@@ -6,7 +6,7 @@ import {
   Bar, Legend, ReferenceArea
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, ToggleButton, ToggleButtonGroup, Alert } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { TimeSlot, TimeSlotDescription } from '@/types';
@@ -289,6 +289,32 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
     }
     return null;
   };
+
+  // 檢查是否有資料
+  const hasData = chartData.length > 0 && dailyMAEs.length > 0;
+  const hasModels = selectedModels.length > 0;
+
+  // 如果沒有選擇模型，顯示提示
+  if (!hasModels) {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Alert severity="info">
+          請選擇模型以進行MAE分析 (Please select models to perform MAE analysis)
+        </Alert>
+      </Box>
+    );
+  }
+
+  // 如果沒有資料，顯示提示
+  if (!hasData) {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Alert severity="info">
+          該時段無MAE分析資料 (No MAE analysis data available for this period)
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ mt: 3 }}>

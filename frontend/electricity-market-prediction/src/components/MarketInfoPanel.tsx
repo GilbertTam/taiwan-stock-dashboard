@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Box, Paper, Typography, 
   CircularProgress, Divider, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow
+  TableCell, TableContainer, TableHead, TableRow, Alert
 } from '@mui/material';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -130,35 +130,64 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
 
       {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>}
 
-      {/* Interconnection Chart - Composed Mirror Chart */}
-      {showInterconnection && interconnectionData.length > 0 && (
-         <InterconnectionChart data={interconnectionData} />
-      )}
+      {!loading && (
+        <>
+          {/* Check if all data is empty */}
+          {interconnectionData.length === 0 && outagesData.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              該時段無資料 (No data available for this period)
+            </Alert>
+          ) : (
+            <>
+              {/* Interconnection Chart - Composed Mirror Chart */}
+              {showInterconnection && (
+                <>
+                  {interconnectionData.length > 0 ? (
+                    <InterconnectionChart data={interconnectionData} />
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+                      互連流量資料：該時段無資料 (Interconnection Flow: No data available for this period)
+                    </Alert>
+                  )}
+                </>
+              )}
 
-      {/* Outages Gantt Chart and Table */}
-      {showOutages && outagesData.length > 0 && startDate && endDate && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="subtitle1" gutterBottom fontWeight="bold">Power Plant Outage ({selectedArea})</Typography>
-          
-          {/* Gantt Chart */}
-          <Paper variant="outlined" sx={{ p: 2, mb: 2, backgroundColor: darkMode ? '#1a1a1a' : '#ffffff' }}>
-            <OutageGanttChart 
-              outages={outagesData} 
-              startDate={startDate} 
-              endDate={endDate} 
-            />
-          </Paper>
+              {/* Outages Gantt Chart and Table */}
+              {showOutages && startDate && endDate && (
+                <Box sx={{ mb: 4 }}>
+                  {outagesData.length > 0 ? (
+                    <>
+                      <Typography variant="subtitle1" gutterBottom fontWeight="bold">Power Plant Outage ({selectedArea})</Typography>
+                      
+                      {/* Gantt Chart */}
+                      <Paper variant="outlined" sx={{ p: 2, mb: 2, backgroundColor: darkMode ? '#1a1a1a' : '#ffffff' }}>
+                        <OutageGanttChart 
+                          outages={outagesData} 
+                          startDate={startDate} 
+                          endDate={endDate} 
+                        />
+                      </Paper>
 
-          {/* Outages Table */}
-          <Typography variant="h5" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
-          Detailed Information
-          </Typography>
+                      {/* Outages Table */}
+                      <Typography variant="h5" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
+                        Detailed Information
+                      </Typography>
 
-          {/* 2. 放置列表表格 */}
-          <OutageTable 
-            outages={outagesData} 
-          />
-        </Box>
+                      {/* 2. 放置列表表格 */}
+                      <OutageTable 
+                        outages={outagesData} 
+                      />
+                    </>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      電廠停機資料：該時段無資料 (Power Plant Outage: No data available for this period)
+                    </Alert>
+                  )}
+                </Box>
+              )}
+            </>
+          )}
+        </>
       )}
     </Paper>
   );

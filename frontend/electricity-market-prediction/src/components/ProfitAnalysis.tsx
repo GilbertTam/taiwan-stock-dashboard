@@ -6,7 +6,7 @@ import {
   Bar,   Line, Legend, ReferenceArea
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, Slider, Grid } from '@mui/material';
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, Slider, Grid, Alert } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 
@@ -207,6 +207,10 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
       return lastDay;
   }, [combinedData]);
 
+  // 檢查是否有資料（支援沒有選擇模型時也能顯示 actualProfit）
+  const hasData = chartData.length > 0 && dailyProfits.length > 0;
+  const hasModels = selectedModels.length > 0;
+
   // Combined Tooltip
   const CombinedTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
@@ -252,6 +256,116 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
       }
       return null;
   };
+
+  // 如果沒有資料，顯示提示
+  if (!hasData) {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Alert severity="info">
+          該時段無收益分析資料 (No profit analysis data available for this period)
+        </Alert>
+      </Box>
+    );
+  }
+
+  // 如果沒有選擇模型，但仍然有資料（actualProfit），顯示提示但繼續顯示圖表
+  if (!hasModels && hasData) {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Alert severity="info" sx={{ mb: 3 }}>
+          請選擇模型以進行模型收益比較分析 (Please select models to compare profit analysis)
+        </Alert>
+        <Box sx={{ mb: 3, p: 2, border: `1px solid ${colors.grid}`, borderRadius: 2 }}>
+          <Typography gutterBottom>
+            Top & Bottom Pairs (N): {topBottomPairs}
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs>
+              <Slider
+                value={topBottomPairs}
+                onChange={(_, val) => setTopBottomPairs(val as number)}
+                min={1}
+                max={12}
+                step={1}
+                marks
+                valueLabelDisplay="auto"
+              />
+            </Grid>
+            <Grid item>
+              <Typography>{topBottomPairs} Pairs ({topBottomPairs * 0.5} Hours)</Typography>
+            </Grid>
+          </Grid>
+          <Typography variant="caption" color="text.secondary">
+            Calculate profit by buying at the lowest {topBottomPairs} slots and selling at the highest {topBottomPairs} slots each day.
+          </Typography>
+        </Box>
+
+        <Grid container spacing={4}>
+          <Grid item xs={12}>
+            <Typography variant="h6" component="h3" sx={{ color: colors.text, fontWeight: 'bold', mb: 2 }}>
+              Profit Analysis (Daily & Cumulative) - Optimal Only
+            </Typography>
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart data={combinedData}>
+                {combinedData.map((entry: any, index: number) => {
+                  if (index % 2 === 0) return null;
+                  return (
+                    <ReferenceArea
+                      key={`shade-${entry.formattedDate}`}
+                      x1={entry.formattedDate}
+                      x2={entry.formattedDate}
+                      fill={darkMode ? "#444444" : "#e0e0e0"}
+                      fillOpacity={0.4}
+                    />
+                  );
+                })}
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} vertical={false} />
+                <XAxis dataKey="formattedDate" stroke={colors.text} tick={{fill: colors.text}} />
+                <YAxis 
+                  yAxisId="left"
+                  orientation="left"
+                  stroke={colors.text} 
+                  tick={{fill: colors.text}} 
+                  label={{ value: 'Daily Profit (¥)', angle: -90, position: 'insideLeft', style: { fill: colors.text } }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  stroke={colors.text} 
+                  tick={{fill: colors.text}} 
+                  label={{ value: 'Cumulative Profit (¥)', angle: 90, position: 'insideRight', style: { fill: colors.text } }}
+                />
+                <Tooltip content={<CombinedTooltip />} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="actualProfit" name="Optimal (Daily)" fill={colors.actual} fillOpacity={0.3} barSize={20} />
+                <Line yAxisId="right" type="monotone" dataKey="cumulativeActual" name="Optimal (Cumulative)" stroke={colors.actual} dot={false} strokeWidth={2} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.9)', border: `1px solid ${colors.grid}` }}>
+              <Typography variant="subtitle1" fontWeight="bold" mb={2}>Total Profit Summary</Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Type</TableCell>
+                    <TableCell align="right">Total Profit</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell sx={{ color: colors.actual, fontWeight: 'bold' }}>Optimal (Actual)</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{totalProfits.cumulativeActual?.toFixed(0)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ mt: 3 }}>

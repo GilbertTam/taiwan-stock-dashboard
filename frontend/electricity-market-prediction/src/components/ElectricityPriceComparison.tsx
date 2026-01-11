@@ -1095,12 +1095,18 @@ export default function ElectricityPriceComparison() {
         </Paper>
         
         {/* Analysis Sections */}
-        {selectedModels.length > 0 && hasData && (
+        {hasData && (
           <Paper sx={{ p: 2, mt: 3, borderRadius: 2, boxShadow: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               模型收益分析 (Profit Analysis)
             </Typography>
             <Divider sx={{ mb: 2 }} />
+            
+            {selectedModels.length === 0 && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                目前未選擇任何模型，僅顯示實際收益分析 (No models selected. Showing actual profit analysis only)
+              </Alert>
+            )}
             
             <ProfitAnalysis 
               chartData={chartData} 
@@ -1116,54 +1122,62 @@ export default function ElectricityPriceComparison() {
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
-            <Grid container spacing={2}>
-              {selectedModels.map((model) => {
-                const modelKey = `${model.id}|${model.name}|${model.version}`;
-                const modelMAE = chartData.length > 0 
-                  ? calculateModelMAE(chartData, model.id, model.name, model.version)
-                  : 0;
+            {selectedModels.length === 0 ? (
+              <Alert severity="info">
+                請選擇模型以進行模型比較分析 (Please select models to perform model comparison analysis)
+              </Alert>
+            ) : (
+              <>
+                <Grid container spacing={2}>
+                  {selectedModels.map((model) => {
+                    const modelKey = `${model.id}|${model.name}|${model.version}`;
+                    const modelMAE = chartData.length > 0 
+                      ? calculateModelMAE(chartData, model.id, model.name, model.version)
+                      : 0;
+                    
+                    return (
+                      <Grid item xs={12} sm={6} md={4} key={modelKey}>
+                        <Paper sx={{ 
+                          p: 2, 
+                          border: `1px solid ${model.color}`,
+                          backgroundColor: 'rgba(0,0,0,0.1)'
+                        }}>
+                          <Typography variant="subtitle1" fontWeight="bold" sx={{ color: model.color }}>
+                            {model.name} {model.version}
+                          </Typography>
+                          <Box sx={{ mt: 1 }}>
+                            <Typography variant="body2">
+                              MAE: <strong>{modelMAE.toFixed(2)} ¥/KWh</strong>
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                              計算日期: <strong>{formatCalcDate(model.calculatingDate)}</strong>
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                              模型描述: {models.find(m => m.id === model.id)?.description || '無描述'}
+                            </Typography>
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
                 
-                return (
-                  <Grid item xs={12} sm={6} md={4} key={modelKey}>
-                    <Paper sx={{ 
-                      p: 2, 
-                      border: `1px solid ${model.color}`,
-                      backgroundColor: 'rgba(0,0,0,0.1)'
-                    }}>
-                      <Typography variant="subtitle1" fontWeight="bold" sx={{ color: model.color }}>
-                        {model.name} {model.version}
-                      </Typography>
-                      <Box sx={{ mt: 1 }}>
-                        <Typography variant="body2">
-                          MAE: <strong>{modelMAE.toFixed(2)} ¥/KWh</strong>
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          計算日期: <strong>{formatCalcDate(model.calculatingDate)}</strong>
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          模型描述: {models.find(m => m.id === model.id)?.description || '無描述'}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  </Grid>
-                );
-              })}
-            </Grid>
-            
-            {/* 插入詳細的 MAE 分析圖表 */}
-            <MaeAnalysis chartData={chartData} selectedModels={selectedModels} />
+                {/* 插入詳細的 MAE 分析圖表 */}
+                <MaeAnalysis chartData={chartData} selectedModels={selectedModels} />
 
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                比較提示:
-              </Typography>
-              <Typography variant="body2">
-                • 較低的 MAE (Mean Absolute Error) 值通常表示預測更準確
-              </Typography>
-              <Typography variant="body2">
-                • 預測區間 (P5-P95) 寬度反映了模型的不確定性
-              </Typography>
-            </Box>
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    比較提示:
+                  </Typography>
+                  <Typography variant="body2">
+                    • 較低的 MAE (Mean Absolute Error) 值通常表示預測更準確
+                  </Typography>
+                  <Typography variant="body2">
+                    • 預測區間 (P5-P95) 寬度反映了模型的不確定性
+                  </Typography>
+                </Box>
+              </>
+            )}
           </Paper>
         )}
         
