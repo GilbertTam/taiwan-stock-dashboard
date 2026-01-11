@@ -45,16 +45,16 @@ export default function Dashboard() {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setShowLoginSuccess(false)} severity="success">
-          登入成功！
+          Login successful!
         </Alert>
       </Snackbar>
       
       <Box sx={{ mb: 2 }}>
         <Typography variant="h4" component="h1" fontWeight="bold">
-          電力價格預測儀表板
+          HD Japan Electricity Market Dashboard
         </Typography>
         <Typography variant="subtitle1" color="textSecondary">
-          即時監控與預測日本各區域電力價格
+          Insight of Japan Electricity Market
         </Typography>
       </Box>
       
