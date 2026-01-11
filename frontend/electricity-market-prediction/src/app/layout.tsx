@@ -4,8 +4,8 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from './ThemeProvider';
 
 export const metadata = {
-  title: '電力市場預測比較系統',
-  description: '比較不同模型的電力價格預測',
+  title: 'HDJP Electricity Market Dashboard',
+  description: 'Insight of Japan Electricity Market',
 };
 
 export default function RootLayout({
