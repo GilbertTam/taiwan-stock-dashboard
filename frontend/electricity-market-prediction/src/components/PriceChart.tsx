@@ -911,14 +911,16 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
     // 2. 取得 Y 軸 (根據 ID)
     // 嘗試多種方式獲取 Y 軸，因為 Recharts 內部 ID 有時會變
-    let yScale;
+    let yScale: any;
     if (yAxisMap) {
         if (yAxisMap[yAxisId]) {
             yScale = yAxisMap[yAxisId].scale;
         } else {
             // 模糊搜尋：找 props.yAxisId 符合的
-            const axisObj = Object.values(yAxisMap).find((axis: any) => axis.props.yAxisId === yAxisId);
-            if (axisObj) yScale = axisObj.scale;
+            const axisObj = Object.values(yAxisMap).find((axis: any) => axis.props?.yAxisId === yAxisId) as any;
+            if (axisObj && typeof axisObj.scale === 'function') {
+                yScale = axisObj.scale;
+            }
         }
     }
 
@@ -1025,10 +1027,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 1. 解構出 key
     const { cx, cy, stroke, payload, key } = props;
 
-    if (!payload.markerInfo) return null; // 2. 改回傳 null
+    if (!payload.markerInfo) return <g />; // 返回空元素而不是 null
     
     const type = payload.markerInfo.models[modelKey];
-    if (!type) return null; // 2. 改回傳 null
+    if (!type) return <g />; // 返回空元素而不是 null
 
     // 3. 把 key 加到 svg 上
     return (
