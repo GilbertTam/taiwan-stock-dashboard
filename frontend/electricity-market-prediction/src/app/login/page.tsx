@@ -33,7 +33,7 @@ export default function LoginPage() {
       // 登入成功後，讓 useEffect 處理跳轉
     } catch (err) {
       console.error('Login failed', err);
-      setError('登入失敗，請檢查用戶名和密碼');
+      setError('Login failed, please check your username and password');
     } finally {
       setIsLoading(false);
     }
@@ -50,11 +50,11 @@ export default function LoginPage() {
       }}>
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Typography variant="h4" component="h1" align="center" gutterBottom>
-            電力市場預測系統
+           HD Japan Electricity Market Dashboard
           </Typography>
           
           <Typography variant="h6" align="center" color="textSecondary" sx={{ mb: 3 }}>
-            請登入以繼續
+            Please login to continue
           </Typography>
           
           {error && (
@@ -69,7 +69,7 @@ export default function LoginPage() {
               required
               fullWidth
               id="username"
-              label="使用者名稱"
+              label="Username"
               name="username"
               autoComplete="username"
               autoFocus
@@ -82,7 +82,7 @@ export default function LoginPage() {
               required
               fullWidth
               name="password"
-              label="密碼"
+              label="Password"
               type="password"
               id="password"
               autoComplete="current-password"
@@ -97,7 +97,7 @@ export default function LoginPage() {
               sx={{ mt: 3, mb: 2, py: 1.5 }}
               disabled={isLoading}
             >
-              {isLoading ? <CircularProgress size={24} /> : '登入'}
+              {isLoading ? <CircularProgress size={24} /> : 'Login'}
             </Button>
           </Box>
         </Paper>
