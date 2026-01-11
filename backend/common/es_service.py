@@ -19,19 +19,21 @@ class ESService:
             request_timeout=60,
             verify_certs=True
         )
-        self.prediction_index = 'prediction'
-        self.jepx_index = 'jepx_spot_nightly'
-        self.imbalance_index = 'imbalance'
-        self.hjks_index = 'hjks'
-        self.interconnection_index = 'interconnection'
-        self.intraday_index = 'intraday'
-        self.earthquake_index = 'jma_earthquake_actual'
-        self.occto_area_index = 'occto_area'
-        self.occto_inter_index = 'occto_inter'
-        self.occto_event_index = 'occto_event'
-        self.tdgc_index = 'tdgc'
-        self.weather_actual_index = 'weather_actual'
-        self.weather_forecast_index = 'weather_forecast'
+        # Load index names from settings
+        es_indices = getattr(settings, 'ELASTICSEARCH_INDICES', {})
+        self.prediction_index = es_indices.get('prediction', 'prediction')
+        self.jepx_index = es_indices.get('jepx', 'jepx_spot_nightly')
+        self.imbalance_index = es_indices.get('imbalance', 'imbalance')
+        self.hjks_index = es_indices.get('hjks', 'hjks')
+        self.interconnection_index = es_indices.get('interconnection', 'interconnection')
+        self.intraday_index = es_indices.get('intraday', 'jepx_intraday')
+        self.earthquake_index = es_indices.get('earthquake', 'jma_earthquake_actual')
+        self.occto_area_index = es_indices.get('occto_area', 'occto_area')
+        self.occto_inter_index = es_indices.get('occto_inter', 'occto_inter')
+        self.occto_event_index = es_indices.get('occto_event', 'occto_event')
+        self.tdgc_index = es_indices.get('tdgc', 'tdgc')
+        self.weather_actual_index = es_indices.get('weather_actual', 'weather_actual')
+        self.weather_forecast_index = es_indices.get('weather_forecast', 'weather_forecast')
 
 
         # JEPX field name mapping to area codes
