@@ -1,41 +1,90 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, subWeeks, subMonths, addMonths, differenceInDays } from 'date-fns';
 import { 
   Container, Box, Grid, Paper, Typography, FormControl, 
   InputLabel, Select, MenuItem, Button, Switch, 
   FormControlLabel, SelectChangeEvent, Alert, Divider,
   Tooltip, IconButton, Chip, Checkbox, ListItemText, OutlinedInput,
-  TableContainer, Table, TableHead, TableRow, TableCell, TableBody
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
+  ButtonGroup, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+
 import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoIcon from '@mui/icons-material/Info';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+
+import { DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; // theme css file
+import { zhTW } from 'date-fns/locale'; // 引入繁體中文語系
+import { Popover, TextField, InputAdornment } from '@mui/material';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+
 import { 
   fetchAreas, 
   fetchPredictionModels, 
   fetchPredictions, 
   fetchActualPrices,
   fetchAvailableCalculatingDates,
-  fetchSpecificPredictions 
+  fetchSpecificPredictions,
+  fetchWeatherActual,
+  fetchWeatherForecast,
+  fetchImbalance,
+  fetchIntraday,
+  fetchInterconnectionFlows
 } from '@/services/api';
 import PriceChart from '@/components/PriceChart';
 import MaeAnalysis from '@/components/MaeAnalysis';
 import ProfitAnalysis from '@/components/ProfitAnalysis';
 import MarketInfoPanel from '@/components/MarketInfoPanel';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow } from '@/types';
 import { prepareChartData, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
+import WeatherChartSection from '@/components/WeatherChartSection';
+
 export default function ElectricityPriceComparison() {
   const { darkMode, setDarkMode } = useTheme();
   const { logout, user } = useAuth();
   const router = useRouter();
-  
+
+
+  // 新增 Popover 狀態控制
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+    
+  const handleDateClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleDateClose = () => {
+    setAnchorEl(null);
+  };
+
+  const openDateData = Boolean(anchorEl);
+  const idDateData = openDateData ? 'date-range-popover' : undefined;
+
+  // 處理 react-date-range 的選擇變更
+  const handleRangeSelect = (ranges: any) => {
+    const { selection } = ranges;
+    setStartDate(selection.startDate);
+    setEndDate(selection.endDate);
+    
+    // 如果不是手動選擇的範圍（例如只選了一天），先不要清除 preset
+    // 但如果是拖曳範圍，通常就清除 preset
+    if (selection.startDate !== selection.endDate) {
+        setDateRangePreset(null);
+    }
+  };
+
+  const colors = useMemo(() => ({
+    text: darkMode ? '#d9d9d9' : '#000000',
+  }), [darkMode]);
+
   // 狀態管理
   const [areas, setAreas] = useState<Area[]>([]);
   const [models, setModels] = useState<PredictionModel[]>([]);
@@ -56,8 +105,14 @@ export default function ElectricityPriceComparison() {
   
   const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
   const [actualPrices, setActualPrices] = useState<AreaPrice[]>([]);
   const [predictionsByModel, setPredictionsByModel] = useState<{ [key: string]: PricePrediction[] }>({});
+  const [weatherActual, setWeatherActual] = useState<WeatherData[]>([]);
+  const [weatherForecast, setWeatherForecast] = useState<WeatherData[]>([]);
+  const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
+  const [intradayData, setIntradayData] = useState<IntradayData[]>([]);
+  const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -77,24 +132,7 @@ export default function ElectricityPriceComparison() {
         if (areasData.length > 0) {
           setSelectedArea(areasData[0].name);
         }
-        
-// ... (inside the useEffect)
-        
-        // Removed default selection logic
-        // if (modelsData.length > 0) {
-        //   const firstModel = modelsData[0];
-        //   const modelKey = `${firstModel.id}|${firstModel.name}|${firstModel.version}`;
-        //   const hash = hashString(modelKey);
-        //   const color = generateColor(hash);
 
-        //   setSelectedModels([{
-        //     id: firstModel.id,
-        //     name: firstModel.name,
-        //     version: firstModel.version,
-        //     color: color,
-        //     calculatingDate: 'latest'
-        //   }]);
-        // }
       } catch (err: any) {
         console.error('獲取初始資料失敗', err);
         
@@ -178,9 +216,9 @@ export default function ElectricityPriceComparison() {
     fetchAllCalculatingDates();
   }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}|${m.version}`).join(','), startDate, endDate, logout]);
   
-  // 獲取數據的函數
-  const fetchData = async () => {
-    if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
+  // 獲取實際價格和天氣資訊（不需要選模型）
+  const fetchActualData = async () => {
+    if (!selectedArea || !startDate || !endDate) {
       return;
     }
     
@@ -191,14 +229,89 @@ export default function ElectricityPriceComparison() {
       const formattedStartDate = format(startDate, 'yyyyMMdd');
       const formattedEndDate = format(endDate, 'yyyyMMdd');
       
-      // 獲取實際價格
-      const actualData = await fetchActualPrices({
-        start_date: formattedStartDate,
-        end_date: formattedEndDate,
-        name: selectedArea
-      });
+      // 並行獲取實際價格、天氣資訊、不平衡量、時間前市場數據和連系線流量
+      const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult] = await Promise.all([
+        fetchActualPrices({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          name: selectedArea
+        }),
+        fetchWeatherActual({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          area_name: selectedArea
+        }),
+        fetchWeatherForecast({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          area_name: selectedArea
+        }),
+        fetchImbalance({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          area_name: selectedArea
+        }).catch((err) => {
+          console.error('Error fetching imbalance data:', err);
+          return [];
+        }),
+        fetchIntraday({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          area_name: selectedArea
+        }).then(data => {
+          console.log('Fetched intraday data:', data.length, 'items');
+          if (data.length > 0) {
+            console.log('Sample intraday item:', data[0]);
+          }
+          return data;
+        }).catch((err) => {
+          console.error('Error fetching intraday data:', err);
+          return [];
+        }),
+        fetchInterconnectionFlows({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate
+        }).catch((err) => {
+          console.error('Error fetching interconnection data:', err);
+          return [];
+        })
+      ]);
       
       setActualPrices(actualData);
+      setWeatherActual(weatherActualData);
+      setWeatherForecast(weatherForecastData);
+      setImbalanceData(imbalanceDataResult);
+      setIntradayData(intradayDataResult);
+      setInterconnectionData(interconnectionDataResult);
+    } catch (err: any) {
+      console.error('獲取實際數據失敗', err);
+      
+      if (err.response && err.response.status === 401) {
+        setError('認證已過期，請重新登入');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      } else {
+        setError('獲取實際數據失敗');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 獲取預測數據（需要選模型）
+  const fetchPredictionData = async () => {
+    if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
+      setPredictionsByModel({});
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const formattedStartDate = format(startDate, 'yyyyMMdd');
+      const formattedEndDate = format(endDate, 'yyyyMMdd');
       
       // 為每個選擇的模型獲取預測數據
       const predictionsData: { [key: string]: PricePrediction[] } = {};
@@ -236,7 +349,7 @@ export default function ElectricityPriceComparison() {
       
       setPredictionsByModel(predictionsData);
     } catch (err: any) {
-      console.error('獲取數據失敗', err);
+      console.error('獲取預測數據失敗', err);
       
       if (err.response && err.response.status === 401) {
         setError('認證已過期，請重新登入');
@@ -244,23 +357,95 @@ export default function ElectricityPriceComparison() {
           logout();
         }, 2000);
       } else {
-        setError('獲取數據失敗');
+        setError('獲取預測數據失敗');
       }
     } finally {
       setIsLoading(false);
     }
   };
   
-  // 當選擇變更時自動獲取數據
+  // 當地區或日期變更時自動獲取實際價格和天氣資訊
   useEffect(() => {
-    if (selectedArea && selectedModels.length > 0) {
-      fetchData();
+    if (selectedArea && startDate && endDate) {
+      fetchActualData();
     }
-  }, [selectedArea, JSON.stringify(selectedModels)]);
+  }, [selectedArea, startDate, endDate]);
+
+  // 當模型選擇變更時獲取預測數據
+  useEffect(() => {
+    if (selectedArea && selectedModels.length > 0 && startDate && endDate) {
+      fetchPredictionData();
+    } else {
+      setPredictionsByModel({});
+    }
+  }, [selectedArea, JSON.stringify(selectedModels), startDate, endDate]);
   
+  // 處理日期快捷選擇
+  const handleDateRangePreset = (preset: string | null) => {
+    if (!preset) {
+      setDateRangePreset(null);
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // 設置為當天結束時間
+    let start: Date;
+
+    switch (preset) {
+      case 'week':
+        start = subDays(today, 7);
+        break;
+      case 'twoWeeks':
+        start = subDays(today, 14);
+        break;
+      case 'month':
+        start = subMonths(today, 1);
+        break;
+      case 'threeMonths':
+        start = subMonths(today, 3);
+        break;
+      default:
+        start = subDays(today, 7);
+    }
+
+    start.setHours(0, 0, 0, 0); // 設置為當天開始時間
+    setStartDate(start);
+    setEndDate(today);
+    setDateRangePreset(preset);
+    
+    // 自動觸發數據更新（通過 useEffect）
+  };
+
   // 處理日期變更
   const handleDateChange = () => {
-    fetchData();
+    fetchActualData();
+    if (selectedModels.length > 0) {
+      fetchPredictionData();
+    }
+    // 當手動更改日期時，清除快捷選擇
+    setDateRangePreset(null);
+  };
+
+  // 向左移動一個月（向後移動）
+  const handleMoveMonthBackward = () => {
+    if (startDate && endDate) {
+      const newStartDate = subMonths(startDate, 1);
+      const newEndDate = subMonths(endDate, 1);
+      setStartDate(newStartDate);
+      setEndDate(newEndDate);
+      setDateRangePreset(null);
+    }
+  };
+
+  // 向右移動一個月（向前移動）
+  const handleMoveMonthForward = () => {
+    if (startDate && endDate) {
+      const newStartDate = addMonths(startDate, 1);
+      const newEndDate = addMonths(endDate, 1);
+      setStartDate(newStartDate);
+      setEndDate(newEndDate);
+      setDateRangePreset(null);
+    }
   };
   
   // 處理地區變更
@@ -339,7 +524,70 @@ export default function ElectricityPriceComparison() {
     prepareChartData(actualPrices, predictionsByModel),
     [actualPrices, predictionsByModel]
   );
-  
+
+  // 準備天氣圖表數據 - 合併 actual 和 forecast 數據
+  const weatherChartData = useMemo(() => {
+    const dataMap = new Map<string, any>();
+
+    // 輔助函數：標準化時間 Key
+    // 這是解決資料不對齊、Tooltip 分開的關鍵！
+    // 確保無論 API 回傳格式為何 (例如 '2025-01-01T10:00' vs '2025-01-01 10:00:00')，都視為同一時間
+    const getNormalizedKey = (dateStr: string) => {
+        if (!dateStr) return '';
+        try {
+            return new Date(dateStr).toISOString(); 
+        } catch (e) {
+            return dateStr;
+        }
+    };
+    
+    // 1. 處理 Actual 數據
+    weatherActual.forEach(item => {
+      const key = getNormalizedKey(item.weather_datetime); // 使用標準化後的 Key
+      
+      if (!dataMap.has(key)) {
+        dataMap.set(key, { 
+            weather_datetime: item.weather_datetime, // 保留原始時間格式用於顯示
+            temperature_actual: null,
+            rainfall_actual: null,
+            wind_speed_actual: null,
+            temperature_forecast: null,
+            rainfall_forecast: null,
+            wind_speed_forecast: null
+        });
+      }
+      const existing = dataMap.get(key);
+      existing.temperature_actual = item.temperature;
+      existing.rainfall_actual = item.rainfall;
+      existing.wind_speed_actual = item.wind_speed;
+    });
+    
+    // 2. 處理 Forecast 數據
+    weatherForecast.forEach(item => {
+      const key = getNormalizedKey(item.weather_datetime); // 使用標準化後的 Key
+      
+      if (!dataMap.has(key)) {
+        dataMap.set(key, { 
+            weather_datetime: item.weather_datetime,
+            temperature_actual: null,
+            rainfall_actual: null,
+            wind_speed_actual: null,
+            temperature_forecast: null,
+            rainfall_forecast: null,
+            wind_speed_forecast: null
+        });
+      }
+      const existing = dataMap.get(key);
+      existing.temperature_forecast = item.temperature;
+      existing.rainfall_forecast = item.rainfall;
+      existing.wind_speed_forecast = item.wind_speed;
+    });
+    
+    // 3. 轉換為數組並排序
+    return Array.from(dataMap.values()).sort((a, b) => 
+      new Date(a.weather_datetime).getTime() - new Date(b.weather_datetime).getTime()
+    );
+  }, [weatherActual, weatherForecast]);
   // 獲取區域的中文名稱
   const getAreaChineseName = (name: string): string => {
     const area = areas.find(a => a.name === name);
@@ -388,16 +636,71 @@ export default function ElectricityPriceComparison() {
       <Box sx={{ my: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" component="h1" fontWeight="bold">
-            電力市場價格預測儀表板
+          Market Insight
           </Typography>
-          
-          <Box>
-            <Typography variant="subtitle1" component="span" sx={{ mr: 2 }}>
-              歡迎, {user}
-            </Typography>
-            <Button variant="outlined" onClick={logout} size="small">
-              登出
-            </Button>
+
+          {/* 右側設置組合 */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 1.5,
+              ml: { sm: "auto" },
+            }}
+          >
+            {/* 使用者資訊與登出 */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <Typography variant="subtitle1" component="span">
+                Welcome, {user}
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={logout}
+                size="small"
+                sx={{
+                  minWidth: 80,
+                  fontWeight: 500,
+                  boxShadow: "none",
+                  borderRadius: "6px",
+                  py: 0.5,
+                  px: 2,
+                }}
+              >
+                Logout
+              </Button>
+            </Box>
+            {/* 深色模式控制 */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                minWidth: 120,
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={darkMode}
+                    onChange={(e) => setDarkMode(e.target.checked)}
+                  />
+                }
+                label="深色模式"
+                sx={{ mr: 0 }}
+              />
+              <Tooltip title="深色模式提供更好的圖表視覺效果" arrow>
+                <IconButton size="small" sx={{ color: "text.secondary" }}>
+                  <InfoIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Box>
         
@@ -484,58 +787,168 @@ export default function ElectricityPriceComparison() {
             </Grid>
             
             {/* 第二行：日期選擇和操作按鈕 */}
-            <Grid item xs={12} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="開始日期"
-                  value={startDate}
-                  onChange={(newValue: Date | null) => setStartDate(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </LocalizationProvider>
-            </Grid>
-
-            <Grid item xs={12} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="結束日期"
-                  value={endDate}
-                  onChange={(newValue: Date | null) => setEndDate(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </LocalizationProvider>
-            </Grid>
-
-            
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <Button 
-                  variant="contained" 
-                  onClick={handleDateChange}
-                  disabled={isLoading || !selectedArea || selectedModels.length === 0}
-                  startIcon={<RefreshIcon />}
-                  sx={{ mr: 2 }}
-                >
-                  {isLoading ? '載入中...' : '更新數據'}
-                </Button>
+            <Grid item xs={12}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'text.secondary' }}>
+                  日期範圍選擇
+                </Typography>
                 
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={darkMode} 
-                      onChange={(e) => setDarkMode(e.target.checked)} 
-                    />
-                  }
-                  label="深色模式"
-                />
-                
-                <Tooltip title="深色模式提供更好的圖表視覺效果">
-                  <IconButton size="small" sx={{ ml: 0.5 }}>
-                    <InfoIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { xs: 'stretch', md: 'center' } }}>
+                  
+                  {/* 1. 偽裝成 Input 的按鈕，點擊跳出日曆 */}
+                  <Button
+                    aria-describedby={idDateData}
+                    onClick={handleDateClick}
+                    variant="outlined"
+                    startIcon={<CalendarTodayIcon />}
+                    endIcon={<Typography variant="caption" sx={{color: 'text.secondary'}}>▼</Typography>}
+                    sx={{ 
+                      justifyContent: 'space-between',
+                      borderColor: darkMode ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.23)',
+                      color: colors.text,
+                      py: 1,
+                      minWidth: '280px',
+                      textTransform: 'none',
+                      '&:hover': {
+                        borderColor: colors.text
+                      }
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight="bold">
+                      {startDate ? format(startDate, 'yyyy/MM/dd') : '開始日期'} 
+                      {' - '} 
+                      {endDate ? format(endDate, 'yyyy/MM/dd') : '結束日期'}
+                    </Typography>
+                  </Button>
+
+                  {/* 日曆 Popover */}
+                  <Popover
+                    id={idDateData}
+                    open={openDateData}
+                    anchorEl={anchorEl}
+                    onClose={handleDateClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'left',
+                    }}
+                    PaperProps={{
+                        sx: {
+                            mt: 1,
+                            p: 0,
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            // 針對深色模式調整 react-date-range 的樣式
+                            ...(darkMode && {
+                                bgcolor: '#1a1a1a',
+                                '& .rdrCalendarWrapper': { bgcolor: '#1a1a1a', color: '#fff' },
+                                '& .rdrDateDisplayWrapper': { bgcolor: '#2a2a2a' },
+                                '& .rdrDateDisplayItem': { bgcolor: '#333', boxShadow: 'none', border: '1px solid #444' },
+                                '& .rdrDateDisplayItem input': { color: '#fff' },
+                                '& .rdrMonthAndYearPickers select': { color: '#fff' },
+                                '& .rdrDayNumber span': { color: '#fff' },
+                                '& .rdrDayPassive .rdrDayNumber span': { color: '#666' },
+                                '& .rdrDayToday .rdrDayNumber span': { color: '#1890ff' }, // 今天
+                            })
+                        }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* 這裡使用 react-date-range */}
+                        <DateRange
+                            editableDateInputs={true}
+                            onChange={handleRangeSelect}
+                            moveRangeOnFirstSelection={false}
+                            ranges={[{
+                                startDate: startDate || new Date(),
+                                endDate: endDate || new Date(),
+                                key: 'selection',
+                                color: darkMode ? '#1890ff' : '#1976d2' // 主題色
+                            }]}
+                            months={2} // 一次顯示兩個月份，像訂房網站
+                            direction="horizontal"
+                            locale={zhTW} // 設定繁體中文
+                            rangeColors={[darkMode ? '#1890ff' : '#1976d2']}
+                        />
+                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
+                            <Button onClick={handleDateClose} variant="contained" size="small">
+                                確定
+                            </Button>
+                        </Box>
+                    </Box>
+                  </Popover>
+
+                  {/* 2. 快捷按鈕群組 (整合在一起更美觀) */}
+                  <ButtonGroup variant="outlined" size="small" aria-label="date range presets">
+                    <Button
+                        onClick={() => handleDateRangePreset('week')}
+                        variant={dateRangePreset === 'week' ? 'contained' : 'outlined'}
+                    >
+                        一週
+                    </Button>
+                    <Button
+                        onClick={() => handleDateRangePreset('twoWeeks')}
+                        variant={dateRangePreset === 'twoWeeks' ? 'contained' : 'outlined'}
+                    >
+                        兩週
+                    </Button>
+                    <Button
+                        onClick={() => handleDateRangePreset('month')}
+                        variant={dateRangePreset === 'month' ? 'contained' : 'outlined'}
+                    >
+                        一月
+                    </Button>
+                    <Button
+                        onClick={() => handleDateRangePreset('threeMonths')}
+                        variant={dateRangePreset === 'threeMonths' ? 'contained' : 'outlined'}
+                    >
+                        三月
+                    </Button>
+                  </ButtonGroup>
+
+                  {/* 3. 月份切換按鈕 (保留原本功能但優化樣式) */}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Tooltip title="上個月">
+                        <IconButton 
+                            onClick={handleMoveMonthBackward} 
+                            disabled={!startDate}
+                            size="small"
+                            sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
+                        >
+                            <ChevronLeftIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="下個月">
+                        <IconButton 
+                            onClick={handleMoveMonthForward} 
+                            disabled={!startDate}
+                            size="small"
+                            sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
+                        >
+                            <ChevronRightIcon />
+                        </IconButton>
+                    </Tooltip>
+                  </Box>
+
+                  {/* 4. 更新數據按鈕 */}
+                  <Button 
+                    variant="contained" 
+                    onClick={handleDateChange}
+                    disabled={isLoading || !selectedArea}
+                    startIcon={<RefreshIcon />}
+                    size="small"
+                    sx={{ ml: 'auto', minWidth: '120px', height: '40px' }}
+                  >
+                    {isLoading ? '載入中...' : '更新數據'}
+                  </Button>
+
+                </Box>
               </Box>
             </Grid>
+
           </Grid>
           
           {/* 新增：模型計算日期選擇表格 */}
@@ -584,7 +997,7 @@ export default function ElectricityPriceComparison() {
                                 <MenuItem value="latest">
                                   <em>最新 (Latest)</em>
                                 </MenuItem>
-                                {availableDates.map((date) => (
+                                {availableDates.map((date: CalculatingDate) => (
                                   <MenuItem key={date.calculating_date} value={date.calculating_date}>
                                     {formatCalcDate(date.calculating_date)}
                                   </MenuItem>
@@ -658,14 +1071,26 @@ export default function ElectricityPriceComparison() {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ minHeight: 500 }}>
-              <PriceChart 
-                chartData={chartData} 
-                areaName={selectedArea}
-                selectedModels={selectedModels}
-                topBottomPairs={topBottomPairs}
+            <>
+              <Box sx={{ minHeight: 500 }}>
+                <PriceChart 
+                  chartData={chartData} 
+                  areaName={selectedArea}
+                  selectedModels={selectedModels}
+                  topBottomPairs={topBottomPairs}
+                  imbalanceData={imbalanceData}
+                  intradayData={intradayData}
+                  interconnectionData={interconnectionData}
+                />
+              </Box>
+              
+              {/* 天氣資訊 */}
+              <WeatherChartSection 
+                weatherActual={weatherActual} 
+                weatherForecast={weatherForecast} 
+                weatherChartData={weatherChartData} 
               />
-            </Box>
+            </>
           )}
         </Paper>
         
