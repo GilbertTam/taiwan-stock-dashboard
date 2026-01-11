@@ -174,7 +174,7 @@ export interface InterconnectionParams extends DateRangeParams {
   line_name?: string;
 }
 
-export const fetchImbalance = async (params: DateRangeParams): Promise<ImbalanceData[]> => {
+export const fetchImbalance = async (params: AreaDateRangeParams): Promise<ImbalanceData[]> => {
   const token = getAccessToken();
   if (!token) throw new Error('No access token available');
   const api = createApiInstance(token);
@@ -198,7 +198,7 @@ export const fetchInterconnectionFlows = async (params: InterconnectionParams): 
   return response.data.data;
 };
 
-export const fetchIntraday = async (params: DateRangeParams): Promise<IntradayData[]> => {
+export const fetchIntraday = async (params: AreaDateRangeParams): Promise<IntradayData[]> => {
   const token = getAccessToken();
   if (!token) throw new Error('No access token available');
   const api = createApiInstance(token);
