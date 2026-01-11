@@ -19,8 +19,33 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 
+// 擴展的 WeatherData 類型，包含 actual 和 forecast 字段
+interface ExtendedWeatherData {
+  weather_datetime: string;
+  temperature_actual: number | null;
+  temperature_forecast: number | null;
+  rainfall_actual: number | null;
+  rainfall_forecast: number | null;
+  wind_speed_actual: number | null;
+  wind_speed_forecast: number | null;
+  [key: string]: any; // 允許其他字段
+}
+
+// Tooltip props 類型
+interface WeatherTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload?: ExtendedWeatherData;
+    [key: string]: any;
+  }>;
+  label?: string;
+  allData: ExtendedWeatherData[];
+  darkMode: boolean;
+  type: 'temp' | 'wind';
+}
+
 // 1. 修改 Tooltip 元件：增加 type 參數來過濾顯示內容
-const WeatherTooltip = ({ active, payload, label, allData, darkMode, type }) => {
+const WeatherTooltip = ({ active, payload, label, allData, darkMode, type }: WeatherTooltipProps) => {
   if (!active || !allData) return null;
 
   // 獲取當前時間點
@@ -85,7 +110,14 @@ const WeatherTooltip = ({ active, payload, label, allData, darkMode, type }) => 
   );
 };
 
-const WeatherChartSection = ({ weatherActual, weatherForecast, weatherChartData }) => {
+// WeatherChartSection props 類型
+interface WeatherChartSectionProps {
+  weatherActual: any[];
+  weatherForecast: any[];
+  weatherChartData: ExtendedWeatherData[];
+}
+
+const WeatherChartSection = ({ weatherActual, weatherForecast, weatherChartData }: WeatherChartSectionProps) => {
   const { darkMode } = useTheme();
 
   const chartColors = {
