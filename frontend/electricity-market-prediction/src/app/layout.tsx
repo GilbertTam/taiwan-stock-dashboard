@@ -1,3 +1,5 @@
+
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from './ThemeProvider';
 
@@ -14,11 +16,13 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body>
-        <AuthProvider>
-          <ThemeProvider>
-            {children}
-          </ThemeProvider>
-        </AuthProvider>
+        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+          <AuthProvider>
+            <ThemeProvider>
+              {children}
+            </ThemeProvider>
+          </AuthProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
