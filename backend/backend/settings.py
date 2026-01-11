@@ -157,8 +157,6 @@ INSTALLED_APPS = [
     "userprofile",
     # 日本區域
     "area",
-    # 電力市場價格
-    "spot_market",
     # 自定義電力市場價格預測
     "custom_spot_market_predict",
     # 市場資訊

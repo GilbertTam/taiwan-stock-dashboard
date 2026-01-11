@@ -52,13 +52,11 @@ urlpatterns += [
 urlpatterns += [
     # 電力區域 API
     path(f"{URL_PREFIX}/", include('area.urls')),
-    # Spot Market API
-    path(f"{URL_PREFIX}/", include('spot_market.urls')),
     # Custom Spot Market Predict API
     path(f"{URL_PREFIX}/", include('custom_spot_market_predict.urls')),
     # 天氣資料 API
     path(f"{URL_PREFIX}/", include('weather_data.urls')),
-    # Market Information API
+    # Market Information API (includes spot market, imbalance, hjks, etc.)
     path(f"{URL_PREFIX}/", include('market_information.urls')),
 ]
 
