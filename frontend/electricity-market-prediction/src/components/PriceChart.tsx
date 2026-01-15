@@ -48,6 +48,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   const [showInterconnection, setShowInterconnection] = useState(false);
   const [showOcctoArea, setShowOcctoArea] = useState(false);
   const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
+  const [occtoChartType, setOcctoChartType] = useState<'line' | 'stacked'>('line'); // Added state
+  const [showZScore, setShowZScore] = useState(false); // Added state
 
   const occtoFields = [
     { value: 'area_demand', label: 'Area Demand' },
@@ -61,6 +63,20 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     { value: 'pumped_storage', label: 'Pumped Storage' },
     { value: 'battery_storage', label: 'Battery' },
     { value: 'interconnection_line', label: 'Interconnection' },
+  ];
+
+  const occtoStackedFields = [
+    { key: 'nuclear_power', color: '#e6a23c', label: 'Nuclear' },
+    { key: 'thermal', color: '#f56c6c', label: 'Thermal' },
+    { key: 'hydropower', color: '#409eff', label: 'Hydro' },
+    { key: 'geothermal_power', color: '#8e44ad', label: 'Geothermal' },
+    { key: 'biomass', color: '#27ae60', label: 'Biomass' },
+    { key: 'solar_power_generation_actual', color: '#f1c40f', label: 'Solar' },
+    { key: 'wind_power_generation_actual', color: '#2ecc71', label: 'Wind' },
+    { key: 'pumped_storage', color: '#3498db', label: 'Pumped Storage' },
+    { key: 'battery_storage', color: '#909399', label: 'Battery' },
+    { key: 'interconnection_line', color: '#d35400', label: 'Interconnection' },
+    { key: 'others', color: '#7f8c8d', label: 'Others' },
   ];
 
   // 顏色設定
@@ -104,7 +120,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
     selectedModels.forEach(model => {
       const modelKey = `${model.id}|${model.name}`;
-      
+
       const validPoints = chartData.reduce((acc, point) => {
         // 只有當實際值和預測值都存在且不為null時才計入，否則會有多餘的分母
         const modelPrediction = point.modelPredictions.find(
@@ -721,6 +737,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
       return [];
     }
 
+    // Calculate statistics for Z-Score (based on Actual Price)
+    const validPrices = mergedChartData
+      .map(p => p.actualPrice)
+      .filter((p): p is number => p !== null && p !== undefined);
+
+    let mean = 0;
+    let stdDev = 1;
+    if (validPrices.length > 1) {
+      mean = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
+      const variance = validPrices.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / validPrices.length;
+      stdDev = Math.sqrt(variance);
+    }
+
     return mergedChartData
       .map((point, index) => {
         if (!point || !point.dateTime) return null;
@@ -750,7 +779,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           point.modelPredictions.forEach((mp: ModelPrediction) => {
             if (!mp) return; // 確保 mp 存在
             const modelKey = `${mp.modelId}|${mp.modelName}`;
-            
+
             // 計算預測與實際值的差距（如果兩者都存在）
             modelDifferences[modelKey] =
               point.actualPrice !== null && mp.predictedPrice !== null
@@ -772,6 +801,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             mergedChartData[index - 1].actualPrice !== null
             ? point.actualPrice - (mergedChartData[index - 1].actualPrice as number)
             : null;
+
+        // Calculate Z-Score
+        let zScore: number | null = null;
+        if (point.actualPrice !== null && point.actualPrice !== undefined && stdDev !== 0) {
+          zScore = (point.actualPrice - mean) / stdDev;
+        }
 
         // Get marker info
         const markerInfo = pointsWithMarkers[point.dateTime] || { models: {} };
@@ -810,6 +845,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           modelAreaTops,
           modelAreaBottoms,
           actualDelta,
+          zScore, // Added Z-Score
           uniqueKey: `${point.dateTime}-${index}`,
           // Attach marker info to the point
           markerInfo,
@@ -821,6 +857,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           interconnection_reverse: point.interconnection_reverse,
           // Occto data
           occto_value: point.occto_data ? point.occto_data[selectedOcctoField] : null,
+          occto_data: point.occto_data, // Ensure full object is available
           // 蠟燭圖的衍生數據
           candlestickPayload,
           // 這裡使用 High 價格作為觸發值。
@@ -892,16 +929,25 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   // 獨立計算 Occto Range
   const occtoRange = useMemo(() => {
     if (!processedChartData) return { min: 0, max: 100 };
-    const values = processedChartData
-      .map(p => p.occto_value)
-      .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+
+    let values: number[] = [];
+    if (occtoChartType === 'stacked') {
+      // Use 'total' field if available, or sum of stacked fields (approximate if total is missing)
+      values = processedChartData
+        .map(p => p.occto_data ? p.occto_data.total : 0)
+        .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    } else {
+      values = processedChartData
+        .map(p => p.occto_value)
+        .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    }
 
     if (values.length === 0) return { min: 0, max: 100 };
     const min = Math.min(...values);
     const max = Math.max(...values);
     const padding = Math.abs(max - min) * 0.1;
     return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
-  }, [processedChartData]);
+  }, [processedChartData, occtoChartType]);
 
 
   // 獨立的蠟燭圖形狀元件
@@ -1378,7 +1424,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                 {/* 為每個模型顯示預測與實際值的差異 */}
                 {selectedModels.map((model, index) => {
                   const modelKey = `${model.id}|${model.name}`;
-                  
+
                   return (
                     <TableRow key={`diff-${modelKey}-${index}`}>
                       <TableCell sx={{
@@ -1741,25 +1787,65 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                       }
                     />
                     {showOcctoArea && (
-                      <FormControl size="small" sx={{ ml: 1, minWidth: 120 }}>
-                        <Select
-                          value={selectedOcctoField}
-                          onChange={(e) => setSelectedOcctoField(e.target.value)}
-                          sx={{
-                            height: '30px',
-                            fontSize: '0.8rem',
-                            color: colors.text,
-                            '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }
-                          }}
-                        >
-                          {occtoFields.map(f => (
-                            <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <FormControl size="small" sx={{ ml: 1, minWidth: 100 }}>
+                          <Select
+                            value={occtoChartType}
+                            onChange={(e) => setOcctoChartType(e.target.value as 'line' | 'stacked')}
+                            sx={{
+                              height: '30px',
+                              fontSize: '0.8rem',
+                              color: colors.text,
+                              '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }
+                            }}
+                          >
+                            <MenuItem value="line">Line</MenuItem>
+                            <MenuItem value="stacked">Stacked</MenuItem>
+                          </Select>
+                        </FormControl>
+                        {occtoChartType === 'line' && (
+                          <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <Select
+                              value={selectedOcctoField}
+                              onChange={(e) => setSelectedOcctoField(e.target.value)}
+                              sx={{
+                                height: '30px',
+                                fontSize: '0.8rem',
+                                color: colors.text,
+                                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }
+                              }}
+                            >
+                              {occtoFields.map(f => (
+                                <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
+                      </Box>
                     )}
                   </Box>
                 </span>
+              </MuiTooltip>
+
+              <MuiTooltip title="Show Z-Score for actual prices">
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showZScore}
+                      onChange={(e) => setShowZScore(e.target.checked)}
+                      color="primary"
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: colors.predicted },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.predicted }
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ color: colors.text }}>
+                      Z-Score
+                    </Typography>
+                  }
+                />
               </MuiTooltip>
 
               <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -1840,10 +1926,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             return (
               <Chip
                 key={`legend-${modelKey}-${index}`}
-                label={`${model.name} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`} 
-                size="small" 
-                sx={{ 
-                  backgroundColor: 'transparent', 
+                label={`${model.name} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`}
+                size="small"
+                sx={{
+                  backgroundColor: 'transparent',
                   border: `1px solid ${modelColor}`,
                   color: modelColor,
                   '& .MuiChip-label': { fontWeight: 'bold' }
@@ -1879,6 +1965,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           <ComposedChart
             data={processedChartData && processedChartData.length > 0 ? processedChartData : []}
             margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+            syncId="priceChart"
           >
             {/* Day shading */}
             {processedChartData && processedChartData.length > 0 && processedChartData.map((entry, index) => {
@@ -2010,30 +2097,30 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* Area, Line 等組件保持不變，因為它們會自動對應 X 軸的 timestamp */}
             {showPredictionRange && selectedModels.map((model, index) => {
-               const modelKey = `${model.id}|${model.name}`;
-               const modelColor = modelColorMap[modelKey];
-               const areaColor = modelColor.includes('rgb') ? modelColor.replace(')', ', 0.2)').replace('rgb', 'rgba') : `${modelColor}33`;
-               return (
-                 <Area
-                   key={`area-${modelKey}-${index}`}
-                   yAxisId="price"
-                   type="step" // 在數值軸上 step 依然有效
-                   dataKey={(datum) => {
-                     // 邏輯保持不變
-                     const prediction = datum.modelPredictions.find((mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey);
-                     if (!prediction) return null;
-                     const bottom = prediction.predictedPrice5 ?? prediction.predictedPrice;
-                     const top = prediction.predictedPrice95 ?? prediction.predictedPrice;
-                     if (bottom === null || top === null) return null;
-                     return [bottom, top];
-                   }}
-                   stroke="none"
-                   fill={areaColor}
-                   fillOpacity={0.5}
-                   isAnimationActive={false}
-                   connectNulls={true}
-                 />
-               );
+              const modelKey = `${model.id}|${model.name}`;
+              const modelColor = modelColorMap[modelKey];
+              const areaColor = modelColor.includes('rgb') ? modelColor.replace(')', ', 0.2)').replace('rgb', 'rgba') : `${modelColor}33`;
+              return (
+                <Area
+                  key={`area-${modelKey}-${index}`}
+                  yAxisId="price"
+                  type="step" // 在數值軸上 step 依然有效
+                  dataKey={(datum) => {
+                    // 邏輯保持不變
+                    const prediction = datum.modelPredictions.find((mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey);
+                    if (!prediction) return null;
+                    const bottom = prediction.predictedPrice5 ?? prediction.predictedPrice;
+                    const top = prediction.predictedPrice95 ?? prediction.predictedPrice;
+                    if (bottom === null || top === null) return null;
+                    return [bottom, top];
+                  }}
+                  stroke="none"
+                  fill={areaColor}
+                  fillOpacity={0.5}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                />
+              );
             })}
 
             <Tooltip
@@ -2101,8 +2188,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                     );
                     return prediction?.predictedPrice ?? null;
                   }}
-                  stroke={modelColor} 
-                  name={`${model.name}`} 
+                  stroke={modelColor}
+                  name={`${model.name}`}
                   // Use dot prop to render custom markers for Top/Bottom N
                   dot={getModelDot(modelKey)}
                   strokeWidth={1.5}
@@ -2189,13 +2276,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               />
             )}
 
-            {showOcctoArea && (
+            {showOcctoArea && occtoChartType === 'line' && (
               <Line
                 yAxisId="occto"
                 type="monotone"
                 dataKey="occto_value"
                 stroke={colors.occtoArea}
-                name={occtoFields.find(f => f.value === selectedOcctoField)?.label || 'Occto Data'}
+                name={occtoFields.find(f => f.value === selectedOcctoField)?.label || selectedOcctoField}
                 strokeWidth={2}
                 dot={false}
                 connectNulls={true}
@@ -2203,9 +2290,71 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               />
             )}
 
+            {showOcctoArea && occtoChartType === 'stacked' && occtoStackedFields.map(field => (
+              <Bar
+                key={field.key}
+                dataKey={`occto_data.${field.key}`}
+                yAxisId="occto"
+                stackId="occto"
+                fill={field.color}
+                name={field.label}
+                isAnimationActive={false}
+                barSize={20}
+              />
+            ))}
+
           </ComposedChart>
         </ResponsiveContainer>
       </Box>
+
+      {/* Z-Score Chart */}
+      {showZScore && (
+        <Box sx={{ mt: 1, height: 150 }}>
+          <Typography variant="subtitle2" sx={{ ml: 2, mb: 0.5, color: colors.text }}>
+            Z-Score Analysis (Actual Price)
+          </Typography>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={processedChartData && processedChartData.length > 0 ? processedChartData : []}
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              syncId="priceChart"
+            >
+              <XAxis
+                dataKey="timestamp"
+                type="number"
+                scale="time"
+                domain={['dataMin', 'dataMax']}
+                hide
+              />
+              <YAxis
+                label={{ value: 'Z-Score', angle: -90, position: 'insideLeft', style: { fill: colors.text, fontSize: 10 } }}
+                stroke={colors.text}
+                tick={{ fill: colors.text, fontSize: 10 }}
+                domain={['auto', 'auto']}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: colors.tooltipBg, borderColor: colors.tooltipBorder, color: colors.text }}
+                labelFormatter={(label) => format(new Date(label), 'MM/dd HH:mm')}
+                formatter={(value: number) => [value.toFixed(2), 'Z-Score']}
+              />
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
+              <ReferenceLine y={0} stroke={colors.text} strokeOpacity={0.5} />
+              <ReferenceLine y={2} stroke={colors.warning} strokeDasharray="3 3" label={{ value: '+2σ', position: 'insideRight', fill: colors.warning, fontSize: 10 }} />
+              <ReferenceLine y={-2} stroke={colors.warning} strokeDasharray="3 3" label={{ value: '-2σ', position: 'insideRight', fill: colors.warning, fontSize: 10 }} />
+              <Line
+                type="monotone"
+                dataKey="zScore"
+                stroke={colors.predicted}
+                dot={false}
+                strokeWidth={1.5}
+                name="Z-Score"
+                isAnimationActive={false}
+                connectNulls={true}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Box>
+      )}
     </Paper>
   );
 };
