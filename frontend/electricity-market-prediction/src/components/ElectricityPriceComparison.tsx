@@ -47,16 +47,7 @@ export default function ElectricityPriceComparison() {
 
   // Prepare Chart Data
   const chartData = useMemo(() => {
-    console.log('[ElectricityPriceComparison] Preparing chart data...');
-    console.log('[ElectricityPriceComparison] actualPrices:', actualPrices);
-    console.log('[ElectricityPriceComparison] predictionsByModel:', predictionsByModel);
     const result = prepareChartData(actualPrices, predictionsByModel);
-    console.log('[ElectricityPriceComparison] chartData result:', result);
-    console.log('[ElectricityPriceComparison] chartData length:', result.length);
-    if (result.length > 0) {
-      console.log('[ElectricityPriceComparison] First data point:', result[0]);
-      console.log('[ElectricityPriceComparison] Last data point:', result[result.length - 1]);
-    }
     return result;
   }, [actualPrices, predictionsByModel]);
 

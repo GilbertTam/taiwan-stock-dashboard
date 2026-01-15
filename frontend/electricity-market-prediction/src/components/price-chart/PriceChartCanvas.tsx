@@ -1,95 +1,19 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Box } from '@mui/material';
 import { ResponsiveContainer, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceArea, Area, Line, Bar, ReferenceLine, Customized } from 'recharts';
-import { format, startOfDay } from 'date-fns';
+import { startOfDay } from 'date-fns';
 import { ModelPrediction } from '@/utils/chartUtils';
 import { occtoFields, occtoStackedFields } from './constants';
+import { generateXAxisTicks, formatXAxis } from '@/utils/chartHelpers';
 
 // Context
 import { usePriceChart } from './context/PriceChartContext';
 
 // Local Components
 import { CustomTooltip } from './CustomTooltip';
-
-// --- Internal Components (formerly Layers) ---
-
-const CandleStickLayer = (props: any) => {
-    const { xAxisMap, yAxisMap, data, yAxisId, darkMode } = props;
-
-    // 1. Get X Axis
-    const xAxis = xAxisMap && (xAxisMap[0] || Object.values(xAxisMap)[0]);
-    const xScale = xAxis?.scale;
-
-    // 2. Get Y Axis (by ID)
-    let yScale: any;
-    if (yAxisMap) {
-        if (yAxisMap[yAxisId]) {
-            yScale = yAxisMap[yAxisId].scale;
-        } else {
-            const axisObj = Object.values(yAxisMap).find((axis: any) => axis.props?.yAxisId === yAxisId) as any;
-            if (axisObj && typeof axisObj.scale === 'function') {
-                yScale = axisObj.scale;
-            }
-        }
-    }
-
-    if (!xScale || !yScale || !data) return null;
-
-    const range = xScale.range();
-    const chartWidth = Math.abs(range[1] - range[0]);
-    const dataLength = data.length;
-    const candleWidth = Math.max(3, Math.min(12, (chartWidth / dataLength) * 0.6));
-
-    return (
-        <g className="recharts-candlestick-layer">
-            {data.map((entry: any, index: number) => {
-                const open = entry.intraday_opening;
-                const close = entry.intraday_closing;
-                const high = entry.intraday_high;
-                const low = entry.intraday_low;
-                const timestamp = entry.timestamp;
-
-                if ([open, close, high, low, timestamp].some(v => v === null || v === undefined)) return null;
-
-                const x = xScale(timestamp);
-                const yOpen = yScale(open);
-                const yClose = yScale(close);
-                const yHigh = yScale(high);
-                const yLow = yScale(low);
-
-                if (isNaN(x) || isNaN(yOpen) || isNaN(yClose)) return null;
-
-                const isRising = close >= open;
-                const color = isRising
-                    ? (darkMode ? '#ff4d4f' : '#cf1322')
-                    : (darkMode ? '#52c41a' : '#389e0d');
-
-                const bodyTop = Math.min(yOpen, yClose);
-                const bodyHeight = Math.max(1, Math.abs(yOpen - yClose));
-
-                return (
-                    <g key={`candle-${index}`}>
-                        <line
-                            x1={x} x2={x} y1={yHigh} y2={yLow}
-                            stroke={color}
-                            strokeWidth={1.5}
-                            strokeOpacity={0.2}
-                        />
-                        <rect
-                            x={x - candleWidth / 2}
-                            y={bodyTop}
-                            width={candleWidth}
-                            height={bodyHeight}
-                            fill={color}
-                            stroke="none"
-                            fillOpacity={0.2}
-                        />
-                    </g>
-                );
-            })}
-        </g>
-    );
-};
+import { CandleStickLayer } from './layers/CandleStickLayer';
+import { CustomizedDot } from './markers/CustomizedDot';
+import { getModelDot } from './markers/ModelDot';
 
 export const PriceChartCanvas: React.FC = () => {
     const {
@@ -118,97 +42,6 @@ export const PriceChartCanvas: React.FC = () => {
         darkMode,
         areaName
     } = usePriceChart();
-
-    // --- Helpers moved from PriceChart.tsx ---
-
-    const CustomizedDot = (props: any) => {
-        const { cx, cy, stroke, payload, dataKey, key } = props;
-        if (!payload.markerInfo) return null;
-
-        let type = null;
-        if (dataKey === "actualPrice") {
-            type = payload.markerInfo.actualType;
-        }
-
-        if (!type) return null;
-        return (
-            <svg key={key} x={cx - 5} y={cy - 5} width={10} height={10} viewBox="0 0 10 10">
-                {type === 'top' ? (
-                    <path d="M5 0 L10 10 L0 10 Z" fill={stroke} />
-                ) : (
-                    <path d="M0 0 L10 0 L5 10 Z" fill={stroke} />
-                )}
-            </svg>
-        );
-    };
-
-    const getModelDot = (modelKey: string) => (props: any) => {
-        const { cx, cy, stroke, payload, key } = props;
-        if (!payload.markerInfo) return <g key={key} />;
-        const type = payload.markerInfo.models[modelKey];
-        if (!type) return <g key={key} />;
-        return (
-            <svg key={key} x={cx - 4} y={cy - 4} width={8} height={8} viewBox="0 0 10 10">
-                {type === 'top' ? (
-                    <path d="M5 0 L10 5 L5 10 L0 5 Z" fill={stroke} />
-                ) : (
-                    <circle cx="5" cy="5" r="4" fill={stroke} />
-                )}
-            </svg>
-        );
-    };
-
-    // --- Axis Helpers ---
-
-    const generateXAxisTicks = useCallback(() => {
-        if (!processedChartData || processedChartData.length === 0) return [];
-
-        const startTime = processedChartData[0].timestamp;
-        const endTime = processedChartData[processedChartData.length - 1].timestamp;
-        const duration = endTime - startTime;
-        const hoursTotal = duration / (1000 * 60 * 60);
-
-        let intervalHours = 3;
-        if (hoursTotal > 48) intervalHours = 6;
-        if (hoursTotal > 96) intervalHours = 12;
-        if (hoursTotal > 168) intervalHours = 24;
-
-        const ticks: number[] = [];
-        let current = startOfDay(new Date(startTime)).getTime();
-
-        // Adjust start
-        while (current < startTime) {
-            current += intervalHours * 60 * 60 * 1000;
-        }
-
-        while (current <= endTime) {
-            ticks.push(current);
-            current += intervalHours * 60 * 60 * 1000;
-        }
-
-        return ticks;
-    }, [processedChartData]);
-
-    const formatXAxis = useCallback((value: string | number) => {
-        if (value === null || value === undefined) return '';
-        let date: Date;
-        if (typeof value === 'number') {
-            date = new Date(value);
-        } else {
-            try {
-                const isoString = value.includes('T') ? value : value.replace(' ', 'T');
-                date = new Date(isoString);
-            } catch (e) { return ''; }
-        }
-        if (isNaN(date.getTime())) return '';
-
-        const hour = date.getHours();
-        const minute = date.getMinutes();
-        if (hour === 0 && minute === 0) {
-            return format(date, 'MM/dd');
-        }
-        return format(date, 'HH:mm');
-    }, []);
 
     // Safety check
     const chartData = processedChartData && processedChartData.length > 0 ? processedChartData : [];
@@ -259,7 +92,7 @@ export const PriceChartCanvas: React.FC = () => {
                         scale="time"
                         domain={['dataMin', 'dataMax']}
                         tickFormatter={formatXAxis}
-                        ticks={generateXAxisTicks()}
+                        ticks={generateXAxisTicks(processedChartData || [])}
                         stroke={colors.text}
                         tick={{ fill: colors.text, fontSize: 11 }}
                         tickLine={{ stroke: colors.text }}

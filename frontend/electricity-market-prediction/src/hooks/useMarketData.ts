@@ -157,16 +157,7 @@ export const useMarketData = () => {
                 fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; })
             ]);
 
-            console.log('[useMarketData] fetchActualData success:', {
-                actualDataLength: actualData?.length || 0,
-                weatherActualLength: weatherActualData?.length || 0,
-                weatherForecastLength: weatherForecastData?.length || 0,
-                imbalanceDataLength: imbalanceDataResult?.length || 0,
-                intradayDataLength: intradayDataResult?.length || 0,
-                interconnectionDataLength: interconnectionDataResult?.length || 0,
-                occtoAreaDataLength: occtoAreaDataResult?.length || 0
-            });
-            
+
             setActualPrices(actualData);
             setWeatherActual(weatherActualData);
             setWeatherForecast(weatherForecastData);
@@ -227,14 +218,6 @@ export const useMarketData = () => {
                 predictionsData[modelKey] = modelPredictions;
             }));
 
-            console.log('[useMarketData] fetchPredictionData success:', {
-                predictionsByModelKeys: Object.keys(predictionsData).length,
-                predictionsByModel: Object.keys(predictionsData).map(key => ({
-                    key,
-                    count: predictionsData[key]?.length || 0
-                }))
-            });
-            
             setPredictionsByModel(predictionsData);
         } catch (err: any) {
             console.error('獲取預測數據失敗', err);

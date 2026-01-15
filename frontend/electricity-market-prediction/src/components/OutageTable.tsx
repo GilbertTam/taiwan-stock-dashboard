@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { 
-  TableContainer, 
-  Table, 
-  TableHead, 
-  TableRow, 
-  TableCell, 
-  TableBody, 
+import {
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
   Paper,
 } from '@mui/material';
 import { format, parseISO } from 'date-fns';
-import { useTheme } from '@/app/ThemeProvider'; 
-import { HjksOutage } from '@/types'; 
+import { useTheme } from '@/app/ThemeProvider';
+import { HjksOutage } from '@/types';
 
 interface OutageTableProps {
   outages: HjksOutage[];
@@ -64,7 +64,7 @@ const OutageTable: React.FC<OutageTableProps> = ({ outages }) => {
     color: darkMode ? '#d9d9d9' : '#000000',
     borderRight: darkMode ? '1px solid #303030' : '1px solid #e0e0e0',
   };
-  
+
   const groupCellStyle = {
     ...cellStyle,
     verticalAlign: 'top',
@@ -104,8 +104,12 @@ const OutageTable: React.FC<OutageTableProps> = ({ outages }) => {
                       </TableCell>
                     </>
                   )}
-                  <TableCell sx={cellStyle}>{format(parseISO(outage.start_datetime), 'yyyy-MM-dd HH:mm')}</TableCell>
-                  <TableCell sx={cellStyle}>{format(parseISO(outage.end_datetime), 'yyyy-MM-dd HH:mm')}</TableCell>
+                  <TableCell sx={cellStyle}>
+                    {outage.start_datetime ? format(parseISO(outage.start_datetime), 'yyyy-MM-dd HH:mm') : '-'}
+                  </TableCell>
+                  <TableCell sx={cellStyle}>
+                    {outage.end_datetime ? format(parseISO(outage.end_datetime), 'yyyy-MM-dd HH:mm') : '-'}
+                  </TableCell>
                   <TableCell sx={cellStyle}>{outage.stop_type || '-'}</TableCell>
                   <TableCell sx={cellStyle}>{outage.factor || '-'}</TableCell>
                 </TableRow>
