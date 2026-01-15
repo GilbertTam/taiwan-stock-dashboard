@@ -7,15 +7,17 @@ import {
   ReferenceLine
 } from 'recharts';
 import { format, parseISO, startOfDay, addHours } from 'date-fns';
-import { Box, Typography, Switch, FormControlLabel, Paper, useTheme as useMuiTheme, 
+import {
+  Box, Typography, Switch, FormControlLabel, Paper, useTheme as useMuiTheme,
   Select, MenuItem, FormControl, Grid, Chip, Table, TableBody, TableCell, TableRow, TableHead,
-  Slider, IconButton, Tooltip as MuiTooltip } from '@mui/material';
+  Slider, IconButton, Tooltip as MuiTooltip
+} from '@mui/material';
 import { ModelPrediction, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import InfoIcon from '@mui/icons-material/Info';
 import SettingsIcon from '@mui/icons-material/Settings';
 
-import { ImbalanceData, IntradayData, InterconnectionFlow } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
 
 
 interface PriceChartProps {
@@ -31,9 +33,10 @@ interface PriceChartProps {
   imbalanceData?: ImbalanceData[]; // Imbalance data
   intradayData?: IntradayData[]; // Intraday data
   interconnectionData?: InterconnectionFlow[]; // Interconnection flow data
+  occtoAreaData?: OcctoAreaData[]; // Occto Area data
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedModels, topBottomPairs = 4, imbalanceData = [], intradayData = [], interconnectionData = [] }) => {
+const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedModels, topBottomPairs = 4, imbalanceData = [], intradayData = [], interconnectionData = [], occtoAreaData = [] }) => {
   const { darkMode } = useTheme();
   const muiTheme = useMuiTheme();
   const [showPredictionRange, setShowPredictionRange] = useState(true);
@@ -43,7 +46,23 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   const [showImbalance, setShowImbalance] = useState(false);
   const [showIntraday, setShowIntraday] = useState(false);
   const [showInterconnection, setShowInterconnection] = useState(false);
-  
+  const [showOcctoArea, setShowOcctoArea] = useState(false);
+  const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
+
+  const occtoFields = [
+    { value: 'area_demand', label: 'Area Demand' },
+    { value: 'nuclear_power', label: 'Nuclear' },
+    { value: 'thermal', label: 'Thermal' },
+    { value: 'hydropower', label: 'Hydro' },
+    { value: 'geothermal_power', label: 'Geothermal' },
+    { value: 'biomass', label: 'Biomass' },
+    { value: 'solar_power_generation_actual', label: 'Solar Actual' },
+    { value: 'wind_power_generation_actual', label: 'Wind Actual' },
+    { value: 'pumped_storage', label: 'Pumped Storage' },
+    { value: 'battery_storage', label: 'Battery' },
+    { value: 'interconnection_line', label: 'Interconnection' },
+  ];
+
   // 顏色設定
   // 根據 dark mode 動態設定顏色
   const colors = useMemo(() => ({
@@ -66,6 +85,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     imbalance: darkMode ? '#8884d8' : '#8884d8',
     interconnection: darkMode ? '#ff7300' : '#ff7300',
     intraday: darkMode ? '#82ca9d' : '#82ca9d',
+    occtoArea: darkMode ? '#ffc658' : '#ffc658',
   }), [darkMode]);
 
   // 為每個模型分配顏色
@@ -77,11 +97,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     });
     return colorMap;
   }, [selectedModels]);
-  
+
   // 計算每個模型的總體 MAE
   const modelMAEs = useMemo(() => {
     const maes: Record<string, number> = {};
-    
+
     selectedModels.forEach(model => {
       const modelKey = `${model.id}|${model.name}`;
       
@@ -90,11 +110,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         const modelPrediction = point.modelPredictions.find(
           (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
         );
-        
+
         if (
-          point.actualPrice !== null && 
-          point.actualPrice !== undefined && 
-          modelPrediction?.predictedPrice !== null && 
+          point.actualPrice !== null &&
+          point.actualPrice !== undefined &&
+          modelPrediction?.predictedPrice !== null &&
           modelPrediction?.predictedPrice !== undefined
         ) {
           acc.push({
@@ -103,20 +123,20 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           });
         }
         return acc;
-      }, [] as Array<{actual: number, predicted: number}>);
-      
+      }, [] as Array<{ actual: number, predicted: number }>);
+
       if (validPoints.length === 0) {
         maes[modelKey] = 0;
         return;
       }
-      
+
       const totalError = validPoints.reduce((sum, point) => {
         return sum + Math.abs(point.actual - point.predicted);
       }, 0);
-      
+
       maes[modelKey] = totalError / validPoints.length;
     });
-    
+
     return maes;
   }, [chartData, selectedModels]);
 
@@ -125,73 +145,73 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 1. Group by date
     const dataByDate: Record<string, ChartDataPoint[]> = {};
     chartData.forEach(point => {
-        const date = point.date; // Use the existing 'date' field
-        if (!dataByDate[date]) dataByDate[date] = [];
-        dataByDate[date].push(point);
+      const date = point.date; // Use the existing 'date' field
+      if (!dataByDate[date]) dataByDate[date] = [];
+      dataByDate[date].push(point);
     });
 
     // Markers map: key = uniqueKey (e.g. dateTime-index), value = MarkerInfo
     const markers: Record<string, {
-        actualType?: 'top' | 'bottom';
-        models: Record<string, 'top' | 'bottom'>;
+      actualType?: 'top' | 'bottom';
+      models: Record<string, 'top' | 'bottom'>;
     }> = {};
 
     Object.values(dataByDate).forEach(dailyPoints => {
-        // Only process if we have a significant number of points (e.g., > 40)
-        if (dailyPoints.length < 40) return;
+      // Only process if we have a significant number of points (e.g., > 40)
+      if (dailyPoints.length < 40) return;
 
-        // Actual Prices
-        const actuals = dailyPoints
-            .map((p, idx) => ({ 
-                price: p.actualPrice, 
-                index: idx, 
-                id: `${p.dateTime}-${dailyPoints.indexOf(p)}`,
-                dateTime: p.dateTime 
-            })) 
-            .filter(item => item.price !== null && item.price !== undefined);
-        
-        // Sort Actuals
-        const sortedActuals = [...actuals].sort((a, b) => (b.price as number) - (a.price as number));
-        const topNActuals = sortedActuals.slice(0, topBottomPairs);
-        const bottomNActuals = sortedActuals.slice(-topBottomPairs);
+      // Actual Prices
+      const actuals = dailyPoints
+        .map((p, idx) => ({
+          price: p.actualPrice,
+          index: idx,
+          id: `${p.dateTime}-${dailyPoints.indexOf(p)}`,
+          dateTime: p.dateTime
+        }))
+        .filter(item => item.price !== null && item.price !== undefined);
 
-        // Models
-        // Iterate over selected models
-        selectedModels.forEach(model => {
-            const modelKey = `${model.id}|${model.name}`;
-            
-            const preds = dailyPoints.map(p => {
-                const mp = p.modelPredictions.find(m => `${m.modelId}|${m.modelName}` === modelKey);
-                return { 
-                    price: mp?.predictedPrice, 
-                    dateTime: p.dateTime 
-                };
-            }).filter(item => item.price !== null && item.price !== undefined);
+      // Sort Actuals
+      const sortedActuals = [...actuals].sort((a, b) => (b.price as number) - (a.price as number));
+      const topNActuals = sortedActuals.slice(0, topBottomPairs);
+      const bottomNActuals = sortedActuals.slice(-topBottomPairs);
 
-            const sortedPreds = [...preds].sort((a, b) => (b.price as number) - (a.price as number));
-            const topNPreds = sortedPreds.slice(0, topBottomPairs);
-            const bottomNPreds = sortedPreds.slice(-topBottomPairs);
+      // Models
+      // Iterate over selected models
+      selectedModels.forEach(model => {
+        const modelKey = `${model.id}|${model.name}`;
 
-            // Store markers
-            topNPreds.forEach(item => {
-                if (!markers[item.dateTime]) markers[item.dateTime] = { models: {} };
-                markers[item.dateTime].models[modelKey] = 'top';
-            });
-            bottomNPreds.forEach(item => {
-                if (!markers[item.dateTime]) markers[item.dateTime] = { models: {} };
-                markers[item.dateTime].models[modelKey] = 'bottom';
-            });
+        const preds = dailyPoints.map(p => {
+          const mp = p.modelPredictions.find(m => `${m.modelId}|${m.modelName}` === modelKey);
+          return {
+            price: mp?.predictedPrice,
+            dateTime: p.dateTime
+          };
+        }).filter(item => item.price !== null && item.price !== undefined);
+
+        const sortedPreds = [...preds].sort((a, b) => (b.price as number) - (a.price as number));
+        const topNPreds = sortedPreds.slice(0, topBottomPairs);
+        const bottomNPreds = sortedPreds.slice(-topBottomPairs);
+
+        // Store markers
+        topNPreds.forEach(item => {
+          if (!markers[item.dateTime]) markers[item.dateTime] = { models: {} };
+          markers[item.dateTime].models[modelKey] = 'top';
         });
+        bottomNPreds.forEach(item => {
+          if (!markers[item.dateTime]) markers[item.dateTime] = { models: {} };
+          markers[item.dateTime].models[modelKey] = 'bottom';
+        });
+      });
 
-        // Store Actual markers
-        topNActuals.forEach(item => {
-            if (!markers[item.dateTime as string]) markers[item.dateTime as string] = { models: {} };
-            markers[item.dateTime as string].actualType = 'top';
-        });
-        bottomNActuals.forEach(item => {
-            if (!markers[item.dateTime as string]) markers[item.dateTime as string] = { models: {} };
-            markers[item.dateTime as string].actualType = 'bottom';
-        });
+      // Store Actual markers
+      topNActuals.forEach(item => {
+        if (!markers[item.dateTime as string]) markers[item.dateTime as string] = { models: {} };
+        markers[item.dateTime as string].actualType = 'top';
+      });
+      bottomNActuals.forEach(item => {
+        if (!markers[item.dateTime as string]) markers[item.dateTime as string] = { models: {} };
+        markers[item.dateTime as string].actualType = 'bottom';
+      });
     });
 
     return markers;
@@ -203,10 +223,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     console.log('=== mergedChartData useMemo called ===');
     console.log('chartData length:', chartData?.length || 0);
     console.log('intradayData length:', intradayData?.length || 0);
-    
+
     // 創建一個以 dateTime 為 key 的 map
     const dataMap = new Map<string, any>();
-    
+
     // 先添加 chartData（保持原有結構）- 即使 chartData 為空也要處理 intraday 數據
     if (chartData && Array.isArray(chartData) && chartData.length > 0) {
       chartData.forEach(point => {
@@ -216,7 +236,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         }
       });
     }
-    
+
     // 添加 imbalance 數據
     if (imbalanceData && Array.isArray(imbalanceData) && imbalanceData.length > 0) {
       // 地區名稱映射，確保與 ImbalanceData 的字段匹配
@@ -231,22 +251,22 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         'shikoku': 'shikoku',
         'kyushu': 'kyushu'
       };
-      
+
       const areaField = areaFieldMap[areaName?.toLowerCase() || ''];
-      
+
       if (areaField) {
         imbalanceData.forEach((item: ImbalanceData) => {
           // 檢查 item 和 datetime 是否存在且有效
           if (!item || !item.datetime) {
             return;
           }
-          
+
           const datetime = item.datetime;
           // 確保 datetime 是字符串
           if (typeof datetime !== 'string') {
             return;
           }
-          
+
           // 嘗試匹配現有的 dateTime
           const matchingKey = Array.from(dataMap.keys()).find(key => {
             if (!key || typeof key !== 'string') return false;
@@ -257,7 +277,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             const itemTime = datetime.split(' ')[1]?.substring(0, 5) || '';
             return keyDate === itemDate && keyTime === itemTime;
           });
-          
+
           if (matchingKey) {
             const existing = dataMap.get(matchingKey);
             if (existing) {
@@ -268,13 +288,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         });
       }
     }
-    
+
     // 添加 intraday 數據 - 用 datetime 欄位
     if (intradayData && Array.isArray(intradayData) && intradayData.length > 0) {
 
       let matchedCount = 0;
       let addedCount = 0;
-      
+
       intradayData.forEach((item: IntradayData) => {
         if (!item) return;
 
@@ -283,21 +303,21 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
         // 使用 datetime 欄位 (格式: "2025-04-01 00:00:00")
         if (item.datetime && typeof item.datetime === 'string') {
-            try {
-                const [datePart, timePart] = item.datetime.split(' ');
-                if (datePart && timePart) {
-                    const formattedTime = timePart.substring(0, 5); // 取 "00:00"
-                    
-                    // 格式1: YYYYMMDD HH:mm (無連字符)
-                    const formattedDateNoHyphen = datePart.replace(/-/g, '');
-                    formattedDateTime = `${formattedDateNoHyphen} ${formattedTime}`;
-                    
-                    // 格式2: YYYY-MM-DD HH:mm (有連字符) - 標準格式
-                    formattedDateTimeWithHyphen = `${datePart} ${formattedTime}`;
-                }
-            } catch (e) {
-                console.warn('Error parsing intraday datetime:', item.datetime);
+          try {
+            const [datePart, timePart] = item.datetime.split(' ');
+            if (datePart && timePart) {
+              const formattedTime = timePart.substring(0, 5); // 取 "00:00"
+
+              // 格式1: YYYYMMDD HH:mm (無連字符)
+              const formattedDateNoHyphen = datePart.replace(/-/g, '');
+              formattedDateTime = `${formattedDateNoHyphen} ${formattedTime}`;
+
+              // 格式2: YYYY-MM-DD HH:mm (有連字符) - 標準格式
+              formattedDateTimeWithHyphen = `${datePart} ${formattedTime}`;
             }
+          } catch (e) {
+            console.warn('Error parsing intraday datetime:', item.datetime);
+          }
         }
 
         if (!formattedDateTimeWithHyphen) return;
@@ -305,98 +325,98 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         // 1. 嘗試匹配現有資料
         let matchedKey: string | null = null;
         if (dataMap.has(formattedDateTimeWithHyphen)) {
-            matchedKey = formattedDateTimeWithHyphen;
+          matchedKey = formattedDateTimeWithHyphen;
         } else if (formattedDateTime && dataMap.has(formattedDateTime)) {
-            matchedKey = formattedDateTime;
+          matchedKey = formattedDateTime;
         }
 
         if (matchedKey) {
-            const existing = dataMap.get(matchedKey);
-            if (existing) {
-                existing.intraday_average = item.average_price;
-                existing.intraday_opening = item.opening_price;
-                existing.intraday_closing = item.closing_price;
-                existing.intraday_high = item.high_price;
-                existing.intraday_low = item.low_price;
-                matchedCount++;
-            }
+          const existing = dataMap.get(matchedKey);
+          if (existing) {
+            existing.intraday_average = item.average_price;
+            existing.intraday_opening = item.opening_price;
+            existing.intraday_closing = item.closing_price;
+            existing.intraday_high = item.high_price;
+            existing.intraday_low = item.low_price;
+            matchedCount++;
+          }
         } else {
-            // 2. 如果沒有匹配，新增資料點
-            // 強制使用帶連字符的格式 (YYYY-MM-DD HH:mm)，確保 new Date() 能解析
-            const dateTimeToAdd = formattedDateTimeWithHyphen;
-            
-            if (dateTimeToAdd && !dataMap.has(dateTimeToAdd)) {
-                dataMap.set(dateTimeToAdd, {
-                    dateTime: dateTimeToAdd,
-                    date: dateTimeToAdd.split(' ')[0],
-                    timeStr: dateTimeToAdd.split(' ')[1] || '00:00',
-                    actualPrice: null,
-                    modelPredictions: [],
-                    isPrediction: false,
-                    // Intraday values
-                    intraday_average: item.average_price,
-                    intraday_opening: item.opening_price,
-                    intraday_closing: item.closing_price,
-                    intraday_high: item.high_price,
-                    intraday_low: item.low_price,
-                    // Initialize others with null
-                    imbalance: null,
-                    interconnection_flow_diff: null,
-                    interconnection_forward: null,
-                    interconnection_reverse: null
-                });
-                addedCount++;
-            }
+          // 2. 如果沒有匹配，新增資料點
+          // 強制使用帶連字符的格式 (YYYY-MM-DD HH:mm)，確保 new Date() 能解析
+          const dateTimeToAdd = formattedDateTimeWithHyphen;
+
+          if (dateTimeToAdd && !dataMap.has(dateTimeToAdd)) {
+            dataMap.set(dateTimeToAdd, {
+              dateTime: dateTimeToAdd,
+              date: dateTimeToAdd.split(' ')[0],
+              timeStr: dateTimeToAdd.split(' ')[1] || '00:00',
+              actualPrice: null,
+              modelPredictions: [],
+              isPrediction: false,
+              // Intraday values
+              intraday_average: item.average_price,
+              intraday_opening: item.opening_price,
+              intraday_closing: item.closing_price,
+              intraday_high: item.high_price,
+              intraday_low: item.low_price,
+              // Initialize others with null
+              imbalance: null,
+              interconnection_flow_diff: null,
+              interconnection_forward: null,
+              interconnection_reverse: null
+            });
+            addedCount++;
+          }
         }
       });
     }
-    
+
     // 添加連系線流量數據並計算差異（forward_planned_flow - reverse_planned_flow）
     if (interconnectionData && Array.isArray(interconnectionData) && interconnectionData.length > 0) {
 
       let matchedCount = 0;
       let addedCount = 0;
-      
+
       interconnectionData.forEach((item: InterconnectionFlow) => {
         if (!item || !item.datetime || typeof item.datetime !== 'string') return;
-        
+
         // 原始格式通常為 "2025-03-07 00:00:00"
         let formattedDateTime: string | null = null;
         let formattedDateTimeWithHyphen: string | null = null;
-        
+
         try {
           const [datePart, timePart] = item.datetime.split(' ');
           if (!datePart || !timePart) return;
-          
+
           const formattedTime = timePart.substring(0, 5); // HH:mm
-          
+
           // 格式1: YYYYMMDD HH:mm (無連字符)
           const formattedDateNoHyphen = datePart.replace(/-/g, '');
           formattedDateTime = `${formattedDateNoHyphen} ${formattedTime}`;
-          
+
           // 格式2: YYYY-MM-DD HH:mm (有連字符) - 這是 new Date() 支援的標準格式
           formattedDateTimeWithHyphen = `${datePart} ${formattedTime}`;
         } catch (e) {
           return;
         }
-        
+
         if (!formattedDateTime) return;
-        
+
         // 計算差異
         const forwardFlow = typeof item.forward_planned_flow === 'number' && !isNaN(item.forward_planned_flow) ? item.forward_planned_flow : 0;
         const reverseFlow = typeof item.reverse_planned_flow === 'number' && !isNaN(item.reverse_planned_flow) ? item.reverse_planned_flow : 0;
         const flowDifference = forwardFlow - reverseFlow;
-        
+
         // 1. 嘗試匹配現有資料 (ChartData 可能用任意一種格式)
         let matchedKey: string | null = null;
-        
+
         // 優先嘗試匹配帶連字符的 (較常見)
         if (formattedDateTimeWithHyphen && dataMap.has(formattedDateTimeWithHyphen)) {
-           matchedKey = formattedDateTimeWithHyphen;
+          matchedKey = formattedDateTimeWithHyphen;
         } else if (dataMap.has(formattedDateTime)) {
-           matchedKey = formattedDateTime;
+          matchedKey = formattedDateTime;
         }
-        
+
         if (matchedKey) {
           const existing = dataMap.get(matchedKey);
           if (existing) {
@@ -410,7 +430,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           // [關鍵修正] 強制使用「帶連字符」的格式作為 Key 和 dateTime
           // 這樣後續 processedChartData 的 new Date() 才能正確解析
           const dateTimeToAdd = formattedDateTimeWithHyphen || formattedDateTime;
-          
+
           if (dateTimeToAdd && !dataMap.has(dateTimeToAdd)) {
             dataMap.set(dateTimeToAdd, {
               dateTime: dateTimeToAdd,
@@ -435,19 +455,89 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         }
       });
     }
-    
+
+    // 添加 Occto Area 數據
+    if (occtoAreaData && Array.isArray(occtoAreaData) && occtoAreaData.length > 0) {
+      occtoAreaData.forEach((item: OcctoAreaData) => {
+        if (!item || !item.datetime) return;
+
+        let formattedDateTime: string | null = null;
+        let formattedDateTimeWithHyphen: string | null = null;
+
+        try {
+          // item.datetime format: "YYYY-MM-DD HH:mm:ss"
+          const [datePart, timePart] = item.datetime.split(' ');
+          if (datePart && timePart) {
+            const formattedTime = timePart.substring(0, 5); // HH:mm
+
+            // YYYYMMDD HH:mm
+            const formattedDateNoHyphen = datePart.replace(/-/g, '');
+            formattedDateTime = `${formattedDateNoHyphen} ${formattedTime}`;
+
+            // YYYY-MM-DD HH:mm
+            formattedDateTimeWithHyphen = `${datePart} ${formattedTime}`;
+          }
+        } catch (e) {
+          console.warn('Error parsing occto datetime', item.datetime);
+          return;
+        }
+
+        if (!formattedDateTime) return;
+
+        // Try match
+        let matchedKey: string | null = null;
+        if (formattedDateTimeWithHyphen && dataMap.has(formattedDateTimeWithHyphen)) {
+          matchedKey = formattedDateTimeWithHyphen;
+        } else if (dataMap.has(formattedDateTime)) {
+          matchedKey = formattedDateTime;
+        }
+
+        if (matchedKey) {
+          const existing = dataMap.get(matchedKey);
+          if (existing) {
+            existing.occto_data = item; // Store the whole object
+          }
+        } else {
+          // Add new point if not exists
+          const dateTimeToAdd = formattedDateTimeWithHyphen || formattedDateTime;
+          if (dateTimeToAdd && !dataMap.has(dateTimeToAdd)) {
+            dataMap.set(dateTimeToAdd, {
+              dateTime: dateTimeToAdd,
+              date: dateTimeToAdd.split(' ')[0],
+              timeStr: dateTimeToAdd.split(' ')[1] || '',
+              actualPrice: null,
+              modelPredictions: [],
+              isPrediction: false,
+              occto_data: item,
+              // others null
+              imbalance: null,
+              intraday_average: null,
+              intraday_opening: null,
+              intraday_closing: null,
+              intraday_high: null,
+              intraday_low: null,
+              interconnection_flow_diff: null,
+              interconnection_forward: null,
+              interconnection_reverse: null
+            });
+          }
+        }
+      });
+    }
+
     // 如果沒有 chartData，但仍然有 intraday 或 interconnection 數據，直接返回這些數據點
     if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
       // 檢查是否有 intraday 或 interconnection 數據被添加
-      const marketPoints = Array.from(dataMap.values()).filter(p => 
-        (p.intraday_average !== null || 
-        p.intraday_opening !== null || 
-        p.intraday_closing !== null || 
-        p.intraday_high !== null || 
-        p.intraday_low !== null) ||
-        (p.interconnection_flow_diff !== null && p.interconnection_flow_diff !== undefined)
+      const marketPoints = Array.from(dataMap.values()).filter(p =>
+        (p.intraday_average !== null ||
+          p.intraday_opening !== null ||
+          p.intraday_closing !== null ||
+          p.intraday_high !== null ||
+          p.intraday_low !== null) ||
+        (p.interconnection_flow_diff !== null && p.interconnection_flow_diff !== undefined) ||
+        (p.occto_data !== undefined)
       );
-      
+
       if (marketPoints.length > 0) {
         console.log('Returning market-only points (intraday/interconnection), count:', marketPoints.length);
         return marketPoints.sort((a, b) => {
@@ -459,17 +549,17 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
       }
       return [];
     }
-    
+
     // 合併 chartData 和 intraday 數據
     // 注意：需要處理日期格式的差異（chartData 可能使用 "2025-12-03 00:00"，而 dataMap 可能使用 "20251203 00:00"）
     const result = chartData.map(point => {
       if (!point || !point.dateTime) {
         return point;
       }
-      
+
       // 嘗試直接匹配
       let merged = dataMap.get(point.dateTime);
-      
+
       // 如果沒有直接匹配，嘗試標準化日期格式後匹配
       if (!merged) {
         // 嘗試兩種格式：帶連字符和不帶連字符
@@ -478,10 +568,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           // 標準化日期格式（移除連字符）
           const normalizedDate = datePart.replace(/-/g, '');
           const normalizedDateTime = `${normalizedDate} ${timePart}`;
-          
+
           // 嘗試匹配標準化後的格式
           merged = dataMap.get(normalizedDateTime);
-          
+
           // 如果還是沒有匹配，嘗試反向（添加連字符）
           if (!merged && normalizedDate.length === 8) {
             const formattedDate = `${normalizedDate.substring(0, 4)}-${normalizedDate.substring(4, 6)}-${normalizedDate.substring(6, 8)}`;
@@ -490,7 +580,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           }
         }
       }
-      
+
       if (!merged) {
         return {
           ...point,
@@ -503,6 +593,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           interconnection_flow_diff: null,
           interconnection_forward: null,
           interconnection_reverse: null,
+          occto_data: null,
         };
       }
       return {
@@ -516,12 +607,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         interconnection_flow_diff: (typeof merged.interconnection_flow_diff === 'number' && !isNaN(merged.interconnection_flow_diff)) ? merged.interconnection_flow_diff : null,
         interconnection_forward: (typeof merged.interconnection_forward === 'number' && !isNaN(merged.interconnection_forward)) ? merged.interconnection_forward : null,
         interconnection_reverse: (typeof merged.interconnection_reverse === 'number' && !isNaN(merged.interconnection_reverse)) ? merged.interconnection_reverse : null,
+        occto_data: merged.occto_data || null,
       };
     });
-    
+
     // 添加只有 intraday 或 interconnection 數據但沒有 chartData 的點
     const chartDataKeys = new Set(chartData.map(p => p.dateTime).filter(Boolean));
-    
+
     // 標準化 chartData 的 keys（處理日期格式差異）
     const normalizedChartDataKeys = new Set<string>();
     chartData.forEach(p => {
@@ -539,22 +631,23 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         }
       }
     });
-    
+
     const marketOnlyPoints = Array.from(dataMap.entries())
       .filter(([key, value]) => {
         // 只保留有 intraday 或 interconnection 數據但沒有 chartData 的點
         const hasMarketData = (
-          value.intraday_average !== null || 
-          value.intraday_opening !== null || 
-          value.intraday_closing !== null || 
-          value.intraday_high !== null || 
+          value.intraday_average !== null ||
+          value.intraday_opening !== null ||
+          value.intraday_closing !== null ||
+          value.intraday_high !== null ||
           value.intraday_low !== null ||
-          (value.interconnection_flow_diff !== null && value.interconnection_flow_diff !== undefined)
+          (value.interconnection_flow_diff !== null && value.interconnection_flow_diff !== undefined) ||
+          (value.occto_data !== undefined)
         );
-        
+
         // 檢查是否在 chartData 中（包括標準化格式）
         const inChartData = chartDataKeys.has(key) || normalizedChartDataKeys.has(key);
-        
+
         return !inChartData && hasMarketData;
       })
       .map(([_, value]) => ({
@@ -573,31 +666,32 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         interconnection_flow_diff: value.interconnection_flow_diff,
         interconnection_forward: value.interconnection_forward,
         interconnection_reverse: value.interconnection_reverse,
+        occto_data: value.occto_data
       }));
-    
+
     const finalResult = [...result, ...marketOnlyPoints].sort((a, b) => {
       if (a.dateTime && b.dateTime) {
         return a.dateTime.localeCompare(b.dateTime);
       }
       return 0;
     });
-    
+
     // 檢查最終結果中是否有 intraday 數據
-    const pointsWithIntraday = finalResult.filter(p => 
-      p.intraday_average !== null || 
-      p.intraday_opening !== null || 
-      p.intraday_closing !== null || 
-      p.intraday_high !== null || 
+    const pointsWithIntraday = finalResult.filter(p =>
+      p.intraday_average !== null ||
+      p.intraday_opening !== null ||
+      p.intraday_closing !== null ||
+      p.intraday_high !== null ||
       p.intraday_low !== null
     );
     console.log('Final result points with intraday data:', pointsWithIntraday.length);
-    
+
     // 檢查最終結果中是否有 interconnection 數據
-    const pointsWithInterconnection = finalResult.filter(p => 
+    const pointsWithInterconnection = finalResult.filter(p =>
       p.interconnection_flow_diff !== null && p.interconnection_flow_diff !== undefined
     );
     console.log('Final result points with interconnection data:', pointsWithInterconnection.length);
-    
+
     if (pointsWithIntraday.length > 0) {
       console.log('Sample point with intraday:', {
         dateTime: pointsWithIntraday[0].dateTime,
@@ -608,7 +702,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         intraday_low: pointsWithIntraday[0].intraday_low,
       });
     }
-    
+
     if (pointsWithInterconnection.length > 0) {
       console.log('Sample point with interconnection:', {
         dateTime: pointsWithInterconnection[0].dateTime,
@@ -617,11 +711,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         interconnection_reverse: pointsWithInterconnection[0].interconnection_reverse,
       });
     }
-    
-    return finalResult;
-  }, [chartData, imbalanceData, intradayData, interconnectionData, areaName]);
 
-  
+    return finalResult;
+  }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, areaName]);
+
+
   const processedChartData = useMemo(() => {
     if (!mergedChartData || !Array.isArray(mergedChartData) || mergedChartData.length === 0) {
       return [];
@@ -634,13 +728,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         // 解析時間字串為數值 (Timestamp)
         let timestamp: number;
         try {
-            // 處理 "2025-04-05 22:30" 格式
-            // 替換空格為 T 以符合 ISO 標準 (有些瀏覽器相容性需要)
-            const isoString = point.dateTime.replace(' ', 'T');
-            timestamp = new Date(isoString).getTime();
+          // 處理 "2025-04-05 22:30" 格式
+          // 替換空格為 T 以符合 ISO 標準 (有些瀏覽器相容性需要)
+          const isoString = point.dateTime.replace(' ', 'T');
+          timestamp = new Date(isoString).getTime();
         } catch (e) {
-            console.error("Invalid date format", point.dateTime);
-            return null;
+          console.error("Invalid date format", point.dateTime);
+          return null;
         }
 
         // 確保 timestamp 是有效數值
@@ -650,7 +744,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         const modelDifferences: Record<string, number | null> = {};
         const modelAreaTops: Record<string, number | null> = {};
         const modelAreaBottoms: Record<string, number | null> = {};
-        
+
         // 處理數據，為 P5-P95 區間添加正確的數據結構
         if (point.modelPredictions && Array.isArray(point.modelPredictions)) {
           point.modelPredictions.forEach((mp: ModelPrediction) => {
@@ -658,27 +752,27 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             const modelKey = `${mp.modelId}|${mp.modelName}`;
             
             // 計算預測與實際值的差距（如果兩者都存在）
-            modelDifferences[modelKey] = 
+            modelDifferences[modelKey] =
               point.actualPrice !== null && mp.predictedPrice !== null
                 ? mp.predictedPrice - point.actualPrice
                 : null;
-                
+
             // 為區間圖準備數據 - 確保有值
             // 使用預測值作為備用值
             modelAreaTops[modelKey] = mp.predictedPrice95 !== null ? mp.predictedPrice95 : mp.predictedPrice;
             modelAreaBottoms[modelKey] = mp.predictedPrice5 !== null ? mp.predictedPrice5 : mp.predictedPrice;
           });
         }
-        
+
         // 計算與上一個時間點實際值的差異（如果有提供）
-        const actualDelta = 
-          index > 0 && 
-          point.actualPrice !== null && 
-          mergedChartData[index - 1] &&
-          mergedChartData[index - 1].actualPrice !== null
+        const actualDelta =
+          index > 0 &&
+            point.actualPrice !== null &&
+            mergedChartData[index - 1] &&
+            mergedChartData[index - 1].actualPrice !== null
             ? point.actualPrice - (mergedChartData[index - 1].actualPrice as number)
             : null;
-        
+
         // Get marker info
         const markerInfo = pointsWithMarkers[point.dateTime] || { models: {} };
 
@@ -695,19 +789,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
         // 2. 檢查是否為有效數字 (排除 NaN 和 原始數據真的是 null 的情況)
         //    注意：這裡我先拿掉了 < 1000 的限制，建議先確保圖能畫出來，再來考慮過濾異常值
-        const hasValidIntraday = 
-            point.intraday_high != null && !isNaN(iHigh) &&
-            point.intraday_low != null && !isNaN(iLow) &&
-            point.intraday_opening != null && !isNaN(iOpen) &&
-            point.intraday_closing != null && !isNaN(iClose);
+        const hasValidIntraday =
+          point.intraday_high != null && !isNaN(iHigh) &&
+          point.intraday_low != null && !isNaN(iLow) &&
+          point.intraday_opening != null && !isNaN(iOpen) &&
+          point.intraday_closing != null && !isNaN(iClose);
 
         if (hasValidIntraday) {
-            candlestickPayload = {
-                high: iHigh,
-                low: iLow,
-                open: iOpen,
-                close: iClose
-            };
+          candlestickPayload = {
+            high: iHigh,
+            low: iLow,
+            open: iOpen,
+            close: iClose
+          };
         }
         return {
           ...point,
@@ -725,6 +819,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           interconnection_flow_diff: point.interconnection_flow_diff,
           interconnection_forward: point.interconnection_forward,
           interconnection_reverse: point.interconnection_reverse,
+          // Occto data
+          occto_value: point.occto_data ? point.occto_data[selectedOcctoField] : null,
           // 蠟燭圖的衍生數據
           candlestickPayload,
           // 這裡使用 High 價格作為觸發值。
@@ -736,7 +832,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
       })
       .filter((point): point is NonNullable<typeof point> => point !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [mergedChartData, pointsWithMarkers, chartData]);
+  }, [mergedChartData, pointsWithMarkers, chartData, selectedOcctoField]);
 
   // 計算價格範圍
   const priceRange = useMemo(() => {
@@ -755,16 +851,16 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 加入 Intraday 相關價格
     // 這裡同樣要做防呆，避免 Volume (成交量) 混入
     if (processedChartData.length > 0) {
-        processedChartData.forEach(item => {
-            const addIfValid = (val: number | null | undefined) => {
-                // 過濾掉 > 1000 的異常值 (Volume)
-                if (val !== null && val !== undefined && !isNaN(val) && Math.abs(val) < 1000) {
-                    allPrices.push(val);
-                }
-            };
-            addIfValid(item.intraday_high);
-            addIfValid(item.intraday_low);
-        });
+      processedChartData.forEach(item => {
+        const addIfValid = (val: number | null | undefined) => {
+          // 過濾掉 > 1000 的異常值 (Volume)
+          if (val !== null && val !== undefined && !isNaN(val) && Math.abs(val) < 1000) {
+            allPrices.push(val);
+          }
+        };
+        addIfValid(item.intraday_high);
+        addIfValid(item.intraday_low);
+      });
     }
 
 
@@ -773,23 +869,37 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
     return { min: Math.max(0, min), max: Math.max(35, max) };
   }, [chartData, processedChartData]);
-  
+
   // 獨立計算 Imbalance 的範圍
   const imbalanceRange = useMemo(() => {
     if (!processedChartData) return { min: 0, max: 35 };
-    
+
     const values = processedChartData
-        .map(p => p.imbalance)
-        .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
-    
+      .map(p => p.imbalance)
+      .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+
     if (values.length === 0) return { min: 0, max: 35 };
 
     const min = Math.floor(Math.min(...values));
     const max = Math.ceil(Math.max(...values));
-    
+
     // 給一點 padding 讓線條不要貼底或貼頂
     const padding = Math.abs(max - min) * 0.1;
-    
+
+    return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
+  }, [processedChartData]);
+
+  // 獨立計算 Occto Range
+  const occtoRange = useMemo(() => {
+    if (!processedChartData) return { min: 0, max: 100 };
+    const values = processedChartData
+      .map(p => p.occto_value)
+      .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+
+    if (values.length === 0) return { min: 0, max: 100 };
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const padding = Math.abs(max - min) * 0.1;
     return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
   }, [processedChartData]);
 
@@ -818,7 +928,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 判斷漲跌 (收盤 > 開盤 = 漲)
     // 注意：這裡使用 紅漲綠跌 配色
     const isRising = close >= open;
-    const color = isRising ? '#ff4d4f' : '#52c41a'; 
+    const color = isRising ? '#ff4d4f' : '#52c41a';
 
     // 計算座標 (SVG 座標系：Y 值越小越靠上)
     // Bar 已經幫我們算好了 x 和 width
@@ -838,20 +948,20 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     return (
       <g className="recharts-candlestick">
         {/* 影線 (High - Low) */}
-        <line 
-          x1={cx} y1={yHigh} 
-          x2={cx} y2={yLow} 
-          stroke={color} 
-          strokeWidth={1} 
+        <line
+          x1={cx} y1={yHigh}
+          x2={cx} y2={yLow}
+          stroke={color}
+          strokeWidth={1}
         />
         {/* 實體 (Open - Close) */}
-        <rect 
-          x={x} 
-          y={bodyTop} 
-          width={width} 
-          height={bodyHeight} 
-          fill={color} 
-          stroke="none" 
+        <rect
+          x={x}
+          y={bodyTop}
+          width={width}
+          height={bodyHeight}
+          fill={color}
+          stroke="none"
         />
       </g>
     );
@@ -880,23 +990,23 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
     const ticks: number[] = [];
     let current = startOfDay(new Date(startTime)).getTime();
-    
+
     // 確保第一個刻度在資料範圍附近
     // 使用一個合理的上限避免無限迴圈
     const maxIterations = 10000;
     let iterations = 0;
     while (current < startTime && iterations < maxIterations) {
-        current += intervalHours * 60 * 60 * 1000;
-        iterations++;
+      current += intervalHours * 60 * 60 * 1000;
+      iterations++;
     }
 
     iterations = 0;
     while (current <= endTime && iterations < maxIterations) {
-        ticks.push(current);
-        current += intervalHours * 60 * 60 * 1000;
-        iterations++;
+      ticks.push(current);
+      current += intervalHours * 60 * 60 * 1000;
+      iterations++;
     }
-    
+
     return ticks;
   }, [processedChartData]);
 
@@ -912,15 +1022,15 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 嘗試多種方式獲取 Y 軸，因為 Recharts 內部 ID 有時會變
     let yScale: any;
     if (yAxisMap) {
-        if (yAxisMap[yAxisId]) {
-            yScale = yAxisMap[yAxisId].scale;
-        } else {
-            // 模糊搜尋：找 props.yAxisId 符合的
-            const axisObj = Object.values(yAxisMap).find((axis: any) => axis.props?.yAxisId === yAxisId) as any;
-            if (axisObj && typeof axisObj.scale === 'function') {
-                yScale = axisObj.scale;
-            }
+      if (yAxisMap[yAxisId]) {
+        yScale = yAxisMap[yAxisId].scale;
+      } else {
+        // 模糊搜尋：找 props.yAxisId 符合的
+        const axisObj = Object.values(yAxisMap).find((axis: any) => axis.props?.yAxisId === yAxisId) as any;
+        if (axisObj && typeof axisObj.scale === 'function') {
+          yScale = axisObj.scale;
         }
+      }
     }
 
     if (!xScale || !yScale || !data) return null;
@@ -952,15 +1062,15 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           const yClose = yScale(close);
           const yHigh = yScale(high);
           const yLow = yScale(low);
-          
+
           // 防呆：如果座標計算出來是 NaN (可能因數值超出 domain 或 scale 尚未 ready)
           if (isNaN(x) || isNaN(yOpen) || isNaN(yClose)) return null;
 
           const isRising = close >= open;
           // 漲(紅) / 跌(綠) 配色
-          const color = isRising 
-              ? (darkMode ? '#ff4d4f' : '#cf1322') 
-              : (darkMode ? '#52c41a' : '#389e0d');
+          const color = isRising
+            ? (darkMode ? '#ff4d4f' : '#cf1322')
+            : (darkMode ? '#52c41a' : '#389e0d');
 
           // 計算實體高度與位置
           const bodyTop = Math.min(yOpen, yClose);
@@ -969,21 +1079,21 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           return (
             <g key={`candle-${index}`}>
               {/* 影線：最高價到最低價 */}
-              <line 
-                  x1={x} x2={x} y1={yHigh} y2={yLow} 
-                  stroke={color} 
-                  strokeWidth={1.5} 
-                  strokeOpacity={0.2}
+              <line
+                x1={x} x2={x} y1={yHigh} y2={yLow}
+                stroke={color}
+                strokeWidth={1.5}
+                strokeOpacity={0.2}
               />
               {/* 實體：開盤價到收盤價 */}
-              <rect 
-                  x={x - candleWidth / 2} 
-                  y={bodyTop} 
-                  width={candleWidth} 
-                  height={bodyHeight} 
-                  fill={color} 
-                  stroke="none"
-                  fillOpacity={0.2}
+              <rect
+                x={x - candleWidth / 2}
+                y={bodyTop}
+                width={candleWidth}
+                height={bodyHeight}
+                fill={color}
+                stroke="none"
+                fillOpacity={0.2}
               />
             </g>
           );
@@ -995,8 +1105,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   // Custom Dot Component
   const CustomizedDot = (props: any) => {
     // 1. 解構出 key (Recharts 會自動傳入)
-    const { cx, cy, stroke, payload, dataKey, key } = props; 
-        
+    const { cx, cy, stroke, payload, dataKey, key } = props;
+
     // Check if this point needs a marker
     // 2. 如果不需要畫，回傳 null (不要回傳 <g />)
     if (!payload.markerInfo) return null;
@@ -1005,18 +1115,18 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     if (dataKey === "actualPrice") {
       const type = payload.markerInfo.actualType;
       if (!type) return null; // 2. 這裡也改回傳 null
-      
+
       // 3. 把 key 加到 svg 上
       return (
-          <svg key={key} x={cx - 5} y={cy - 5} width={10} height={10} viewBox="0 0 10 10">
-              {type === 'top' ? (
-                  <path d="M5 0 L10 10 L0 10 Z" fill={stroke} /> 
-              ) : (
-                  <path d="M0 0 L10 0 L5 10 Z" fill={stroke} /> 
-              )}
-          </svg>
+        <svg key={key} x={cx - 5} y={cy - 5} width={10} height={10} viewBox="0 0 10 10">
+          {type === 'top' ? (
+            <path d="M5 0 L10 10 L0 10 Z" fill={stroke} />
+          ) : (
+            <path d="M0 0 L10 0 L5 10 Z" fill={stroke} />
+          )}
+        </svg>
       );
-    } 
+    }
 
     return null; // Fallback 改回傳 null
   };
@@ -1027,18 +1137,18 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     const { cx, cy, stroke, payload, key } = props;
 
     if (!payload.markerInfo) return <g />; // 返回空元素而不是 null
-    
+
     const type = payload.markerInfo.models[modelKey];
     if (!type) return <g />; // 返回空元素而不是 null
 
     // 3. 把 key 加到 svg 上
     return (
       <svg key={key} x={cx - 4} y={cy - 4} width={8} height={8} viewBox="0 0 10 10">
-          {type === 'top' ? (
-              <path d="M5 0 L10 5 L5 10 L0 5 Z" fill={stroke} /> 
-          ) : (
-              <circle cx="5" cy="5" r="4" fill={stroke} />
-          )}
+        {type === 'top' ? (
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" fill={stroke} />
+        ) : (
+          <circle cx="5" cy="5" r="4" fill={stroke} />
+        )}
       </svg>
     );
   };
@@ -1053,7 +1163,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     // 情況 A: 傳入的是 Timestamp (數字) - 這是我們優化後的預期情況
     if (typeof value === 'number') {
       date = new Date(value);
-    } 
+    }
     // 情況 B: 傳入的是字串 (舊資料或備用情況)
     else if (typeof value === 'string') {
       // 嘗試解析字串，如果失敗則回傳空字串
@@ -1078,11 +1188,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     if (hour === 0 && minute === 0) {
       return format(date, 'MM/dd');
     }
-    
+
     // 其他時間只顯示小時 (HH:mm)
     return format(date, 'HH:mm');
   }, []);
-  
+
   // 格式化時間顯示 (Tooltip 表格內使用)
   const formatTimeDisplay = useCallback((value: string | number) => {
     if (value === null || value === undefined) return '';
@@ -1090,45 +1200,45 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     try {
       // 情況 A: Timestamp (數字)
       if (typeof value === 'number') {
-         return format(new Date(value), 'HH:mm');
+        return format(new Date(value), 'HH:mm');
       }
-  
+
       // 情況 B: 字串
       if (typeof value === 'string') {
-          // 嘗試直接分割 (舊邏輯，保留以相容舊資料)
-          const parts = value.split(' ');
-          if (parts.length >= 2) {
-              const timePart = parts[1];
-              // 取前 5 個字元 (HH:mm)
-              return timePart.substring(0, 5);
-          }
-          // 如果 split 失敗，嘗試用 Date 解析
-          const date = new Date(value.replace(' ', 'T'));
-          if (!isNaN(date.getTime())) {
-            return format(date, 'HH:mm');
-          }
+        // 嘗試直接分割 (舊邏輯，保留以相容舊資料)
+        const parts = value.split(' ');
+        if (parts.length >= 2) {
+          const timePart = parts[1];
+          // 取前 5 個字元 (HH:mm)
+          return timePart.substring(0, 5);
+        }
+        // 如果 split 失敗，嘗試用 Date 解析
+        const date = new Date(value.replace(' ', 'T'));
+        if (!isNaN(date.getTime())) {
+          return format(date, 'HH:mm');
+        }
       }
     } catch (e) {
       console.error('Error formatting time display', e);
     }
-    
+
     return '';
   }, []);
-  
+
   // 自定義工具提示 - 表格式顯示，支援多模型比較
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       // 使用 timestamp 格式化顯示時間
       const formattedDateTime = format(new Date(data.timestamp), 'MM/dd HH:mm');
-      
+
       // 找出當前時間點的索引
       const currentIndex = processedChartData.findIndex(p => p.timestamp === data.timestamp);
-      
+
       // 計算要顯示的前後時間點的索引範圍
       const startIndex = Math.max(0, currentIndex - adjacentPointsCount);
       const endIndex = Math.min(processedChartData.length - 1, currentIndex + adjacentPointsCount);
-      
+
       // 獲取要顯示的所有時間點數據
       const displayPoints = [];
       for (let i = startIndex; i <= endIndex; i++) {
@@ -1137,22 +1247,22 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           isCurrent: i === currentIndex
         });
       }
-      
+
       // 計算每個時間點需要的寬度（單位：像素）
       const pointWidth = 110; // 每個時間點需要的寬度
       const baseWidth = 120;  // 基礎寬度（左側標籤等）
-      
+
       // 計算可用的螢幕寬度（考慮邊距）
       const availableWidth = Math.min(window.innerWidth * 0.95 - 40, 1200);
-      
+
       // 計算最多可以顯示的時間點數量
       const maxPoints = Math.floor((availableWidth - baseWidth) / pointWidth);
       // 確保至少顯示 3 個時間點
       const maxDisplayPoints = Math.max(3, maxPoints);
-      
+
       // 根據當前顯示的時間點數量和最大可顯示數量決定實際顯示的時間點
-      const actualDisplayPoints = displayPoints.length > maxDisplayPoints 
-        ? displayPoints.slice(0, maxDisplayPoints) 
+      const actualDisplayPoints = displayPoints.length > maxDisplayPoints
+        ? displayPoints.slice(0, maxDisplayPoints)
         : displayPoints;
 
       return (
@@ -1164,17 +1274,17 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           maxHeight: '400px', // 限制最大高度
           overflowY: 'auto',  // 超出時顯示垂直捲軸
           pointerEvents: 'auto' // 允許滑鼠與 Tooltip 互動（例如滾動）
-          }}>
-          
-          <Box sx={{ 
-            backgroundColor: colors.tooltipHeaderBg, 
-            p: 1, 
+        }}>
+
+          <Box sx={{
+            backgroundColor: colors.tooltipHeaderBg,
+            p: 1,
             borderBottom: `1px solid ${colors.tooltipBorder}`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <Typography variant="subtitle2" fontWeight="bold" sx={{borderBottom: `1px solid ${colors.tooltipBorder}`, pb: 0.5, mb: 0.5}}>
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ borderBottom: `1px solid ${colors.tooltipBorder}`, pb: 0.5, mb: 0.5 }}>
               {`${areaName} - ${formattedDateTime}`}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -1184,34 +1294,34 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               </Typography>
             </Box>
           </Box>
-          
+
           {/* 如果有被截斷的數據，顯示提示信息 */}
           {displayPoints.length > maxDisplayPoints && (
             <Typography variant="caption" sx={{ px: 2, py: 0.5, color: colors.warning, display: 'block' }}>
               顯示 {actualDisplayPoints.length}/{displayPoints.length} 個時間點。滑動圖表查看更多。
             </Typography>
           )}
-          
+
           <Box sx={{ overflowX: 'auto', width: '100%' }}>
-            <Table size="small" sx={{ 
+            <Table size="small" sx={{
               minWidth: `${actualDisplayPoints.length * 100}px`,
-              '& .MuiTableCell-root': { 
-                borderBottom: 'none', 
+              '& .MuiTableCell-root': {
+                borderBottom: 'none',
                 py: 0.5,
                 px: 1.5,
                 minWidth: '90px',
                 whiteSpace: 'nowrap'
-              } 
+              }
             }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ color: colors.subText, width: '100px', minWidth: '100px' }}>Date/Time:</TableCell>
                   {actualDisplayPoints.map((point, index) => {
                     return (
-                      <TableCell 
+                      <TableCell
                         key={`time-${index}`}
-                        align="center" 
-                        sx={{ 
+                        align="center"
+                        sx={{
                           color: colors.text,
                           fontWeight: point.isCurrent ? 'bold' : 'normal',
                           backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent',
@@ -1225,13 +1335,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   })}
                 </TableRow>
               </TableHead>
-              
+
               <TableBody>
                 {/* 為每個模型顯示預測價格行 */}
                 {selectedModels.map((model, index) => {
                   const modelKey = `${model.id}|${model.name}`;
                   const modelColor = modelColorMap[modelKey];
-                  
+
                   return (
                     <TableRow key={`model-${modelKey}-${index}`}>
                       <TableCell sx={{ color: modelColor }}>
@@ -1244,19 +1354,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                         const modelPrediction = point.data.modelPredictions.find(
                           (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
                         );
-                        
+
                         return (
-                          <TableCell 
+                          <TableCell
                             key={`forecast-${modelKey}-${index}`}
-                            align="center" 
-                            sx={{ 
+                            align="center"
+                            sx={{
                               color: modelColor,
                               fontWeight: point.isCurrent ? 'bold' : 'normal',
                               backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                             }}
                           >
                             {modelPrediction?.predictedPrice !== null && modelPrediction?.predictedPrice !== undefined
-                              ? modelPrediction.predictedPrice.toFixed(2) 
+                              ? modelPrediction.predictedPrice.toFixed(2)
                               : '-'}
                           </TableCell>
                         );
@@ -1278,23 +1388,23 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                       </TableCell>
                       {actualDisplayPoints.map((point, index) => {
                         const difference = point.data.modelDifferences?.[modelKey];
-                        
+
                         return (
-                          <TableCell 
+                          <TableCell
                             key={`diff-${modelKey}-${index}`}
-                            align="center" 
-                            sx={{ 
-                              color: (difference ?? 0) > 0 
-                                ? colors.delta.positive 
-                                : (difference ?? 0) < 0 
-                                  ? colors.delta.negative 
+                            align="center"
+                            sx={{
+                              color: (difference ?? 0) > 0
+                                ? colors.delta.positive
+                                : (difference ?? 0) < 0
+                                  ? colors.delta.negative
                                   : colors.delta.neutral,
                               fontWeight: point.isCurrent ? 'bold' : 'normal',
                               backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                             }}
                           >
                             {difference !== null && difference !== undefined
-                              ? difference.toFixed(2) 
+                              ? difference.toFixed(2)
                               : '-'}
                           </TableCell>
                         );
@@ -1302,46 +1412,46 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                     </TableRow>
                   );
                 })}
-                
+
                 {/* 實際價格行 */}
                 <TableRow>
                   <TableCell sx={{ color: colors.actual }}>Observation:</TableCell>
                   {actualDisplayPoints.map((point, index) => (
-                    <TableCell 
+                    <TableCell
                       key={`actual-${index}`}
-                      align="center" 
-                      sx={{ 
+                      align="center"
+                      sx={{
                         color: colors.actual,
                         fontWeight: point.isCurrent ? 'bold' : 'normal',
                         backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                       }}
                     >
-                      {point.data.actualPrice !== null 
-                        ? point.data.actualPrice.toFixed(2) 
+                      {point.data.actualPrice !== null
+                        ? point.data.actualPrice.toFixed(2)
                         : '-'}
                     </TableCell>
                   ))}
                 </TableRow>
-                
+
                 {/* 顯示與上一個時間點實際值的差異 */}
                 <TableRow>
                   <TableCell sx={{ color: colors.subText }}>Actual Delta:</TableCell>
                   {actualDisplayPoints.map((point, index) => (
-                    <TableCell 
+                    <TableCell
                       key={`actualDelta-${index}`}
-                      align="center" 
-                      sx={{ 
-                        color: (point.data.actualDelta ?? 0) > 0 
-                          ? colors.delta.positive 
-                          : (point.data.actualDelta ?? 0) < 0 
-                            ? colors.delta.negative 
+                      align="center"
+                      sx={{
+                        color: (point.data.actualDelta ?? 0) > 0
+                          ? colors.delta.positive
+                          : (point.data.actualDelta ?? 0) < 0
+                            ? colors.delta.negative
                             : colors.delta.neutral,
                         fontWeight: point.isCurrent ? 'bold' : 'normal',
                         backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                       }}
                     >
                       {point.data.actualDelta !== null && point.data.actualDelta !== undefined
-                        ? point.data.actualDelta.toFixed(2) 
+                        ? point.data.actualDelta.toFixed(2)
                         : '-'}
                     </TableCell>
                   ))}
@@ -1354,7 +1464,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                     {actualDisplayPoints.map((point, index) => (
                       <TableCell key={`intraday-${index}`} align="center" sx={{ color: colors.intraday, fontWeight: point.isCurrent ? 'bold' : 'normal', backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
                         {point.data.intraday_average !== null && point.data.intraday_average !== undefined
-                          ? point.data.intraday_average.toFixed(2) 
+                          ? point.data.intraday_average.toFixed(2)
                           : '-'}
                       </TableCell>
                     ))}
@@ -1366,17 +1476,17 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   <TableRow>
                     <TableCell sx={{ color: colors.imbalance }}>Imbalance Quantity:</TableCell>
                     {actualDisplayPoints.map((point, index) => (
-                      <TableCell 
+                      <TableCell
                         key={`imbalance-${index}`}
-                        align="center" 
-                        sx={{ 
+                        align="center"
+                        sx={{
                           color: colors.imbalance,
                           fontWeight: point.isCurrent ? 'bold' : 'normal',
                           backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                         }}
                       >
                         {point.data.imbalance !== null && point.data.imbalance !== undefined
-                          ? point.data.imbalance.toFixed(2) 
+                          ? point.data.imbalance.toFixed(2)
                           : '-'}
                       </TableCell>
                     ))}
@@ -1388,17 +1498,41 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   <TableRow>
                     <TableCell sx={{ color: '#ff7300' }}>連系線流量差異 (MW):</TableCell>
                     {actualDisplayPoints.map((point, index) => (
-                      <TableCell 
+                      <TableCell
                         key={`interconnection-${index}`}
-                        align="center" 
-                        sx={{ 
+                        align="center"
+                        sx={{
                           color: colors.interconnection,
                           fontWeight: point.isCurrent ? 'bold' : 'normal',
                           backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
                         }}
                       >
                         {point.data.interconnection_flow_diff !== null && point.data.interconnection_flow_diff !== undefined
-                          ? point.data.interconnection_flow_diff.toFixed(2) 
+                          ? point.data.interconnection_flow_diff.toFixed(2)
+                          : '-'}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )}
+
+                {/* Occto Area Data Row */}
+                {showOcctoArea && (
+                  <TableRow>
+                    <TableCell sx={{ color: colors.occtoArea }}>
+                      {occtoFields.find(f => f.value === selectedOcctoField)?.label || selectedOcctoField}:
+                    </TableCell>
+                    {actualDisplayPoints.map((point, index) => (
+                      <TableCell
+                        key={`occto-${index}`}
+                        align="center"
+                        sx={{
+                          color: colors.occtoArea,
+                          fontWeight: point.isCurrent ? 'bold' : 'normal',
+                          backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
+                        }}
+                      >
+                        {point.data.occto_value !== null && point.data.occto_value !== undefined
+                          ? Number(point.data.occto_value).toLocaleString()
                           : '-'}
                       </TableCell>
                     ))}
@@ -1409,8 +1543,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             </Table>
           </Box>
 
-          <Box sx={{ 
-            p: 1, 
+          <Box sx={{
+            p: 1,
             borderTop: `1px solid ${colors.tooltipBorder}`,
             backgroundColor: colors.tooltipHeaderBg,
             display: 'flex',
@@ -1427,11 +1561,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   };
 
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
-        p: 2, 
-        borderRadius: 2, 
+    <Paper
+      elevation={3}
+      sx={{
+        p: 2,
+        borderRadius: 2,
         backgroundColor: colors.background,
         height: '100%',
         border: '1px solid #333'
@@ -1444,35 +1578,35 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               <Typography variant="h6" component="h2" sx={{ color: colors.text, fontWeight: 'bold' }}>
                 {`Price ${areaName} Japan`}
               </Typography>
-              
+
               {/* 顯示每個模型的 MAE */}
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {selectedModels.map((model, index) => {
                   const modelKey = `${model.id}|${model.name}`;
                   const mae = modelMAEs[modelKey];
-                  
+
                   if (mae === undefined) return null;
-                  
+
                   return (
-                    <Chip 
+                    <Chip
                       key={`mae-${modelKey}-${index}`}
-                      label={`${model.name} MAE: ${mae.toFixed(2)}`} 
-                      size="small" 
-                      sx={{ 
+                      label={`${model.name} MAE: ${mae.toFixed(2)}`}
+                      size="small"
+                      sx={{
                         backgroundColor: darkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0)',
                         color: modelColorMap[modelKey],
                         fontWeight: 'bold',
                         border: `1px solid ${modelColorMap[modelKey]}`,
-                      }} 
+                      }}
                     />
                   );
                 })}
               </Box>
-              
+
               {/* 設定按鈕 */}
               <MuiTooltip title="Chart Settings">
-                <IconButton 
-                  size="small" 
+                <IconButton
+                  size="small"
                   onClick={() => setShowSettings(!showSettings)}
                   sx={{ color: colors.subText }}
                 >
@@ -1485,11 +1619,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 2, flexWrap: 'wrap' }}>
               <FormControlLabel
                 control={
-                  <Switch 
-                    checked={showPredictionRange} 
-                    onChange={(e) => setShowPredictionRange(e.target.checked)} 
+                  <Switch
+                    checked={showPredictionRange}
+                    onChange={(e) => setShowPredictionRange(e.target.checked)}
                     color="primary"
-                    sx={{ 
+                    sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': { color: colors.predicted },
                       '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.predicted }
                     }}
@@ -1501,19 +1635,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   </Typography>
                 }
               />
-              <MuiTooltip 
+              <MuiTooltip
                 title={(!imbalanceData || imbalanceData.length === 0) ? "該時段無資料" : ""}
                 arrow
               >
                 <span>
                   <FormControlLabel
                     control={
-                      <Switch 
-                        checked={showImbalance} 
-                        onChange={(e) => setShowImbalance(e.target.checked)} 
+                      <Switch
+                        checked={showImbalance}
+                        onChange={(e) => setShowImbalance(e.target.checked)}
                         disabled={!imbalanceData || imbalanceData.length === 0}
                         color="primary"
-                        sx={{ 
+                        sx={{
                           '& .MuiSwitch-switchBase.Mui-checked': { color: colors.imbalance },
                           '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.imbalance }
                         }}
@@ -1527,19 +1661,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   />
                 </span>
               </MuiTooltip>
-              <MuiTooltip 
+              <MuiTooltip
                 title={(!intradayData || intradayData.length === 0) ? "該時段無資料" : ""}
                 arrow
               >
                 <span>
                   <FormControlLabel
                     control={
-                      <Switch 
-                        checked={showIntraday} 
-                        onChange={(e) => setShowIntraday(e.target.checked)} 
+                      <Switch
+                        checked={showIntraday}
+                        onChange={(e) => setShowIntraday(e.target.checked)}
                         disabled={!intradayData || intradayData.length === 0}
                         color="primary"
-                        sx={{ 
+                        sx={{
                           '& .MuiSwitch-switchBase.Mui-checked': { color: colors.intraday },
                           '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.intraday }
                         }}
@@ -1553,19 +1687,19 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   />
                 </span>
               </MuiTooltip>
-              <MuiTooltip 
+              <MuiTooltip
                 title={(!interconnectionData || interconnectionData.length === 0) ? "該時段無資料" : ""}
                 arrow
               >
                 <span>
                   <FormControlLabel
                     control={
-                      <Switch 
-                        checked={showInterconnection} 
-                        onChange={(e) => setShowInterconnection(e.target.checked)} 
+                      <Switch
+                        checked={showInterconnection}
+                        onChange={(e) => setShowInterconnection(e.target.checked)}
                         disabled={!interconnectionData || interconnectionData.length === 0}
                         color="primary"
-                        sx={{ 
+                        sx={{
                           '& .MuiSwitch-switchBase.Mui-checked': { color: colors.interconnection },
                           '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.interconnection }
                         }}
@@ -1579,12 +1713,61 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   />
                 </span>
               </MuiTooltip>
+
+              {/* OCCTO Area Control */}
+              <MuiTooltip
+                title={(!occtoAreaData || occtoAreaData.length === 0) ? "該時段無資料" : ""}
+                arrow
+              >
+                <span>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={showOcctoArea}
+                          onChange={(e) => setShowOcctoArea(e.target.checked)}
+                          disabled={!occtoAreaData || occtoAreaData.length === 0}
+                          color="primary"
+                          sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': { color: colors.occtoArea },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: colors.occtoArea }
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" sx={{ color: colors.text }}>
+                          Occto Area
+                        </Typography>
+                      }
+                    />
+                    {showOcctoArea && (
+                      <FormControl size="small" sx={{ ml: 1, minWidth: 120 }}>
+                        <Select
+                          value={selectedOcctoField}
+                          onChange={(e) => setSelectedOcctoField(e.target.value)}
+                          sx={{
+                            height: '30px',
+                            fontSize: '0.8rem',
+                            color: colors.text,
+                            '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }
+                          }}
+                        >
+                          {occtoFields.map(f => (
+                            <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
+                </span>
+              </MuiTooltip>
+
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <Select
                   value={chartType}
                   onChange={(e) => setChartType(e.target.value as 'line' | 'stepLine')}
                   displayEmpty
-                  sx={{ 
+                  sx={{
                     height: '36px',
                     color: colors.text,
                     '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
@@ -1599,13 +1782,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             </Box>
           </Grid>
         </Grid>
-        
+
         {/* 顯示設定面板 */}
         {showSettings && (
-          <Box sx={{ 
-            mt: 2, 
-            p: 2, 
-            backgroundColor: 'rgba(0,0,0,0.2)', 
+          <Box sx={{
+            mt: 2,
+            p: 2,
+            backgroundColor: 'rgba(0,0,0,0.2)',
             borderRadius: 1,
             border: '1px solid #444'
           }}>
@@ -1636,26 +1819,26 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             </Grid>
           </Box>
         )}
-        
+
         <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Chip 
-            label="Observation" 
-            size="small" 
-            sx={{ 
-              backgroundColor: 'transparent', 
+          <Chip
+            label="Observation"
+            size="small"
+            sx={{
+              backgroundColor: 'transparent',
               border: `1px solid ${colors.actual}`,
               color: colors.actual,
               '& .MuiChip-label': { fontWeight: 'bold' }
-            }} 
+            }}
           />
-          
+
           {/* 為每個模型顯示圖例 */}
           {selectedModels.map((model, index) => {
             const modelKey = `${model.id}|${model.name}`;
             const modelColor = modelColorMap[modelKey];
-            
+
             return (
-              <Chip 
+              <Chip
                 key={`legend-${modelKey}-${index}`}
                 label={`${model.name} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`} 
                 size="small" 
@@ -1664,21 +1847,21 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   border: `1px solid ${modelColor}`,
                   color: modelColor,
                   '& .MuiChip-label': { fontWeight: 'bold' }
-                }} 
+                }}
               />
             );
           })}
-          
+
           {showPredictionRange && (
-            <Chip 
-              label="Forecast range (P5-P95)" 
-              size="small" 
-              sx={{ 
-                backgroundColor: 'transparent', 
+            <Chip
+              label="Forecast range (P5-P95)"
+              size="small"
+              sx={{
+                backgroundColor: 'transparent',
                 border: `1px solid rgba(255,255,255,0.2)`,
                 color: colors.subText,
-                
-              }} 
+
+              }}
             />
           )}
 
@@ -1689,7 +1872,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           </Box>
         </Box>
       </Box>
-      
+
       {/* 增加底部邊距，解決 X 軸卡到邊緣問題 */}
       <Box sx={{ pb: 3 }}>
         <ResponsiveContainer width="100%" height={450}>
@@ -1701,21 +1884,21 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             {processedChartData && processedChartData.length > 0 && processedChartData.map((entry, index) => {
               // Only render shading for every other day
               if (index === 0 || !entry || !entry.dateTime) return null;
-              
+
               const currentDate = entry.dateTime.split(' ')[0];
               const prevEntry = processedChartData[index - 1];
               if (!prevEntry || !prevEntry.dateTime) return null;
               const prevDate = prevEntry.dateTime.split(' ')[0];
-              
+
               // Only start a new block when date changes
               if (currentDate === prevDate) return null;
-              
+
               // We need to find the start and end indices for this day
               // This iteration is not efficient for finding ranges.
               // Better approach: Pre-calculate date ranges in useMemo
               return null;
             })}
-            
+
             {/* Render date ranges as ReferenceAreas */}
 
             {(() => {
@@ -1724,38 +1907,38 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               const areas = [];
               let currentStart = processedChartData[0].timestamp;
               let currentDateStr = format(new Date(currentStart), 'yyyy-MM-dd');
-              
+
               // 簡單邏輯：每隔一天畫一個陰影
               // 這裡可以使用更精確的日期遍歷
-              const endTimestamp = processedChartData[processedChartData.length-1].timestamp;
+              const endTimestamp = processedChartData[processedChartData.length - 1].timestamp;
               let iterTime = startOfDay(new Date(currentStart)).getTime();
-              
+
               // 找到第一個偶數日或奇數日作為開始? 
               // 這裡採用簡單策略：每一天畫一個 ReferenceArea
               const dayMillis = 24 * 60 * 60 * 1000;
-              
+
               // 為了效能，我們只畫間隔日
               let dayIndex = 0;
-              while(iterTime < endTimestamp) {
-                  if (dayIndex % 2 !== 0) { // 畫單數日，或者雙數日
-                      areas.push(
-                          <ReferenceArea
-                              key={iterTime}
-                              x1={Math.max(iterTime, currentStart)}
-                              x2={Math.min(iterTime + dayMillis, endTimestamp)}
-                              yAxisId="price"
-                              fill={darkMode ? "#444444" : "#e0e0e0"}
-                              fillOpacity={0.4}
-                          />
-                      );
-                  }
-                  iterTime += dayMillis;
-                  dayIndex++;
+              while (iterTime < endTimestamp) {
+                if (dayIndex % 2 !== 0) { // 畫單數日，或者雙數日
+                  areas.push(
+                    <ReferenceArea
+                      key={iterTime}
+                      x1={Math.max(iterTime, currentStart)}
+                      x2={Math.min(iterTime + dayMillis, endTimestamp)}
+                      yAxisId="price"
+                      fill={darkMode ? "#444444" : "#e0e0e0"}
+                      fillOpacity={0.4}
+                    />
+                  );
+                }
+                iterTime += dayMillis;
+                dayIndex++;
               }
               return areas;
             })()}
 
-            <XAxis 
+            <XAxis
               dataKey="timestamp" // 改用 timestamp
               type="number"       // 設定為數值軸
               scale="time"        // 設定為時間刻度
@@ -1769,10 +1952,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               height={50}
               allowDuplicatedCategory={false}
             />
-            
-            <YAxis 
+
+            <YAxis
               yAxisId="price"
-              domain={[priceRange.min, priceRange.max]} 
+              domain={[priceRange.min, priceRange.max]}
               label={{ value: '¥/KWh', angle: -90, position: 'insideLeft', style: { fill: colors.text, fontSize: 12 } }}
               stroke={colors.text}
               tick={{ fill: colors.text, fontSize: 11 }}
@@ -1781,14 +1964,14 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* Imbalance Axis: 獨立顯示 */}
             {showImbalance && (
-              <YAxis 
-                yAxisId="imbalance" 
-                orientation="right" 
-                domain={[imbalanceRange.min, imbalanceRange.max]} 
+              <YAxis
+                yAxisId="imbalance"
+                orientation="right"
+                domain={[imbalanceRange.min, imbalanceRange.max]}
                 stroke={colors.imbalance}
                 tick={{ fill: colors.imbalance, fontSize: 11 }}
                 label={{ value: 'Imbalance Quantity', angle: 90, position: 'insideRight', style: { fill: colors.imbalance, fontSize: 12 } }}
-                // 如果有多個右軸，需要調整偏移量避免重疊，這裡先設為 0，interconnection 設偏移
+              // 如果有多個右軸，需要調整偏移量避免重疊，這裡先設為 0，interconnection 設偏移
               />
             )}
 
@@ -1797,15 +1980,31 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                 yAxisId="interconnection"
                 orientation="right"
                 // 改用 auto 確保所有數據都能顯示，排除計算錯誤的可能性
-                domain={['auto', 'auto']} 
+                domain={['auto', 'auto']}
                 stroke={colors.interconnection}
                 tick={{ fill: colors.interconnection, fontSize: 11 }}
                 label={{ value: 'MW', angle: 90, position: 'insideRight', style: { fill: colors.interconnection, fontSize: 12 } }}
               />
             )}
 
-            <Tooltip 
-              content={<CustomTooltip />} 
+            {showOcctoArea && (
+              <YAxis
+                yAxisId="occto"
+                orientation="right"
+                domain={[occtoRange.min, occtoRange.max]}
+                stroke={colors.occtoArea}
+                tick={{ fill: colors.occtoArea, fontSize: 11 }}
+                label={{
+                  value: occtoFields.find(f => f.value === selectedOcctoField)?.label,
+                  angle: 90,
+                  position: 'insideRight',
+                  style: { fill: colors.occtoArea, fontSize: 12 }
+                }}
+              />
+            )}
+
+            <Tooltip
+              content={<CustomTooltip />}
               wrapperStyle={{ zIndex: 1000 }} // 確保 Tooltip 在最上層
             />
 
@@ -1837,8 +2036,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                );
             })}
 
-            <Tooltip 
-              content={<CustomTooltip />} 
+            <Tooltip
+              content={<CustomTooltip />}
               wrapperStyle={{ zIndex: 1000 }} // 確保 Tooltip 在最上層
             />
 
@@ -1846,12 +2045,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             {showPredictionRange && selectedModels.map((model, index) => {
               const modelKey = `${model.id}|${model.name}`;
               const modelColor = modelColorMap[modelKey];
-              
+
               // 創建一個半透明的顏色
-              const areaColor = modelColor.includes('rgb') 
+              const areaColor = modelColor.includes('rgb')
                 ? modelColor.replace(')', ', 0.2)').replace('rgb', 'rgba')
                 : `${modelColor}33`; // 添加 33 (20% 透明度) 到十六進制顏色
-              
+
               return (
                 <Area
                   key={`area-${modelKey}-${index}`}
@@ -1861,18 +2060,18 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                     const prediction = datum.modelPredictions.find(
                       (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
                     );
-                    
+
                     if (!prediction) return null;
-                    
+
                     const p5 = prediction.predictedPrice5;
                     const p95 = prediction.predictedPrice95;
 
                     // 如果 p5 或 p95 不存在，則使用 predictedPrice
                     const bottom = p5 !== null ? p5 : prediction.predictedPrice;
                     const top = p95 !== null ? p95 : prediction.predictedPrice;
-                    
+
                     if (bottom === null || top === null) return null;
-                    
+
                     return [bottom, top];
                   }}
                   stroke="none"
@@ -1890,12 +2089,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             {selectedModels.map((model, index) => {
               const modelKey = `${model.id}|${model.name}`;
               const modelColor = modelColorMap[modelKey];
-              
+
               return (
-                <Line 
+                <Line
                   key={`line-${modelKey}-${index}`}
                   yAxisId="price"
-                  type={chartType === 'stepLine' ? 'step' : 'monotone'} 
+                  type={chartType === 'stepLine' ? 'step' : 'monotone'}
                   dataKey={(datum) => {
                     const prediction = datum.modelPredictions.find(
                       (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
@@ -1912,16 +2111,16 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                 />
               );
             })}
-            
+
 
             {/* 不平衡量線 */}
             {showImbalance && (
-              <Line 
+              <Line
                 yAxisId="imbalance"
-                type="monotone" 
-                dataKey="imbalance" 
-                stroke={colors.imbalance} 
-                name="Imbalance Quantity" 
+                type="monotone"
+                dataKey="imbalance"
+                stroke={colors.imbalance}
+                name="Imbalance Quantity"
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
                 connectNulls={true}
@@ -1931,12 +2130,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
             )}
 
             {/* 實際價格線 */}
-            <Line 
+            <Line
               yAxisId="price"
-              type={chartType === 'stepLine' ? 'step' : 'monotone'} 
-              dataKey="actualPrice" 
-              stroke={colors.actual} 
-              name="Observation" 
+              type={chartType === 'stepLine' ? 'step' : 'monotone'}
+              dataKey="actualPrice"
+              stroke={colors.actual}
+              name="Observation"
               dot={<CustomizedDot />}
               strokeWidth={1.5}
               connectNulls={true}
@@ -1945,10 +2144,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* 時間前市場數據 */}
             {showIntraday && (
-              <Customized 
+              <Customized
                 component={CandleStickLayer}
-                data={processedChartData} 
-                yAxisId="price" 
+                data={processedChartData}
+                yAxisId="price"
                 darkMode={darkMode}
               />
             )}
@@ -1971,7 +2170,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* 連系線流量差異線 */}
             {showInterconnection && (
-               <ReferenceLine y={0} yAxisId="interconnection" stroke={colors.interconnection} strokeOpacity={0.3} strokeDasharray="3 3" />
+              <ReferenceLine y={0} yAxisId="interconnection" stroke={colors.interconnection} strokeOpacity={0.3} strokeDasharray="3 3" />
             )}
 
             {showInterconnection && (
@@ -1987,6 +2186,20 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                 isAnimationActive={false}
                 dot={false}
                 activeDot={{ r: 5, fill: colors.interconnection, stroke: colors.interconnection, strokeWidth: 2 }}
+              />
+            )}
+
+            {showOcctoArea && (
+              <Line
+                yAxisId="occto"
+                type="monotone"
+                dataKey="occto_value"
+                stroke={colors.occtoArea}
+                name={occtoFields.find(f => f.value === selectedOcctoField)?.label || 'Occto Data'}
+                strokeWidth={2}
+                dot={false}
+                connectNulls={true}
+                isAnimationActive={false}
               />
             )}
 

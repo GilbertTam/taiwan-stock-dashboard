@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { format, subDays, subWeeks, subMonths, addMonths, differenceInDays } from 'date-fns';
-import { 
-  Container, Box, Grid, Paper, Typography, FormControl, 
-  InputLabel, Select, MenuItem, Button, Switch, 
+import {
+  Container, Box, Grid, Paper, Typography, FormControl,
+  InputLabel, Select, MenuItem, Button, Switch,
   FormControlLabel, SelectChangeEvent, Alert, Divider,
   Tooltip, IconButton, Chip, Checkbox, ListItemText, OutlinedInput,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
@@ -23,10 +23,10 @@ import { zhTW } from 'date-fns/locale'; // 引入繁體中文語系
 import { Popover, TextField, InputAdornment } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
-import { 
-  fetchAreas, 
-  fetchPredictionModels, 
-  fetchPredictions, 
+import {
+  fetchAreas,
+  fetchPredictionModels,
+  fetchPredictions,
   fetchActualPrices,
   fetchAvailableCalculatingDates,
   fetchSpecificPredictions,
@@ -34,13 +34,14 @@ import {
   fetchWeatherForecast,
   fetchImbalance,
   fetchIntraday,
-  fetchInterconnectionFlows
+  fetchInterconnectionFlows,
+  fetchOcctoArea
 } from '@/services/api';
 import PriceChart from '@/components/PriceChart';
 import MaeAnalysis from '@/components/MaeAnalysis';
 import ProfitAnalysis from '@/components/ProfitAnalysis';
 import MarketInfoPanel from '@/components/MarketInfoPanel';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
 import { prepareChartData, ChartDataPoint, hashString, generateColor } from '@/utils/chartUtils';
 import { useTheme } from '@/app/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -56,7 +57,7 @@ export default function ElectricityPriceComparison() {
 
   // 新增 Popover 狀態控制
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-    
+
   const handleDateClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -73,11 +74,11 @@ export default function ElectricityPriceComparison() {
     const { selection } = ranges;
     setStartDate(selection.startDate);
     setEndDate(selection.endDate);
-    
+
     // 如果不是手動選擇的範圍（例如只選了一天），先不要清除 preset
     // 但如果是拖曳範圍，通常就清除 preset
     if (selection.startDate !== selection.endDate) {
-        setDateRangePreset(null);
+      setDateRangePreset(null);
     }
   };
 
@@ -90,10 +91,10 @@ export default function ElectricityPriceComparison() {
   const [models, setModels] = useState<PredictionModel[]>([]);
   const [calculatingDatesByModel, setCalculatingDatesByModel] = useState<{ [key: string]: CalculatingDate[] }>({});
   const [selectedArea, setSelectedArea] = useState<string>('');
-  
+
   // Analysis Settings
   const [topBottomPairs, setTopBottomPairs] = useState<number>(4);
-  
+
   // 多模型選擇，並為每個模型添加 calculatingDate 屬性
   const [selectedModels, setSelectedModels] = useState<{
     id: string | number;
@@ -101,7 +102,7 @@ export default function ElectricityPriceComparison() {
     color: string;
     calculatingDate: string; // 'latest' 或特定日期
   }[]>([]);
-  
+
   const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
@@ -112,9 +113,10 @@ export default function ElectricityPriceComparison() {
   const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
   const [intradayData, setIntradayData] = useState<IntradayData[]>([]);
   const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
+  const [occtoAreaData, setOcctoAreaData] = useState<OcctoAreaData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 獲取地區和模型列表
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -124,17 +126,17 @@ export default function ElectricityPriceComparison() {
           fetchAreas(),
           fetchPredictionModels()
         ]);
-        
+
         setAreas(areasData);
         setModels(modelsData);
-        
+
         if (areasData.length > 0) {
           setSelectedArea(areasData[0].name);
         }
 
       } catch (err: any) {
         console.error('獲取初始資料失敗', err);
-        
+
         if (err.response && err.response.status === 401) {
           setError('認證已過期，請重新登入');
           setTimeout(() => {
@@ -147,23 +149,23 @@ export default function ElectricityPriceComparison() {
         setIsLoading(false);
       }
     };
-    
+
     fetchInitialData();
   }, [logout]);
-  
+
   // 當選擇區域和模型後，獲取每個模型可用的計算日期
   useEffect(() => {
     const fetchAllCalculatingDates = async () => {
       if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
         return;
       }
-      
+
       try {
         const formattedStartDate = format(startDate, 'yyyyMMdd');
         const formattedEndDate = format(endDate, 'yyyyMMdd');
-        
+
         // 為每個選擇的模型獲取可用的計算日期
-        const datesPromises = selectedModels.map(model => 
+        const datesPromises = selectedModels.map(model =>
           fetchAvailableCalculatingDates({
             start_date: formattedStartDate,
             end_date: formattedEndDate,
@@ -174,34 +176,34 @@ export default function ElectricityPriceComparison() {
             dates
           }))
         );
-        
+
         const results = await Promise.all(datesPromises);
-        
+
         // 更新每個模型的可用計算日期
         const newCalculatingDatesByModel: { [key: string]: CalculatingDate[] } = {};
         results.forEach(result => {
           newCalculatingDatesByModel[result.modelKey] = result.dates;
         });
-        
+
         setCalculatingDatesByModel(newCalculatingDatesByModel);
-        
+
         // 更新每個模型的計算日期，如果之前沒有設置或之前的日期不在新的可用日期中
         setSelectedModels(prev => prev.map(model => {
           const modelKey = `${model.id}|${model.name}`;
           const availableDates = newCalculatingDatesByModel[modelKey] || [];
-          
+
           // 如果當前選擇的不是 'latest' 且不在可用日期中，則設為 'latest'
-          if (model.calculatingDate !== 'latest' && 
-              !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
+          if (model.calculatingDate !== 'latest' &&
+            !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
             return { ...model, calculatingDate: 'latest' };
           }
-          
+
           return model;
         }));
-        
+
       } catch (err: any) {
         console.error('獲取計算日期失敗', err);
-        
+
         if (err.response && err.response.status === 401) {
           setError('認證已過期，請重新登入');
           setTimeout(() => {
@@ -210,7 +212,7 @@ export default function ElectricityPriceComparison() {
         }
       }
     };
-    
+
     fetchAllCalculatingDates();
   }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}`).join(','), startDate, endDate, logout]);
   
@@ -219,16 +221,16 @@ export default function ElectricityPriceComparison() {
     if (!selectedArea || !startDate || !endDate) {
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const formattedStartDate = format(startDate, 'yyyyMMdd');
       const formattedEndDate = format(endDate, 'yyyyMMdd');
-      
+
       // 並行獲取實際價格、天氣資訊、不平衡量、時間前市場數據和連系線流量
-      const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult] = await Promise.all([
+      const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult] = await Promise.all([
         fetchActualPrices({
           start_date: formattedStartDate,
           end_date: formattedEndDate,
@@ -272,18 +274,27 @@ export default function ElectricityPriceComparison() {
         }).catch((err) => {
           console.error('Error fetching interconnection data:', err);
           return [];
+        }),
+        fetchOcctoArea({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          area_name: selectedArea
+        }).catch((err) => {
+          console.error('Error fetching occto area data:', err);
+          return [];
         })
       ]);
-      
+
       setActualPrices(actualData);
       setWeatherActual(weatherActualData);
       setWeatherForecast(weatherForecastData);
       setImbalanceData(imbalanceDataResult);
       setIntradayData(intradayDataResult);
       setInterconnectionData(interconnectionDataResult);
+      setOcctoAreaData(occtoAreaDataResult);
     } catch (err: any) {
       console.error('獲取實際數據失敗', err);
-      
+
       if (err.response && err.response.status === 401) {
         setError('認證已過期，請重新登入');
         setTimeout(() => {
@@ -303,17 +314,17 @@ export default function ElectricityPriceComparison() {
       setPredictionsByModel({});
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const formattedStartDate = format(startDate, 'yyyyMMdd');
       const formattedEndDate = format(endDate, 'yyyyMMdd');
-      
+
       // 為每個選擇的模型獲取預測數據
       const predictionsData: { [key: string]: PricePrediction[] } = {};
-      
+
       // 使用 Promise.all 並行獲取所有模型的預測
       await Promise.all(selectedModels.map(async (model) => {
         const modelKey = `${model.id}|${model.name}`;
@@ -342,11 +353,11 @@ export default function ElectricityPriceComparison() {
         }
         predictionsData[modelKey] = modelPredictions;
       }));
-      
+
       setPredictionsByModel(predictionsData);
     } catch (err: any) {
       console.error('獲取預測數據失敗', err);
-      
+
       if (err.response && err.response.status === 401) {
         setError('認證已過期，請重新登入');
         setTimeout(() => {
@@ -359,7 +370,7 @@ export default function ElectricityPriceComparison() {
       setIsLoading(false);
     }
   };
-  
+
   // 當地區或日期變更時自動獲取實際價格和天氣資訊
   useEffect(() => {
     if (selectedArea && startDate && endDate) {
@@ -375,7 +386,7 @@ export default function ElectricityPriceComparison() {
       setPredictionsByModel({});
     }
   }, [selectedArea, JSON.stringify(selectedModels), startDate, endDate]);
-  
+
   // 處理日期快捷選擇
   const handleDateRangePreset = (preset: string | null) => {
     if (!preset) {
@@ -408,7 +419,7 @@ export default function ElectricityPriceComparison() {
     setStartDate(start);
     setEndDate(today);
     setDateRangePreset(preset);
-    
+
     // 自動觸發數據更新（通過 useEffect）
   };
 
@@ -443,17 +454,17 @@ export default function ElectricityPriceComparison() {
       setDateRangePreset(null);
     }
   };
-  
+
   // 處理地區變更
   const handleAreaChange = (event: SelectChangeEvent) => {
     setSelectedArea(event.target.value);
   };
-  
+
   // 處理模型選擇變更
   const handleModelChange = (event: SelectChangeEvent<string[]>) => {
     // 取得當前選中的所有值（這是一個字串數組）
     const selectedValues = event.target.value as string[];
-    
+
     // 如果沒有選擇任何模型，清除所有選擇
     if (selectedValues.length === 0) {
       setSelectedModels([]);
@@ -467,16 +478,16 @@ export default function ElectricityPriceComparison() {
     const newSelectedModels = uniqueSelectedValues.map((modelValue) => {
       const [idStr, name] = modelValue.split('|');
       const id = isNaN(Number(idStr)) ? idStr : Number(idStr);
-      
+
       // 檢查這個模型是否已經在之前的選擇中，如果是，保留其屬性（顏色、計算日期）
       const existingModel = selectedModels.find(
         m => m.id === id && m.name === name
       );
-      
+
       if (existingModel) {
         return existingModel;
       }
-      
+
       // 如果是新選擇的模型，初始化其屬性
       return {
         id,
@@ -485,10 +496,10 @@ export default function ElectricityPriceComparison() {
         calculatingDate: 'latest'
       };
     });
-    
+
     setSelectedModels(newSelectedModels);
   };
-  
+
   // 處理模型計算日期變更
   const handleModelCalculatingDateChange = (modelIndex: number, newCalculatingDate: string) => {
     setSelectedModels(prev => {
@@ -497,7 +508,7 @@ export default function ElectricityPriceComparison() {
       return updated;
     });
   };
-  
+
   // 準備模型選擇列表
   const modelOptions = useMemo(() => {
     const options: { id: string | number; name: string; value: string; }[] = [];
@@ -509,12 +520,12 @@ export default function ElectricityPriceComparison() {
         value: `${model.id}|${model.name}`
       });
     });
-    
+
     return options;
   }, [models]);
-  
+
   // 準備圖表數據
-  const chartData = useMemo<ChartDataPoint[]>(() => 
+  const chartData = useMemo<ChartDataPoint[]>(() =>
     prepareChartData(actualPrices, predictionsByModel),
     [actualPrices, predictionsByModel]
   );
@@ -527,27 +538,27 @@ export default function ElectricityPriceComparison() {
     // 這是解決資料不對齊、Tooltip 分開的關鍵！
     // 確保無論 API 回傳格式為何 (例如 '2025-01-01T10:00' vs '2025-01-01 10:00:00')，都視為同一時間
     const getNormalizedKey = (dateStr: string) => {
-        if (!dateStr) return '';
-        try {
-            return new Date(dateStr).toISOString(); 
-        } catch (e) {
-            return dateStr;
-        }
+      if (!dateStr) return '';
+      try {
+        return new Date(dateStr).toISOString();
+      } catch (e) {
+        return dateStr;
+      }
     };
-    
+
     // 1. 處理 Actual 數據
     weatherActual.forEach(item => {
       const key = getNormalizedKey(item.weather_datetime); // 使用標準化後的 Key
-      
+
       if (!dataMap.has(key)) {
-        dataMap.set(key, { 
-            weather_datetime: item.weather_datetime, // 保留原始時間格式用於顯示
-            temperature_actual: null,
-            rainfall_actual: null,
-            wind_speed_actual: null,
-            temperature_forecast: null,
-            rainfall_forecast: null,
-            wind_speed_forecast: null
+        dataMap.set(key, {
+          weather_datetime: item.weather_datetime, // 保留原始時間格式用於顯示
+          temperature_actual: null,
+          rainfall_actual: null,
+          wind_speed_actual: null,
+          temperature_forecast: null,
+          rainfall_forecast: null,
+          wind_speed_forecast: null
         });
       }
       const existing = dataMap.get(key);
@@ -555,20 +566,20 @@ export default function ElectricityPriceComparison() {
       existing.rainfall_actual = item.rainfall;
       existing.wind_speed_actual = item.wind_speed;
     });
-    
+
     // 2. 處理 Forecast 數據
     weatherForecast.forEach(item => {
       const key = getNormalizedKey(item.weather_datetime); // 使用標準化後的 Key
-      
+
       if (!dataMap.has(key)) {
-        dataMap.set(key, { 
-            weather_datetime: item.weather_datetime,
-            temperature_actual: null,
-            rainfall_actual: null,
-            wind_speed_actual: null,
-            temperature_forecast: null,
-            rainfall_forecast: null,
-            wind_speed_forecast: null
+        dataMap.set(key, {
+          weather_datetime: item.weather_datetime,
+          temperature_actual: null,
+          rainfall_actual: null,
+          wind_speed_actual: null,
+          temperature_forecast: null,
+          rainfall_forecast: null,
+          wind_speed_forecast: null
         });
       }
       const existing = dataMap.get(key);
@@ -576,9 +587,9 @@ export default function ElectricityPriceComparison() {
       existing.rainfall_forecast = item.rainfall;
       existing.wind_speed_forecast = item.wind_speed;
     });
-    
+
     // 3. 轉換為數組並排序
-    return Array.from(dataMap.values()).sort((a, b) => 
+    return Array.from(dataMap.values()).sort((a, b) =>
       new Date(a.weather_datetime).getTime() - new Date(b.weather_datetime).getTime()
     );
   }, [weatherActual, weatherForecast]);
@@ -587,10 +598,10 @@ export default function ElectricityPriceComparison() {
     const area = areas.find(a => a.name === name);
     return area ? area.name_ch : name;
   };
-  
+
   // 檢查是否有數據
   const hasData = useMemo(() => chartData.length > 0, [chartData]);
-  
+
   // 獲取已選模型的值列表（用於多選框）
   const selectedModelValues = useMemo(() => {
     return selectedModels.map(model => `${model.id}|${model.name}`);
@@ -600,37 +611,37 @@ export default function ElectricityPriceComparison() {
   const formatCalcDate = (dateVal: string | number) => {
     if (dateVal === 'latest') return '最新';
     if (!dateVal) return '';
-    
+
     // Try to parse as timestamp if it looks like a large number
     const numVal = Number(dateVal);
     // If > 20000000 (e.g. 20250101 is 20M, timestamp is 1.7T. 100M is a safe threshold)
     if (!isNaN(numVal) && numVal > 100000000) {
-        return format(new Date(numVal), 'yyyy-MM-dd');
+      return format(new Date(numVal), 'yyyy-MM-dd');
     }
-    
+
     // If it is YYYYMMDD string or number
     const strVal = String(dateVal);
     if (strVal.length === 8 && !isNaN(Number(strVal))) {
-        return `${strVal.substring(0, 4)}-${strVal.substring(4, 6)}-${strVal.substring(6, 8)}`;
+      return `${strVal.substring(0, 4)}-${strVal.substring(4, 6)}-${strVal.substring(6, 8)}`;
     }
 
     // Try parsing as standard date string
     try {
-        const d = new Date(dateVal);
-        if (!isNaN(d.getTime())) {
-            return format(d, 'yyyy-MM-dd');
-        }
-    } catch (e) {}
-    
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime())) {
+        return format(d, 'yyyy-MM-dd');
+      }
+    } catch (e) { }
+
     return String(dateVal);
   };
-  
+
   return (
     <Container maxWidth="xl">
       <Box sx={{ my: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" component="h1" fontWeight="bold">
-          Market Insight
+            Market Insight
           </Typography>
 
           {/* 右側設置組合 */}
@@ -697,19 +708,19 @@ export default function ElectricityPriceComparison() {
             </Box>
           </Box>
         </Box>
-        
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-        
+
         <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
           <Typography variant="h6" gutterBottom fontWeight="bold">
             資料選擇
           </Typography>
           <Divider sx={{ mb: 3 }} />
-          
+
           <Grid container spacing={3}>
             {/* 第一行：區域和模型選擇 */}
             <Grid item xs={12} md={4}>
@@ -728,7 +739,7 @@ export default function ElectricityPriceComparison() {
                 </Select>
               </FormControl>
             </Grid>
-            
+
             <Grid item xs={12} md={8}>
               <FormControl fullWidth size="small">
                 <InputLabel>選擇模型 (最多5個)</InputLabel>
@@ -761,8 +772,8 @@ export default function ElectricityPriceComparison() {
                   }}
                 >
                   {modelOptions.map((option) => (
-                    <MenuItem 
-                      key={option.value} 
+                    <MenuItem
+                      key={option.value}
                       value={option.value}
                       disabled={selectedModelValues.length >= 5 && !selectedModelValues.includes(option.value)}
                     >
@@ -772,31 +783,31 @@ export default function ElectricityPriceComparison() {
                   ))}
                 </Select>
               </FormControl>
-              
+
               {selectedModels.length >= 5 && (
                 <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
                   最多可選擇5個模型進行比較
                 </Typography>
               )}
             </Grid>
-            
+
             {/* 第二行：日期選擇和操作按鈕 */}
             <Grid item xs={12}>
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'text.secondary' }}>
                   日期範圍選擇
                 </Typography>
-                
+
                 <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { xs: 'stretch', md: 'center' } }}>
-                  
+
                   {/* 1. 偽裝成 Input 的按鈕，點擊跳出日曆 */}
                   <Button
                     aria-describedby={idDateData}
                     onClick={handleDateClick}
                     variant="outlined"
                     startIcon={<CalendarTodayIcon />}
-                    endIcon={<Typography variant="caption" sx={{color: 'text.secondary'}}>▼</Typography>}
-                    sx={{ 
+                    endIcon={<Typography variant="caption" sx={{ color: 'text.secondary' }}>▼</Typography>}
+                    sx={{
                       justifyContent: 'space-between',
                       borderColor: darkMode ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.23)',
                       color: colors.text,
@@ -809,8 +820,8 @@ export default function ElectricityPriceComparison() {
                     }}
                   >
                     <Typography variant="body2" fontWeight="bold">
-                      {startDate ? format(startDate, 'yyyy/MM/dd') : '開始日期'} 
-                      {' - '} 
+                      {startDate ? format(startDate, 'yyyy/MM/dd') : '開始日期'}
+                      {' - '}
                       {endDate ? format(endDate, 'yyyy/MM/dd') : '結束日期'}
                     </Typography>
                   </Button>
@@ -830,106 +841,106 @@ export default function ElectricityPriceComparison() {
                       horizontal: 'left',
                     }}
                     PaperProps={{
-                        sx: {
-                            mt: 1,
-                            p: 0,
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                            // 針對深色模式調整 react-date-range 的樣式
-                            ...(darkMode && {
-                                bgcolor: '#1a1a1a',
-                                '& .rdrCalendarWrapper': { bgcolor: '#1a1a1a', color: '#fff' },
-                                '& .rdrDateDisplayWrapper': { bgcolor: '#2a2a2a' },
-                                '& .rdrDateDisplayItem': { bgcolor: '#333', boxShadow: 'none', border: '1px solid #444' },
-                                '& .rdrDateDisplayItem input': { color: '#fff' },
-                                '& .rdrMonthAndYearPickers select': { color: '#fff' },
-                                '& .rdrDayNumber span': { color: '#fff' },
-                                '& .rdrDayPassive .rdrDayNumber span': { color: '#666' },
-                                '& .rdrDayToday .rdrDayNumber span': { color: '#1890ff' }, // 今天
-                            })
-                        }
+                      sx: {
+                        mt: 1,
+                        p: 0,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        // 針對深色模式調整 react-date-range 的樣式
+                        ...(darkMode && {
+                          bgcolor: '#1a1a1a',
+                          '& .rdrCalendarWrapper': { bgcolor: '#1a1a1a', color: '#fff' },
+                          '& .rdrDateDisplayWrapper': { bgcolor: '#2a2a2a' },
+                          '& .rdrDateDisplayItem': { bgcolor: '#333', boxShadow: 'none', border: '1px solid #444' },
+                          '& .rdrDateDisplayItem input': { color: '#fff' },
+                          '& .rdrMonthAndYearPickers select': { color: '#fff' },
+                          '& .rdrDayNumber span': { color: '#fff' },
+                          '& .rdrDayPassive .rdrDayNumber span': { color: '#666' },
+                          '& .rdrDayToday .rdrDayNumber span': { color: '#1890ff' }, // 今天
+                        })
+                      }
                     }}
                   >
                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                        {/* 這裡使用 react-date-range */}
-                        <DateRange
-                            editableDateInputs={true}
-                            onChange={handleRangeSelect}
-                            moveRangeOnFirstSelection={false}
-                            ranges={[{
-                                startDate: startDate || new Date(),
-                                endDate: endDate || new Date(),
-                                key: 'selection',
-                                color: darkMode ? '#1890ff' : '#1976d2' // 主題色
-                            }]}
-                            months={2} // 一次顯示兩個月份，像訂房網站
-                            direction="horizontal"
-                            locale={zhTW} // 設定繁體中文
-                            rangeColors={[darkMode ? '#1890ff' : '#1976d2']}
-                        />
-                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
-                            <Button onClick={handleDateClose} variant="contained" size="small">
-                                確定
-                            </Button>
-                        </Box>
+                      {/* 這裡使用 react-date-range */}
+                      <DateRange
+                        editableDateInputs={true}
+                        onChange={handleRangeSelect}
+                        moveRangeOnFirstSelection={false}
+                        ranges={[{
+                          startDate: startDate || new Date(),
+                          endDate: endDate || new Date(),
+                          key: 'selection',
+                          color: darkMode ? '#1890ff' : '#1976d2' // 主題色
+                        }]}
+                        months={2} // 一次顯示兩個月份，像訂房網站
+                        direction="horizontal"
+                        locale={zhTW} // 設定繁體中文
+                        rangeColors={[darkMode ? '#1890ff' : '#1976d2']}
+                      />
+                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
+                        <Button onClick={handleDateClose} variant="contained" size="small">
+                          確定
+                        </Button>
+                      </Box>
                     </Box>
                   </Popover>
 
                   {/* 2. 快捷按鈕群組 (整合在一起更美觀) */}
                   <ButtonGroup variant="outlined" size="small" aria-label="date range presets">
                     <Button
-                        onClick={() => handleDateRangePreset('week')}
-                        variant={dateRangePreset === 'week' ? 'contained' : 'outlined'}
+                      onClick={() => handleDateRangePreset('week')}
+                      variant={dateRangePreset === 'week' ? 'contained' : 'outlined'}
                     >
-                        一週
+                      一週
                     </Button>
                     <Button
-                        onClick={() => handleDateRangePreset('twoWeeks')}
-                        variant={dateRangePreset === 'twoWeeks' ? 'contained' : 'outlined'}
+                      onClick={() => handleDateRangePreset('twoWeeks')}
+                      variant={dateRangePreset === 'twoWeeks' ? 'contained' : 'outlined'}
                     >
-                        兩週
+                      兩週
                     </Button>
                     <Button
-                        onClick={() => handleDateRangePreset('month')}
-                        variant={dateRangePreset === 'month' ? 'contained' : 'outlined'}
+                      onClick={() => handleDateRangePreset('month')}
+                      variant={dateRangePreset === 'month' ? 'contained' : 'outlined'}
                     >
-                        一月
+                      一月
                     </Button>
                     <Button
-                        onClick={() => handleDateRangePreset('threeMonths')}
-                        variant={dateRangePreset === 'threeMonths' ? 'contained' : 'outlined'}
+                      onClick={() => handleDateRangePreset('threeMonths')}
+                      variant={dateRangePreset === 'threeMonths' ? 'contained' : 'outlined'}
                     >
-                        三月
+                      三月
                     </Button>
                   </ButtonGroup>
 
                   {/* 3. 月份切換按鈕 (保留原本功能但優化樣式) */}
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Tooltip title="上個月">
-                        <IconButton 
-                            onClick={handleMoveMonthBackward} 
-                            disabled={!startDate}
-                            size="small"
-                            sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
-                        >
-                            <ChevronLeftIcon />
-                        </IconButton>
+                      <IconButton
+                        onClick={handleMoveMonthBackward}
+                        disabled={!startDate}
+                        size="small"
+                        sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
+                      >
+                        <ChevronLeftIcon />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="下個月">
-                        <IconButton 
-                            onClick={handleMoveMonthForward} 
-                            disabled={!startDate}
-                            size="small"
-                            sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
-                        >
-                            <ChevronRightIcon />
-                        </IconButton>
+                      <IconButton
+                        onClick={handleMoveMonthForward}
+                        disabled={!startDate}
+                        size="small"
+                        sx={{ border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}
+                      >
+                        <ChevronRightIcon />
+                      </IconButton>
                     </Tooltip>
                   </Box>
 
                   {/* 4. 更新數據按鈕 */}
-                  <Button 
-                    variant="contained" 
+                  <Button
+                    variant="contained"
                     onClick={handleDateChange}
                     disabled={isLoading || !selectedArea}
                     startIcon={<RefreshIcon />}
@@ -944,7 +955,7 @@ export default function ElectricityPriceComparison() {
             </Grid>
 
           </Grid>
-          
+
           {/* 新增：模型計算日期選擇表格 */}
           {selectedModels.length > 0 && (
             <Box sx={{ mt: 3 }}>
@@ -963,19 +974,19 @@ export default function ElectricityPriceComparison() {
                     {selectedModels.map((model, index) => {
                       const modelKey = `${model.id}|${model.name}`;
                       const availableDates = calculatingDatesByModel[modelKey] || [];
-                      
+
                       return (
                         <TableRow key={modelKey}>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Box 
-                                sx={{ 
-                                  width: 12, 
-                                  height: 12, 
-                                  borderRadius: '50%', 
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '50%',
                                   backgroundColor: model.color,
                                   mr: 1
-                                }} 
+                                }}
                               />
                               {`${model.name}`}
                             </Box>
@@ -1011,20 +1022,20 @@ export default function ElectricityPriceComparison() {
             </Box>
           )}
         </Paper>
-        
+
         <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 3, minHeight: '600px' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5" fontWeight="bold">
               {selectedArea ? `${getAreaChineseName(selectedArea)} - 電力價格比較` : '請選擇地區'}
             </Typography>
-            
+
             <Box sx={{ display: 'flex', gap: 1 }}>
               {selectedModels.map((model) => (
                 <Chip 
                   key={`${model.id}-${model.name}`}
                   label={`${model.name}: ${formatCalcDate(model.calculatingDate)}`}
-                  size="small" 
-                  sx={{ 
+                  size="small"
+                  sx={{
                     borderColor: model.color,
                     color: model.color,
                   }}
@@ -1035,10 +1046,10 @@ export default function ElectricityPriceComparison() {
           </Box>
 
           {isLoading ? (
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               height: '500px',
               flexDirection: 'column'
             }}>
@@ -1050,10 +1061,10 @@ export default function ElectricityPriceComparison() {
               </Typography>
             </Box>
           ) : !hasData ? (
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               height: '500px',
               flexDirection: 'column'
             }}>
@@ -1067,27 +1078,28 @@ export default function ElectricityPriceComparison() {
           ) : (
             <>
               <Box sx={{ minHeight: 500 }}>
-                <PriceChart 
-                  chartData={chartData} 
+                <PriceChart
+                  chartData={chartData}
                   areaName={selectedArea}
                   selectedModels={selectedModels}
                   topBottomPairs={topBottomPairs}
                   imbalanceData={imbalanceData}
                   intradayData={intradayData}
                   interconnectionData={interconnectionData}
+                  occtoAreaData={occtoAreaData}
                 />
               </Box>
-              
+
               {/* 天氣資訊 */}
-              <WeatherChartSection 
-                weatherActual={weatherActual} 
-                weatherForecast={weatherForecast} 
-                weatherChartData={weatherChartData} 
+              <WeatherChartSection
+                weatherActual={weatherActual}
+                weatherForecast={weatherForecast}
+                weatherChartData={weatherChartData}
               />
             </>
           )}
         </Paper>
-        
+
         {/* Analysis Sections */}
         {hasData && (
           <Paper sx={{ p: 2, mt: 3, borderRadius: 2, boxShadow: 3 }}>
@@ -1095,16 +1107,16 @@ export default function ElectricityPriceComparison() {
               模型收益分析 (Profit Analysis)
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {selectedModels.length === 0 && (
               <Alert severity="info" sx={{ mb: 2 }}>
                 目前未選擇任何模型，僅顯示實際收益分析 (No models selected. Showing actual profit analysis only)
               </Alert>
             )}
-            
-            <ProfitAnalysis 
-              chartData={chartData} 
-              selectedModels={selectedModels} 
+
+            <ProfitAnalysis
+              chartData={chartData}
+              selectedModels={selectedModels}
               topBottomPairs={topBottomPairs}
               setTopBottomPairs={setTopBottomPairs}
             />
@@ -1115,7 +1127,7 @@ export default function ElectricityPriceComparison() {
               模型比較分析 (MAE)
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {selectedModels.length === 0 ? (
               <Alert severity="info">
                 請選擇模型以進行模型比較分析 (Please select models to perform model comparison analysis)
@@ -1128,11 +1140,11 @@ export default function ElectricityPriceComparison() {
                     const modelMAE = chartData.length > 0 
                       ? calculateModelMAE(chartData, model.id, model.name)
                       : 0;
-                    
+
                     return (
                       <Grid item xs={12} sm={6} md={4} key={modelKey}>
-                        <Paper sx={{ 
-                          p: 2, 
+                        <Paper sx={{
+                          p: 2,
                           border: `1px solid ${model.color}`,
                           backgroundColor: 'rgba(0,0,0,0.1)'
                         }}>
@@ -1155,7 +1167,7 @@ export default function ElectricityPriceComparison() {
                     );
                   })}
                 </Grid>
-                
+
                 {/* 插入詳細的 MAE 分析圖表 */}
                 <MaeAnalysis chartData={chartData} selectedModels={selectedModels} />
 
@@ -1174,12 +1186,12 @@ export default function ElectricityPriceComparison() {
             )}
           </Paper>
         )}
-        
+
         {selectedArea && startDate && endDate && (
-          <MarketInfoPanel 
-            startDate={startDate} 
-            endDate={endDate} 
-            selectedArea={selectedArea} 
+          <MarketInfoPanel
+            startDate={startDate}
+            endDate={endDate}
+            selectedArea={selectedArea}
           />
         )}
 
@@ -1195,25 +1207,25 @@ function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number
       mp => mp.modelId === modelId && mp.modelName === modelName
     );
     // 確保 actualPrice 和 predictedPrice 都是有效的數值
-    return typeof point.actualPrice === 'number' && 
-           modelPrediction?.predictedPrice !== null && 
-           modelPrediction?.predictedPrice !== undefined;
+    return typeof point.actualPrice === 'number' &&
+      modelPrediction?.predictedPrice !== null &&
+      modelPrediction?.predictedPrice !== undefined;
   });
-  
+
   if (pointsWithBothValues.length === 0) return 0;
-  
+
   let validPointsCount = 0;
   const totalError = pointsWithBothValues.reduce((sum, point) => {
     const modelPrediction = point.modelPredictions.find(
       mp => mp.modelId === modelId && mp.modelName === modelName
     );
-    
+
     if (!modelPrediction || typeof modelPrediction.predictedPrice !== 'number') return sum;
-    
+
     validPointsCount++;
     return sum + Math.abs(point.actualPrice as number - modelPrediction.predictedPrice);
   }, 0);
-  
+
   // 使用實際有效點的數量來計算平均值
   return validPointsCount > 0 ? totalError / validPointsCount : 0;
 }
