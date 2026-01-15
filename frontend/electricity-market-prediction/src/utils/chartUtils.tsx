@@ -1,154 +1,254 @@
 import { AreaPrice, PricePrediction } from '@/types';
+import { startOfDay, parseISO, format, isValid } from 'date-fns';
+
+export interface ChartDataPoint {
+  dateTime: string;       // YYYY-MM-DD HH:mm
+  timestamp: number;      // Unix timestamp (ms)
+  actualPrice: number | null;
+  modelPredictions: {
+    modelId: string | number;
+    modelName: string;
+    predictedPrice: number;
+    predictedPrice5?: number; // P5
+    predictedPrice95?: number; // P95
+  }[];
+  isPrediction?: boolean;
+  actualDelta?: number | null;
+  modelDifferences?: { [key: string]: number | null };
+  modelAreaTops?: { [key: string]: number | null };
+  modelAreaBottoms?: { [key: string]: number | null };
+  // Intraday
+  intraday_average?: number | null;
+  intraday_opening?: number | null;
+  intraday_closing?: number | null;
+  intraday_high?: number | null;
+  intraday_low?: number | null;
+  intraday_bar_trigger?: number | null;
+  candlestickPayload?: {
+    high: number;
+    low: number;
+    open: number;
+    close: number;
+  } | null;
+  // Imbalance
+  imbalance?: number | null;
+  // Interconnection
+  interconnection_flow_diff?: number | null;
+  interconnection_forward?: number | null;
+  interconnection_reverse?: number | null;
+  // Occto
+  occto_data?: any | null;
+  occto_value?: number | null;
+  // Z-Score
+  zScore?: number | null;
+  // Markers
+  markerInfo?: {
+    actualType?: 'top' | 'bottom';
+    models: Record<string, 'top' | 'bottom'>;
+  } | null;
+  uniqueKey?: string;
+  // Legacy fields (optional but kept for compatibility during refactor)
+  date?: string;
+  time?: string;
+}
 
 export interface ModelPrediction {
   modelId: string | number;
   modelName: string;
-  predictedPrice: number | null;
-  predictedPrice5: number | null;
-  predictedPrice95: number | null;
+  predictedPrice: number;
+  predictedPrice5?: number;
+  predictedPrice95?: number;
 }
 
-export interface ChartDataPoint {
-  dateTime: string;
-  date: string;
-  time: number;
-  timeStr: string;
-  actualPrice: number | null;
-  modelPredictions: ModelPrediction[];
-  isPrediction: boolean;
-}
+// 產生隨機顏色 (基於字串雜湊，確保同一字串總是產生相同顏色)
+export const hashString = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return hash;
+};
+
+export const generateColor = (hash: number): string => {
+  // Modify to avoid red/pink hues (approx 340-360 and 0-20) which are close to "Actual Price"
+  // We'll map the hash to a hue between 30 and 330
+  const hue = (hash % 300) + 30; // 30 to 330
+  return `hsl(${hue}, 70%, 50%)`;
+};
+
+/**
+ * Robustly parses a date string into a Unix timestamp.
+ * Supports:
+ * - ISO string: "2025-04-05T22:30:00"
+ * - Space separated: "2025-04-05 22:30"
+ * - Compact YYYYMMDD: "20250405" (assumes 00:00)
+ * - Compact YYYYMMDDHHmm: "202504052230"
+ */
+export const parseToTimestamp = (dateStr: string | null | undefined): number | null => {
+  if (!dateStr) return null;
+
+  try {
+    let isoStr = dateStr;
+
+    // 1. Handle "20231027" or "202310271000" (Compact format)
+    if (/^\d{8,}$/.test(dateStr)) {
+      const y = dateStr.substring(0, 4);
+      const m = dateStr.substring(4, 6);
+      const d = dateStr.substring(6, 8);
+      let rest = dateStr.substring(8);
+
+      let H = '00';
+      let M = '00';
+
+      if (rest.length >= 4) { // HHmm
+        H = rest.substring(0, 2);
+        M = rest.substring(2, 4);
+      } else if (rest.length >= 2) { // HH
+        H = rest.substring(0, 2);
+      }
+
+      isoStr = `${y}-${m}-${d}T${H}:${M}:00`;
+    }
+    // 2. Handle "2023-10-27 10:00" (Space separated)
+    else if (dateStr.includes(' ')) {
+      isoStr = dateStr.replace(' ', 'T');
+    }
+
+    const date = new Date(isoStr);
+    const time = date.getTime();
+    return isNaN(time) ? null : time;
+  } catch (e) {
+    console.warn('[parseToTimestamp] Failed to parse:', dateStr);
+    return null;
+  }
+};
+
+/**
+ * Formats a timestamp back to "YYYY-MM-DD HH:mm" for display/key usage
+ */
+export const formatTimestamp = (timestamp: number): string => {
+  return format(new Date(timestamp), 'yyyy-MM-dd HH:mm');
+};
 
 
 export const prepareChartData = (
   actualPrices: AreaPrice[],
   predictionsByModel: { [key: string]: PricePrediction[] }
 ): ChartDataPoint[] => {
-  const chartData: ChartDataPoint[] = [];
-  const allDates = new Set<string>();
+  console.log('[prepareChartData] Starting data preparation...');
 
-  // 收集所有日期
-  actualPrices.forEach(price => {
-    allDates.add(price.trade_date);
-  });
+  const dataMap = new Map<number, ChartDataPoint>();
 
-  Object.values(predictionsByModel).forEach(predictions => {
-    predictions.forEach(pred => {
-      allDates.add(pred.trade_date);
-    });
-  });
+  // 1. 處理實際價格
+  actualPrices.forEach((price) => {
+    const datePart = price.trade_date;
+    const timeCode = price.time_code;
+    const hour = Math.floor((timeCode - 1) / 2);
+    const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
+    const timePart = `${String(hour).padStart(2, '0')}:${minute}`;
 
-  // 為每個日期和時段創建數據點
-  const sortedDates = Array.from(allDates).sort();
+    // Helper to ensure date is YYYY-MM-DD
+    const normalizeDate = (d: string) => {
+      if (/^\d{8}$/.test(d)) {
+        return `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
+      }
+      return d;
+    };
+    const sDatePart = normalizeDate(datePart);
+    const dateTime = `${sDatePart} ${timePart}`;
+    const timestamp = parseToTimestamp(dateTime);
 
-  sortedDates.forEach(date => {
-    for (let timeCode = 1; timeCode <= 48; timeCode++) {
-      const hour = Math.floor((timeCode - 1) / 2);
-      const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
-      const timeStr = `${hour.toString().padStart(2, '0')}:${minute}`;
-      const dateTime = `${date} ${timeStr}`;
-
-      // 查找實際價格
-      const actualPrice = actualPrices.find(
-        p => p.trade_date === date && p.time_code === timeCode
-      );
-
-      // 收集所有模型的預測
-      const modelPredictions: ModelPrediction[] = [];
-
-      Object.entries(predictionsByModel).forEach(([modelKey, predictions]) => {
-        const [modelId, modelName] = modelKey.split('|');
-
-        const prediction = predictions.find(
-          p => p.trade_date === date && p.time_code === timeCode
-        );
-
-        if (prediction) {
-          // 確保所有價格值都是有效數字
-          const price50 = parseFloat(prediction.price_50?.toString() || '0');
-          const price5 = parseFloat(prediction.price_5?.toString() || '0');
-          const price95 = parseFloat(prediction.price_95?.toString() || '0');
-
-          modelPredictions.push({
-            modelId: isNaN(Number(modelId)) ? modelId : parseInt(modelId),
-            modelName,
-            predictedPrice: isNaN(price50) ? null : price50,
-            predictedPrice5: isNaN(price5) ? null : price5,
-            predictedPrice95: isNaN(price95) ? null : price95
-          });
-
-        }
-      });
-
-      chartData.push({
-        dateTime,
-        date,
-        time: timeCode,
-        timeStr,
-        actualPrice: actualPrice ? parseFloat(actualPrice.price.toString()) : null,
-        modelPredictions,
-        isPrediction: !actualPrice && modelPredictions.length > 0
+    if (timestamp) {
+      dataMap.set(timestamp, {
+        dateTime: dateTime,
+        timestamp: timestamp,
+        date: sDatePart,
+        time: timePart,
+        actualPrice: price.price,
+        modelPredictions: [],
+        isPrediction: false
       });
     }
   });
 
-  return chartData.sort((a, b) => {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return a.time - b.time;
+  // 2. 處理預測價格
+  Object.entries(predictionsByModel).forEach(([modelKey, predictions]) => {
+    const [modelIdStr, modelName] = modelKey.split('|');
+    const modelId = Number(modelIdStr) || modelIdStr;
+
+    predictions.forEach((prediction) => {
+      const datePart = prediction.trade_date;
+      const timeCode = prediction.time_code;
+      const hour = Math.floor((timeCode - 1) / 2);
+      const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
+      const timePart = `${String(hour).padStart(2, '0')}:${minute}`;
+
+      const normalizeDate = (d: string) => {
+        if (/^\d{8}$/.test(d)) {
+          return `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
+        }
+        return d;
+      };
+
+      const sDatePart = normalizeDate(datePart);
+      const dateTime = `${sDatePart} ${timePart}`;
+      const timestamp = parseToTimestamp(dateTime);
+
+      if (timestamp) {
+        if (!dataMap.has(timestamp)) {
+          dataMap.set(timestamp, {
+            dateTime: dateTime,
+            timestamp: timestamp,
+            date: sDatePart,
+            time: timePart,
+            actualPrice: null,
+            modelPredictions: [],
+            isPrediction: true
+          });
+        }
+
+        const point = dataMap.get(timestamp)!;
+        point.modelPredictions.push({
+          modelId,
+          modelName,
+          predictedPrice: prediction.price_50,
+          predictedPrice5: prediction.price_5,
+          predictedPrice95: prediction.price_95
+        });
+      }
+    });
   });
+
+  // 3. 轉換 Map 為 Array 並排序
+  const result = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+  return result;
 };
 
+export function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number, modelName: string): number {
+  const pointsWithBothValues = chartData.filter(point => {
+    const modelPrediction = point.modelPredictions.find(
+      mp => mp.modelId === modelId && mp.modelName === modelName
+    );
+    // 確保 actualPrice 和 predictedPrice 都是有效的數值
+    return typeof point.actualPrice === 'number' &&
+      modelPrediction?.predictedPrice !== null &&
+      modelPrediction?.predictedPrice !== undefined;
+  });
 
-// 改進的雜湊函數
-export const hashString = (str: string) => {
-  // 使用 FNV-1a 雜湊算法
-  let hash = 2166136261; // FNV offset basis
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-  return Math.abs(hash);
-};
+  if (pointsWithBothValues.length === 0) return 0;
 
-// 生成 HSL 顏色轉 RGB
-export const generateColor = (hash: number) => {
-  // 使用 Golden Angle (約 137.5 度) 來最大化顏色差異
-  // 我們利用 hash 作為種子，但為了讓相似的字串產生差異較大的顏色，我們先對 hash 做一些擾動
-  const hue = (hash * 137.508) % 360;
+  let validPointsCount = 0;
+  const totalError = pointsWithBothValues.reduce((sum, point) => {
+    const modelPrediction = point.modelPredictions.find(
+      mp => mp.modelId === modelId && mp.modelName === modelName
+    );
 
-  // 飽和度在 65-90% 之間變化，保持鮮豔
-  const saturation = 65 + (hash % 25);
+    if (!modelPrediction || typeof modelPrediction.predictedPrice !== 'number') return sum;
 
-  // 亮度在 45-65% 之間變化，避免過暗或過亮 (確保在深/淺色模式都能看清)
-  const lightness = 45 + ((hash >> 8) % 20);
+    validPointsCount++;
+    return sum + Math.abs(point.actualPrice as number - modelPrediction.predictedPrice);
+  }, 0);
 
-  // HSL to RGB conversion
-  const h = hue / 360;
-  const s = saturation / 100;
-  const l = lightness / 100;
-
-  let r, g, b;
-
-  if (s === 0) {
-    r = g = b = l; // achromatic
-  } else {
-    const hue2rgb = (p: number, q: number, t: number) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  const to255 = (min: number) => Math.round(min * 255);
-
-  return `rgb(${to255(r)}, ${to255(g)}, ${to255(b)})`;
-};
+  return validPointsCount > 0 ? totalError / validPointsCount : 0;
+}

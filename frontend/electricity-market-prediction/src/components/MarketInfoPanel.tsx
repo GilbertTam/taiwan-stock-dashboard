@@ -1,21 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, Paper, Typography, 
-  CircularProgress, Divider, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow, Alert
-} from '@mui/material';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar
-} from 'recharts';
+  Box, Paper, Typography,
+  CircularProgress, Divider, Alert
+} from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { format, parseISO } from 'date-fns';
-import { 
+import {
   fetchHjksOutages, fetchInterconnectionFlows
 } from '@/services/api';
-import { 
+import {
   HjksOutage, InterconnectionFlow
 } from '@/types';
 import OutageGanttChart from './OutageGanttChart';
@@ -75,11 +70,11 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
     }
     return null;
   };
-  
+
   // 預設開啟所有市場資訊
   const showOutages = true;
   const showInterconnection = true;
-  
+
   // Data
   const [outagesData, setOutagesData] = useState<HjksOutage[]>([]);
   const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
@@ -106,7 +101,7 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
           fetchHjksOutages(params).catch(err => { console.error('Error fetching outages:', err); return []; }),
           fetchInterconnectionFlows(params).catch(err => { console.error('Error fetching interconnection:', err); return []; })
         ]);
-        
+
         setOutagesData(outages);
         setInterconnectionData(interconnection);
       } catch (err) {
@@ -158,13 +153,13 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
                   {outagesData.length > 0 ? (
                     <>
                       <Typography variant="subtitle1" gutterBottom fontWeight="bold">Power Plant Outage ({selectedArea})</Typography>
-                      
+
                       {/* Gantt Chart */}
                       <Paper variant="outlined" sx={{ p: 2, mb: 2, backgroundColor: darkMode ? '#1a1a1a' : '#ffffff' }}>
-                        <OutageGanttChart 
-                          outages={outagesData} 
-                          startDate={startDate} 
-                          endDate={endDate} 
+                        <OutageGanttChart
+                          outages={outagesData}
+                          startDate={startDate}
+                          endDate={endDate}
                         />
                       </Paper>
 
@@ -174,8 +169,8 @@ export default function MarketInfoPanel({ startDate, endDate, selectedArea }: Ma
                       </Typography>
 
                       {/* 2. 放置列表表格 */}
-                      <OutageTable 
-                        outages={outagesData} 
+                      <OutageTable
+                        outages={outagesData}
                       />
                     </>
                   ) : (
