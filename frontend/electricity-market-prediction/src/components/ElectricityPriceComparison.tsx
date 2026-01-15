@@ -98,7 +98,6 @@ export default function ElectricityPriceComparison() {
   const [selectedModels, setSelectedModels] = useState<{
     id: string | number;
     name: string;
-    version: string;
     color: string;
     calculatingDate: string; // 'latest' 或特定日期
   }[]>([]);
@@ -169,10 +168,9 @@ export default function ElectricityPriceComparison() {
             start_date: formattedStartDate,
             end_date: formattedEndDate,
             area_name: selectedArea,
-            model_name: model.name,
-            model_version: model.version
+            model_name: model.name
           }).then(dates => ({
-            modelKey: `${model.id}|${model.name}|${model.version}`,
+            modelKey: `${model.id}|${model.name}`,
             dates
           }))
         );
@@ -189,7 +187,7 @@ export default function ElectricityPriceComparison() {
         
         // 更新每個模型的計算日期，如果之前沒有設置或之前的日期不在新的可用日期中
         setSelectedModels(prev => prev.map(model => {
-          const modelKey = `${model.id}|${model.name}|${model.version}`;
+          const modelKey = `${model.id}|${model.name}`;
           const availableDates = newCalculatingDatesByModel[modelKey] || [];
           
           // 如果當前選擇的不是 'latest' 且不在可用日期中，則設為 'latest'
@@ -214,7 +212,7 @@ export default function ElectricityPriceComparison() {
     };
     
     fetchAllCalculatingDates();
-  }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}|${m.version}`).join(','), startDate, endDate, logout]);
+  }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}`).join(','), startDate, endDate, logout]);
   
   // 獲取實際價格和天氣資訊（不需要選模型）
   const fetchActualData = async () => {
@@ -318,7 +316,7 @@ export default function ElectricityPriceComparison() {
       
       // 使用 Promise.all 並行獲取所有模型的預測
       await Promise.all(selectedModels.map(async (model) => {
-        const modelKey = `${model.id}|${model.name}|${model.version}`;
+        const modelKey = `${model.id}|${model.name}`;
         
         let modelPredictions;
 
@@ -329,7 +327,6 @@ export default function ElectricityPriceComparison() {
             end_date: formattedEndDate,
             area_name: selectedArea,
             model_name: model.name,
-            model_version: model.version,
             latest_only: true
           });
         } else {
@@ -340,7 +337,6 @@ export default function ElectricityPriceComparison() {
             end_date: formattedEndDate,
             area_name: selectedArea,
             model_name: model.name,
-            model_version: model.version,
             calculating_date: formattedCalculatingDate
           });
         }
@@ -469,12 +465,12 @@ export default function ElectricityPriceComparison() {
 
     // 構建新的 selectedModels 狀態
     const newSelectedModels = uniqueSelectedValues.map((modelValue) => {
-      const [idStr, name, version] = modelValue.split('|');
+      const [idStr, name] = modelValue.split('|');
       const id = isNaN(Number(idStr)) ? idStr : Number(idStr);
       
       // 檢查這個模型是否已經在之前的選擇中，如果是，保留其屬性（顏色、計算日期）
       const existingModel = selectedModels.find(
-        m => m.id === id && m.name === name && m.version === version
+        m => m.id === id && m.name === name
       );
       
       if (existingModel) {
@@ -485,7 +481,6 @@ export default function ElectricityPriceComparison() {
       return {
         id,
         name,
-        version,
         color: generateColor(hashString(modelValue)),
         calculatingDate: 'latest'
       };
@@ -505,14 +500,13 @@ export default function ElectricityPriceComparison() {
   
   // 準備模型選擇列表
   const modelOptions = useMemo(() => {
-    const options: { id: string | number; name: string; version: string; value: string; }[] = [];
+    const options: { id: string | number; name: string; value: string; }[] = [];
     
     models.forEach(model => {
       options.push({
         id: model.id,
         name: model.name,
-        version: model.version,
-        value: `${model.id}|${model.name}|${model.version}`
+        value: `${model.id}|${model.name}`
       });
     });
     
@@ -599,7 +593,7 @@ export default function ElectricityPriceComparison() {
   
   // 獲取已選模型的值列表（用於多選框）
   const selectedModelValues = useMemo(() => {
-    return selectedModels.map(model => `${model.id}|${model.name}|${model.version}`);
+    return selectedModels.map(model => `${model.id}|${model.name}`);
   }, [selectedModels]);
 
   // Helper function to format calculating date
@@ -746,13 +740,13 @@ export default function ElectricityPriceComparison() {
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {(selected as string[]).map((value) => {
-                        const [_, name, version] = value.split('|');
+                        const [_, name] = value.split('|');
                         return (
                           <Chip 
                             key={value} 
-                            label={`${name} ${version}`} 
+                            label={`${name}`} 
                             size="small" 
-                            style={{ backgroundColor: selectedModels.find(m => `${m.id}|${m.name}|${m.version}` === value)?.color + '33' }}
+                            style={{ backgroundColor: selectedModels.find(m => `${m.id}|${m.name}` === value)?.color + '33' }}
                           />
                         );
                       })}
@@ -773,7 +767,7 @@ export default function ElectricityPriceComparison() {
                       disabled={selectedModelValues.length >= 5 && !selectedModelValues.includes(option.value)}
                     >
                       <Checkbox checked={selectedModelValues.includes(option.value)} />
-                      <ListItemText primary={`${option.name} ${option.version}`} />
+                      <ListItemText primary={`${option.name}`} />
                     </MenuItem>
                   ))}
                 </Select>
@@ -967,7 +961,7 @@ export default function ElectricityPriceComparison() {
                   </TableHead>
                   <TableBody>
                     {selectedModels.map((model, index) => {
-                      const modelKey = `${model.id}|${model.name}|${model.version}`;
+                      const modelKey = `${model.id}|${model.name}`;
                       const availableDates = calculatingDatesByModel[modelKey] || [];
                       
                       return (
@@ -983,7 +977,7 @@ export default function ElectricityPriceComparison() {
                                   mr: 1
                                 }} 
                               />
-                              {`${model.name} ${model.version}`}
+                              {`${model.name}`}
                             </Box>
                           </TableCell>
                           <TableCell>
@@ -1027,7 +1021,7 @@ export default function ElectricityPriceComparison() {
             <Box sx={{ display: 'flex', gap: 1 }}>
               {selectedModels.map((model) => (
                 <Chip 
-                  key={`${model.id}-${model.name}-${model.version}`}
+                  key={`${model.id}-${model.name}`}
                   label={`${model.name}: ${formatCalcDate(model.calculatingDate)}`}
                   size="small" 
                   sx={{ 
@@ -1130,9 +1124,9 @@ export default function ElectricityPriceComparison() {
               <>
                 <Grid container spacing={2}>
                   {selectedModels.map((model) => {
-                    const modelKey = `${model.id}|${model.name}|${model.version}`;
+                    const modelKey = `${model.id}|${model.name}`;
                     const modelMAE = chartData.length > 0 
-                      ? calculateModelMAE(chartData, model.id, model.name, model.version)
+                      ? calculateModelMAE(chartData, model.id, model.name)
                       : 0;
                     
                     return (
@@ -1143,7 +1137,7 @@ export default function ElectricityPriceComparison() {
                           backgroundColor: 'rgba(0,0,0,0.1)'
                         }}>
                           <Typography variant="subtitle1" fontWeight="bold" sx={{ color: model.color }}>
-                            {model.name} {model.version}
+                            {model.name}
                           </Typography>
                           <Box sx={{ mt: 1 }}>
                             <Typography variant="body2">
@@ -1195,10 +1189,10 @@ export default function ElectricityPriceComparison() {
 }
 
 // 輔助函數：計算模型的 MAE
-function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number, modelName: string, modelVersion: string): number {
+function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number, modelName: string): number {
   const pointsWithBothValues = chartData.filter(point => {
     const modelPrediction = point.modelPredictions.find(
-      mp => mp.modelId === modelId && mp.modelName === modelName && mp.modelVersion === modelVersion
+      mp => mp.modelId === modelId && mp.modelName === modelName
     );
     // 確保 actualPrice 和 predictedPrice 都是有效的數值
     return typeof point.actualPrice === 'number' && 
@@ -1211,7 +1205,7 @@ function calculateModelMAE(chartData: ChartDataPoint[], modelId: string | number
   let validPointsCount = 0;
   const totalError = pointsWithBothValues.reduce((sum, point) => {
     const modelPrediction = point.modelPredictions.find(
-      mp => mp.modelId === modelId && mp.modelName === modelName && mp.modelVersion === modelVersion
+      mp => mp.modelId === modelId && mp.modelName === modelName
     );
     
     if (!modelPrediction || typeof modelPrediction.predictedPrice !== 'number') return sum;

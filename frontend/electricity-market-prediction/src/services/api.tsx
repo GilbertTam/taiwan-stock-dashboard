@@ -97,7 +97,6 @@ export interface PredictionsParams {
   end_date: string;
   area_name: string;
   model_name: string;
-  model_version: string;
   latest_only?: boolean;
 }
 
@@ -116,7 +115,6 @@ export interface SpecificPredictionsParams {
   end_date: string;
   area_name: string;
   model_name: string;
-  model_version: string;
   calculating_date: string;
 }
 
@@ -149,8 +147,7 @@ export interface CalculatingDatesParams {
   start_date: string;
   end_date: string;
   area_name: string;
-  model_name: string;
-  model_version: string;
+  model_name: string
 }
 
 export const fetchAvailableCalculatingDates = async (params: CalculatingDatesParams): Promise<CalculatingDate[]> => {

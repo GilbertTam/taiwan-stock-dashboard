@@ -15,7 +15,6 @@ interface ProfitAnalysisProps {
   selectedModels: {
     id: string | number;
     name: string;
-    version: string;
     color: string;
     calculatingDate: string;
   }[];
@@ -46,7 +45,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
   const modelColorMap = useMemo(() => {
     const colorMap: Record<string, string> = {};
     selectedModels.forEach((model) => {
-      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      const modelKey = `${model.id}|${model.name}`;
       colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
     });
     return colorMap;
@@ -112,12 +111,12 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
 
       // 2. 計算各模型的收益
       selectedModels.forEach(model => {
-        const modelKey = `${model.id}|${model.name}|${model.version}`;
+        const modelKey = `${model.id}|${model.name}`;
         
         // 找出該模型的預測
         const predictions = points.map((p: ChartDataPoint) => {
           const pred = p.modelPredictions.find(
-            mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+            mp => `${mp.modelId}|${mp.modelName}` === modelKey
           );
           return {
             predictedPrice: pred?.predictedPrice ?? null,
@@ -172,7 +171,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
     const cumulativeModel: Record<string, number> = {};
     
     selectedModels.forEach(model => {
-        cumulativeModel[`${model.id}|${model.name}|${model.version}`] = 0;
+        cumulativeModel[`${model.id}|${model.name}`] = 0;
     });
 
     dailyProfits.forEach((day: any) => {
@@ -186,7 +185,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
 
         // 累計 Model
         selectedModels.forEach(model => {
-            const modelKey = `${model.id}|${model.name}|${model.version}`;
+            const modelKey = `${model.id}|${model.name}`;
             const profit = day[`${modelKey}_profit`];
             if (profit !== null && profit !== undefined) {
                 cumulativeModel[modelKey] += profit;
@@ -238,7 +237,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
                             <TableCell align="right" sx={{ color: colors.text, py: 0.5 }}>{data.cumulativeActual?.toFixed(0)}</TableCell>
                         </TableRow>
                         {selectedModels.map(model => {
-                            const modelKey = `${model.id}|${model.name}|${model.version}`;
+                            const modelKey = `${model.id}|${model.name}`;
                             const daily = data[`${modelKey}_profit`];
                             const cumulative = data[`${modelKey}_cumulative`];
                             return (
@@ -470,7 +469,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
                         {/* Models Data */}
                         {/* Render Bars first */}
                         {selectedModels.map(model => {
-                            const modelKey = `${model.id}|${model.name}|${model.version}`;
+                            const modelKey = `${model.id}|${model.name}`;
                             return (
                                 <Bar 
                                     key={`bar-${modelKey}`}
@@ -485,7 +484,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
                         })}
                         {/* Render Lines second */}
                         {selectedModels.map(model => {
-                            const modelKey = `${model.id}|${model.name}|${model.version}`;
+                            const modelKey = `${model.id}|${model.name}`;
                             return (
                                 <Line 
                                     key={`line-${modelKey}`}
@@ -522,13 +521,13 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
                                 <TableCell align="right">100%</TableCell>
                             </TableRow>
                             {selectedModels.map(model => {
-                                const modelKey = `${model.id}|${model.name}|${model.version}`;
+                                const modelKey = `${model.id}|${model.name}`;
                                 const profit = totalProfits[`${modelKey}_cumulative`];
                                 const actual = totalProfits.cumulativeActual;
                                 const percent = actual ? (profit / actual * 100).toFixed(1) : '-';
                                 return (
                                     <TableRow key={modelKey}>
-                                        <TableCell sx={{ color: modelColorMap[modelKey] }}>{model.name} {model.version}</TableCell>
+                                        <TableCell sx={{ color: modelColorMap[modelKey] }}>{model.name}</TableCell>
                                         <TableCell align="right">{profit?.toFixed(0) ?? '-'}</TableCell>
                                         <TableCell align="right">{percent}%</TableCell>
                                     </TableRow>

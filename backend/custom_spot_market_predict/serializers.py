@@ -11,7 +11,6 @@ class PredictionModelSerializer(serializers.Serializer):
 class CustomAreaPricePredictSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     model_name = serializers.CharField()
-    model_version = serializers.CharField()
     trade_date = serializers.DateField()
     time_code = serializers.IntegerField()
     calculating_date = serializers.DateField()

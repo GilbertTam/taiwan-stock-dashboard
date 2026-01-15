@@ -3,7 +3,6 @@ import { AreaPrice, PricePrediction } from '@/types';
 export interface ModelPrediction {
   modelId: string | number;
   modelName: string;
-  modelVersion: string;
   predictedPrice: number | null;
   predictedPrice5: number | null;
   predictedPrice95: number | null;
@@ -57,7 +56,7 @@ export const prepareChartData = (
       const modelPredictions: ModelPrediction[] = [];
       
       Object.entries(predictionsByModel).forEach(([modelKey, predictions]) => {
-        const [modelId, modelName, modelVersion] = modelKey.split('|');
+        const [modelId, modelName] = modelKey.split('|');
         
         const prediction = predictions.find(
           p => p.trade_date === date && p.time_code === timeCode
@@ -72,7 +71,6 @@ export const prepareChartData = (
           modelPredictions.push({
             modelId: isNaN(Number(modelId)) ? modelId : parseInt(modelId),
             modelName,
-            modelVersion,
             predictedPrice: isNaN(price50) ? null : price50,
             predictedPrice5: isNaN(price5) ? null : price5,
             predictedPrice95: isNaN(price95) ? null : price95

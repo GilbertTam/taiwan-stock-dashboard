@@ -16,7 +16,6 @@ interface MaeAnalysisProps {
   selectedModels: {
     id: string | number;
     name: string;
-    version: string;
     color: string;
     calculatingDate: string;
   }[];
@@ -40,7 +39,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
   const modelColorMap = useMemo(() => {
     const colorMap: Record<string, string> = {};
     selectedModels.forEach((model) => {
-      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      const modelKey = `${model.id}|${model.name}`;
       colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
     });
     return colorMap;
@@ -86,7 +85,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
     
     // 初始化每個模型的時段 MAE
     selectedModels.forEach(model => {
-      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      const modelKey = `${model.id}|${model.name}`;
       timeSlotMAEs[modelKey] = {
         [TimeSlot.ALL]: 0,
         [TimeSlot.MORNING]: 0,
@@ -98,13 +97,13 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
     // 計算每個時段的 MAE
     Object.values(TimeSlot).forEach(slot => {
       selectedModels.forEach(model => {
-        const modelKey = `${model.id}|${model.name}|${model.version}`;
+        const modelKey = `${model.id}|${model.name}`;
         
         const pointsInSlot = chartData.filter(point => 
           isInTimeSlot(point.dateTime, slot) && 
           point.actualPrice !== null &&
           point.modelPredictions.some(mp => 
-            `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey && 
+            `${mp.modelId}|${mp.modelName}` === modelKey && 
             mp.predictedPrice !== null
           )
         );
@@ -116,7 +115,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
         
         const totalError = pointsInSlot.reduce((sum, point) => {
           const modelPrediction = point.modelPredictions.find(
-            mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+            mp => `${mp.modelId}|${mp.modelName}` === modelKey
           );
           if (!modelPrediction) return sum;
           return sum + Math.abs((point.actualPrice as number) - (modelPrediction.predictedPrice as number));
@@ -144,11 +143,11 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
       };
       
       selectedModels.forEach(model => {
-        const modelKey = `${model.id}|${model.name}|${model.version}`;
+        const modelKey = `${model.id}|${model.name}`;
         
         const pointsWithBothValues = points.filter(point => {
           const modelPrediction = point.modelPredictions.find(
-            mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+            mp => `${mp.modelId}|${mp.modelName}` === modelKey
           );
           return point.actualPrice !== null && modelPrediction?.predictedPrice !== null;
         });
@@ -160,7 +159,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
         
         const totalError = pointsWithBothValues.reduce((sum, point) => {
           const modelPrediction = point.modelPredictions.find(
-            mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+            mp => `${mp.modelId}|${mp.modelName}` === modelKey
           );
           if (!modelPrediction) return sum;
           return sum + Math.abs((point.actualPrice as number) - (modelPrediction.predictedPrice as number));
@@ -174,13 +173,13 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
         if (slot === TimeSlot.ALL) return; // 跳過全部時段
         
         selectedModels.forEach(model => {
-          const modelKey = `${model.id}|${model.name}|${model.version}`;
+          const modelKey = `${model.id}|${model.name}`;
           
           const pointsInSlot = points.filter(point => 
             isInTimeSlot(point.dateTime, slot) && 
             point.actualPrice !== null &&
             point.modelPredictions.some(mp => 
-              `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey && 
+              `${mp.modelId}|${mp.modelName}` === modelKey && 
               mp.predictedPrice !== null
             )
           );
@@ -192,7 +191,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
           
           const totalError = pointsInSlot.reduce((sum, point) => {
             const modelPrediction = point.modelPredictions.find(
-              mp => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+              mp => `${mp.modelId}|${mp.modelName}` === modelKey
             );
             if (!modelPrediction) return sum;
             return sum + Math.abs((point.actualPrice as number) - (modelPrediction.predictedPrice as number));
@@ -237,14 +236,14 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
           }}>
             <TableBody>
               {selectedModels.map((model) => {
-                const modelKey = `${model.id}|${model.name}|${model.version}`;
+                const modelKey = `${model.id}|${model.name}`;
                 const modelColor = modelColorMap[modelKey];
                 const mae = data[`${modelKey}_mae`];
                 
                 return (
                   <TableRow key={`mae-${modelKey}`}>
                     <TableCell sx={{ color: modelColor, fontWeight: 'bold' }}>
-                      {`${model.name} ${model.version}:`}
+                      {`${model.name}:`}
                     </TableCell>
                     <TableCell align="right" sx={{ color: colors.text }}>
                       {mae !== undefined ? mae.toFixed(2) : '-'}
@@ -265,14 +264,14 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
                   </TableRow>
                   
                   {selectedModels.map((model) => {
-                    const modelKey = `${model.id}|${model.name}|${model.version}`;
+                    const modelKey = `${model.id}|${model.name}`;
                     const modelColor = modelColorMap[modelKey];
                     const slotMae = data[`${modelKey}_${selectedTimeSlot}_mae`];
                     
                     return (
                       <TableRow key={`slot-mae-${modelKey}`}>
                         <TableCell sx={{ color: modelColor }}>
-                          {`${model.name} ${model.version}:`}
+                          {`${model.name}:`}
                         </TableCell>
                         <TableCell align="right" sx={{ color: colors.text }}>
                           {slotMae !== undefined ? slotMae.toFixed(2) : '-'}
@@ -406,7 +405,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
           
           {/* 為每個模型顯示 MAE 長條圖 */}
           {selectedModels.map((model, index) => {
-            const modelKey = `${model.id}|${model.name}|${model.version}`;
+            const modelKey = `${model.id}|${model.name}`;
             const modelColor = modelColorMap[modelKey];
             
             // 根據時段選擇顯示不同的 MAE
@@ -418,7 +417,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
               <Bar
                 key={`mae-bar-${modelKey}`}
                 dataKey={dataKey}
-                name={`${model.name} ${model.version}`}
+                name={`${model.name}`}
                 fill={modelColor}
                 barSize={12}
                 // 分組顯示而不是堆疊
@@ -463,19 +462,19 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
                 const columnMAEs = {
                   all: selectedModels.map(model => ({
                     model: model,
-                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}|${model.version}`][TimeSlot.ALL]
+                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}`][TimeSlot.ALL]
                   })),
                   morning: selectedModels.map(model => ({
                     model: model,
-                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}|${model.version}`][TimeSlot.MORNING]
+                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}`][TimeSlot.MORNING]
                   })),
                   evening: selectedModels.map(model => ({
                     model: model,
-                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}|${model.version}`][TimeSlot.EVENING]
+                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}`][TimeSlot.EVENING]
                   })),
                   night: selectedModels.map(model => ({
                     model: model,
-                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}|${model.version}`][TimeSlot.NIGHT]
+                    mae: modelTimeSlotMAEs[`${model.id}|${model.name}`][TimeSlot.NIGHT]
                   }))
                 };
 
@@ -517,14 +516,14 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
                 });
 
                 return selectedModels.map((model) => {
-                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const modelKey = `${model.id}|${model.name}`;
                   const modelColor = modelColorMap[modelKey];
                   const timeSlotMAE = modelTimeSlotMAEs[modelKey];
                   
                   return (
                     <TableRow key={`summary-${modelKey}`}>
                       <TableCell sx={{ color: modelColor, fontWeight: 'bold' }}>
-                        {`${model.name} ${model.version}`}
+                        {`${model.name}`}
                       </TableCell>
                       <TableCell 
                         align="center" 

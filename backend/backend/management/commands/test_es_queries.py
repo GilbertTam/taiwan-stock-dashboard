@@ -43,7 +43,6 @@ class Command(BaseCommand):
                 end_date=end_date,
                 area_name=area_name,
                 model_name=model_name,
-                model_version='1.0.0'
             )
             self.stdout.write(self.style.SUCCESS(f"Found {len(calc_dates)} calculating dates"))
             if calc_dates:
@@ -59,7 +58,6 @@ class Command(BaseCommand):
                 end_date=end_date,
                 area_name=area_name,
                 model_name=model_name,
-                model_version='1.0.0',
                 latest_only=True
             )
             self.stdout.write(self.style.SUCCESS(f"Found {len(predictions)} predictions"))

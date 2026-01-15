@@ -62,7 +62,7 @@ class ESService:
         """Get date string from datetime string"""
         return dt_str.split(' ')[0]
 
-    def get_predictions(self, start_date, end_date, area_name=None, model_name=None, model_version=None, calculating_date=None, latest_only=True):
+    def get_predictions(self, start_date, end_date, area_name=None, model_name=None, calculating_date=None, latest_only=True):
         """
         Fetch predictions from ES.
         
@@ -71,7 +71,6 @@ class ESService:
             end_date (str): YYYYMMDD
             area_name (str, optional): EN area name
             model_name (str, optional): Source
-            model_version (str, optional): Ignored for now as sample doesn't have it
             calculating_date (str, optional): YYYYMMDD
             latest_only (bool): If True, return only the latest calculation for each target time
         """
@@ -144,7 +143,6 @@ class ESService:
                 results.append({
                     "id": hit.md5_id if hasattr(hit, 'md5_id') else f"{trade_date}-{time_code}-{area_en}",
                     "model_name": hit.source,
-                    "model_version": "1.0.0", # Default
                     "trade_date": trade_date,
                     "time_code": time_code,
                     "calculating_date": hit.calculate_time,
@@ -182,7 +180,7 @@ class ESService:
         
         return results
 
-    def get_available_calculating_dates(self, start_date, end_date, area_name, model_name, model_version=None):
+    def get_available_calculating_dates(self, start_date, end_date, area_name, model_name):
         """Get unique calculate_time values"""
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -230,7 +228,6 @@ class ESService:
             models.append({
                 "id": bucket.key,
                 "name": bucket.key,
-                "version": "1.0.0",
                 "description": f"Source: {bucket.key}",
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat()

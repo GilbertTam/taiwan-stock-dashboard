@@ -31,28 +31,6 @@ bash dev-tool.sh update 20250401 20250407 --spot-source=quick
 
 > You can specify the data source using `--spot-source=quick` or `--spot-source=jepx`. Note that the `--spot-source=quick` option will no longer be available after 2025-09-30.
 
-#### Generate Test Prediction Data
-
-Generate test prediction data based on existing spot market data.
-
-Show the help with the following command.
-
-```bash
-bash dev-tool.sh generate-test.data --help
-```
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--model_name` | Name of the prediction model | `TestModel` |
-| `--model_version` | Version of the prediction model | `1.0.0` |
-| `--start_date` | Start date (YYYY-MM-DD) | Today - 7 days |
-| `--end_date` | End date (YYYY-MM-DD) | Today |
-| `--days_ahead` | Days ahead for prediction (e.g., 1 for D+1) | `1` |
-| `--calculating_dates` | Number of calculating dates per trade date | `3` |
-| `--error_range` | Prediction error range (e.g., 0.15 for 15%) | `0.15` |
-| `--clear` | Clear existing predictions for the model | `False` |
-
-
 ### Rebuild
 
 Clean up and rebuild.

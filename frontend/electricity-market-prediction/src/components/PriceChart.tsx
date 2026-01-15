@@ -24,7 +24,6 @@ interface PriceChartProps {
   selectedModels: {
     id: string | number;
     name: string;
-    version: string;
     color: string;
     calculatingDate: string;
   }[];
@@ -73,7 +72,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
   const modelColorMap = useMemo(() => {
     const colorMap: Record<string, string> = {};
     selectedModels.forEach((model, index) => {
-      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      const modelKey = `${model.id}|${model.name}`;
       colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
     });
     return colorMap;
@@ -84,12 +83,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
     const maes: Record<string, number> = {};
     
     selectedModels.forEach(model => {
-      const modelKey = `${model.id}|${model.name}|${model.version}`;
+      const modelKey = `${model.id}|${model.name}`;
       
       const validPoints = chartData.reduce((acc, point) => {
         // 只有當實際值和預測值都存在且不為null時才計入，否則會有多餘的分母
         const modelPrediction = point.modelPredictions.find(
-          (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+          (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
         );
         
         if (
@@ -159,10 +158,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         // Models
         // Iterate over selected models
         selectedModels.forEach(model => {
-            const modelKey = `${model.id}|${model.name}|${model.version}`;
+            const modelKey = `${model.id}|${model.name}`;
             
             const preds = dailyPoints.map(p => {
-                const mp = p.modelPredictions.find(m => `${m.modelId}|${m.modelName}|${m.modelVersion}` === modelKey);
+                const mp = p.modelPredictions.find(m => `${m.modelId}|${m.modelName}` === modelKey);
                 return { 
                     price: mp?.predictedPrice, 
                     dateTime: p.dateTime 
@@ -656,7 +655,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
         if (point.modelPredictions && Array.isArray(point.modelPredictions)) {
           point.modelPredictions.forEach((mp: ModelPrediction) => {
             if (!mp) return; // 確保 mp 存在
-            const modelKey = `${mp.modelId}|${mp.modelName}|${mp.modelVersion}`;
+            const modelKey = `${mp.modelId}|${mp.modelName}`;
             
             // 計算預測與實際值的差距（如果兩者都存在）
             modelDifferences[modelKey] = 
@@ -1230,20 +1229,20 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               <TableBody>
                 {/* 為每個模型顯示預測價格行 */}
                 {selectedModels.map((model, index) => {
-                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const modelKey = `${model.id}|${model.name}`;
                   const modelColor = modelColorMap[modelKey];
                   
                   return (
                     <TableRow key={`model-${modelKey}-${index}`}>
                       <TableCell sx={{ color: modelColor }}>
-                        {`${model.name} ${model.version}:`}
+                        {`${model.name}:`}
                         <Typography variant="caption" display="block" sx={{ color: colors.subText }}>
                           {model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}
                         </Typography>
                       </TableCell>
                       {actualDisplayPoints.map((point, index) => {
                         const modelPrediction = point.data.modelPredictions.find(
-                          (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                          (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
                         );
                         
                         return (
@@ -1268,7 +1267,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
                 {/* 為每個模型顯示預測與實際值的差異 */}
                 {selectedModels.map((model, index) => {
-                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const modelKey = `${model.id}|${model.name}`;
                   
                   return (
                     <TableRow key={`diff-${modelKey}-${index}`}>
@@ -1449,7 +1448,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
               {/* 顯示每個模型的 MAE */}
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {selectedModels.map((model, index) => {
-                  const modelKey = `${model.id}|${model.name}|${model.version}`;
+                  const modelKey = `${model.id}|${model.name}`;
                   const mae = modelMAEs[modelKey];
                   
                   if (mae === undefined) return null;
@@ -1652,13 +1651,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
           
           {/* 為每個模型顯示圖例 */}
           {selectedModels.map((model, index) => {
-            const modelKey = `${model.id}|${model.name}|${model.version}`;
+            const modelKey = `${model.id}|${model.name}`;
             const modelColor = modelColorMap[modelKey];
             
             return (
               <Chip 
                 key={`legend-${modelKey}-${index}`}
-                label={`${model.name} ${model.version} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`} 
+                label={`${model.name} ${model.calculatingDate === 'latest' ? '(最新)' : `(${model.calculatingDate})`}`} 
                 size="small" 
                 sx={{ 
                   backgroundColor: 'transparent', 
@@ -1812,7 +1811,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* Area, Line 等組件保持不變，因為它們會自動對應 X 軸的 timestamp */}
             {showPredictionRange && selectedModels.map((model, index) => {
-               const modelKey = `${model.id}|${model.name}|${model.version}`;
+               const modelKey = `${model.id}|${model.name}`;
                const modelColor = modelColorMap[modelKey];
                const areaColor = modelColor.includes('rgb') ? modelColor.replace(')', ', 0.2)').replace('rgb', 'rgba') : `${modelColor}33`;
                return (
@@ -1822,7 +1821,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                    type="step" // 在數值軸上 step 依然有效
                    dataKey={(datum) => {
                      // 邏輯保持不變
-                     const prediction = datum.modelPredictions.find((mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey);
+                     const prediction = datum.modelPredictions.find((mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey);
                      if (!prediction) return null;
                      const bottom = prediction.predictedPrice5 ?? prediction.predictedPrice;
                      const top = prediction.predictedPrice95 ?? prediction.predictedPrice;
@@ -1845,7 +1844,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* 為每個模型顯示預測區間 (P5-P95) */}
             {showPredictionRange && selectedModels.map((model, index) => {
-              const modelKey = `${model.id}|${model.name}|${model.version}`;
+              const modelKey = `${model.id}|${model.name}`;
               const modelColor = modelColorMap[modelKey];
               
               // 創建一個半透明的顏色
@@ -1860,7 +1859,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   type={chartType === 'stepLine' ? 'step' : 'monotone'}
                   dataKey={(datum) => {
                     const prediction = datum.modelPredictions.find(
-                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
                     );
                     
                     if (!prediction) return null;
@@ -1879,7 +1878,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   stroke="none"
                   fill={areaColor}
                   fillOpacity={0.5}
-                  name={`${model.name} ${model.version} (P5-P95)`}
+                  name={`${model.name} (P5-P95)`}
                   activeDot={false}
                   isAnimationActive={false}
                   connectNulls={true}
@@ -1889,7 +1888,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
 
             {/* 為每個模型顯示預測價格線 */}
             {selectedModels.map((model, index) => {
-              const modelKey = `${model.id}|${model.name}|${model.version}`;
+              const modelKey = `${model.id}|${model.name}`;
               const modelColor = modelColorMap[modelKey];
               
               return (
@@ -1899,12 +1898,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ chartData, areaName, selectedMo
                   type={chartType === 'stepLine' ? 'step' : 'monotone'} 
                   dataKey={(datum) => {
                     const prediction = datum.modelPredictions.find(
-                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}|${mp.modelVersion}` === modelKey
+                      (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
                     );
                     return prediction?.predictedPrice ?? null;
                   }}
                   stroke={modelColor} 
-                  name={`${model.name} ${model.version}`} 
+                  name={`${model.name}`} 
                   // Use dot prop to render custom markers for Top/Bottom N
                   dot={getModelDot(modelKey)}
                   strokeWidth={1.5}
