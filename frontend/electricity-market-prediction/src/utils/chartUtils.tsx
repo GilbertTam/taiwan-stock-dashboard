@@ -20,54 +20,54 @@ export interface ChartDataPoint {
 
 
 export const prepareChartData = (
-  actualPrices: AreaPrice[], 
+  actualPrices: AreaPrice[],
   predictionsByModel: { [key: string]: PricePrediction[] }
 ): ChartDataPoint[] => {
   const chartData: ChartDataPoint[] = [];
   const allDates = new Set<string>();
-  
+
   // 收集所有日期
   actualPrices.forEach(price => {
     allDates.add(price.trade_date);
   });
-  
+
   Object.values(predictionsByModel).forEach(predictions => {
     predictions.forEach(pred => {
       allDates.add(pred.trade_date);
     });
   });
-  
+
   // 為每個日期和時段創建數據點
   const sortedDates = Array.from(allDates).sort();
-  
+
   sortedDates.forEach(date => {
     for (let timeCode = 1; timeCode <= 48; timeCode++) {
       const hour = Math.floor((timeCode - 1) / 2);
       const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
       const timeStr = `${hour.toString().padStart(2, '0')}:${minute}`;
       const dateTime = `${date} ${timeStr}`;
-      
+
       // 查找實際價格
       const actualPrice = actualPrices.find(
         p => p.trade_date === date && p.time_code === timeCode
       );
-      
+
       // 收集所有模型的預測
       const modelPredictions: ModelPrediction[] = [];
-      
+
       Object.entries(predictionsByModel).forEach(([modelKey, predictions]) => {
         const [modelId, modelName] = modelKey.split('|');
-        
+
         const prediction = predictions.find(
           p => p.trade_date === date && p.time_code === timeCode
         );
-        
+
         if (prediction) {
           // 確保所有價格值都是有效數字
           const price50 = parseFloat(prediction.price_50?.toString() || '0');
           const price5 = parseFloat(prediction.price_5?.toString() || '0');
           const price95 = parseFloat(prediction.price_95?.toString() || '0');
-          
+
           modelPredictions.push({
             modelId: isNaN(Number(modelId)) ? modelId : parseInt(modelId),
             modelName,
@@ -78,7 +78,7 @@ export const prepareChartData = (
 
         }
       });
-      
+
       chartData.push({
         dateTime,
         date,
@@ -90,7 +90,7 @@ export const prepareChartData = (
       });
     }
   });
-  
+
   return chartData.sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.time - b.time;
@@ -109,69 +109,46 @@ export const hashString = (str: string) => {
   return Math.abs(hash);
 };
 
-// 生成 RGB 顏色
+// 生成 HSL 顏色轉 RGB
 export const generateColor = (hash: number) => {
-  // 預定義對比度較大的基礎顏色組合
-  const baseColors = [
-    [255, 202, 58],   // 明黃
-    [138, 201, 38],   // 鮮綠
-    [25, 130, 196],   // 深藍
-    [106, 76, 147],   // 深紫
-    [255, 121, 0],    // 橙色
-    [0, 168, 150],    // 青綠
-    [87, 117, 144],   // 灰藍
-    [47, 201, 226],   // 天藍
-    [147, 90, 183],   // 淺紫
-    [0, 150, 136],    // 碧綠
-    [33, 150, 243],   // 亮藍
-    [121, 85, 72],    // 深棕
-    [0, 188, 212],    // 湖藍
-    [76, 175, 80],    // 草綠
-    [255, 152, 0]     // 琥珀色
-  ];
-  // 使用雜湊值的不同部分來增加變化
-  const primaryIndex = hash % baseColors.length;
-  const secondaryIndex = (hash >> 16) % baseColors.length;
-  
-  // 確保 secondaryIndex 與 primaryIndex 有足夠距離
-  let adjustedSecondaryIndex = (primaryIndex + baseColors.length/2) % baseColors.length;
-  
-  // 選擇兩個基礎顏色
-  const color1 = baseColors[primaryIndex];
-  const color2 = baseColors[Math.floor(adjustedSecondaryIndex)];
-  
-  // 根據雜湊值決定混合比例
-  const mix = (hash >> 8) % 4; // 0-3 的混合級別
-  
-  // 混合兩個顏色
-  const r = Math.round(color1[0] * (4-mix)/4 + color2[0] * mix/4);
-  const g = Math.round(color1[1] * (4-mix)/4 + color2[1] * mix/4);
-  const b = Math.round(color1[2] * (4-mix)/4 + color2[2] * mix/4);
+  // 使用 Golden Angle (約 137.5 度) 來最大化顏色差異
+  // 我們利用 hash 作為種子，但為了讓相似的字串產生差異較大的顏色，我們先對 hash 做一些擾動
+  const hue = (hash * 137.508) % 360;
 
-  // 確保顏色差異
-  const ensureColorDifference = (r: number, g: number, b: number) => {
-    const minDifference = 50; // 增加最小差異值
-    let result = [r, g, b];
-    
-    // 如果三個顏色分量太接近，增加其中一個的差異
-    if (Math.abs(r - g) < minDifference && 
-        Math.abs(g - b) < minDifference && 
-        Math.abs(r - b) < minDifference) {
-      
-      const maxComponent = Math.max(r, g, b);
-      if (maxComponent === r) {
-        result[0] = Math.min(255, r + minDifference);
-      } else if (maxComponent === g) {
-        result[1] = Math.min(255, g + minDifference);
-      } else {
-        result[2] = Math.min(255, b + minDifference);
-      }
-    }
-    
-    return result;
-  };
+  // 飽和度在 65-90% 之間變化，保持鮮豔
+  const saturation = 65 + (hash % 25);
 
-  const [finalR, finalG, finalB] = ensureColorDifference(r, g, b);
-  
-  return `rgb(${finalR}, ${finalG}, ${finalB})`;
+  // 亮度在 45-65% 之間變化，避免過暗或過亮 (確保在深/淺色模式都能看清)
+  const lightness = 45 + ((hash >> 8) % 20);
+
+  // HSL to RGB conversion
+  const h = hue / 360;
+  const s = saturation / 100;
+  const l = lightness / 100;
+
+  let r, g, b;
+
+  if (s === 0) {
+    r = g = b = l; // achromatic
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+
+  const to255 = (min: number) => Math.round(min * 255);
+
+  return `rgb(${to255(r)}, ${to255(g)}, ${to255(b)})`;
 };
