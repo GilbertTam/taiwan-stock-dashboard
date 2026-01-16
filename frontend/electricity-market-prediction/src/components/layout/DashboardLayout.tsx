@@ -14,7 +14,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <Header />
 
             {/* Main Content Area */}
-            <main className="flex-1 p-6 mt-16 overflow-x-hidden">
+            <main className="flex-1 p-6 pt-24 overflow-x-hidden" style={{ marginTop: '64px' }}>
                 <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
                     {children}
                 </div>
