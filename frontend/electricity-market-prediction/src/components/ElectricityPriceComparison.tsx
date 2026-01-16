@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Container, Box, Alert } from '@mui/material';
+import { Box, Alert } from '@mui/material';
 
 import { FilterPanel } from '@/components/market-dashboard/FilterPanel';
-import DashboardHeader from '@/components/market-dashboard/DashboardHeader';
 import PriceChartSection from '@/components/market-dashboard/PriceChartSection';
 import ModelPerformanceSection from '@/components/market-dashboard/ModelPerformanceSection';
 
@@ -116,76 +115,72 @@ export default function ElectricityPriceComparison() {
   );
 
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ my: 4 }}>
-        <DashboardHeader />
+    <>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+      )}
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-        )}
+      <FilterPanel
+        areas={areas}
+        models={models}
+        selectedArea={selectedArea}
+        selectedModels={selectedModels}
+        calculatingDatesByModel={calculatingDatesByModel}
+        startDate={startDate}
+        endDate={endDate}
+        dateRangePreset={dateRangePreset}
+        onAreaChange={handleAreaChange}
+        onModelChange={handleModelChange}
+        onModelCalculatingDateChange={handleModelCalculatingDateChange}
+        onDateRangePreset={handleDateRangePreset}
+        onDateRangeChange={(ranges) => {
+          setStartDate(ranges.selection.startDate);
+          setEndDate(ranges.selection.endDate);
+          if (ranges.selection.startDate !== ranges.selection.endDate) {
+            handleDateRangePreset(null);
+          }
+        }}
+        onMoveMonthBackward={handleMoveMonthBackward}
+        onMoveMonthForward={handleMoveMonthForward}
+        onRefresh={() => { }} // Dummy refresh for now
+      />
 
-        <FilterPanel
-          areas={areas}
-          models={models}
-          selectedArea={selectedArea}
-          selectedModels={selectedModels}
-          calculatingDatesByModel={calculatingDatesByModel}
-          startDate={startDate}
-          endDate={endDate}
-          dateRangePreset={dateRangePreset}
-          onAreaChange={handleAreaChange}
-          onModelChange={handleModelChange}
-          onModelCalculatingDateChange={handleModelCalculatingDateChange}
-          onDateRangePreset={handleDateRangePreset}
-          onDateRangeChange={(ranges) => {
-            setStartDate(ranges.selection.startDate);
-            setEndDate(ranges.selection.endDate);
-            if (ranges.selection.startDate !== ranges.selection.endDate) {
-              handleDateRangePreset(null);
-            }
-          }}
-          onMoveMonthBackward={handleMoveMonthBackward}
-          onMoveMonthForward={handleMoveMonthForward}
-          onRefresh={() => { }} // Dummy refresh for now
-        />
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
+          {/* Can add a loading skeleton here if needed, but FilterPanel has loading state too */}
+          Loading...
+        </Box>
+      ) : (
+        hasData ? (
+          <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <PriceChartSection
+              chartData={chartData}
+              weatherChartData={weatherChartData}
+              weatherActual={weatherActual}
+              weatherForecast={weatherForecast}
+              imbalanceData={imbalanceData}
+              intradayData={intradayData}
+              interconnectionData={interconnectionData}
+              occtoAreaData={occtoAreaData}
+              selectedModels={selectedModels}
+              startDate={startDate}
+              endDate={endDate}
+              selectedArea={selectedArea}
+            />
 
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
-            {/* Can add a loading skeleton here if needed, but FilterPanel has loading state too */}
-            Loading...
+            <ModelPerformanceSection
+              chartData={chartData}
+              selectedModels={selectedModels}
+              topBottomPairs={topBottomPairs}
+              setTopBottomPairs={setTopBottomPairs}
+            />
           </Box>
         ) : (
-          hasData ? (
-            <>
-              <PriceChartSection
-                chartData={chartData}
-                weatherChartData={weatherChartData}
-                weatherActual={weatherActual}
-                weatherForecast={weatherForecast}
-                imbalanceData={imbalanceData}
-                intradayData={intradayData}
-                interconnectionData={interconnectionData}
-                occtoAreaData={occtoAreaData}
-                selectedModels={selectedModels}
-                startDate={startDate}
-                endDate={endDate}
-                selectedArea={selectedArea}
-              />
-
-              <ModelPerformanceSection
-                chartData={chartData}
-                selectedModels={selectedModels}
-                topBottomPairs={topBottomPairs}
-                setTopBottomPairs={setTopBottomPairs}
-              />
-            </>
-          ) : (
-            <Box sx={{ mt: 4 }}>
-              <Alert severity="info">No data available for the selected range.</Alert>
-            </Box>
-          )
-        )}
-      </Box>
-    </Container>
+          <Box sx={{ mt: 4 }}>
+            <Alert severity="info">No data available for the selected range.</Alert>
+          </Box>
+        )
+      )}
+    </>
   );
 }

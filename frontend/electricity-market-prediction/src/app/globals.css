@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base Colors - Dark Mode Default */
+  --background: #050505;
+  --foreground: #e5e5e5;
+
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+
+  /* UI Components */
+  --card-bg: rgba(20, 20, 20, 0.6);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --card-hover: rgba(30, 30, 30, 0.8);
+  --hover-bg: rgba(255, 255, 255, 0.1);
+
+  /* Accents */
+  --primary: #00ff9d;
+  /* Neon Green */
+  --primary-foreground: #000000;
+
+  /* Date Picker - Darker green for better contrast with white text */
+  --date-picker-selected: #00cc7a;
+
+  --secondary: #00d2ff;
+  /* Cyber Blue */
+  --secondary-foreground: #000000;
+
+  --accent: #d946ef;
+  /* Neon Purple */
+
+  /* Sidebar & Header */
+  --sidebar-bg: rgba(5, 5, 5, 0.8);
+  --header-bg: rgba(5, 5, 5, 0.6);
+
+  /* Status */
+  --success: #00ff9d;
+  --warning: #facc15;
+  --error: #ff4d4d;
+}
+
+[data-theme='light'] {
+  /* Base Colors - Light Mode */
+  --background: #f0f2f5;
+  --foreground: #1a1a1a;
+
+  /* Text Colors */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+
+  /* UI Components */
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-border: rgba(0, 0, 0, 0.1);
+  --card-hover: rgba(255, 255, 255, 1);
+  --hover-bg: rgba(0, 0, 0, 0.05);
+
+  /* Accents */
+  --primary: #00a86b;
+  /* Darker Green for Light Mode */
+  --primary-foreground: #ffffff;
+
+  --secondary: #007bb5;
+  /* Darker Blue */
+  --secondary-foreground: #ffffff;
+
+  /* Sidebar & Header */
+  --sidebar-bg: rgba(255, 255, 255, 0.9);
+  --header-bg: rgba(255, 255, 255, 0.8);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-card: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-card-hover: var(--card-hover);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-sidebar: var(--sidebar-bg);
+  --color-header: var(--header-bg);
+
+  --color-success: var(--success);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer utilities {
+  .glass {
+    @apply bg-card backdrop-blur-md border border-card-border;
+  }
+
+  .glass-hover {
+    @apply hover:bg-card-hover transition-colors duration-200;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
