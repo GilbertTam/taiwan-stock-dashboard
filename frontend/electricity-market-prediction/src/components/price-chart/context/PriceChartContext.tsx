@@ -33,6 +33,8 @@ interface PriceChartState {
     setOcctoChartType: (val: 'line' | 'stacked') => void;
     selectedOcctoField: string;
     setSelectedOcctoField: (val: string) => void;
+    selectedOcctoFields: Set<string>;
+    setSelectedOcctoFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     adjacentPointsCount: number;
     setAdjacentPointsCount: (val: number) => void;
     showSettings: boolean;
@@ -94,6 +96,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [showInterconnection, setShowInterconnection] = useState(false);
     const [showOcctoArea, setShowOcctoArea] = useState(false);
     const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
+    const [selectedOcctoFields, setSelectedOcctoFields] = useState<Set<string>>(new Set(['area_demand']));
     const [occtoChartType, setOcctoChartType] = useState<'line' | 'stacked'>('line');
     const [showZScore, setShowZScore] = useState(false);
 
@@ -115,7 +118,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedModels,
         topBottomPairs,
         occtoChartType,
-        selectedOcctoField
+        selectedOcctoField,
+        selectedOcctoFields
     });
 
     const value = useMemo(() => ({
@@ -134,6 +138,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         chartType, setChartType,
         occtoChartType, setOcctoChartType,
         selectedOcctoField, setSelectedOcctoField,
+        selectedOcctoFields, setSelectedOcctoFields,
         adjacentPointsCount, setAdjacentPointsCount,
         showSettings, setShowSettings,
         hasImbalanceData: imbalanceData && imbalanceData.length > 0,
@@ -147,7 +152,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     }), [
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showZScore,
-        chartType, occtoChartType, selectedOcctoField, adjacentPointsCount, showSettings,
+        chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, adjacentPointsCount, showSettings,
         imbalanceData, intradayData, interconnectionData, occtoAreaData,
         areaName, selectedModels, colors, darkMode
     ]);

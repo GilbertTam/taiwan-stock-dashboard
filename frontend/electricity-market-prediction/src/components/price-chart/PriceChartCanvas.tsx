@@ -35,6 +35,7 @@ export const PriceChartCanvas: React.FC = () => {
         chartType,
         occtoChartType,
         selectedOcctoField,
+        selectedOcctoFields,
         adjacentPointsCount,
 
         // Theme
@@ -186,33 +187,43 @@ export const PriceChartCanvas: React.FC = () => {
                     )}
 
                     {/* OCCTO Data */}
-                    {showOcctoArea && occtoChartType === 'line' && (
-                        <Line
-                            yAxisId="occto"
-                            type="monotone"
-                            dataKey="occto_value"
-                            stroke={colors.occtoArea}
-                            name={occtoFields.find(f => f.value === selectedOcctoField)?.label || selectedOcctoField}
-                            strokeWidth={2}
-                            dot={false}
-                            connectNulls={true}
-                            isAnimationActive={false}
-                        />
-                    )}
+                    {showOcctoArea && occtoChartType === 'line' && Array.from(selectedOcctoFields as Set<string>).map((fieldValue: string) => {
+                        const field = occtoFields.find(f => f.value === fieldValue);
+                        if (!field) return null;
+                        // Keep colors consistent with stacked chart.
+                        const stackedField = occtoStackedFields.find(sf => sf.key === fieldValue);
+                        const fieldColor = stackedField?.color ?? colors.occtoArea;
+                        return (
+                            <Line
+                                key={`occto-line-${fieldValue}`}
+                                yAxisId="occto"
+                                type="monotone"
+                                dataKey={(datum) => datum.occto_values?.[fieldValue] ?? null}
+                                stroke={fieldColor}
+                                name={field.label}
+                                strokeWidth={2}
+                                dot={false}
+                                connectNulls={true}
+                                isAnimationActive={false}
+                            />
+                        );
+                    })}
 
-                    {showOcctoArea && occtoChartType === 'stacked' && occtoStackedFields.map(field => (
-                        <Bar
-                            key={field.key}
-                            dataKey={`occto_data.${field.key}`}
-                            yAxisId="occto"
-                            stackId="occto"
-                            fill={field.color}
-                            name={field.label}
-                            isAnimationActive={false}
-                            barSize={20}
-                            fillOpacity={0.6}
-                        />
-                    ))}
+                    {showOcctoArea && occtoChartType === 'stacked' && occtoStackedFields
+                        .filter(field => selectedOcctoFields.has(field.key))
+                        .map(field => (
+                            <Bar
+                                key={field.key}
+                                dataKey={`occto_data.${field.key}`}
+                                yAxisId="occto"
+                                stackId="occto"
+                                fill={field.color}
+                                name={field.label}
+                                isAnimationActive={false}
+                                barSize={20}
+                                fillOpacity={0.6}
+                            />
+                        ))}
 
                     {/* Prediction Ranges (Area) */}
                     {showPredictionRange && selectedModels.map((model: any, index: number) => {
@@ -324,6 +335,7 @@ export const PriceChartCanvas: React.FC = () => {
                             showInterconnection={showInterconnection}
                             showOcctoArea={showOcctoArea}
                             selectedOcctoField={selectedOcctoField}
+                            selectedOcctoFields={selectedOcctoFields}
                             occtoChartType={occtoChartType}
                         />}
                         wrapperStyle={{ zIndex: 1000 }}

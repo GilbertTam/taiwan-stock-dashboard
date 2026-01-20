@@ -18,6 +18,7 @@ interface UseChartDataProps {
     topBottomPairs: number;
     occtoChartType: 'line' | 'stacked';
     selectedOcctoField: string;
+    selectedOcctoFields: Set<string>;
 }
 
 export const useChartData = ({
@@ -30,7 +31,8 @@ export const useChartData = ({
     selectedModels,
     topBottomPairs,
     occtoChartType,
-    selectedOcctoField
+    selectedOcctoField,
+    selectedOcctoFields
 }: UseChartDataProps) => {
 
     // 1. modelColorMap
@@ -252,7 +254,15 @@ export const useChartData = ({
                 if (ts) {
                     const point = ensurePoint(ts);
                     point.occto_data = item;
+                    // Keep backward compatibility with selectedOcctoField
                     point.occto_value = (item as any)[selectedOcctoField];
+                    // Store all selected fields for multi-field rendering
+                    if (!point.occto_values) {
+                        point.occto_values = {};
+                    }
+                    selectedOcctoFields.forEach(field => {
+                        point.occto_values![field] = (item as any)[field];
+                    });
                 }
             });
         }
@@ -327,7 +337,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, areaName, selectedOcctoField, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, areaName, selectedOcctoField, selectedOcctoFields, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {
@@ -376,9 +386,17 @@ export const useChartData = ({
                 .map(p => p.occto_data ? p.occto_data.total : 0)
                 .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
         } else {
-            values = processedChartData
-                .map(p => p.occto_value)
-                .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+            // Collect values from all selected fields
+            processedChartData.forEach(p => {
+                if (p.occto_values) {
+                    selectedOcctoFields.forEach(field => {
+                        const val = p.occto_values![field];
+                        if (val !== null && val !== undefined && !isNaN(val)) {
+                            values.push(val);
+                        }
+                    });
+                }
+            });
         }
 
         if (values.length === 0) return { min: 0, max: 100 };
@@ -386,7 +404,7 @@ export const useChartData = ({
         const max = Math.max(...values);
         const padding = Math.abs(max - min) * 0.1;
         return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
-    }, [processedChartData, occtoChartType]);
+    }, [processedChartData, occtoChartType, selectedOcctoFields]);
 
     return {
         modelColorMap,

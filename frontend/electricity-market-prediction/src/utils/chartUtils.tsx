@@ -39,6 +39,7 @@ export interface ChartDataPoint {
   // Occto
   occto_data?: any | null;
   occto_value?: number | null;
+  occto_values?: Record<string, number | null>;
   // Z-Score
   zScore?: number | null;
   // Markers

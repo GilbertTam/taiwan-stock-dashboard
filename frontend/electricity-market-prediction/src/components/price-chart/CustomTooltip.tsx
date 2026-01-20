@@ -20,6 +20,7 @@ export const CustomTooltip = ({
     showInterconnection,
     showOcctoArea,
     selectedOcctoField,
+    selectedOcctoFields,
     occtoChartType
 }: any) => {
     if (active && payload && payload.length) {
@@ -314,28 +315,38 @@ export const CustomTooltip = ({
 
                             {/* Occto */}
                             {/* Occto (Line View) */}
-                            {showOcctoArea && occtoChartType !== 'stacked' && (
-                                <TableRow>
-                                    <TableCell sx={{ color: colors.occtoArea }}>
-                                        {occtoFields.find(f => f.value === selectedOcctoField)?.label || selectedOcctoField}:
-                                    </TableCell>
-                                    {actualDisplayPoints.map((point, index) => (
-                                        <TableCell
-                                            key={`occto-${index}`}
-                                            align="center"
-                                            sx={{
-                                                color: colors.occtoArea,
-                                                fontWeight: point.isCurrent ? 'bold' : 'normal',
-                                                backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
-                                            }}
-                                        >
-                                            {point.data.occto_value !== null && point.data.occto_value !== undefined
-                                                ? Number(point.data.occto_value).toLocaleString()
-                                                : '-'}
+                            {showOcctoArea && occtoChartType !== 'stacked' && Array.from(selectedOcctoFields as Set<string>).map((fieldValue: string) => {
+                                const field = occtoFields.find(f => f.value === fieldValue);
+                                if (!field) return null;
+                                // Keep colors consistent with stacked chart.
+                                const stackedField = occtoStackedFields.find(sf => sf.key === fieldValue);
+                                const fieldColor = stackedField?.color ?? colors.occtoArea;
+                                return (
+                                    <TableRow key={`occto-line-${fieldValue}`}>
+                                        <TableCell sx={{ color: fieldColor, fontWeight: 'bold' }}>
+                                            {field.label}:
                                         </TableCell>
-                                    ))}
-                                </TableRow>
-                            )}
+                                        {actualDisplayPoints.map((point, index) => {
+                                            const fieldVal = point.data.occto_values?.[fieldValue];
+                                            return (
+                                                <TableCell
+                                                    key={`occto-${fieldValue}-${index}`}
+                                                    align="center"
+                                                    sx={{
+                                                        color: fieldColor,
+                                                        fontWeight: point.isCurrent ? 'bold' : 'normal',
+                                                        backgroundColor: point.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'
+                                                    }}
+                                                >
+                                                    {fieldVal !== null && fieldVal !== undefined
+                                                        ? Number(fieldVal).toLocaleString()
+                                                        : '-'}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                );
+                            })}
 
                             {/* Occto Stacked Breakdown */}
                             {showOcctoArea && occtoChartType === 'stacked' && (
@@ -350,7 +361,9 @@ export const CustomTooltip = ({
                                             Energy Mix
                                         </TableCell>
                                     </TableRow>
-                                    {occtoStackedFields.map(field => {
+                                    {occtoStackedFields
+                                        .filter(field => selectedOcctoFields.has(field.key))
+                                        .map(field => {
                                         return (
                                             <TableRow key={`occto-stack-${field.key}`}>
                                                 <TableCell sx={{ color: field.color, pl: 4, borderLeft: `2px solid ${colors.tooltipBorder}` }}>

@@ -11,7 +11,7 @@ import StackedLineChartIcon from '@mui/icons-material/StackedLineChart'; // Fall
 import LayersIcon from '@mui/icons-material/Layers';
 
 import { usePriceChart } from './context/PriceChartContext';
-import { occtoFields } from './constants';
+import { occtoFields, occtoStackedFields } from './constants';
 
 export const PriceChartControls: React.FC = () => {
     const {
@@ -33,6 +33,7 @@ export const PriceChartControls: React.FC = () => {
         chartType, setChartType,
         occtoChartType, setOcctoChartType,
         selectedOcctoField, setSelectedOcctoField,
+        selectedOcctoFields, setSelectedOcctoFields,
         adjacentPointsCount, setAdjacentPointsCount,
 
         colors
@@ -154,44 +155,96 @@ export const PriceChartControls: React.FC = () => {
                     <Box sx={{
                         pl: 4,
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
+                        flexDirection: 'column',
+                        gap: 1,
                         animation: 'fadeIn 0.3s ease-in-out',
                         borderTop: `1px dashed ${colors.grid}`,
                         pt: 1
                     }}>
-                        <Typography variant="caption" sx={{ color: colors.occtoArea, fontWeight: 'bold' }}>
-                            OCCTO CONFIG:
-                        </Typography>
+                        {/* Chart Type and Field Toggles Row */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                            <Typography variant="caption" sx={{ color: colors.occtoArea, fontWeight: 'bold' }}>
+                                OCCTO CONFIG:
+                            </Typography>
 
-                        <FormControl size="small">
-                            <Select
-                                value={occtoChartType}
-                                onChange={(e) => setOcctoChartType(e.target.value as 'line' | 'stacked')}
-                                variant="standard"
-                                disableUnderline
-                                sx={{ fontSize: '0.8rem', color: colors.text }}
-                            >
-                                <MenuItem value="line">Line Chart</MenuItem>
-                                <MenuItem value="stacked">Stacked Bar</MenuItem>
-                            </Select>
-                        </FormControl>
-
-                        {occtoChartType === 'line' && (
                             <FormControl size="small">
                                 <Select
-                                    value={selectedOcctoField}
-                                    onChange={(e) => setSelectedOcctoField(e.target.value)}
+                                    value={occtoChartType}
+                                    onChange={(e) => setOcctoChartType(e.target.value as 'line' | 'stacked')}
                                     variant="standard"
                                     disableUnderline
                                     sx={{ fontSize: '0.8rem', color: colors.text }}
                                 >
-                                    {occtoFields.map(f => (
-                                        <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
-                                    ))}
+                                    <MenuItem value="line">Line Chart</MenuItem>
+                                    <MenuItem value="stacked">Stacked Bar</MenuItem>
                                 </Select>
                             </FormControl>
-                        )}
+
+                            {/* Field Toggles */}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                                <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>
+                                    Fields:
+                                </Typography>
+                                {occtoFields.map((field) => {
+                                    const isSelected = selectedOcctoFields.has(field.value);
+                                    // Keep colors consistent with stacked chart.
+                                    // If a field exists in occtoStackedFields, use that color; otherwise fallback to OCCTO theme color.
+                                    const stackedField = occtoStackedFields.find(sf => sf.key === field.value);
+                                    const fieldColor: string = stackedField?.color ?? colors.occtoArea;
+
+                                    return (
+                                        <MuiTooltip key={field.value} title={field.label} arrow>
+                                            <span>
+                                                <ToggleButton
+                                                    value={field.value}
+                                                    selected={isSelected}
+                                                    onChange={() => {
+                                                        setSelectedOcctoFields((prev) => {
+                                                            const newSet = new Set(prev);
+                                                            if (newSet.has(field.value)) {
+                                                                newSet.delete(field.value);
+                                                            } else {
+                                                                newSet.add(field.value);
+                                                            }
+                                                            // Ensure at least one field is selected
+                                                            if (newSet.size === 0) {
+                                                                newSet.add('area_demand');
+                                                            }
+                                                            return newSet;
+                                                        });
+                                                    }}
+                                                    size="small"
+                                                    sx={{
+                                                        border: `1px solid ${fieldColor}40`,
+                                                        borderRadius: 1,
+                                                        px: 1,
+                                                        py: 0.25,
+                                                        fontSize: '0.7rem',
+                                                        color: colors.subText,
+                                                        backgroundColor: 'transparent',
+                                                        '&.Mui-selected': {
+                                                            backgroundColor: `${fieldColor}22`,
+                                                            color: fieldColor,
+                                                            fontWeight: 'bold',
+                                                            borderColor: `${fieldColor}80`,
+                                                            '&:hover': {
+                                                                backgroundColor: `${fieldColor}33`,
+                                                            }
+                                                        },
+                                                        '&:hover': {
+                                                            backgroundColor: `${fieldColor}11`,
+                                                            borderColor: `${fieldColor}60`,
+                                                        }
+                                                    }}
+                                                >
+                                                    {field.label}
+                                                </ToggleButton>
+                                            </span>
+                                        </MuiTooltip>
+                                    );
+                                })}
+                            </Box>
+                        </Box>
                     </Box>
                 )}
             </Box>
