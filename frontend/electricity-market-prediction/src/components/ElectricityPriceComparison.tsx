@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Box, Alert } from '@mui/material';
+import { format } from 'date-fns';
 
 import { FilterPanel } from '@/components/market-dashboard/FilterPanel';
 import PriceChartSection from '@/components/market-dashboard/PriceChartSection';
@@ -9,6 +10,7 @@ import ModelPerformanceSection from '@/components/market-dashboard/ModelPerforma
 
 import { useMarketData } from '@/hooks/useMarketData';
 import { prepareChartData } from '@/utils/chartUtils';
+import { downloadSpotCsv } from '@/services/api';
 
 export default function ElectricityPriceComparison() {
   // Custom Hook for Data Fetching
@@ -43,6 +45,41 @@ export default function ElectricityPriceComparison() {
 
   // Analysis Settings
   const [topBottomPairs, setTopBottomPairs] = useState<number>(4);
+
+  const handleDownloadCsv = async () => {
+    try {
+      if (!startDate || !endDate || !selectedArea) {
+        console.warn('Missing start/end date or selected area for CSV download');
+        return;
+      }
+
+      const start = format(startDate, 'yyyyMMdd');
+      const end = format(endDate, 'yyyyMMdd');
+      const modelNames = selectedModels
+        .map((m) => m.name)
+        .filter(Boolean)
+        .join(',');
+
+      const blob = await downloadSpotCsv({
+        start_date: start,
+        end_date: end,
+        area_name: selectedArea,
+        model_names: modelNames || undefined,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeArea = selectedArea || 'area';
+      link.href = url;
+      link.download = `spot_${safeArea}_${start}_${end}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to download CSV', e);
+    }
+  };
 
   // Prepare Chart Data
   const chartData = useMemo(() => {
@@ -143,6 +180,7 @@ export default function ElectricityPriceComparison() {
         onMoveMonthBackward={handleMoveMonthBackward}
         onMoveMonthForward={handleMoveMonthForward}
         onRefresh={() => { }} // Dummy refresh for now
+        onDownloadCsv={handleDownloadCsv}
       />
 
       {isLoading ? (

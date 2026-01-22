@@ -39,6 +39,7 @@ interface FilterPanelProps {
     onMoveMonthBackward: () => void;
     onMoveMonthForward: () => void;
     onRefresh: () => void;
+    onDownloadCsv: () => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -57,7 +58,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     onDateRangeChange,
     onMoveMonthBackward,
     onMoveMonthForward,
-    onRefresh
+    onRefresh,
+    onDownloadCsv,
 }) => {
     const theme = useTheme();
 
@@ -199,14 +201,24 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <Typography variant="h6" fontWeight="bold">
                     資料選擇
                 </Typography>
-                <Button
-                    variant="outlined"
-                    startIcon={<RefreshIcon />}
-                    onClick={onRefresh}
-                    size="small"
-                >
-                    刷新數據
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                        variant="outlined"
+                        startIcon={<RefreshIcon />}
+                        onClick={onRefresh}
+                        size="small"
+                    >
+                        刷新數據
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={onDownloadCsv}
+                        size="small"
+                    >
+                        下載 CSV
+                    </Button>
+                </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
 
