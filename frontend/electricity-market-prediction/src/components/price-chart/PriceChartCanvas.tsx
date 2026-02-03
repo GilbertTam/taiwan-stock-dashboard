@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { Box } from '@mui/material';
 import { ResponsiveContainer, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceArea, Area, Line, Bar, ReferenceLine, Customized } from 'recharts';
 import { startOfDay } from 'date-fns';
@@ -10,8 +10,8 @@ import { generateXAxisTicks, formatXAxis } from '@/utils/chartHelpers';
 import { usePriceChart } from './context/PriceChartContext';
 
 // Local Components
-import { CustomTooltip } from './CustomTooltip';
 import { CandleStickLayer } from './layers/CandleStickLayer';
+import { CrosshairLayer } from './layers/CrosshairLayer';
 import { CustomizedDot } from './markers/CustomizedDot';
 import { getModelDot } from './markers/ModelDot';
 
@@ -29,6 +29,19 @@ export const PriceChartCanvas: React.FC = () => {
         showInterconnection,
         showOcctoArea,
 
+        // Hover state
+        setHoveredData,
+        hoveredX,
+        setHoveredX,
+
+        // Drag-to-pan state
+        xAxisDomain,
+        isDragging,
+        setIsDragging,
+        dragStartX,
+        setDragStartX,
+        handleChartPan,
+
         // Configs
         selectedModels,
         modelColorMap,
@@ -44,16 +57,78 @@ export const PriceChartCanvas: React.FC = () => {
         areaName
     } = usePriceChart();
 
+    // Ref for chart container to calculate drag distance accurately
+    const chartContainerRef = useRef<HTMLDivElement>(null);
+
+    // Handle mouse move to track hover position
+    const handleMouseMove = useCallback((state: any) => {
+        if (state && state.activePayload && state.activePayload.length > 0) {
+            setHoveredData(state.activePayload[0].payload);
+            if (state.chartX !== undefined) {
+                setHoveredX(state.chartX);
+            }
+        }
+    }, [setHoveredData, setHoveredX]);
+
+    // Handle mouse leave
+    const handleMouseLeave = useCallback(() => {
+        setHoveredData(null);
+        setHoveredX(null);
+        // Also end drag if mouse leaves
+        if (isDragging) {
+            setIsDragging(false);
+            setDragStartX(null);
+        }
+    }, [setHoveredData, setHoveredX, isDragging, setIsDragging, setDragStartX]);
+
+    // Handle drag start
+    const handleDragStart = useCallback((e: React.MouseEvent) => {
+        if (e.button === 0) { // Left click only
+            setIsDragging(true);
+            setDragStartX(e.clientX);
+        }
+    }, [setIsDragging, setDragStartX]);
+
+    // Handle drag move
+    const handleDragMove = useCallback((e: React.MouseEvent) => {
+        if (isDragging && dragStartX !== null) {
+            const deltaX = e.clientX - dragStartX;
+            if (Math.abs(deltaX) > 5) { // Only pan if moved more than 5px
+                handleChartPan(deltaX);
+                setDragStartX(e.clientX); // Update start position for smooth panning
+            }
+        }
+    }, [isDragging, dragStartX, handleChartPan, setDragStartX]);
+
+    // Handle drag end
+    const handleDragEnd = useCallback(() => {
+        setIsDragging(false);
+        setDragStartX(null);
+    }, [setIsDragging, setDragStartX]);
+
     // Safety check
     const chartData = processedChartData && processedChartData.length > 0 ? processedChartData : [];
 
     return (
-        <Box sx={{ pb: 3 }}>
+        <Box
+            ref={chartContainerRef}
+            sx={{
+                pb: 3,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                userSelect: 'none',
+            }}
+            onMouseDown={handleDragStart}
+            onMouseMove={handleDragMove}
+            onMouseUp={handleDragEnd}
+            onMouseLeave={handleDragEnd}
+        >
             <ResponsiveContainer width="100%" height={450}>
                 <ComposedChart
                     data={chartData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
                     syncId="priceChart"
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
                 >
                     {/* 1. Background Elements (Grid, Reference Areas) */}
                     {(() => {
@@ -91,7 +166,7 @@ export const PriceChartCanvas: React.FC = () => {
                         dataKey="timestamp"
                         type="number"
                         scale="time"
-                        domain={['dataMin', 'dataMax']}
+                        domain={xAxisDomain}
                         tickFormatter={formatXAxis}
                         ticks={generateXAxisTicks(processedChartData || [])}
                         stroke={colors.text}
@@ -100,6 +175,7 @@ export const PriceChartCanvas: React.FC = () => {
                         axisLine={{ stroke: colors.text }}
                         height={50}
                         allowDuplicatedCategory={false}
+                        allowDataOverflow={true}
                     />
 
                     <YAxis
@@ -318,27 +394,27 @@ export const PriceChartCanvas: React.FC = () => {
                         />
                     )}
 
-                    {/* 4. INTERACTIONS (Tooltip must be last or near last to render on top properly) */}
+                    {/* 4. INTERACTIONS - Crosshair layer for visual feedback */}
+                    <Customized
+                        component={(props: any) => (
+                            <CrosshairLayer
+                                {...props}
+                                hoveredX={hoveredX}
+                                colors={colors}
+                            />
+                        )}
+                    />
+
+                    {/* Hidden tooltip to enable hover detection (renders nothing) */}
                     <Tooltip
-                        content={<CustomTooltip
-                            active={false}
-                            payload={[]}
-                            label=""
-                            processedChartData={processedChartData}
-                            adjacentPointsCount={adjacentPointsCount}
-                            colors={colors}
-                            areaName={areaName}
-                            selectedModels={selectedModels}
-                            modelColorMap={modelColorMap}
-                            showIntraday={showIntraday}
-                            showImbalance={showImbalance}
-                            showInterconnection={showInterconnection}
-                            showOcctoArea={showOcctoArea}
-                            selectedOcctoField={selectedOcctoField}
-                            selectedOcctoFields={selectedOcctoFields}
-                            occtoChartType={occtoChartType}
-                        />}
-                        wrapperStyle={{ zIndex: 1000 }}
+                        content={() => null}
+                        cursor={{
+                            stroke: colors.text,
+                            strokeWidth: 1,
+                            strokeDasharray: '4 4',
+                            strokeOpacity: 0.3,
+                        }}
+                        wrapperStyle={{ display: 'none' }}
                     />
 
                 </ComposedChart>

@@ -1,5 +1,5 @@
 import React, { MouseEvent } from 'react';
-import { Box, Typography, Select, MenuItem, Slider, Grid, ToggleButton, ToggleButtonGroup, Tooltip as MuiTooltip, FormControl, Paper } from '@mui/material';
+import { Box, Typography, Select, MenuItem, ToggleButton, Tooltip as MuiTooltip, FormControl, Paper } from '@mui/material';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import TimelineIcon from '@mui/icons-material/Timeline';
@@ -34,7 +34,6 @@ export const PriceChartControls: React.FC = () => {
         occtoChartType, setOcctoChartType,
         selectedOcctoField, setSelectedOcctoField,
         selectedOcctoFields, setSelectedOcctoFields,
-        adjacentPointsCount, setAdjacentPointsCount,
 
         colors
     } = usePriceChart();
@@ -134,19 +133,6 @@ export const PriceChartControls: React.FC = () => {
                                 <MenuItem value="stepLine"><StackedLineChartIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'text-bottom' }} /> Step</MenuItem>
                             </Select>
                         </FormControl>
-
-                        {/* Adjacent Points Slider (Mini) */}
-                        <Box sx={{ width: 80, mx: 1, display: 'flex', alignItems: 'center' }}>
-                            <MuiTooltip title="Adjust visible adjacent points">
-                                <Slider
-                                    value={adjacentPointsCount}
-                                    onChange={(_, v) => setAdjacentPointsCount(v as number)}
-                                    min={1} max={5} step={1}
-                                    size="small"
-                                    sx={{ color: colors.predicted }}
-                                />
-                            </MuiTooltip>
-                        </Box>
                     </Box>
                 </Box>
 

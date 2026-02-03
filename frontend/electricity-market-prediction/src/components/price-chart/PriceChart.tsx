@@ -12,7 +12,7 @@ import { ChartDataPoint } from '@/utils/chartUtils';
 import { PriceChartControls } from './PriceChartControls';
 import { PriceChartCanvas } from './PriceChartCanvas';
 import { ZScoreChart } from './ZScoreChart';
-import { CustomTooltip } from './CustomTooltip';
+import { ChartInfoPanel } from './ChartInfoPanel';
 
 // Context
 import { PriceChartProvider, usePriceChart } from './context/PriceChartContext';
@@ -45,8 +45,13 @@ const PriceChartContent: React.FC = () => {
         colors,
         darkMode,
         showPredictionRange,
-        processedChartData, // Needed for Canvas
-        showZScore // Needed for ZScoreChart
+        processedChartData,
+        showZScore,
+        // Hover state
+        hoveredData,
+        showImbalance,
+        showIntraday,
+        showInterconnection,
     } = usePriceChart();
 
     return (
@@ -140,7 +145,19 @@ const PriceChartContent: React.FC = () => {
                 </Box>
             </Box>
 
-            {/* Canvas now consumes context internally */}
+            {/* TradingView-style Info Panel - Fixed header above chart */}
+            <ChartInfoPanel
+                hoveredData={hoveredData}
+                selectedModels={selectedModels}
+                modelColorMap={modelColorMap}
+                colors={colors}
+                areaName={areaName}
+                showImbalance={showImbalance}
+                showIntraday={showIntraday}
+                showInterconnection={showInterconnection}
+            />
+
+            {/* Canvas consumes context internally */}
             <PriceChartCanvas />
 
             <ZScoreChart
@@ -150,7 +167,7 @@ const PriceChartContent: React.FC = () => {
                 selectedModels={selectedModels}
                 modelColorMap={modelColorMap}
             />
-        </Paper>
+        </Paper >
     );
 };
 
