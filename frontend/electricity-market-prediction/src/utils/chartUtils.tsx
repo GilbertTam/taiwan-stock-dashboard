@@ -70,11 +70,29 @@ export const hashString = (str: string): number => {
   return hash;
 };
 
+// Predefined palette of distinct colors (avoiding pure reds/pinks which are reserved for Actual Price)
+const DISTINCT_COLORS = [
+  '#3366CC', // Blue
+  '#FF9900', // Orange
+  '#109618', // Green
+  '#990099', // Purple
+  '#0099C6', // Teal
+  '#66AA00', // Lime
+  '#316395', // Dark Blue
+  '#994499', // Light Purple
+  '#22AA99', // Turquoise
+  '#AAAA11', // Olive
+  '#6633CC', // Violet
+  '#E67300', // Dark Orange
+  '#329262', // Forest
+  '#5574A6', // Steel Blue
+  '#3B3EAC'  // Navy
+];
+
 export const generateColor = (hash: number): string => {
-  // Modify to avoid red/pink hues (approx 340-360 and 0-20) which are close to "Actual Price"
-  // We'll map the hash to a hue between 30 and 330
-  const hue = (hash % 300) + 30; // 30 to 330
-  return `hsl(${hue}, 70%, 50%)`;
+  // Use the hash to pick a color from the predefined palette
+  const index = Math.abs(hash) % DISTINCT_COLORS.length;
+  return DISTINCT_COLORS[index];
 };
 
 /**

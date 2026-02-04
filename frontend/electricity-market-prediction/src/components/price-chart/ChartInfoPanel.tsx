@@ -63,6 +63,11 @@ export const ChartInfoPanel: React.FC<ChartInfoPanelProps> = ({
     showIntraday = false,
     showInterconnection = false,
 }) => {
+    // #region agent log
+    React.useEffect(() => {
+        fetch('http://127.0.0.1:7242/ingest/e4915982-d3b9-498e-9d28-1526983920b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChartInfoPanel.tsx:56',message:'ChartInfoPanel render',data:{hasHoveredData:!!hoveredData,hoveredTimestamp:hoveredData?.timestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    }, [hoveredData]);
+    // #endregion
     // Format delta value with color
     const formatDelta = (value: number | null | undefined) => {
         if (value === null || value === undefined) return null;
@@ -107,8 +112,8 @@ export const ChartInfoPanel: React.FC<ChartInfoPanelProps> = ({
             }}
         >
             {!hoveredData ? (
-                <Typography variant="caption" sx={{ color: colors.subText, fontStyle: 'italic' }}>
-                    —
+                <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.6 }}>
+                    移動滑鼠至圖表查看詳情
                 </Typography>
             ) : (
                 <>

@@ -1,9 +1,11 @@
 import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography, CircularProgress } from '@mui/material';
 import { PriceChart } from '@/components/price-chart';
+import { ModelSelector } from '@/components/price-chart/ModelSelector';
 import WeatherChartSection from '@/components/WeatherChartSection';
 import MarketInfoPanel from '@/components/MarketInfoPanel';
 import { ChartDataPoint } from '@/utils/chartUtils';
+import { PredictionModel, CalculatingDate } from '@/types';
 
 interface PriceChartSectionProps {
     chartData: ChartDataPoint[];
@@ -14,10 +16,20 @@ interface PriceChartSectionProps {
     intradayData: any[];
     interconnectionData: any[];
     occtoAreaData: any[];
-    selectedModels: any[];
+    selectedModels: Array<{
+        id: string | number;
+        name: string;
+        color: string;
+        calculatingDate: string;
+    }>;
+    availableModels: PredictionModel[];
+    calculatingDatesByModel: { [key: string]: CalculatingDate[] };
     startDate: Date | null;
     endDate: Date | null;
     selectedArea: string;
+    isFetchingPredictions?: boolean;
+    onModelToggle: (modelId: string | number, modelName: string) => void;
+    onModelCalculatingDateChange: (modelIndex: number, newDate: string) => void;
 }
 
 const PriceChartSection: React.FC<PriceChartSectionProps> = ({
@@ -30,25 +42,75 @@ const PriceChartSection: React.FC<PriceChartSectionProps> = ({
     interconnectionData,
     occtoAreaData,
     selectedModels,
+    availableModels,
+    calculatingDatesByModel,
     startDate,
     endDate,
-    selectedArea
+    selectedArea,
+    isFetchingPredictions = false,
+    onModelToggle,
+    onModelCalculatingDateChange,
 }) => {
     return (
         <Box sx={{ mt: 3 }}>
-            <Paper sx={{ p: 3, mb: 3 }}>
+            <Paper sx={{ p: 3, mb: 3, position: 'relative' }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
                     Price Prediction Comparison
                 </Typography>
-                <PriceChart
-                    chartData={chartData}
-                    areaName={selectedArea}
-                    selectedModels={selectedModels}
-                    imbalanceData={imbalanceData}
-                    intradayData={intradayData}
-                    interconnectionData={interconnectionData}
-                    occtoAreaData={occtoAreaData}
+                
+                {/* Model Selector - Above Chart */}
+                <ModelSelector
+                    models={selectedModels}
+                    availableModels={availableModels}
+                    calculatingDatesByModel={calculatingDatesByModel}
+                    maxSelection={5}
+                    onModelToggle={onModelToggle}
+                    onCalculatingDateChange={onModelCalculatingDateChange}
                 />
+
+                <Box sx={{ position: 'relative' }}>
+                    <PriceChart
+                        chartData={chartData}
+                        areaName={selectedArea}
+                        selectedModels={selectedModels}
+                        imbalanceData={imbalanceData}
+                        intradayData={intradayData}
+                        interconnectionData={interconnectionData}
+                        occtoAreaData={occtoAreaData}
+                    />
+                    {/* Loading Overlay */}
+                    {isFetchingPredictions && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 1000,
+                                borderRadius: 1
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 2
+                                }}
+                            >
+                                <CircularProgress size={40} />
+                                <Typography variant="body2" sx={{ color: 'white' }}>
+                                    Loading predictions...
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
             </Paper>
 
             <MarketInfoPanel

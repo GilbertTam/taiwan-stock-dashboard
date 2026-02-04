@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { format, subDays, subMonths, addMonths } from 'date-fns';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { format, subDays, subMonths, addMonths, isValid } from 'date-fns';
 import {
     fetchAreas,
     fetchPredictionModels,
@@ -18,6 +18,7 @@ import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, Wea
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
+
 
 export const useMarketData = () => {
     const { logout } = useAuth();
@@ -38,8 +39,18 @@ export const useMarketData = () => {
     const [endDate, setEndDate] = useState<Date | null>(new Date());
     const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
 
+    // Debounce dates for fetching
+    // Removed debounce as per user request to fetch on selection completion instead
+    // const debouncedDateRange = useDebounce(dateRange, 500);
+
     const [actualPrices, setActualPrices] = useState<AreaPrice[]>([]);
     const [predictionsByModel, setPredictionsByModel] = useState<{ [key: string]: PricePrediction[] }>({});
+
+    // Cache State
+    const [cachedPredictionsByModel, setCachedPredictionsByModel] = useState<{ [key: string]: PricePrediction[] }>({});
+    // Ref to hold the latest cache value for reading inside callbacks without dependency loops
+    const cacheRef = useRef(cachedPredictionsByModel);
+
     const [weatherActual, setWeatherActual] = useState<WeatherData[]>([]);
     const [weatherForecast, setWeatherForecast] = useState<WeatherData[]>([]);
     const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
@@ -48,7 +59,18 @@ export const useMarketData = () => {
     const [occtoAreaData, setOcctoAreaData] = useState<OcctoAreaData[]>([]);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isFetchingPredictions, setIsFetchingPredictions] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Refs for race condition handling
+    const latestActualDataRequestId = useRef<number>(0);
+    const latestPredictionRequestId = useRef<number>(0);
+    const latestCalcDateRequestId = useRef<number>(0);
+
+    // Sync cache ref whenever state changes
+    useEffect(() => {
+        cacheRef.current = cachedPredictionsByModel;
+    }, [cachedPredictionsByModel]);
 
     // Initial Data Fetch
     useEffect(() => {
@@ -88,6 +110,9 @@ export const useMarketData = () => {
     useEffect(() => {
         const fetchAllCalculatingDates = async () => {
             if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) return;
+            if (!isValid(startDate) || !isValid(endDate)) return;
+
+            const requestId = ++latestCalcDateRequestId.current;
 
             try {
                 const formattedStartDate = format(startDate, 'yyyyMMdd');
@@ -102,10 +127,16 @@ export const useMarketData = () => {
                     }).then(dates => ({
                         modelKey: `${model.id}|${model.name}`,
                         dates
-                    }))
+                    })).catch(err => {
+                        console.warn(`Failed to fetch calculating dates for ${model.name}`, err);
+                        return { modelKey: `${model.id}|${model.name}`, dates: [] }; // Return empty on error
+                    })
                 );
 
                 const results = await Promise.all(datesPromises);
+
+                // Race condition guard
+                if (requestId !== latestCalcDateRequestId.current) return;
 
                 const newCalculatingDatesByModel: { [key: string]: CalculatingDate[] } = {};
                 results.forEach(result => {
@@ -114,24 +145,31 @@ export const useMarketData = () => {
 
                 setCalculatingDatesByModel(newCalculatingDatesByModel);
 
-                setSelectedModels(prev => prev.map(model => {
-                    const modelKey = `${model.id}|${model.name}`;
-                    const availableDates = newCalculatingDatesByModel[modelKey] || [];
-                    if (model.calculatingDate !== 'latest' &&
-                        !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
-                        return { ...model, calculatingDate: 'latest' };
-                    }
-                    return model;
-                }));
+                setSelectedModels(prev => {
+                    let hasChanges = false;
+                    const updatedModels = prev.map(model => {
+                        const modelKey = `${model.id}|${model.name}`;
+                        const availableDates = newCalculatingDatesByModel[modelKey] || [];
+                        // Check if current calculating date is valid for the new range
+                        if (model.calculatingDate !== 'latest' &&
+                            !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
+                            hasChanges = true;
+                            // Reset to latest if specific date is invalid in new range
+                            return { ...model, calculatingDate: 'latest' };
+                        }
+                        return model;
+                    });
+
+                    return hasChanges ? updatedModels : prev;
+                });
 
             } catch (err: any) {
+                if (requestId !== latestCalcDateRequestId.current) return;
                 console.error('獲取計算日期失敗', err);
-                if (err.response && err.response.status === 401) {
-                    setError('認證已過期，請重新登入');
-                    setTimeout(() => logout(), 2000);
-                }
+                // Don't log out here to avoid interrupting UX on minor failures
             }
         };
+
 
         fetchAllCalculatingDates();
     }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}`).join(','), startDate, endDate, logout]);
@@ -139,7 +177,9 @@ export const useMarketData = () => {
     // Fetch Actual Data
     const fetchActualData = useCallback(async () => {
         if (!selectedArea || !startDate || !endDate) return;
+        if (!isValid(startDate) || !isValid(endDate)) return;
 
+        const requestId = ++latestActualDataRequestId.current;
         setIsLoading(true);
         setError(null);
 
@@ -157,6 +197,7 @@ export const useMarketData = () => {
                 fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; })
             ]);
 
+            if (requestId !== latestActualDataRequestId.current) return;
 
             setActualPrices(actualData);
             setWeatherActual(weatherActualData);
@@ -166,6 +207,8 @@ export const useMarketData = () => {
             setInterconnectionData(interconnectionDataResult);
             setOcctoAreaData(occtoAreaDataResult);
         } catch (err: any) {
+            if (requestId !== latestActualDataRequestId.current) return;
+
             console.error('獲取實際數據失敗', err);
             if (err.response && err.response.status === 401) {
                 setError('認證已過期，請重新登入');
@@ -174,63 +217,130 @@ export const useMarketData = () => {
                 setError('獲取實際數據失敗');
             }
         } finally {
-            setIsLoading(false);
+            if (requestId === latestActualDataRequestId.current) {
+                setIsLoading(false);
+            }
         }
     }, [selectedArea, startDate, endDate, logout]);
 
-    // Fetch Prediction Data
+    // Fetch Prediction Data with caching
+    // KEY FIX: Removed cachedPredictionsByModel from dependency array to prevent double-fetching loop
     const fetchPredictionData = useCallback(async () => {
         if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
             setPredictionsByModel({});
+            setIsFetchingPredictions(false);
             return;
         }
+        if (!isValid(startDate) || !isValid(endDate)) return;
 
-        setIsLoading(true);
+        const requestId = ++latestPredictionRequestId.current;
+        setIsFetchingPredictions(true);
         setError(null);
 
         try {
             const formattedStartDate = format(startDate, 'yyyyMMdd');
             const formattedEndDate = format(endDate, 'yyyyMMdd');
             const predictionsData: { [key: string]: PricePrediction[] } = {};
+            const newCacheEntries: { [key: string]: PricePrediction[] } = {};
 
-            await Promise.all(selectedModels.map(async (model) => {
+            const modelsToFetch: Array<{
+                model: typeof selectedModels[0];
+                modelKey: string;
+                cacheKey: string;
+            }> = [];
+
+            // KEY FIX: Use cacheRef.current to check cache without creating dependency
+            const currentCache = cacheRef.current;
+
+            selectedModels.forEach((model) => {
                 const modelKey = `${model.id}|${model.name}`;
-                let modelPredictions;
+                const cacheKey = `${selectedArea}_${formattedStartDate}_${formattedEndDate}_${modelKey}_${model.calculatingDate}`;
 
-                if (model.calculatingDate === 'latest') {
-                    modelPredictions = await fetchPredictions({
-                        start_date: formattedStartDate,
-                        end_date: formattedEndDate,
-                        area_name: selectedArea,
-                        model_name: model.name,
-                        latest_only: true
-                    });
+                if (currentCache[cacheKey]) {
+                    predictionsData[modelKey] = currentCache[cacheKey];
                 } else {
-                    const formattedCalculatingDate = format(new Date(model.calculatingDate), 'yyyyMMdd');
-                    modelPredictions = await fetchSpecificPredictions({
-                        start_date: formattedStartDate,
-                        end_date: formattedEndDate,
-                        area_name: selectedArea,
-                        model_name: model.name,
-                        calculating_date: formattedCalculatingDate
-                    });
+                    modelsToFetch.push({ model, modelKey, cacheKey });
                 }
-                predictionsData[modelKey] = modelPredictions;
-            }));
+            });
+
+            if (modelsToFetch.length > 0) {
+                // KEY FIX: Handle individual model failures so one bad request doesn't crash everything
+                await Promise.all(modelsToFetch.map(async ({ model, modelKey, cacheKey }) => {
+                    try {
+                        let modelPredictions: PricePrediction[];
+
+                        if (model.calculatingDate === 'latest') {
+                            modelPredictions = await fetchPredictions({
+                                start_date: formattedStartDate,
+                                end_date: formattedEndDate,
+                                area_name: selectedArea,
+                                model_name: model.name,
+                                latest_only: true
+                            });
+                        } else {
+                            const formattedCalculatingDate = format(new Date(model.calculatingDate), 'yyyyMMdd');
+                            modelPredictions = await fetchSpecificPredictions({
+                                start_date: formattedStartDate,
+                                end_date: formattedEndDate,
+                                area_name: selectedArea,
+                                model_name: model.name,
+                                calculating_date: formattedCalculatingDate
+                            });
+                        }
+
+                        // Only add to result if successful
+                        predictionsData[modelKey] = modelPredictions;
+                        newCacheEntries[cacheKey] = modelPredictions;
+                    } catch (err) {
+                        console.error(`Failed to fetch predictions for ${model.name}`, err);
+                        // We intentionally don't re-throw here so other models can still load.
+                        // You might want to track which models failed to show a specific error UI.
+                    }
+                }));
+
+                if (requestId !== latestPredictionRequestId.current) return;
+
+                if (Object.keys(newCacheEntries).length > 0) {
+                    setCachedPredictionsByModel(prev => ({ ...prev, ...newCacheEntries }));
+                }
+            }
+
+            if (requestId !== latestPredictionRequestId.current) return;
 
             setPredictionsByModel(predictionsData);
         } catch (err: any) {
+            if (requestId !== latestPredictionRequestId.current) return;
+
             console.error('獲取預測數據失敗', err);
+            // Only set global error if strictly needed, otherwise partial data is better
             if (err.response && err.response.status === 401) {
                 setError('認證已過期，請重新登入');
                 setTimeout(() => logout(), 2000);
-            } else {
-                setError('獲取預測數據失敗');
             }
         } finally {
-            setIsLoading(false);
+            if (requestId === latestPredictionRequestId.current) {
+                setIsFetchingPredictions(false);
+            }
         }
-    }, [selectedArea, selectedModels, startDate, endDate, logout]);
+    }, [selectedArea, selectedModels, startDate, endDate, logout]); // Removed cachedPredictionsByModel
+
+    // Clear cache when area or date range changes
+    useEffect(() => {
+        if (selectedArea && startDate && endDate && isValid(startDate) && isValid(endDate)) {
+            const formattedStartDate = format(startDate, 'yyyyMMdd');
+            const formattedEndDate = format(endDate, 'yyyyMMdd');
+
+            setCachedPredictionsByModel(prev => {
+                const newCache: { [key: string]: PricePrediction[] } = {};
+                Object.keys(prev).forEach(key => {
+                    if (key.startsWith(`${selectedArea}_${formattedStartDate}_${formattedEndDate}_`)) {
+                        newCache[key] = prev[key];
+                    }
+                });
+                return newCache;
+            });
+        }
+    }, [selectedArea, startDate, endDate]);
 
     // Re-fetch when dependencies change
     useEffect(() => {
@@ -332,6 +442,7 @@ export const useMarketData = () => {
         interconnectionData,
         occtoAreaData,
         isLoading,
+        isFetchingPredictions,
         error,
         setStartDate,
         setEndDate,

@@ -32,6 +32,7 @@ export default function ElectricityPriceComparison() {
     interconnectionData,
     occtoAreaData,
     isLoading,
+    isFetchingPredictions,
     error,
     handleAreaChange,
     handleModelChange,
@@ -45,6 +46,16 @@ export default function ElectricityPriceComparison() {
 
   // Analysis Settings
   const [topBottomPairs, setTopBottomPairs] = useState<number>(4);
+
+  // Local state for date selection (buffer before fetch)
+  const [tempStartDate, setTempStartDate] = useState<Date | null>(startDate);
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(endDate);
+
+  // Sync local state with global state when global state changes (e.g. presets)
+  useMemo(() => {
+    setTempStartDate(startDate);
+    setTempEndDate(endDate);
+  }, [startDate, endDate]);
 
   const handleDownloadCsv = async () => {
     try {
@@ -159,22 +170,28 @@ export default function ElectricityPriceComparison() {
 
       <FilterPanel
         areas={areas}
-        models={models}
         selectedArea={selectedArea}
-        selectedModels={selectedModels}
-        calculatingDatesByModel={calculatingDatesByModel}
-        startDate={startDate}
-        endDate={endDate}
+        startDate={tempStartDate}
+        endDate={tempEndDate}
         dateRangePreset={dateRangePreset}
         onAreaChange={handleAreaChange}
-        onModelChange={handleModelChange}
-        onModelCalculatingDateChange={handleModelCalculatingDateChange}
         onDateRangePreset={handleDateRangePreset}
         onDateRangeChange={(ranges) => {
-          setStartDate(ranges.selection.startDate);
-          setEndDate(ranges.selection.endDate);
-          if (ranges.selection.startDate !== ranges.selection.endDate) {
+          const newStart = ranges.selection.startDate;
+          const newEnd = ranges.selection.endDate;
+          setTempStartDate(newStart);
+          setTempEndDate(newEnd);
+
+          if (newStart && newEnd && newStart.getTime() !== newEnd.getTime()) {
+            setStartDate(newStart);
+            setEndDate(newEnd);
             handleDateRangePreset(null);
+          }
+        }}
+        onDateMenuClose={() => {
+          if (tempStartDate && tempEndDate) {
+            setStartDate(tempStartDate);
+            setEndDate(tempEndDate);
           }
         }}
         onMoveMonthBackward={handleMoveMonthBackward}
@@ -185,7 +202,7 @@ export default function ElectricityPriceComparison() {
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
-          {/* Can add a loading skeleton here if needed, but FilterPanel has loading state too */}
+          {/* Initial loading - show full page loading */}
           Loading...
         </Box>
       ) : (
@@ -201,9 +218,22 @@ export default function ElectricityPriceComparison() {
               interconnectionData={interconnectionData}
               occtoAreaData={occtoAreaData}
               selectedModels={selectedModels}
+              availableModels={models}
+              calculatingDatesByModel={calculatingDatesByModel}
               startDate={startDate}
               endDate={endDate}
               selectedArea={selectedArea}
+              isFetchingPredictions={isFetchingPredictions}
+              onModelToggle={(modelId, modelName) => {
+                const modelValue = `${modelId}|${modelName}`;
+                const currentValues = selectedModels.map(m => `${m.id}|${m.name}`);
+                const isSelected = currentValues.includes(modelValue);
+                const newValues = isSelected
+                  ? currentValues.filter(v => v !== modelValue)
+                  : [...currentValues, modelValue];
+                handleModelChange({ target: { value: newValues } } as any);
+              }}
+              onModelCalculatingDateChange={handleModelCalculatingDateChange}
             />
 
             <ModelPerformanceSection

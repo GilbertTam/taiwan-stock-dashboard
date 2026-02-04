@@ -15,51 +15,41 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
-import { Area, PredictionModel, CalculatingDate } from '@/types';
+import { Area } from '@/types';
 
 interface FilterPanelProps {
     areas: Area[];
-    models: PredictionModel[];
     selectedArea: string;
-    selectedModels: {
-        id: string | number;
-        name: string;
-        color: string;
-        calculatingDate: string;
-    }[];
-    calculatingDatesByModel: { [key: string]: CalculatingDate[] };
     startDate: Date | null;
     endDate: Date | null;
     dateRangePreset: string | null;
     onAreaChange: (event: SelectChangeEvent) => void;
-    onModelChange: (event: SelectChangeEvent<string[]>) => void;
-    onModelCalculatingDateChange: (modelIndex: number, newDate: string) => void;
     onDateRangePreset: (preset: string | null) => void;
     onDateRangeChange: (ranges: any) => void;
     onMoveMonthBackward: () => void;
     onMoveMonthForward: () => void;
     onRefresh: () => void;
+
+
     onDownloadCsv: () => void;
+    onDateMenuClose?: () => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
     areas,
-    models,
     selectedArea,
-    selectedModels,
-    calculatingDatesByModel,
     startDate,
     endDate,
     dateRangePreset,
     onAreaChange,
-    onModelChange,
-    onModelCalculatingDateChange,
     onDateRangePreset,
     onDateRangeChange,
     onMoveMonthBackward,
     onMoveMonthForward,
     onRefresh,
+
     onDownloadCsv,
+    onDateMenuClose,
 }) => {
     const theme = useTheme();
 
@@ -72,6 +62,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
     const handleDateClose = () => {
         setAnchorEl(null);
+        if (onDateMenuClose) {
+            onDateMenuClose();
+        }
     };
 
     const openDateData = Boolean(anchorEl);
@@ -169,14 +162,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     }, [openDateData, anchorEl]);
     const idDateData = openDateData ? 'date-range-popover' : undefined;
 
-    const modelOptions = models.map(model => ({
-        id: model.id,
-        name: model.name,
-        value: `${model.id}|${model.name}`
-    }));
-
-    const selectedModelValues = selectedModels.map(m => `${m.id}|${m.name}`);
-
     const formatCalcDate = (dateVal: string | number) => {
         if (dateVal === 'latest') return '最新';
         if (!dateVal) return '';
@@ -224,7 +209,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
             <Grid container spacing={3}>
                 {/* Area Selection */}
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12}>
                     <FormControl fullWidth size="small">
                         <InputLabel>選擇地區</InputLabel>
                         <Select
@@ -252,117 +237,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                         </Select>
                     </FormControl>
                 </Grid>
-
-                {/* Model Selection - Toggle Buttons */}
-                <Grid item xs={12} md={8}>
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'text.secondary' }}>
-                            選擇模型 (最多5個)
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {modelOptions.map((option) => {
-                                const isSelected = selectedModelValues.includes(option.value);
-                                const isDisabled = selectedModelValues.length >= 5 && !isSelected;
-                                const model = selectedModels.find(m => `${m.id}|${m.name}` === option.value);
-
-                                return (
-                                    <Button
-                                        key={option.value}
-                                        variant={isSelected ? 'contained' : 'outlined'}
-                                        size="small"
-                                        disabled={isDisabled}
-                                        onClick={() => {
-                                            const newValues = isSelected
-                                                ? selectedModelValues.filter(v => v !== option.value)
-                                                : [...selectedModelValues, option.value];
-                                            onModelChange({ target: { value: newValues } } as SelectChangeEvent<string[]>);
-                                        }}
-                                        sx={{
-                                            borderRadius: '16px',
-                                            px: 2,
-                                            py: 0.5,
-                                            textTransform: 'none',
-                                            borderColor: model?.color || theme.palette.divider,
-                                            backgroundColor: isSelected
-                                                ? (model ? `${model.color}` : theme.palette.primary.main)
-                                                : 'transparent',
-                                            color: isSelected
-                                                ? theme.palette.getContrastText(model?.color || theme.palette.primary.main)
-                                                : (model?.color || theme.palette.text.primary),
-                                            '&:hover': {
-                                                backgroundColor: isSelected
-                                                    ? (model ? `${model.color}dd` : theme.palette.primary.dark)
-                                                    : (model ? `${model.color}22` : theme.palette.action.hover),
-                                                borderColor: model?.color || theme.palette.primary.main,
-                                            },
-                                            '&.Mui-disabled': {
-                                                opacity: 0.5,
-                                            }
-                                        }}
-                                        startIcon={
-                                            model ? (
-                                                <Box
-                                                    sx={{
-                                                        width: 10,
-                                                        height: 10,
-                                                        borderRadius: '50%',
-                                                        backgroundColor: isSelected ? '#fff' : model.color,
-                                                    }}
-                                                />
-                                            ) : null
-                                        }
-                                    >
-                                        {option.name}
-                                    </Button>
-                                );
-                            })}
-                        </Box>
-                        {selectedModels.length >= 5 && (
-                            <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                                最多可選擇5個模型進行比較
-                            </Typography>
-                        )}
-                    </Box>
-                </Grid>
-
-                {/* Model Calculating Date Selection - Only shown if models are selected */}
-                {selectedModels.length > 0 && (
-                    <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 1 }}>
-                            <Typography variant="subtitle2" color="text.secondary">模型計算日期設定:</Typography>
-                            <Grid container spacing={2}>
-                                {selectedModels.map((model, index) => {
-                                    const modelKey = `${model.id}|${model.name}`;
-                                    const availableDates = calculatingDatesByModel[modelKey] || [];
-
-                                    return (
-                                        <Grid item xs={12} sm={6} md={4} key={modelKey}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: model.color }}></div>
-                                                <Typography variant="body2" noWrap sx={{ minWidth: 80, fontWeight: 'bold' }}>{model.name}:</Typography>
-                                                <FormControl size="small" fullWidth>
-                                                    <Select
-                                                        value={model.calculatingDate}
-                                                        onChange={(e) => onModelCalculatingDateChange(index, e.target.value)}
-                                                        displayEmpty
-                                                        sx={{ height: 32, fontSize: '0.875rem' }}
-                                                    >
-                                                        <MenuItem value="latest">最新預測</MenuItem>
-                                                        {availableDates.map(d => (
-                                                            <MenuItem key={d.calculating_date} value={d.calculating_date}>
-                                                                {formatCalcDate(d.calculating_date)}
-                                                            </MenuItem>
-                                                        ))}
-                                                    </Select>
-                                                </FormControl>
-                                            </Box>
-                                        </Grid>
-                                    );
-                                })}
-                            </Grid>
-                        </Box>
-                    </Grid>
-                )}
 
                 {/* Date Selection */}
                 <Grid item xs={12}>
@@ -520,7 +394,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                             >
                                 <DateRange
                                     editableDateInputs={true}
-                                    onChange={onDateRangeChange}
+                                    onChange={(ranges) => {
+                                        onDateRangeChange(ranges);
+                                        const { startDate, endDate } = ranges.selection;
+                                        if (startDate && endDate && startDate.getTime() !== endDate.getTime()) {
+                                            setAnchorEl(null);
+                                        }
+                                    }}
                                     moveRangeOnFirstSelection={false}
                                     ranges={[
                                         {

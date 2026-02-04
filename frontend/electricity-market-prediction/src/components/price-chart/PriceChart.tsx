@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react'; // Added useMemo
 import { Box, Typography, Paper, Chip } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 
@@ -10,8 +10,8 @@ import { ChartDataPoint } from '@/utils/chartUtils';
 
 // Components
 import { PriceChartControls } from './PriceChartControls';
-import { PriceChartCanvas } from './PriceChartCanvas';
-import { ZScoreChart } from './ZScoreChart';
+import { PriceChartECharts } from './PriceChartECharts';
+import { ZScoreChartECharts } from './ZScoreChartECharts';
 import { ChartInfoPanel } from './ChartInfoPanel';
 
 // Context
@@ -36,6 +36,12 @@ interface PriceChartProps {
     occtoAreaData?: OcctoAreaData[];
 }
 
+// Optimization: Memoize the chart component to prevent heavy re-renders 
+// when parent state (like hoveredData text) updates, although it consumes Context, 
+// explicit memoization helps signal intent and blocks prop-based re-renders.
+const MemoizedPriceChartECharts = React.memo(PriceChartECharts);
+const MemoizedZScoreChartECharts = React.memo(ZScoreChartECharts);
+
 const PriceChartContent: React.FC = () => {
     const {
         areaName,
@@ -47,7 +53,7 @@ const PriceChartContent: React.FC = () => {
         showPredictionRange,
         processedChartData,
         showZScore,
-        // Hover state
+        // Hover state - This is what updates when you move the mouse
         hoveredData,
         showImbalance,
         showIntraday,
@@ -145,7 +151,11 @@ const PriceChartContent: React.FC = () => {
                 </Box>
             </Box>
 
-            {/* TradingView-style Info Panel - Fixed header above chart */}
+            {/* TradingView-style Info Panel
+                This component receives the hoveredData from Context (via props here).
+                Since we fixed the trigger in PriceChartECharts, this panel will now
+                correctly update from "Move mouse..." to actual values.
+            */}
             <ChartInfoPanel
                 hoveredData={hoveredData}
                 selectedModels={selectedModels}
@@ -157,10 +167,12 @@ const PriceChartContent: React.FC = () => {
                 showInterconnection={showInterconnection}
             />
 
-            {/* Canvas consumes context internally */}
-            <PriceChartCanvas />
+            {/* ECharts Implementation - Using Memoized version */}
+            {/* It consumes context internally for data */}
+            <MemoizedPriceChartECharts />
 
-            <ZScoreChart
+            {/* ZScore Chart - Using Memoized version */}
+            <MemoizedZScoreChartECharts
                 showZScore={showZScore}
                 processedChartData={processedChartData}
                 colors={colors}
@@ -174,9 +186,9 @@ const PriceChartContent: React.FC = () => {
 const PriceChart: React.FC<PriceChartProps> = (props) => {
     const { darkMode } = useTheme();
 
-    // Memoize colors if needed, but Context handles it too. 
-    // Ideally pass basic colors to Provider.
-    const colors = {
+    // Context handles the passing of these colors, but we define them here
+    // to pass into the Provider.
+    const colors = useMemo(() => ({
         actual: darkMode ? '#ff4d4f' : '#cf1322',
         grid: darkMode ? '#333' : '#e6e6e6',
         background: darkMode ? '#1a1a1a' : '#ffffff',
@@ -197,7 +209,7 @@ const PriceChart: React.FC<PriceChartProps> = (props) => {
         interconnection: darkMode ? '#ff7300' : '#ff7300',
         intraday: darkMode ? '#82ca9d' : '#82ca9d',
         occtoArea: darkMode ? '#ffc658' : '#ffc658',
-    };
+    }), [darkMode]);
 
     return (
         <PriceChartProvider {...props} darkMode={darkMode} colors={colors}>

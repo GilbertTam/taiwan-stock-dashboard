@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
 import { useChartData } from '../hooks/useChartData';
@@ -25,20 +25,10 @@ interface PriceChartState {
     modelColorMap: Record<string, string>;
     modelMAEs: Record<string, number>;
 
-    // Hover state for crosshair and info panel
+    // Hover state for info panel
     hoveredData: ProcessedDataPoint | null;
     setHoveredData: (data: ProcessedDataPoint | null) => void;
-    hoveredX: number | null;
-    setHoveredX: (x: number | null) => void;
-
-    // Drag-to-pan state for time axis
-    xAxisDomain: [number, number] | ['dataMin', 'dataMax'];
-    isDragging: boolean;
-    setIsDragging: (val: boolean) => void;
-    dragStartX: number | null;
-    setDragStartX: (val: number | null) => void;
-    handleChartPan: (deltaX: number) => void;
-    resetZoom: () => void;
+    // Removed hoveredX as it was synced with manual drag/hover logic mostly
 
     // UI Toggles
     showPredictionRange: boolean;
@@ -126,11 +116,10 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
     const [selectedOcctoFields, setSelectedOcctoFields] = useState<Set<string>>(new Set(['area_demand']));
     const [occtoChartType, setOcctoChartType] = useState<'line' | 'stacked'>('line');
-    const [showZScore, setShowZScore] = useState(false);
+    const [showZScore, setShowZScore] = useState(true);
 
-    // Hover state for crosshair and info panel
+    // Hover state for info panel
     const [hoveredData, setHoveredData] = useState<ProcessedDataPoint | null>(null);
-    const [hoveredX, setHoveredX] = useState<number | null>(null);
 
     // Use existing hook for now (will refactor later)
     const {
@@ -154,58 +143,6 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedOcctoFields
     });
 
-    // Drag-to-pan state for time axis
-    const [xAxisDomain, setXAxisDomain] = useState<[number, number] | ['dataMin', 'dataMax']>(['dataMin', 'dataMax']);
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStartX, setDragStartX] = useState<number | null>(null);
-
-    // Handle chart panning - deltaX is in pixels, convert to time offset
-    const handleChartPan = useCallback((deltaX: number) => {
-        if (!processedChartData || processedChartData.length < 2) return;
-
-        // Get current time range
-        const dataMinTime = processedChartData[0].timestamp;
-        const dataMaxTime = processedChartData[processedChartData.length - 1].timestamp;
-        const currentRange = dataMaxTime - dataMinTime;
-
-        // Approximate chart width (pixels) - we use a rough estimate
-        const chartWidthPixels = 800;
-
-        // Calculate time offset (deltaX positive = drag right = move earlier)
-        const timeOffset = (deltaX / chartWidthPixels) * currentRange;
-
-        setXAxisDomain(prevDomain => {
-            let minTime: number, maxTime: number;
-
-            if (typeof prevDomain[0] === 'string' || typeof prevDomain[1] === 'string') {
-                minTime = dataMinTime;
-                maxTime = dataMaxTime;
-            } else {
-                minTime = prevDomain[0];
-                maxTime = prevDomain[1];
-            }
-
-            // Apply offset (dragging right moves domain left, so negate)
-            const newMin = minTime - timeOffset;
-            const newMax = maxTime - timeOffset;
-
-            // Clamp to data bounds
-            if (newMin < dataMinTime) {
-                return [dataMinTime, dataMinTime + (maxTime - minTime)];
-            }
-            if (newMax > dataMaxTime) {
-                return [dataMaxTime - (maxTime - minTime), dataMaxTime];
-            }
-
-            return [newMin, newMax];
-        });
-    }, [processedChartData]);
-
-    // Reset zoom to show all data
-    const resetZoom = useCallback(() => {
-        setXAxisDomain(['dataMin', 'dataMax']);
-    }, []);
-
     const value = useMemo(() => ({
         processedChartData,
         priceRange,
@@ -214,8 +151,6 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         modelColorMap,
         modelMAEs,
         hoveredData, setHoveredData,
-        hoveredX, setHoveredX,
-        xAxisDomain, isDragging, setIsDragging, dragStartX, setDragStartX, handleChartPan, resetZoom,
         showPredictionRange, setShowPredictionRange,
         showImbalance, setShowImbalance,
         showIntraday, setShowIntraday,
@@ -238,8 +173,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         darkMode
     }), [
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
-        hoveredData, hoveredX,
-        xAxisDomain, isDragging, dragStartX, handleChartPan, resetZoom,
+        hoveredData,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showZScore,
         chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, adjacentPointsCount, showSettings,
         imbalanceData, intradayData, interconnectionData, occtoAreaData,
