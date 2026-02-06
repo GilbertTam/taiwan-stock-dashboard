@@ -1,18 +1,11 @@
 import React, { useMemo } from 'react';
-import {
-  ComposedChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine
-} from 'recharts';
-import { Box, Paper, Typography, useTheme as useMuiTheme } from '@mui/material';
-import { format, parseISO } from 'date-fns';
+import type { EChartsOption } from 'echarts';
+import { Box, Typography } from '@mui/material';
+import { format } from 'date-fns';
+
+import { useTheme } from '@/app/ThemeProvider';
+import { useChartColors } from '@/utils/chartColors';
+import BaseChart from '@/components/charts/BaseChart';
 
 interface InterconnectionFlow {
   datetime: string;
@@ -38,8 +31,8 @@ const downsampleData = (data: any[], threshold = 300) => {
 };
 
 const InterconnectionChart: React.FC<InterconnectionChartProps> = ({ data }) => {
-  const muiTheme = useMuiTheme();
-  const isDarkMode = muiTheme.palette.mode === 'dark';
+  const { darkMode } = useTheme();
+  const colors = useChartColors();
 
   // 使用 useMemo 處理數據轉換與降採樣
   const processedData = useMemo(() => {
@@ -62,136 +55,161 @@ const InterconnectionChart: React.FC<InterconnectionChartProps> = ({ data }) => 
     return downsampleData(mapped, 500); // 限制最大顯示點數為 500
   }, [data]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const d = payload[0].payload;
-      return (
-        <Paper sx={{ p: 1.5, backgroundColor: 'rgba(20, 20, 20, 0.95)', border: '1px solid #555', fontSize: '12px' }}>
-          <Typography variant="subtitle2" sx={{ color: '#fff', mb: 1, fontWeight: 'bold' }}>
-            {format(parseISO(d.datetime), 'MM/dd HH:mm')}
-          </Typography>
+  const option = useMemo<EChartsOption>(() => {
+    if (!processedData || processedData.length === 0) return {};
 
-          {/* 淨流量差異展示 */}
-          <Box sx={{ mb: 1.5, pb: 1, borderBottom: '1px solid #444' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-              <Typography variant="body2" sx={{ color: '#fff' }}>淨流量 (Net Flow):</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', color: d.net_flow >= 0 ? '#82ca9d' : '#8884d8' }}>
-                {d.net_flow > 0 ? `Reverse +${d.net_flow.toFixed(1)}` : `Forward ${d.net_flow.toFixed(1)}`} MW
-              </Typography>
-            </Box>
-          </Box>
+    const times = processedData.map((d: any) => new Date(d.datetime).getTime());
+    const dataMinTime = times[0];
+    const dataMaxTime = times[times.length - 1];
 
-          {/* Reverse 區塊 */}
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="caption" sx={{ color: '#82ca9d', fontWeight: 'bold' }}>Reverse (流進)</Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-              <span style={{ color: '#ccc' }}>流量:</span>
-              <span style={{ color: '#fff' }}>{Math.abs(d.reverse_planned_flow)} MW</span>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-              <span style={{ color: '#888' }}>容量:</span>
-              <span style={{ color: '#aaa' }}>{d.reverse_available_capacity} MW</span>
-            </Box>
-          </Box>
+    const tooltipFormatter = (params: any) => {
+      const list = Array.isArray(params) ? params : [params];
+      const ts = list?.[0]?.value?.[0];
+      const dataIndex = list?.[0]?.dataIndex ?? 0;
+      const d = processedData[dataIndex] as any;
+      const header = ts ? format(new Date(ts), 'MM/dd HH:mm') : '';
 
-          {/* Forward 區塊 */}
-          <Box>
-            <Typography variant="caption" sx={{ color: '#8884d8', fontWeight: 'bold' }}>Forward (流出)</Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-              <span style={{ color: '#ccc' }}>流量:</span>
-              <span style={{ color: '#fff' }}>{Math.abs(d.forward_planned_flow)} MW</span>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-              <span style={{ color: '#888' }}>容量:</span>
-              <span style={{ color: '#aaa' }}>{d.forward_available_capacity} MW</span>
-            </Box>
-          </Box>
-        </Paper>
-      );
-    }
-    return null;
-  };
+      if (!d) return '';
+
+      const netFlow = Number(d.net_flow ?? 0);
+      const netColor = netFlow >= 0 ? colors.rainActual : colors.imbalance;
+      const netText =
+        netFlow > 0 ? `Reverse +${netFlow.toFixed(1)}` : `Forward ${netFlow.toFixed(1)}`;
+
+      const reverseFlow = Math.abs(Number(d.reverse_planned_flow ?? 0));
+      const forwardFlow = Math.abs(Number(d.forward_planned_flow ?? 0));
+
+      return `
+        <div style="
+          padding:12px;
+          border:1px solid ${colors.tooltipBorder};
+          background:${colors.tooltipBg};
+          color:${colors.text};
+          box-shadow:0 4px 10px rgba(0,0,0,0.5);
+          min-width:240px;
+          font-size:12px;
+          pointer-events:none;
+        ">
+          <div style="font-weight:800;margin-bottom:8px;">${header}</div>
+
+          <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid ${darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'};">
+            <div style="display:flex;justify-content:space-between;gap:16px;">
+              <span>淨流量 (Net Flow):</span>
+              <span style="font-weight:800;color:${netColor};">${netText} MW</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <div style="font-weight:800;color:${colors.rainActual};margin-bottom:4px;">Reverse (流進)</div>
+            <div style="display:flex;justify-content:space-between;gap:16px;">
+              <span style="color:${darkMode ? '#ccc' : '#666'};">流量:</span>
+              <span style="font-weight:700;">${reverseFlow.toFixed(0)} MW</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;">
+              <span style="color:${darkMode ? '#aaa' : '#777'};">容量:</span>
+              <span style="color:${colors.subText};">${Number(d.reverse_available_capacity ?? 0).toFixed(0)} MW</span>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-weight:800;color:${colors.imbalance};margin-bottom:4px;">Forward (流出)</div>
+            <div style="display:flex;justify-content:space-between;gap:16px;">
+              <span style="color:${darkMode ? '#ccc' : '#666'};">流量:</span>
+              <span style="font-weight:700;">${forwardFlow.toFixed(0)} MW</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;">
+              <span style="color:${darkMode ? '#aaa' : '#777'};">容量:</span>
+              <span style="color:${colors.subText};">${Number(d.forward_available_capacity ?? 0).toFixed(0)} MW</span>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    return {
+      grid: { left: 50, right: 30, top: 20, bottom: 55, containLabel: true },
+      legend: {
+        bottom: 0,
+        height: 36,
+        textStyle: { color: colors.text, fontSize: 12 },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        extraCssText: 'pointer-events:none;',
+        formatter: tooltipFormatter as any,
+      },
+      xAxis: {
+        type: 'time',
+        min: dataMinTime,
+        max: dataMaxTime,
+        axisLabel: { color: colors.text, fontSize: 11, hideOverlap: true },
+        axisLine: { lineStyle: { color: colors.grid } },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { color: colors.text, fontSize: 11 },
+        splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } },
+      },
+      series: [
+        {
+          name: 'Reverse 容量',
+          type: 'line',
+          showSymbol: false,
+          smooth: true,
+          lineStyle: { color: colors.rainActual, width: 2, type: 'dashed', opacity: 0.8 },
+          data: processedData.map((d: any) => [new Date(d.datetime).getTime(), d.display_reverse_capacity]),
+        },
+        {
+          name: 'Forward 容量',
+          type: 'line',
+          showSymbol: false,
+          smooth: true,
+          lineStyle: { color: colors.imbalance, width: 2, type: 'dashed', opacity: 0.8 },
+          data: processedData.map((d: any) => [new Date(d.datetime).getTime(), d.display_forward_capacity]),
+        },
+        {
+          name: 'Reverse 流進',
+          type: 'line',
+          showSymbol: false,
+          step: 'end',
+          lineStyle: { color: colors.rainActual, width: 2 },
+          areaStyle: { color: colors.rainActual, opacity: 0.25 },
+          data: processedData.map((d: any) => [new Date(d.datetime).getTime(), d.display_reverse_flow]),
+        },
+        {
+          name: 'Forward 流出',
+          type: 'line',
+          showSymbol: false,
+          step: 'end',
+          lineStyle: { color: colors.imbalance, width: 2 },
+          areaStyle: { color: colors.imbalance, opacity: 0.25 },
+          data: processedData.map((d: any) => [new Date(d.datetime).getTime(), d.display_forward_flow]),
+        },
+        {
+          name: 'Zero',
+          type: 'line',
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color: darkMode ? '#666' : '#999', width: 1 },
+            data: [{ yAxis: 0 }],
+          },
+        } as any,
+      ],
+      animation: false,
+    };
+  }, [processedData, colors, darkMode]);
 
   return (
     <Box sx={{ width: '100%', height: 350, mt: 2 }}>
       <Typography variant="subtitle1" gutterBottom fontWeight="bold">
         連系線流量與容量分析
       </Typography>
-
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart
-          data={processedData}
-          // [修正 1] 增加 bottom margin，給 Legend 留位子
-          margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#333' : '#eee'} vertical={false} />
-          <XAxis
-            dataKey="datetime"
-            tickFormatter={(t) => format(parseISO(t), 'MM/dd HH:mm')}
-            tick={{ fontSize: 11, fill: isDarkMode ? '#aaa' : '#666' }}
-            minTickGap={50}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: isDarkMode ? '#aaa' : '#666' }}
-            width={50}
-          />
-          <Tooltip content={<CustomTooltip />} />
-
-          {/* [修正 2] 明確定義 Legend 高度與位置 */}
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            wrapperStyle={{ bottom: 0, fontSize: '12px' }}
-          />
-
-          <ReferenceLine y={0} stroke={isDarkMode ? '#666' : '#999'} />
-
-          {/* [建議優化] 容量線改用 monotone，避免 step 造成的雜訊感 */}
-          <Line
-            type="monotone" // 改成 monotone 線條會比較乾淨
-            dataKey="display_reverse_capacity"
-            stroke="#82ca9d"
-            strokeDasharray="3 3"
-            strokeOpacity={0.8} // 稍微提高不透明度
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-            name="Reverse 容量"
-          />
-
-          <Line
-            type="monotone" // 改成 monotone
-            dataKey="display_forward_capacity"
-            stroke="#8884d8"
-            strokeDasharray="3 3"
-            strokeOpacity={0.8}
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-            name="Forward 容量"
-          />
-
-          <Area
-            type="step"
-            dataKey="display_reverse_flow"
-            fill="#82ca9d"
-            stroke="#82ca9d"
-            fillOpacity={0.6}
-            isAnimationActive={false}
-            name="Reverse 流進"
-          />
-          <Area
-            type="step"
-            dataKey="display_forward_flow"
-            fill="#8884d8"
-            stroke="#8884d8"
-            fillOpacity={0.6}
-            isAnimationActive={false}
-            name="Forward 流出"
-          />
-
-        </ComposedChart>
-      </ResponsiveContainer>
+      <BaseChart option={option} height="100%" />
     </Box>
   );
 };

@@ -2,7 +2,16 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { Alert, Snackbar } from '@mui/material';
-import ElectricityPriceComparison from '@/components/ElectricityPriceComparison';
+import { useMarketDataContext } from '@/context/MarketDataContext';
+import { prepareChartData } from '@/utils/chartUtils';
+import { FilterPanel } from '@/components/market-dashboard/FilterPanel';
+import { KeyMetricsCards } from '@/components/dashboard/KeyMetricsCards';
+import { QuickAccessCards } from '@/components/dashboard/QuickAccessCards';
+import { PriceTrendPreview } from '@/components/dashboard/PriceTrendPreview';
+import { DashboardShell } from '@/components/layout/DashboardShell';
+import { RightSidebar } from '@/components/layout/RightSidebar';
+import { format } from 'date-fns';
+import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 
 // Custom Loader with new styling
 const LoadingComponent = () => (
@@ -18,6 +27,43 @@ const LoadingComponent = () => (
 
 export default function Dashboard() {
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
+
+  // Use market data hook
+  const {
+    areas,
+    models,
+    calculatingDatesByModel,
+    selectedArea,
+    startDate,
+    endDate,
+    dateRangePreset,
+    selectedModels,
+    actualPrices,
+    predictionsByModel,
+    imbalanceData,
+    interconnectionData,
+    isLoading,
+    handleAreaChange,
+    handleModelChange,
+    handleModelCalculatingDateChange,
+    handleDateRangePreset,
+    setStartDate,
+    setEndDate,
+    handleMoveMonthBackward,
+    handleMoveMonthForward
+  } = useMarketDataContext();
+
+  // Local state for date selection (buffer before fetch)
+  const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
+    clearPreset: () => handleDateRangePreset(null),
+  });
+
+  // Prepare chart data for metrics
+  const chartData = prepareChartData(actualPrices, predictionsByModel);
 
   useEffect(() => {
     // Check if redirected from login
@@ -50,10 +96,68 @@ export default function Dashboard() {
         </Alert>
       </Snackbar>
 
-      {/* Main Content */}
-      <Suspense fallback={<LoadingComponent />}>
-        <ElectricityPriceComparison />
-      </Suspense>
+      {/* Filter Panel */}
+      <DashboardShell
+        main={
+          <>
+            <FilterPanel
+              areas={areas}
+              selectedArea={selectedArea}
+              startDate={tempStartDate}
+              endDate={tempEndDate}
+              dateRangePreset={dateRangePreset}
+              onAreaChange={handleAreaChange}
+              onDateRangePreset={handleDateRangePreset}
+              onDateRangeChange={onDateRangeChange}
+              onDateMenuClose={onDateMenuClose}
+              onMoveMonthBackward={handleMoveMonthBackward}
+              onMoveMonthForward={handleMoveMonthForward}
+              onRefresh={() => { }}
+              onDownloadCsv={() => { }}
+            />
+
+            <Suspense fallback={<LoadingComponent />}>
+              <div className="mt-6 space-y-8">
+                {/* Key Metrics Section */}
+                <section>
+                  <h2 className="text-xl font-bold mb-4 text-[var(--foreground)]">
+                    關鍵指標
+                  </h2>
+                  <KeyMetricsCards
+                    chartData={chartData}
+                    selectedModels={selectedModels}
+                    startDate={startDate}
+                    endDate={endDate}
+                    selectedArea={selectedArea}
+                    actualPrices={actualPrices}
+                    imbalanceData={imbalanceData}
+                    interconnectionData={interconnectionData}
+                    isLoading={isLoading}
+                  />
+                </section>
+
+                <hr className="border-[var(--card-border)]" />
+
+                {/* Quick Access Section */}
+                <section>
+                  <h2 className="text-xl font-bold mb-4 text-[var(--foreground)]">
+                    快速入口
+                  </h2>
+                  <QuickAccessCards />
+                </section>
+
+                <hr className="border-[var(--card-border)]" />
+
+                {/* Price Trend Preview */}
+                <section>
+                  <PriceTrendPreview chartData={chartData} selectedArea={selectedArea} />
+                </section>
+              </div>
+            </Suspense>
+          </>
+        }
+        sidebar={<RightSidebar />}
+      />
     </div>
   );
 }

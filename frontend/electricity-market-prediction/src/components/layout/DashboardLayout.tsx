@@ -1,26 +1,20 @@
 'use client';
 
 import { ReactNode } from 'react';
-import Header from './Header';
 
 interface DashboardLayoutProps {
-    children: ReactNode;
+  children: ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-
-    return (
-        <div className="min-h-screen bg-[var(--background)] flex flex-col">
-            <Header />
-
-            {/* Main Content Area */}
-            <main className="flex-1 p-6 pt-24 overflow-x-hidden" style={{ marginTop: '64px' }}>
-                <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
-                    {children}
-                </div>
-            </main>
-        </div>
-    );
+  return (
+    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+      {/* Main Content Area - TradingView-like maximized layout */}
+      <main className="flex-1 overflow-hidden">
+        {children}
+      </main>
+    </div>
+  );
 };
 
 // Add simple fade-in animation

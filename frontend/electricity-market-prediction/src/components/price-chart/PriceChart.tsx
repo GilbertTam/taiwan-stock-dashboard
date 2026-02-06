@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react'; // Added useMemo
+import React from 'react';
 import { Box, Typography, Paper, Chip } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
+import { useChartColors } from '@/utils/chartColors';
 
 // Types
 import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
@@ -10,8 +11,8 @@ import { ChartDataPoint } from '@/utils/chartUtils';
 
 // Components
 import { PriceChartControls } from './PriceChartControls';
-import { PriceChartECharts } from './PriceChartECharts';
-import { ZScoreChartECharts } from './ZScoreChartECharts';
+import { PriceChartLightweight } from './PriceChartLightweight';
+import { ZScoreChartLightweight } from './ZScoreChartLightweight';
 import { ChartInfoPanel } from './ChartInfoPanel';
 
 // Context
@@ -39,8 +40,13 @@ interface PriceChartProps {
 // Optimization: Memoize the chart component to prevent heavy re-renders 
 // when parent state (like hoveredData text) updates, although it consumes Context, 
 // explicit memoization helps signal intent and blocks prop-based re-renders.
-const MemoizedPriceChartECharts = React.memo(PriceChartECharts);
-const MemoizedZScoreChartECharts = React.memo(ZScoreChartECharts);
+const MemoizedPriceChartLightweight = React.memo(PriceChartLightweight);
+const MemoizedZScoreChartLightweight = React.memo(ZScoreChartLightweight);
+
+// Fully migrated to Lightweight Charts - ECharts completely removed
+if (typeof window !== 'undefined') {
+    console.log('[PriceChart] Using Lightweight Charts (ECharts removed)');
+}
 
 const PriceChartContent: React.FC = () => {
     const {
@@ -62,16 +68,18 @@ const PriceChartContent: React.FC = () => {
 
     return (
         <Paper
-            elevation={3}
+            elevation={0}
             sx={{
-                p: 2,
                 borderRadius: 2,
                 backgroundColor: colors.background,
-                height: '100%',
-                border: '1px solid #333'
+                border: '1px solid #333',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 480,
             }}
         >
-            <Box sx={{ mb: 2 }}>
+            {/* Header + controls */}
+            <Box sx={{ px: 2, pt: 2, pb: 1, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                     <Typography variant="h6" component="h2" sx={{ color: colors.text, fontWeight: 'bold' }}>
                         {`Price ${areaName} Japan`}
@@ -151,34 +159,53 @@ const PriceChartContent: React.FC = () => {
                 </Box>
             </Box>
 
-            {/* TradingView-style Info Panel
-                This component receives the hoveredData from Context (via props here).
-                Since we fixed the trigger in PriceChartECharts, this panel will now
-                correctly update from "Move mouse..." to actual values.
-            */}
-            <ChartInfoPanel
-                hoveredData={hoveredData}
-                selectedModels={selectedModels}
-                modelColorMap={modelColorMap}
-                colors={colors}
-                areaName={areaName}
-                showImbalance={showImbalance}
-                showIntraday={showIntraday}
-                showInterconnection={showInterconnection}
-            />
+            {/* Main / sub panes */}
+            <Box
+                sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    px: 2,
+                    pb: 2,
+                    gap: 1.5,
+                }}
+            >
+                {/* TradingView-style fixed info header above main chart */}
+                <ChartInfoPanel
+                    hoveredData={hoveredData}
+                    selectedModels={selectedModels}
+                    modelColorMap={modelColorMap}
+                    colors={colors}
+                    areaName={areaName}
+                    showImbalance={showImbalance}
+                    showIntraday={showIntraday}
+                    showInterconnection={showInterconnection}
+                />
 
-            {/* ECharts Implementation - Using Memoized version */}
-            {/* It consumes context internally for data */}
-            <MemoizedPriceChartECharts />
+                {/* Main price chart */}
+                <Box 
+                    sx={{ 
+                        flex: 1, 
+                        minHeight: 320,
+                        position: 'relative',
+                        width: '100%',
+                    }}
+                >
+                    <MemoizedPriceChartLightweight />
+                </Box>
 
-            {/* ZScore Chart - Using Memoized version */}
-            <MemoizedZScoreChartECharts
-                showZScore={showZScore}
-                processedChartData={processedChartData}
-                colors={colors}
-                selectedModels={selectedModels}
-                modelColorMap={modelColorMap}
-            />
+                {/* Sub-panel: Z-Score (kept here for now; can be moved under tabs in PriceChartSection) */}
+                <Box sx={{ mt: 0.5 }}>
+                    <MemoizedZScoreChartLightweight
+                        showZScore={showZScore}
+                        processedChartData={processedChartData}
+                        colors={colors}
+                        selectedModels={selectedModels}
+                        modelColorMap={modelColorMap}
+                        darkMode={darkMode}
+                    />
+                </Box>
+            </Box>
         </Paper >
     );
 };
@@ -186,30 +213,8 @@ const PriceChartContent: React.FC = () => {
 const PriceChart: React.FC<PriceChartProps> = (props) => {
     const { darkMode } = useTheme();
 
-    // Context handles the passing of these colors, but we define them here
-    // to pass into the Provider.
-    const colors = useMemo(() => ({
-        actual: darkMode ? '#ff4d4f' : '#cf1322',
-        grid: darkMode ? '#333' : '#e6e6e6',
-        background: darkMode ? '#1a1a1a' : '#ffffff',
-        text: darkMode ? '#d9d9d9' : '#000000',
-        subText: darkMode ? '#a6a6a6' : '#595959',
-        tooltipBg: darkMode ? 'rgba(33, 33, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        tooltipBorder: darkMode ? '#444' : '#d9d9d9',
-        tooltipHeaderBg: darkMode ? '#2a2a2a' : '#f0f0f0',
-        warning: darkMode ? '#faad14' : '#d48806',
-        nowLine: darkMode ? '#1890ff' : '#0050b3',
-        predicted: darkMode ? '#36cfc9' : '#13a8a8',
-        delta: {
-            positive: darkMode ? '#52c41a' : '#389e0d',
-            negative: darkMode ? '#f5222d' : '#cf1322',
-            neutral: darkMode ? '#a6a6a6' : '#8c8c8c'
-        },
-        imbalance: darkMode ? '#8884d8' : '#8884d8',
-        interconnection: darkMode ? '#ff7300' : '#ff7300',
-        intraday: darkMode ? '#82ca9d' : '#82ca9d',
-        occtoArea: darkMode ? '#ffc658' : '#ffc658',
-    }), [darkMode]);
+    // Unified chart colors (shared across all chart components)
+    const colors = useChartColors();
 
     return (
         <PriceChartProvider {...props} darkMode={darkMode} colors={colors}>

@@ -32,13 +32,30 @@ export const useProfitAnalysis = ({
         actual: darkMode ? '#ff4d4f' : '#cf1322',
     }), [darkMode]);
 
-    // 為每個模型分配顏色
+    // 為每個模型分配顏色 - Optimized to maximize color distinction
     const modelColorMap = useMemo(() => {
         const colorMap: Record<string, string> = {};
+        const usedColors: string[] = [];
+        
+        // First pass: assign colors to models that already have colors
         selectedModels.forEach((model) => {
             const modelKey = `${model.id}|${model.name}`;
-            colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
+            if (model.color) {
+                colorMap[modelKey] = model.color;
+                usedColors.push(model.color);
+            }
         });
+        
+        // Second pass: assign distinct colors to models without colors
+        selectedModels.forEach((model) => {
+            const modelKey = `${model.id}|${model.name}`;
+            if (!colorMap[modelKey]) {
+                const assignedColor = generateColor(hashString(modelKey), usedColors);
+                colorMap[modelKey] = assignedColor;
+                usedColors.push(assignedColor);
+            }
+        });
+        
         return colorMap;
     }, [selectedModels]);
 

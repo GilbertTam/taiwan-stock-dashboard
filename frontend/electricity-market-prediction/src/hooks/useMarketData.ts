@@ -18,6 +18,7 @@ import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, Wea
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
+import { useUserPreferences } from './useUserPreferences';
 
 
 export const useMarketData = () => {
@@ -62,15 +63,73 @@ export const useMarketData = () => {
     const [isFetchingPredictions, setIsFetchingPredictions] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Highlighted model for chart focus - when set, other models fade out
+    const [highlightedModelId, setHighlightedModelId] = useState<string | null>(null);
+
+    // Focus states for data sources - when set, other sources fade out
+    const [focusedDataSource, setFocusedDataSource] = useState<string | null>(null);
+
+    // Data layer toggles - shared between sidebar and chart
+    const [showImbalance, setShowImbalance] = useState<boolean>(false);
+    const [showIntraday, setShowIntraday] = useState<boolean>(false);
+    const [showIntradayAverage, setShowIntradayAverage] = useState<boolean>(true);
+    const [showInterconnection, setShowInterconnection] = useState<boolean>(false);
+    const [showWeather, setShowWeather] = useState<boolean>(false);
+    const [showWeatherActual, setShowWeatherActual] = useState<boolean>(false);
+    const [showWeatherForecast, setShowWeatherForecast] = useState<boolean>(false);
+    const [showOcctoArea, setShowOcctoArea] = useState<boolean>(false);
+
     // Refs for race condition handling
     const latestActualDataRequestId = useRef<number>(0);
     const latestPredictionRequestId = useRef<number>(0);
     const latestCalcDateRequestId = useRef<number>(0);
 
+    // User preferences hook
+    const { loadPreferences, updatePreference } = useUserPreferences();
+    const prefsLoadedRef = useRef(false);
+
     // Sync cache ref whenever state changes
     useEffect(() => {
         cacheRef.current = cachedPredictionsByModel;
     }, [cachedPredictionsByModel]);
+
+    // Auto-save preferences when data layer toggles change
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return; // Don't save during initial load
+        updatePreference('showImbalance', showImbalance);
+    }, [showImbalance, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showIntraday', showIntraday);
+    }, [showIntraday, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showIntradayAverage', showIntradayAverage);
+    }, [showIntradayAverage, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showInterconnection', showInterconnection);
+    }, [showInterconnection, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showOcctoArea', showOcctoArea);
+    }, [showOcctoArea, updatePreference]);
+
+    // Auto-save area preference
+    useEffect(() => {
+        if (!prefsLoadedRef.current || !selectedArea) return;
+        updatePreference('selectedArea', selectedArea);
+    }, [selectedArea, updatePreference]);
+
+    // Auto-save model preferences
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('selectedModels', selectedModels);
+    }, [selectedModels, updatePreference]);
 
     // Initial Data Fetch
     useEffect(() => {
@@ -85,9 +144,36 @@ export const useMarketData = () => {
                 setAreas(areasData);
                 setModels(modelsData);
 
-                if (areasData.length > 0) {
+                // Load saved preferences
+                const prefs = loadPreferences();
+
+                // Apply area preference (or default to first area)
+                if (prefs.selectedArea && areasData.some(a => a.name === prefs.selectedArea)) {
+                    setSelectedArea(prefs.selectedArea);
+                } else if (areasData.length > 0) {
                     setSelectedArea(areasData[0].name);
                 }
+
+                // Apply data layer preferences
+                if (prefs.showImbalance !== undefined) setShowImbalance(prefs.showImbalance);
+                if (prefs.showIntraday !== undefined) setShowIntraday(prefs.showIntraday);
+                if (prefs.showIntradayAverage !== undefined) setShowIntradayAverage(prefs.showIntradayAverage);
+                if (prefs.showInterconnection !== undefined) setShowInterconnection(prefs.showInterconnection);
+                if (prefs.showOcctoArea !== undefined) setShowOcctoArea(prefs.showOcctoArea);
+
+                // Apply model preferences (if valid)
+                if (prefs.selectedModels && prefs.selectedModels.length > 0) {
+                    // Filter to only include models that still exist
+                    const validModels = prefs.selectedModels.filter(pm =>
+                        modelsData.some(m => m.id === pm.id && m.name === pm.name)
+                    );
+                    if (validModels.length > 0) {
+                        setSelectedModels(validModels);
+                    }
+                }
+
+                // Mark preferences as loaded (enable auto-save)
+                prefsLoadedRef.current = true;
 
             } catch (err: any) {
                 console.error('獲取初始資料失敗', err);
@@ -103,7 +189,8 @@ export const useMarketData = () => {
         };
 
         fetchInitialData();
-    }, [logout]);
+    }, [logout, loadPreferences]);
+
 
 
     // Fetch Calculating Dates
@@ -396,10 +483,14 @@ export const useMarketData = () => {
         today.setHours(23, 59, 59, 999);
         let start: Date;
         switch (preset) {
+            case '1D': start = subDays(today, 1); break;
             case 'week': start = subDays(today, 7); break;
             case 'twoWeeks': start = subDays(today, 14); break;
             case 'month': start = subMonths(today, 1); break;
             case 'threeMonths': start = subMonths(today, 3); break;
+            case 'sixMonths': start = subMonths(today, 6); break;
+            case 'year': start = subMonths(today, 12); break;
+            case 'all': start = subMonths(today, 24); break; // Default to 2 years for "all"
             default: start = subDays(today, 7);
         }
         start.setHours(0, 0, 0, 0);
@@ -407,6 +498,7 @@ export const useMarketData = () => {
         setEndDate(today);
         setDateRangePreset(preset);
     };
+
 
     const handleMoveMonthBackward = () => {
         if (startDate && endDate) {
@@ -423,6 +515,24 @@ export const useMarketData = () => {
             setDateRangePreset(null);
         }
     };
+
+    const refreshData = useCallback(() => {
+        if (selectedArea && startDate && endDate) {
+            // Clear cache to force re-fetch
+            const formattedStartDate = format(startDate, 'yyyyMMdd');
+            const formattedEndDate = format(endDate, 'yyyyMMdd');
+
+            // Optional: Only clear relevant cache to avoid wiping everything
+            // But for simplicity, we can let the fetch logic handle it or just force execution.
+            // Since fetchPredictionData checks cache, we should clear it for current View.
+
+            // Actually, we can just clear the specific entries or all for now.
+            setCachedPredictionsByModel({});
+
+            fetchActualData();
+            fetchPredictionData();
+        }
+    }, [selectedArea, startDate, endDate, fetchActualData, fetchPredictionData]);
 
     return {
         areas,
@@ -452,6 +562,22 @@ export const useMarketData = () => {
         handleModelCalculatingDateChange,
         handleDateRangePreset,
         handleMoveMonthBackward,
-        handleMoveMonthForward
+        handleMoveMonthForward,
+        refreshData, // Expose refreshData
+        // Model highlight
+        highlightedModelId,
+        setHighlightedModelId,
+        // Data source focus
+        focusedDataSource,
+        setFocusedDataSource,
+        // Data layer toggles
+        showImbalance, setShowImbalance,
+        showIntraday, setShowIntraday,
+        showIntradayAverage, setShowIntradayAverage,
+        showInterconnection, setShowInterconnection,
+        showWeather, setShowWeather,
+        showWeatherActual, setShowWeatherActual,
+        showWeatherForecast, setShowWeatherForecast,
+        showOcctoArea, setShowOcctoArea
     };
 };

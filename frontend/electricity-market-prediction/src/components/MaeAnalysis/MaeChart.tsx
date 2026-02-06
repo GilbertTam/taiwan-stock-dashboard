@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
-import {
-    ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Bar, Legend, ReferenceArea
-} from 'recharts';
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableRow, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import type { EChartsOption } from 'echarts';
+import { Box, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { TimeSlot, TimeSlotDescription } from '@/types';
 import { useTheme } from '@/app/ThemeProvider';
+import { useChartColors } from '@/utils/chartColors';
+import BaseChart from '@/components/charts/BaseChart';
 
 interface MaeChartProps {
     dailyMAEs: any[];
@@ -28,96 +27,151 @@ export const MaeChart: React.FC<MaeChartProps> = ({
     onTimeSlotChange
 }) => {
     const { darkMode } = useTheme();
+    const colors = useChartColors();
 
-    const colors = useMemo(() => ({
-        grid: darkMode ? '#333' : '#e6e6e6',
-        text: darkMode ? '#d9d9d9' : '#000000',
-        subText: darkMode ? '#a6a6a6' : '#595959',
-        tooltipBg: darkMode ? 'rgba(33, 33, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        tooltipBorder: darkMode ? '#444' : '#d9d9d9',
-    }), [darkMode]);
+    const xLabels = useMemo(
+        () => dailyMAEs.map((d) => d.formattedDate),
+        [dailyMAEs]
+    );
 
-    // MAE 圖表的自定義工具提示
-    const MAETooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
+    const option = useMemo<EChartsOption>(() => {
+        if (!dailyMAEs || dailyMAEs.length === 0) return {};
 
-            return (
-                <Paper elevation={3} sx={{
-                    backgroundColor: colors.tooltipBg,
-                    color: colors.text,
-                    borderRadius: '4px',
-                    border: `1px solid ${colors.tooltipBorder}`,
-                    overflow: 'hidden',
-                    p: 1,
-                    maxWidth: '300px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-                }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                        {`${data.formattedDate} MAE`}
-                    </Typography>
+        const tooltipFormatter = (params: any) => {
+            const list = Array.isArray(params) ? params : [params];
+            const axisLabel = list?.[0]?.axisValueLabel ?? '';
+            const dataIndex = list?.[0]?.dataIndex ?? 0;
+            const rowData = dailyMAEs[dataIndex] || {};
 
-                    <Table size="small" sx={{
-                        '& .MuiTableCell-root': {
-                            borderBottom: 'none',
-                            py: 0.5,
-                            px: 1.5
-                        }
-                    }}>
-                        <TableBody>
-                            {selectedModels.map((model) => {
-                                const modelKey = `${model.id}|${model.name}`;
-                                const modelColor = modelColorMap[modelKey];
-                                const mae = data[`${modelKey}_mae`];
+            const baseRows = selectedModels
+                .map((model) => {
+                    const modelKey = `${model.id}|${model.name}`;
+                    const modelColor = modelColorMap[modelKey];
+                    const maeVal = rowData[`${modelKey}_mae`];
+                    return `
+          <tr>
+            <td style="padding:4px 8px;color:${modelColor};font-weight:700;white-space:nowrap;">${model.name}:</td>
+            <td style="padding:4px 8px;color:${colors.text};text-align:right;">${maeVal !== undefined ? Number(maeVal).toFixed(2) : '-'}</td>
+          </tr>
+        `;
+                })
+                .join('');
 
-                                return (
-                                    <TableRow key={`mae-${modelKey}`}>
-                                        <TableCell sx={{ color: modelColor, fontWeight: 'bold' }}>
-                                            {`${model.name}:`}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ color: colors.text }}>
-                                            {mae !== undefined ? mae.toFixed(2) : '-'}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
+            const slotSection =
+                selectedTimeSlot === TimeSlot.ALL
+                    ? ''
+                    : `
+        <tr><td colspan="2" style="padding:6px 8px 2px 8px;color:${colors.subText};font-weight:800;font-size:12px;">
+          ${selectedTimeSlot} Hour MAE:
+        </td></tr>
+        ${selectedModels
+            .map((model) => {
+                const modelKey = `${model.id}|${model.name}`;
+                const modelColor = modelColorMap[modelKey];
+                const slotMae = rowData[`${modelKey}_${selectedTimeSlot}_mae`];
+                return `
+            <tr>
+              <td style="padding:4px 8px;color:${modelColor};white-space:nowrap;">${model.name}:</td>
+              <td style="padding:4px 8px;color:${colors.text};text-align:right;">${slotMae !== undefined ? Number(slotMae).toFixed(2) : '-'}</td>
+            </tr>
+          `;
+            })
+            .join('')}
+      `;
 
-                            {/* 顯示時段 MAE */}
-                            {selectedTimeSlot !== TimeSlot.ALL && (
-                                <>
-                                    <TableRow>
-                                        <TableCell colSpan={2} sx={{ pt: 1, pb: 0 }}>
-                                            <Typography variant="caption" sx={{ color: colors.subText, fontWeight: 'bold' }}>
-                                                {`${selectedTimeSlot} Hour MAE:`}
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
+            return `
+      <div style="
+        background:${colors.tooltipBg};
+        border:1px solid ${colors.tooltipBorder};
+        color:${colors.text};
+        padding:10px;
+        border-radius:6px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.5);
+        min-width:240px;
+        pointer-events:none;
+      ">
+        <div style="font-weight:800;margin-bottom:8px;">${axisLabel} MAE</div>
+        <table style="border-collapse:collapse;width:100%;font-size:12px;">
+          <tbody>
+            ${baseRows}
+            ${slotSection}
+          </tbody>
+        </table>
+      </div>
+    `;
+        };
 
-                                    {selectedModels.map((model) => {
-                                        const modelKey = `${model.id}|${model.name}`;
-                                        const modelColor = modelColorMap[modelKey];
-                                        const slotMae = data[`${modelKey}_${selectedTimeSlot}_mae`];
+        const series = selectedModels.map((model) => {
+            const modelKey = `${model.id}|${model.name}`;
+            const modelColor = modelColorMap[modelKey];
 
-                                        return (
-                                            <TableRow key={`slot-mae-${modelKey}`}>
-                                                <TableCell sx={{ color: modelColor }}>
-                                                    {`${model.name}:`}
-                                                </TableCell>
-                                                <TableCell align="right" sx={{ color: colors.text }}>
-                                                    {slotMae !== undefined ? slotMae.toFixed(2) : '-'}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </>
-                            )}
-                        </TableBody>
-                    </Table>
-                </Paper>
-            );
-        }
-        return null;
-    };
+            const dataKey =
+                selectedTimeSlot === TimeSlot.ALL
+                    ? `${modelKey}_mae`
+                    : `${modelKey}_${selectedTimeSlot}_mae`;
+
+            return {
+                name: model.name,
+                type: 'bar',
+                barMaxWidth: 18,
+                itemStyle: { color: modelColor },
+                data: dailyMAEs.map((d) => d[dataKey] ?? 0),
+            } as any;
+        });
+
+        return {
+            grid: { left: 50, right: 30, top: 20, bottom: 35, containLabel: true },
+            legend: {
+                top: 0,
+                textStyle: { color: colors.text },
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                extraCssText: 'pointer-events:none;',
+                formatter: tooltipFormatter as any,
+            },
+            xAxis: {
+                type: 'category',
+                data: xLabels,
+                axisLabel: { color: colors.text, fontSize: 11 },
+                axisLine: { lineStyle: { color: colors.text } },
+                axisTick: { show: false },
+                splitLine: { show: false },
+                splitArea: {
+                    show: true,
+                    areaStyle: {
+                        color: xLabels.map((_, idx) =>
+                            idx % 2 === 1
+                                ? (darkMode ? 'rgba(68,68,68,0.4)' : 'rgba(224,224,224,0.4)')
+                                : 'transparent'
+                        ),
+                    },
+                },
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Daily MAE (¥/KWh)',
+                nameTextStyle: { color: colors.text },
+                axisLabel: { color: colors.text, fontSize: 11 },
+                splitLine: {
+                    lineStyle: { color: colors.grid, type: 'dashed' },
+                },
+            },
+            series,
+            animation: false,
+        };
+    }, [
+        dailyMAEs,
+        selectedModels,
+        modelColorMap,
+        selectedTimeSlot,
+        colors,
+        darkMode,
+        xLabels,
+    ]);
 
     return (
         <Box sx={{ mt: 3 }}>
@@ -161,77 +215,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>
-
-            <ResponsiveContainer width="100%" height={250}>
-                <ComposedChart
-                    data={dailyMAEs}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-                >
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={colors.grid}
-                        vertical={false}
-                    />
-                    {/* Day shading */}
-                    {dailyMAEs.map((entry, index) => {
-                        if (index % 2 === 0) return null;
-                        return (
-                            <ReferenceArea
-                                key={`shade-${entry.formattedDate}`}
-                                x1={entry.formattedDate}
-                                x2={entry.formattedDate}
-                                fill={darkMode ? "#444444" : "#e0e0e0"}
-                                fillOpacity={0.4}
-                            />
-                        );
-                    })}
-                    <XAxis
-                        dataKey="formattedDate"
-                        stroke={colors.text}
-                        tick={{ fill: colors.text, fontSize: 11 }}
-                        tickLine={{ stroke: colors.text }}
-                        axisLine={{ stroke: colors.text }}
-                    />
-                    <YAxis
-                        label={{
-                            value: 'Daily MAE (¥/KWh)',
-                            angle: -90,
-                            position: 'insideLeft',
-                            style: { fill: colors.text, fontSize: 12 }
-                        }}
-                        stroke={colors.text}
-                        tick={{ fill: colors.text, fontSize: 11 }}
-                        tickLine={{ stroke: colors.text }}
-                        axisLine={{ stroke: colors.text }}
-                    />
-                    <Tooltip content={<MAETooltip />} />
-                    <Legend />
-
-                    {/* 為每個模型顯示 MAE 長條圖 */}
-                    {selectedModels.map((model, index) => {
-                        const modelKey = `${model.id}|${model.name}`;
-                        const modelColor = modelColorMap[modelKey];
-
-                        // 根據時段選擇顯示不同的 MAE
-                        const dataKey = selectedTimeSlot === TimeSlot.ALL
-                            ? `${modelKey}_mae`
-                            : `${modelKey}_${selectedTimeSlot}_mae`;
-
-                        return (
-                            <Bar
-                                key={`mae-bar-${modelKey}`}
-                                dataKey={dataKey}
-                                name={`${model.name}`}
-                                fill={modelColor}
-                                barSize={12}
-                            // 分組顯示而不是堆疊
-                            // stackId={`stack-${index}`} 
-                            />
-                        );
-                    })}
-
-                </ComposedChart>
-            </ResponsiveContainer>
+            <BaseChart option={option} height={250} />
         </Box>
     );
 };

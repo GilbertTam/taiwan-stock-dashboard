@@ -1,9 +1,8 @@
-import React from 'react';
-import {
-    ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    Bar, Line, Legend, ReferenceArea
-} from 'recharts';
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import React, { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
+import { Box, Typography } from '@mui/material';
+
+import BaseChart from '@/components/charts/BaseChart';
 
 interface ProfitChartProps {
     combinedData: any[];
@@ -25,135 +24,185 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
     colors,
     darkMode
 }) => {
+    const xLabels = useMemo(() => combinedData.map((d) => d.formattedDate), [combinedData]);
 
-    // Combined Tooltip
-    const CombinedTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            return (
-                <Paper elevation={3} sx={{
-                    backgroundColor: colors.tooltipBg,
-                    color: colors.text,
-                    p: 1, border: `1px solid ${colors.tooltipBorder}`,
-                    maxWidth: 400
-                }}>
-                    <Typography variant="subtitle2" fontWeight="bold">{data.formattedDate} Profit Analysis</Typography>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ color: colors.subText, py: 0.5 }}>Type</TableCell>
-                                <TableCell align="right" sx={{ color: colors.subText, py: 0.5 }}>Daily</TableCell>
-                                <TableCell align="right" sx={{ color: colors.subText, py: 0.5 }}>Cumulative</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell sx={{ color: colors.actual, fontWeight: 'bold', py: 0.5 }}>Optimal</TableCell>
-                                <TableCell align="right" sx={{ color: colors.text, py: 0.5 }}>{data.actualProfit?.toFixed(0)}</TableCell>
-                                <TableCell align="right" sx={{ color: colors.text, py: 0.5 }}>{data.cumulativeActual?.toFixed(0)}</TableCell>
-                            </TableRow>
-                            {selectedModels.map(model => {
-                                const modelKey = `${model.id}|${model.name}`;
-                                const daily = data[`${modelKey}_profit`];
-                                const cumulative = data[`${modelKey}_cumulative`];
-                                return (
-                                    <TableRow key={modelKey}>
-                                        <TableCell sx={{ color: modelColorMap[modelKey], py: 0.5 }}>{model.name}</TableCell>
-                                        <TableCell align="right" sx={{ color: colors.text, py: 0.5 }}>{daily?.toFixed(0) ?? '-'}</TableCell>
-                                        <TableCell align="right" sx={{ color: colors.text, py: 0.5 }}>{cumulative?.toFixed(0) ?? '-'}</TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </Paper>
-            );
-        }
-        return null;
-    };
+    const option = useMemo<EChartsOption>(() => {
+        if (!combinedData || combinedData.length === 0) return {};
+
+        const tooltipFormatter = (params: any) => {
+            const list = Array.isArray(params) ? params : [params];
+            const axisLabel = list?.[0]?.axisValueLabel ?? '';
+            const dataIndex = list?.[0]?.dataIndex ?? 0;
+            const d = combinedData[dataIndex] || {};
+
+            const headerRow = `
+        <div style="font-weight:800;margin-bottom:8px;">${axisLabel} Profit Analysis</div>
+      `;
+
+            const tableHeader = `
+        <tr>
+          <th style="text-align:left;padding:4px 8px;color:${colors.subText};font-weight:800;">Type</th>
+          <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:800;">Daily</th>
+          <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:800;">Cumulative</th>
+        </tr>
+      `;
+
+            const optimalRow = `
+        <tr>
+          <td style="padding:4px 8px;color:${colors.actual};font-weight:800;">Optimal</td>
+          <td style="padding:4px 8px;color:${colors.text};text-align:right;">${d.actualProfit != null ? Number(d.actualProfit).toFixed(0) : '-'}</td>
+          <td style="padding:4px 8px;color:${colors.text};text-align:right;">${d.cumulativeActual != null ? Number(d.cumulativeActual).toFixed(0) : '-'}</td>
+        </tr>
+      `;
+
+            const modelRows = selectedModels
+                .map((model) => {
+                    const modelKey = `${model.id}|${model.name}`;
+                    const daily = d[`${modelKey}_profit`];
+                    const cumulative = d[`${modelKey}_cumulative`];
+                    return `
+          <tr>
+            <td style="padding:4px 8px;color:${modelColorMap[modelKey]};">${model.name}</td>
+            <td style="padding:4px 8px;color:${colors.text};text-align:right;">${daily != null ? Number(daily).toFixed(0) : '-'}</td>
+            <td style="padding:4px 8px;color:${colors.text};text-align:right;">${cumulative != null ? Number(cumulative).toFixed(0) : '-'}</td>
+          </tr>
+        `;
+                })
+                .join('');
+
+            return `
+        <div style="
+          background:${colors.tooltipBg};
+          border:1px solid ${colors.tooltipBorder};
+          color:${colors.text};
+          padding:10px;
+          border-radius:6px;
+          box-shadow:0 4px 12px rgba(0,0,0,0.5);
+          min-width:320px;
+          pointer-events:none;
+        ">
+          ${headerRow}
+          <table style="border-collapse:collapse;width:100%;font-size:12px;">
+            <thead>${tableHeader}</thead>
+            <tbody>
+              ${optimalRow}
+              ${modelRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+        };
+
+        const series: any[] = [];
+
+        // Daily bars (left axis)
+        series.push({
+            name: 'Optimal (Daily)',
+            type: 'bar',
+            yAxisIndex: 0,
+            barMaxWidth: 18,
+            itemStyle: { color: colors.actual, opacity: 0.3 },
+            data: combinedData.map((d) => d.actualProfit ?? 0),
+        });
+
+        selectedModels.forEach((model) => {
+            const modelKey = `${model.id}|${model.name}`;
+            series.push({
+                name: `${model.name} (Daily)`,
+                type: 'bar',
+                yAxisIndex: 0,
+                barMaxWidth: 18,
+                itemStyle: { color: modelColorMap[modelKey], opacity: 0.3 },
+                data: combinedData.map((d) => d[`${modelKey}_profit`] ?? 0),
+            });
+        });
+
+        // Cumulative lines (right axis)
+        series.push({
+            name: 'Optimal (Cumulative)',
+            type: 'line',
+            yAxisIndex: 1,
+            showSymbol: false,
+            smooth: true,
+            lineStyle: { color: colors.actual, width: 2 },
+            data: combinedData.map((d) => d.cumulativeActual ?? 0),
+        });
+
+        selectedModels.forEach((model) => {
+            const modelKey = `${model.id}|${model.name}`;
+            series.push({
+                name: `${model.name} (Cumulative)`,
+                type: 'line',
+                yAxisIndex: 1,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { color: modelColorMap[modelKey], width: 2 },
+                data: combinedData.map((d) => d[`${modelKey}_cumulative`] ?? 0),
+            });
+        });
+
+        return {
+            grid: { left: 60, right: 60, top: 20, bottom: 55, containLabel: true },
+            legend: {
+                bottom: 0,
+                height: 36,
+                textStyle: { color: colors.text, fontSize: 12 },
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross' },
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                extraCssText: 'pointer-events:none;',
+                formatter: tooltipFormatter as any,
+            },
+            xAxis: {
+                type: 'category',
+                data: xLabels,
+                axisLabel: { color: colors.text, fontSize: 11 },
+                axisLine: { lineStyle: { color: colors.text } },
+                axisTick: { show: false },
+                splitLine: { show: false },
+                splitArea: {
+                    show: true,
+                    areaStyle: {
+                        color: xLabels.map((_, idx) =>
+                            idx % 2 === 1
+                                ? (darkMode ? 'rgba(68,68,68,0.4)' : 'rgba(224,224,224,0.4)')
+                                : 'transparent'
+                        ),
+                    },
+                },
+            },
+            yAxis: [
+                {
+                    type: 'value',
+                    name: 'Daily Profit (¥)',
+                    position: 'left',
+                    axisLabel: { color: colors.text, fontSize: 11 },
+                    nameTextStyle: { color: colors.text },
+                    splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } },
+                },
+                {
+                    type: 'value',
+                    name: 'Cumulative Profit (¥)',
+                    position: 'right',
+                    axisLabel: { color: colors.text, fontSize: 11 },
+                    nameTextStyle: { color: colors.text },
+                    splitLine: { show: false },
+                },
+            ],
+            series,
+            animation: false,
+        };
+    }, [combinedData, selectedModels, modelColorMap, colors, darkMode, xLabels]);
 
     return (
         <Box sx={{ mt: 3 }}>
             <Typography variant="h6" component="h3" sx={{ color: colors.text, fontWeight: 'bold', mb: 2 }}>
                 Profit Analysis (Daily & Cumulative)
             </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart data={combinedData}>
-                    {/* Day shading */}
-                    {combinedData.map((entry: any, index: number) => {
-                        if (index % 2 === 0) return null;
-                        return (
-                            <ReferenceArea
-                                key={`shade-${entry.formattedDate}`}
-                                x1={entry.formattedDate}
-                                x2={entry.formattedDate}
-                                fill={darkMode ? "#444444" : "#e0e0e0"}
-                                fillOpacity={0.4}
-                            />
-                        );
-                    })}
-
-                    <XAxis dataKey="formattedDate" stroke={colors.text} tick={{ fill: colors.text }} />
-
-                    {/* Left Axis: Daily Profit */}
-                    <YAxis
-                        yAxisId="left"
-                        orientation="left"
-                        stroke={colors.text}
-                        tick={{ fill: colors.text }}
-                        label={{ value: 'Daily Profit (¥)', angle: -90, position: 'insideLeft', style: { fill: colors.text } }}
-                    />
-
-                    {/* Right Axis: Cumulative Profit */}
-                    <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke={colors.text}
-                        tick={{ fill: colors.text }}
-                        label={{ value: 'Cumulative Profit (¥)', angle: 90, position: 'insideRight', style: { fill: colors.text } }}
-                    />
-
-                    <Tooltip content={<CombinedTooltip />} />
-                    <Legend />
-
-                    {/* Actual Data */}
-                    <Bar yAxisId="left" dataKey="actualProfit" name="Optimal (Daily)" fill={colors.actual} fillOpacity={0.3} barSize={20} />
-                    <Line yAxisId="right" type="monotone" dataKey="cumulativeActual" name="Optimal (Cumulative)" stroke={colors.actual} dot={false} strokeWidth={2} />
-
-                    {/* Models Data */}
-                    {/* Render Bars first */}
-                    {selectedModels.map(model => {
-                        const modelKey = `${model.id}|${model.name}`;
-                        return (
-                            <Bar
-                                key={`bar-${modelKey}`}
-                                yAxisId="left"
-                                dataKey={`${modelKey}_profit`}
-                                name={`${model.name} (Daily)`}
-                                fill={modelColorMap[modelKey]}
-                                fillOpacity={0.3}
-                                barSize={20}
-                            />
-                        );
-                    })}
-                    {/* Render Lines second */}
-                    {selectedModels.map(model => {
-                        const modelKey = `${model.id}|${model.name}`;
-                        return (
-                            <Line
-                                key={`line-${modelKey}`}
-                                yAxisId="right"
-                                type="monotone"
-                                dataKey={`${modelKey}_cumulative`}
-                                name={`${model.name} (Cumulative)`}
-                                stroke={modelColorMap[modelKey]}
-                                dot={false}
-                                strokeWidth={2}
-                            />
-                        );
-                    })}
-                </ComposedChart>
-            </ResponsiveContainer>
+            <BaseChart option={option} height={400} />
         </Box>
     );
 };

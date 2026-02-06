@@ -39,6 +39,26 @@
   --success: #00ff9d;
   --warning: #facc15;
   --error: #ff4d4d;
+
+  /* Spacing tokens (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Typography tokens */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
 }
 
 [data-theme='light'] {
@@ -107,8 +127,65 @@
   }
 }
 
+/* react-date-range theme overrides (stable CSS; avoid runtime DOM mutations) */
+.hdjp-date-range .rdrMonthAndYearPickers select {
+  color: var(--foreground) !important;
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-weight: 600 !important;
+}
+
+.hdjp-date-range .rdrMonthName {
+  color: var(--primary) !important;
+  font-weight: 700 !important;
+}
+
+.hdjp-date-range .rdrWeekDay {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+.hdjp-date-range .rdrDayNumber span {
+  color: var(--foreground) !important;
+  font-weight: 500 !important;
+}
+
+.hdjp-date-range .rdrDayPassive .rdrDayNumber span {
+  color: var(--text-secondary) !important;
+  opacity: 0.6 !important;
+}
+
+.hdjp-date-range .rdrInRange,
+.hdjp-date-range .rdrStartEdge,
+.hdjp-date-range .rdrEndEdge,
+.hdjp-date-range .rdrSelected {
+  background: var(--date-picker-selected) !important;
+}
+
+.hdjp-date-range .rdrInRange {
+  opacity: 0.7 !important;
+}
+
+.hdjp-date-range .rdrStartEdge,
+.hdjp-date-range .rdrEndEdge,
+.hdjp-date-range .rdrSelected {
+  opacity: 1 !important;
+}
+
+.hdjp-date-range .rdrInRange .rdrDayNumber span,
+.hdjp-date-range .rdrStartEdge .rdrDayNumber span,
+.hdjp-date-range .rdrEndEdge .rdrDayNumber span,
+.hdjp-date-range .rdrSelected .rdrDayNumber span {
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   overflow-x: hidden;
+  line-height: var(--line-height-normal);
 }

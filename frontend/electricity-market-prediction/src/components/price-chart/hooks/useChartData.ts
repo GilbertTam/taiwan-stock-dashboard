@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData } from '@/types';
 
 interface UseChartDataProps {
     chartData: ChartDataPoint[];
@@ -8,6 +8,8 @@ interface UseChartDataProps {
     intradayData: IntradayData[];
     interconnectionData: InterconnectionFlow[];
     occtoAreaData: OcctoAreaData[];
+    weatherActual?: WeatherData[];
+    weatherForecast?: WeatherData[];
     areaName: string;
     selectedModels: {
         id: string | number;
@@ -16,9 +18,12 @@ interface UseChartDataProps {
         calculatingDate: string;
     }[];
     topBottomPairs: number;
-    occtoChartType: 'line' | 'stacked';
+    occtoChartType: 'line' | 'stacked' | 'percentage';
     selectedOcctoField: string;
     selectedOcctoFields: Set<string>;
+    selectedWeatherFields?: Set<string>;
+    showWeatherActual?: boolean;
+    showWeatherForecast?: boolean;
 }
 
 export const useChartData = ({
@@ -27,21 +32,31 @@ export const useChartData = ({
     intradayData,
     interconnectionData,
     occtoAreaData,
+    weatherActual,
+    weatherForecast,
     areaName,
     selectedModels,
     topBottomPairs,
     occtoChartType,
     selectedOcctoField,
-    selectedOcctoFields
+    selectedOcctoFields,
+    selectedWeatherFields,
+    showWeatherActual = false,
+    showWeatherForecast = false
 }: UseChartDataProps) => {
 
-    // 1. modelColorMap
+    // 1. modelColorMap - 強制使用高區別度調色盤，忽略後端內建顏色，確保模型之間顏色差異大
     const modelColorMap = useMemo(() => {
         const colorMap: Record<string, string> = {};
+        const usedColors: string[] = [];
+
         selectedModels.forEach((model) => {
             const modelKey = `${model.id}|${model.name}`;
-            colorMap[modelKey] = model.color || generateColor(hashString(modelKey));
+            const assignedColor = generateColor(hashString(modelKey), usedColors);
+            colorMap[modelKey] = assignedColor;
+            usedColors.push(assignedColor);
         });
+
         return colorMap;
     }, [selectedModels]);
 
@@ -267,6 +282,76 @@ export const useChartData = ({
             });
         }
 
+        // F. Weather Actual Data
+        // NOTE: 後端 Weather 時間為 UTC（例如 "2026-02-03T00:00:00+00:00"），parseToTimestamp 會正確解析為 UTC timestamp。
+        // 但價格資料的時間是本地時間（Asia/Taipei, UTC+8），例如 "2026-02-03 00:00" 被解析為本地午夜。
+        // 為了讓 Weather 與價格對齊，我們需要將 UTC timestamp 減去 8 小時，使其對應到本地時間的同一時刻。
+        // 例如：UTC 00:00 (timestamp X) 應該對應到本地 00:00 (timestamp X - 8h)，而不是本地 08:00。
+        const WEATHER_TIME_OFFSET_MS = -8 * 60 * 60 * 1000; // 減去 8 小時，將 UTC 時間對齊到本地時間
+        if (showWeatherActual && weatherActual && Array.isArray(weatherActual)) {
+            weatherActual.forEach((item) => {
+                const tsRaw = parseToTimestamp(item.weather_datetime);
+                const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
+
+                if (ts) {
+                    const point = ensurePoint(ts);
+                    // Store all weather fields with source marker
+                    if (!point.weather_data) {
+                        point.weather_data = {};
+                    }
+                    if (!point.weather_data_actual) {
+                        point.weather_data_actual = {};
+                    }
+                    point.weather_data_actual.temperature = item.temperature;
+                    point.weather_data_actual.rainfall = item.rainfall;
+                    point.weather_data_actual.snowfall = item.snowfall;
+                    point.weather_data_actual.wind_speed = item.wind_speed;
+                    point.weather_data_actual.relative_humidity = item.relative_humidity;
+                    point.weather_data_actual.clouds_all = item.clouds_all;
+                    // Also store in weather_data for backward compatibility
+                    point.weather_data.temperature = item.temperature;
+                    point.weather_data.rainfall = item.rainfall;
+                    point.weather_data.snowfall = item.snowfall;
+                    point.weather_data.wind_speed = item.wind_speed;
+                    point.weather_data.relative_humidity = item.relative_humidity;
+                    point.weather_data.clouds_all = item.clouds_all;
+                }
+            });
+        }
+
+        // F2. Weather Forecast Data
+        // 使用相同的時區對齊邏輯
+        if (showWeatherForecast && weatherForecast && Array.isArray(weatherForecast)) {
+            weatherForecast.forEach((item) => {
+                const tsRaw = parseToTimestamp(item.weather_datetime);
+                const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
+
+                if (ts) {
+                    const point = ensurePoint(ts);
+                    // Store all weather fields with source marker
+                    if (!point.weather_data) {
+                        point.weather_data = {};
+                    }
+                    if (!point.weather_data_forecast) {
+                        point.weather_data_forecast = {};
+                    }
+                    point.weather_data_forecast.temperature = item.temperature;
+                    point.weather_data_forecast.rainfall = item.rainfall;
+                    point.weather_data_forecast.snowfall = item.snowfall;
+                    point.weather_data_forecast.wind_speed = item.wind_speed;
+                    point.weather_data_forecast.relative_humidity = item.relative_humidity;
+                    point.weather_data_forecast.clouds_all = item.clouds_all;
+                    // Forecast overwrites weather_data if both exist (for backward compatibility)
+                    point.weather_data.temperature = item.temperature;
+                    point.weather_data.rainfall = item.rainfall;
+                    point.weather_data.snowfall = item.snowfall;
+                    point.weather_data.wind_speed = item.wind_speed;
+                    point.weather_data.relative_humidity = item.relative_humidity;
+                    point.weather_data.clouds_all = item.clouds_all;
+                }
+            });
+        }
+
         // Calculate Stats (Z-Score, Deltas, etc.) and Sort
         const sortedPoints = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
 
@@ -337,7 +422,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, areaName, selectedOcctoField, selectedOcctoFields, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {
@@ -362,9 +447,21 @@ export const useChartData = ({
 
         if (allPrices.length === 0) return { min: 0, max: 35 };
 
-        const min = Math.floor(Math.min(...allPrices) * 0.9);
-        const max = Math.ceil(Math.max(...allPrices) * 1.1);
-        return { min: Math.max(0, min), max: Math.max(35, max) };
+        const dataMin = Math.min(...allPrices);
+        const dataMax = Math.max(...allPrices);
+        const range = dataMax - dataMin;
+        
+        // Add 10% padding on both sides, but ensure min is at least 0
+        const min = Math.max(0, Math.floor(dataMin - range * 0.1));
+        const max = Math.ceil(dataMax + range * 0.1);
+        
+        // If range is too small, ensure minimum range for visibility
+        if (max - min < 5) {
+            const center = (min + max) / 2;
+            return { min: Math.max(0, Math.floor(center - 2.5)), max: Math.ceil(center + 2.5) };
+        }
+        
+        return { min, max };
     }, [chartData, processedChartData]);
 
     const imbalanceRange = useMemo(() => {
@@ -373,18 +470,49 @@ export const useChartData = ({
             .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
 
         if (values.length === 0) return { min: 0, max: 35 };
-        const min = Math.floor(Math.min(...values));
-        const max = Math.ceil(Math.max(...values));
-        const padding = Math.abs(max - min) * 0.1;
-        return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
+        const dataMin = Math.min(...values);
+        const dataMax = Math.max(...values);
+        const range = dataMax - dataMin;
+        
+        // 使用固定的 padding 比例，避免範圍突然變化
+        const padding = range > 0 ? range * 0.12 : 3.5; // 12% padding，最小 3.5
+        const min = Math.floor(dataMin - padding);
+        const max = Math.ceil(dataMax + padding);
+        
+        // 確保最小範圍，避免視覺上的突然壓縮
+        if (max - min < 7) {
+            const center = (min + max) / 2;
+            return { min: Math.floor(center - 3.5), max: Math.ceil(center + 3.5) };
+        }
+        
+        return { min, max };
     }, [processedChartData]);
 
     const occtoRange = useMemo(() => {
+        // 百分比模式使用固定的 0-100 範圍
+        if (occtoChartType === 'percentage') {
+            return { min: 0, max: 100 };
+        }
+        
         let values: number[] = [];
         if (occtoChartType === 'stacked') {
-            values = processedChartData
-                .map(p => p.occto_data ? p.occto_data.total : 0)
-                .filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+            // 在 stack 模式下，根據選中的子項目計算每個時間點的堆疊總和
+            processedChartData.forEach(p => {
+                if (p.occto_data) {
+                    let sum = 0;
+                    let hasValue = false;
+                    selectedOcctoFields.forEach(field => {
+                        const val = (p.occto_data as any)[field];
+                        if (val !== null && val !== undefined && !isNaN(val)) {
+                            sum += val;
+                            hasValue = true;
+                        }
+                    });
+                    if (hasValue) {
+                        values.push(sum);
+                    }
+                }
+            });
         } else {
             // Collect values from all selected fields
             processedChartData.forEach(p => {
@@ -400,10 +528,42 @@ export const useChartData = ({
         }
 
         if (values.length === 0) return { min: 0, max: 100 };
+        
         const min = Math.min(...values);
         const max = Math.max(...values);
-        const padding = Math.abs(max - min) * 0.1;
-        return { min: Math.floor(min - padding), max: Math.ceil(max + padding) };
+        const range = max - min;
+        
+        // 檢查是否有負值字段被選中（interconnection_line 和 battery_storage 可能有負值）
+        const hasNegativeFields = selectedOcctoFields.has('interconnection_line') || selectedOcctoFields.has('battery_storage');
+        const hasNegativeValues = min < 0;
+        
+        // 使用固定的 padding 比例，避免範圍突然變化
+        // 對於 stack 模式，需要更大的緩衝區以防止堆疊超出
+        const paddingRatio = occtoChartType === 'stacked' ? 0.12 : 0.1; // stack 模式使用 12% padding
+        const padding = range > 0 ? range * paddingRatio : Math.max(Math.abs(max), Math.abs(min)) * 0.1 || 10;
+        
+        // 對於 stack 模式，額外確保最大值有足夠的空間（至少 5%）
+        const stackExtraBuffer = occtoChartType === 'stacked' ? Math.abs(max) * 0.05 : 0;
+        
+        // 如果有負值，允許 min 為負數；否則確保 min 至少為 0，以便與價格軸的 0 點對齊
+        let finalMin: number;
+        if (hasNegativeValues || hasNegativeFields) {
+            // 有負值時，允許 min 為負數，但添加 padding
+            finalMin = Math.floor(min - padding);
+        } else {
+            // 沒有負值時，確保 min 至少為 0
+            finalMin = Math.max(0, Math.floor(min - padding));
+        }
+        
+        const finalMax = Math.ceil(max + padding + stackExtraBuffer);
+        
+        // 確保最小範圍，避免視覺上的突然壓縮
+        if (finalMax - finalMin < 10) {
+            const center = (finalMin + finalMax) / 2;
+            return { min: Math.floor(center - 5), max: Math.ceil(center + 5) };
+        }
+        
+        return { min: finalMin, max: finalMax };
     }, [processedChartData, occtoChartType, selectedOcctoFields]);
 
     return {
