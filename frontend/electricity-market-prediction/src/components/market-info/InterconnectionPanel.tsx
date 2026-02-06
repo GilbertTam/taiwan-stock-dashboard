@@ -12,7 +12,7 @@ import {
 import {
   InterconnectionFlow
 } from '@/types';
-import InterconnectionChart from '../InterconnectionChart';
+import { InterconnectionChartLightweight } from './InterconnectionChartLightweight';
 
 interface InterconnectionPanelProps {
   startDate: Date | null;
@@ -76,7 +76,7 @@ export default function InterconnectionPanel({ startDate, endDate, selectedArea 
       {!loading && (
         <>
           {interconnectionData.length > 0 ? (
-            <InterconnectionChart data={interconnectionData} />
+            <InterconnectionChartLightweight data={interconnectionData} />
           ) : (
             <Alert severity="info" sx={{ mt: 2 }}>
               互連流量資料：該時段無資料 (Interconnection Flow: No data available for this period)

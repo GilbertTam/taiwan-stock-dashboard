@@ -141,6 +141,21 @@ export const fetchActualPrices = async (params: ActualPricesParams): Promise<Are
   return response.data.data;
 };
 
+// Batch fetch all areas prices in a single API call
+export interface AllAreasPricesParams {
+  start_date: string;
+  end_date: string;
+}
+
+export const fetchAllAreasPrices = async (params: AllAreasPricesParams): Promise<AreaPrice[]> => {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token available');
+
+  const api = createApiInstance(token);
+  const response = await api.get<ApiResponse<AreaPrice[]>>('/market-info/spot-market-area-prices', { params });
+  return response.data.data;
+};
+
 export interface CalculatingDatesParams {
   start_date: string;
   end_date: string;

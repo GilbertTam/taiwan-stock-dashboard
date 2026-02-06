@@ -5,7 +5,6 @@ import {
   TrendingUp,
   Assessment,
   Info,
-  Cloud,
   ArrowForward
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
@@ -84,21 +83,14 @@ export const QuickAccessCards: React.FC = () => {
       description: '查看 MAE 分析和收益分析，比較不同模型的表現',
       icon: <Assessment sx={{ fontSize: 28 }} />,
       color: '#109618',
-      href: '/dashboard/model-performance'
+      href: '/dashboard/price-prediction?tab=model-performance'
     },
     {
       title: '市場資訊總覽',
-      description: '查看停機資訊、互連流量、供需平衡等市場資料',
+      description: '查看停機資訊、互連流量、天氣等市場資料',
       icon: <Info sx={{ fontSize: 28 }} />,
       color: '#990099',
-      href: '/dashboard/market-info'
-    },
-    {
-      title: '天氣分析',
-      description: '查看實際天氣資料和預報，分析對電價的影響',
-      icon: <Cloud sx={{ fontSize: 28 }} />,
-      color: '#0099C6',
-      href: '/dashboard/weather'
+      href: '/dashboard/price-prediction?tab=market-info'
     }
   ];
 

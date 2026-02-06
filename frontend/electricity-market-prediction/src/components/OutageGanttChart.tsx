@@ -14,7 +14,8 @@ import {
   isAfter, 
   isBefore,
   max,
-  min
+  min,
+  isWithinInterval
 } from 'date-fns';
 
 interface OutageGanttChartProps {
@@ -153,7 +154,12 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
       return a.unitName.localeCompare(b.unitName);
     });
 
-    return { days, groupedRows, totalWidth };
+    const today = new Date();
+    const todayX = isWithinInterval(today, { start: viewStartTime, end: viewEndTime })
+      ? (differenceInMinutes(startOfDay(today), viewStartTime) / 60) * PIXELS_PER_HOUR
+      : null;
+
+    return { days, groupedRows, totalWidth, todayX };
   }, [outages, startDate, endDate]);
 
   const colors = {
@@ -255,6 +261,21 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
                     `, 
                     backgroundSize: `${DAY_WIDTH}px 100%, ${DAY_WIDTH / 4}px 100%` 
                   }}>
+                    {/* 今日垂直線 */}
+                    {ganttData.todayX != null && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          left: `${ganttData.todayX}px`,
+                          top: 0,
+                          bottom: 0,
+                          width: 2,
+                          bgcolor: darkMode ? 'rgba(24, 144, 255, 0.8)' : 'rgba(24, 144, 255, 0.6)',
+                          zIndex: 4,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
                     {/* 繪製每條分隔虛線 (如果有兩層以上) */}
                     {Array.from({ length: group.totalLanes - 1 }).map((_, idx) => (
                       <Box 
@@ -288,20 +309,20 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
                           position: 'absolute', 
                           left: `${outage.x}px`, 
                           width: `${outage.width}px`, 
-                          // 核心：根據 laneIndex 計算 top 位置，並加上 padding 讓它垂直置中
                           top: `${outage.laneIndex * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2}px`, 
-                          height: `${BAR_HEIGHT}px`, // 固定高度
+                          height: `${BAR_HEIGHT}px`, 
                           backgroundColor: getOutageColor(outage.stop_type), 
-                          borderRadius: '3px', 
+                          borderRadius: '6px', 
+                          border: `1px solid ${darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`, 
                           cursor: 'pointer', 
                           zIndex: 5, 
-                          transition: 'all 0.15s', 
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)', 
+                          transition: 'all 0.15s ease', 
+                          boxShadow: darkMode ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 2px rgba(0,0,0,0.1)', 
                           display: 'flex', 
                           alignItems: 'center', 
                           px: 1, 
                           overflow: 'hidden', 
-                          '&:hover': { zIndex: 10, boxShadow: '0 4px 8px rgba(0,0,0,0.2)' } 
+                          '&:hover': { zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', transform: 'translateY(-1px)' } 
                         }}>
                           <Typography variant="caption" sx={{ color: '#fff', fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {outage.stop_type}

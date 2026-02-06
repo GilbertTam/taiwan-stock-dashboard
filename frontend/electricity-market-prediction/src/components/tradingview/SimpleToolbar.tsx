@@ -10,16 +10,21 @@ import {
   TextField,
   InputAdornment,
   Popover,
-  Divider,
+  Typography,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import InfoIcon from '@mui/icons-material/Info';
 import { DateRange } from 'react-date-range';
 import { zhTW } from 'date-fns/locale';
 import { format } from 'date-fns';
-import { MenuButton, MenuDrawer } from './MenuButton';
+import { useRouter, usePathname } from 'next/navigation';
 import { TimeRangeSwitcher } from './TimeRangeSwitcher';
+import UserMenu from '@/components/layout/UserMenu';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
@@ -32,7 +37,16 @@ interface SimpleToolbarProps {
   onDateMenuClose?: () => void;
   onRefresh: () => void;
   onDownloadCsv: () => void;
+  /** Current tab key for highlight (price | model-performance | market-info). Only relevant on price-prediction page. */
+  currentTab?: string;
 }
+
+const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.ElementType }[] = [
+  { key: 'home', label: '首頁', path: '/dashboard', Icon: DashboardIcon },
+  { key: 'price', label: '價格預測', path: '/dashboard/price-prediction?tab=price', Icon: TrendingUpIcon },
+  { key: 'model-performance', label: '模型效能', path: '/dashboard/price-prediction?tab=model-performance', Icon: AssessmentIcon },
+  { key: 'market-info', label: '市場資訊', path: '/dashboard/price-prediction?tab=market-info', Icon: InfoIcon },
+];
 
 export const SimpleToolbar: React.FC<SimpleToolbarProps> = ({
   startDate,
@@ -43,13 +57,11 @@ export const SimpleToolbar: React.FC<SimpleToolbarProps> = ({
   onDateMenuClose,
   onRefresh,
   onDownloadCsv,
+  currentTab = 'price',
 }) => {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
-
-  const handleDrawerToggle = () => {
-    setDrawerOpen(!drawerOpen);
-  };
 
   const handleDateClick = (event: React.MouseEvent<HTMLElement>) => {
     setDateAnchorEl(event.currentTarget);
@@ -79,8 +91,34 @@ export const SimpleToolbar: React.FC<SimpleToolbarProps> = ({
           gap: 1,
         }}
       >
-        {/* Menu Button */}
-        <MenuButton onDrawerToggle={handleDrawerToggle} />
+        {/* Nav: 首頁, 價格預測, 模型效能, 市場資訊 */}
+        {NAV_ITEMS.map(({ key, label, path, Icon }) => {
+          const isActive = key === 'home' ? pathname === '/dashboard' : currentTab === key;
+          return (
+            <Button
+              key={key}
+              size="small"
+              startIcon={<Icon sx={{ fontSize: 18 }} />}
+              onClick={() => router.push(path)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                color: isActive ? 'var(--primary)' : 'var(--foreground)',
+                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                borderRadius: 0,
+                minWidth: 'auto',
+                px: 1.5,
+                '&:hover': {
+                  backgroundColor: 'var(--hover-bg)',
+                },
+              }}
+            >
+              {label}
+            </Button>
+          );
+        })}
+
+        <Box sx={{ width: 16, flexShrink: 0, borderLeft: '1px solid var(--card-border)', alignSelf: 'stretch', mx: 0.5 }} />
 
         {/* Time Selection */}
         <TextField
@@ -192,10 +230,11 @@ export const SimpleToolbar: React.FC<SimpleToolbarProps> = ({
             下載 CSV
           </Button>
         </Tooltip>
-      </Paper>
 
-      {/* Menu Drawer */}
-      <MenuDrawer open={drawerOpen} onClose={handleDrawerToggle} />
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, pl: 1, borderLeft: '1px solid var(--card-border)' }}>
+          <UserMenu showLabel size="small" />
+        </Box>
+      </Paper>
 
       {/* Date Picker Popover */}
       <Popover

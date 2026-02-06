@@ -15,7 +15,10 @@ import {
   Avatar,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import HomeIcon from '@mui/icons-material/Home';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import InfoIcon from '@mui/icons-material/Info';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
@@ -102,7 +105,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
           <ListItem disablePadding>
             <ListItemButton onClick={() => handleNavigate('/dashboard')}>
               <ListItemIcon>
-                <HomeIcon />
+                <DashboardIcon />
               </ListItemIcon>
               <ListItemText primary="首頁" />
             </ListItemButton>
@@ -111,36 +114,27 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
           <ListItem disablePadding>
             <ListItemButton onClick={() => handleNavigate('/dashboard/price-prediction')}>
               <ListItemIcon>
-                <HomeIcon />
+                <TrendingUpIcon />
               </ListItemIcon>
               <ListItemText primary="價格預測" />
             </ListItemButton>
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton onClick={() => handleNavigate('/dashboard/weather')}>
+            <ListItemButton onClick={() => handleNavigate('/dashboard/price-prediction?tab=model-performance')}>
               <ListItemIcon>
-                <HomeIcon />
+                <AssessmentIcon />
               </ListItemIcon>
-              <ListItemText primary="天氣資訊" />
+              <ListItemText primary="模型效能" />
             </ListItemButton>
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton onClick={() => handleNavigate('/dashboard/market-info')}>
+            <ListItemButton onClick={() => handleNavigate('/dashboard/price-prediction?tab=market-info')}>
               <ListItemIcon>
-                <HomeIcon />
+                <InfoIcon />
               </ListItemIcon>
               <ListItemText primary="市場資訊" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => handleNavigate('/dashboard/model-performance')}>
-              <ListItemIcon>
-                <HomeIcon />
-              </ListItemIcon>
-              <ListItemText primary="模型表現" />
             </ListItemButton>
           </ListItem>
         </List>

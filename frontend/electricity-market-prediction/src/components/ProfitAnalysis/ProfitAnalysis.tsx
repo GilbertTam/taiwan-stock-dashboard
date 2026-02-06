@@ -5,7 +5,7 @@ import { Box, Alert, Grid } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { useProfitAnalysis } from './hooks/useProfitAnalysis';
-import { ProfitChart } from './ProfitChart';
+import { ProfitChartLightweight } from './ProfitChartLightweight';
 import { ProfitControls } from './ProfitControls';
 import { ProfitSummaryTable } from './ProfitSummaryTable';
 
@@ -71,7 +71,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
 
             <Grid container spacing={4}>
                 <Grid item xs={12}>
-                    <ProfitChart
+                    <ProfitChartLightweight
                         combinedData={combinedData}
                         selectedModels={selectedModels}
                         modelColorMap={modelColorMap}

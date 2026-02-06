@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Box, Snackbar } from '@mui/material';
+import { useMemo, useEffect, useState, Suspense } from 'react';
+import { Box, Snackbar, Tabs, Tab, Paper } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { prepareChartData } from '@/utils/chartUtils';
 import { downloadSpotCsv } from '@/services/api';
@@ -11,13 +12,59 @@ import { SimpleToolbar } from '@/components/tradingview/SimpleToolbar';
 import { PricePredictionSidebar } from '@/components/tradingview/PricePredictionSidebar';
 import { ResizableLayout } from '@/components/tradingview/ResizableLayout';
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
+import ProfitAnalysis from '@/components/ProfitAnalysis/ProfitAnalysis';
+import MaeAnalysis from '@/components/MaeAnalysis/MaeAnalysis';
+import OutagesPanel from '@/components/market-info/OutagesPanel';
+import InterconnectionPanel from '@/components/market-info/InterconnectionPanel';
+import WeatherChartSection from '@/components/WeatherChartSection';
 
-// Import PriceChartProvider to share state between Sidebar and Chart
 import { PriceChartProvider } from '@/components/price-chart/context/PriceChartContext';
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chartColors';
 
-export default function PricePredictionPage() {
+const TAB_KEYS = ['price', 'model-performance', 'market-info'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+function tabKeyToIndex(key: TabKey): number {
+  const i = TAB_KEYS.indexOf(key);
+  return i >= 0 ? i : 0;
+}
+
+function indexToTabKey(index: number): TabKey {
+  return TAB_KEYS[Math.max(0, Math.min(index, TAB_KEYS.length - 1))];
+}
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+  id: string;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, id, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={id}
+      aria-labelledby={`main-tab-${index}`}
+      style={{
+        height: value === index ? '100%' : 0,
+        display: value === index ? 'flex' : 'none',
+        flexDirection: 'column',
+        minHeight: 0,
+        overflow: 'hidden'
+      }}
+      {...other}
+    >
+      {value === index && children}
+    </div>
+  );
+}
+
+function PricePredictionContent() {
+  const searchParams = useSearchParams();
   const { darkMode } = useTheme();
   const colors = useChartColors();
 
@@ -49,10 +96,9 @@ export default function PricePredictionPage() {
     setEndDate,
     handleMoveMonthBackward,
     handleMoveMonthForward,
-    refreshData // Destructure refreshData
+    refreshData,
   } = useMarketDataContext();
 
-  // Local state for date selection (buffer before fetch)
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate,
     endDate,
@@ -61,32 +107,43 @@ export default function PricePredictionPage() {
     clearPreset: () => handleDateRangePreset(null),
   });
 
+  const tabFromUrl = (searchParams.get('tab') || 'price') as TabKey;
+  const areaFromUrl = searchParams.get('area') || '';
+  const mainTabValue = tabKeyToIndex(TAB_KEYS.includes(tabFromUrl) ? tabFromUrl : 'price');
+  const [mainTab, setMainTab] = useState(mainTabValue);
+
+  const [modelPerfSubTab, setModelPerfSubTab] = useState(0);
+  const [topBottomPairs, setTopBottomPairs] = useState(4);
+  const [marketInfoSubTab, setMarketInfoSubTab] = useState(0);
+
+  useEffect(() => {
+    setMainTab(mainTabValue);
+  }, [mainTabValue]);
+
+  useEffect(() => {
+    if (!areaFromUrl || areas.length === 0) return;
+    const valid = areas.some((a) => a.name === areaFromUrl);
+    if (valid) {
+      handleAreaChange({ target: { value: areaFromUrl } } as any);
+    }
+  }, [areaFromUrl, areas, handleAreaChange]);
+
   const handleDownloadCsv = async () => {
     try {
-      if (!startDate || !endDate || !selectedArea) {
-        console.warn('Missing start/end date or selected area for CSV download');
-        return;
-      }
-
+      if (!startDate || !endDate || !selectedArea) return;
       const start = format(startDate, 'yyyyMMdd');
       const end = format(endDate, 'yyyyMMdd');
-      const modelNames = selectedModels
-        .map((m) => m.name)
-        .filter(Boolean)
-        .join(',');
-
+      const modelNames = selectedModels.map((m) => m.name).filter(Boolean).join(',');
       const blob = await downloadSpotCsv({
         start_date: start,
         end_date: end,
         area_name: selectedArea,
         model_names: modelNames || undefined,
       });
-
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const safeArea = selectedArea || 'area';
       link.href = url;
-      link.download = `spot_${safeArea}_${start}_${end}.csv`;
+      link.download = `spot_${selectedArea}_${start}_${end}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -97,24 +154,18 @@ export default function PricePredictionPage() {
   };
 
   const handleRefresh = () => {
-    if (refreshData) {
-      refreshData();
-    } else {
-      window.location.reload();
-    }
+    if (refreshData) refreshData();
+    else window.location.reload();
   };
 
-  // Prepare Chart Data
-  const chartData = useMemo(() => {
-    const result = prepareChartData(actualPrices, predictionsByModel);
-    return result;
-  }, [actualPrices, predictionsByModel]);
+  const chartData = useMemo(
+    () => prepareChartData(actualPrices, predictionsByModel),
+    [actualPrices, predictionsByModel]
+  );
 
-  // Prepare Weather Chart Data
   const weatherChartData = useMemo(() => {
     const dataMap = new Map<string, any>();
     const getNormalizedKey = (dateStr: string) => {
-      // 統一轉為 YYYY-MM-DD HH:mm
       if (!dateStr) return '';
       try {
         return new Date(dateStr).toISOString();
@@ -122,9 +173,7 @@ export default function PricePredictionPage() {
         return dateStr;
       }
     };
-
-    // 1. Process Actual Data
-    weatherActual.forEach(item => {
+    weatherActual.forEach((item) => {
       if (!item.weather_datetime) return;
       const key = getNormalizedKey(item.weather_datetime);
       if (!dataMap.has(key)) {
@@ -137,7 +186,7 @@ export default function PricePredictionPage() {
           windSpeed: null,
           humidity: null,
           cloudCover: null,
-          isForecast: false
+          isForecast: false,
         });
       }
       const data = dataMap.get(key);
@@ -148,9 +197,7 @@ export default function PricePredictionPage() {
       if (item.relative_humidity !== null) data.humidity = item.relative_humidity;
       if (item.clouds_all !== null) data.cloudCover = item.clouds_all;
     });
-
-    // 2. Process Forecast Data (Similar logic...)
-    weatherForecast.forEach(item => {
+    weatherForecast.forEach((item) => {
       if (!item.weather_datetime) return;
       const key = getNormalizedKey(item.weather_datetime);
       if (!dataMap.has(key)) {
@@ -163,7 +210,7 @@ export default function PricePredictionPage() {
           windSpeed: null,
           humidity: null,
           cloudCover: null,
-          isForecast: true
+          isForecast: true,
         });
       }
       const data = dataMap.get(key);
@@ -174,8 +221,58 @@ export default function PricePredictionPage() {
       if (item.relative_humidity !== null) data.humidity = item.relative_humidity;
       if (item.clouds_all !== null) data.cloudCover = item.clouds_all;
     });
-
     return Array.from(dataMap.values()).sort((a, b) => a.time.localeCompare(b.time));
+  }, [weatherActual, weatherForecast]);
+
+  const marketInfoWeatherChartData = useMemo(() => {
+    const dataMap = new Map<string, any>();
+    const getNormalizedKey = (dateStr: string) => {
+      if (!dateStr) return '';
+      try {
+        return new Date(dateStr).toISOString();
+      } catch (e) {
+        return dateStr;
+      }
+    };
+    weatherActual.forEach((item) => {
+      const key = getNormalizedKey(item.weather_datetime);
+      if (!dataMap.has(key)) {
+        dataMap.set(key, {
+          weather_datetime: item.weather_datetime,
+          temperature_actual: null,
+          rainfall_actual: null,
+          wind_speed_actual: null,
+          temperature_forecast: null,
+          rainfall_forecast: null,
+          wind_speed_forecast: null,
+        });
+      }
+      const existing = dataMap.get(key);
+      existing.temperature_actual = item.temperature;
+      existing.rainfall_actual = item.rainfall;
+      existing.wind_speed_actual = item.wind_speed;
+    });
+    weatherForecast.forEach((item) => {
+      const key = getNormalizedKey(item.weather_datetime);
+      if (!dataMap.has(key)) {
+        dataMap.set(key, {
+          weather_datetime: item.weather_datetime,
+          temperature_actual: null,
+          rainfall_actual: null,
+          wind_speed_actual: null,
+          temperature_forecast: null,
+          rainfall_forecast: null,
+          wind_speed_forecast: null,
+        });
+      }
+      const existing = dataMap.get(key);
+      existing.temperature_forecast = item.temperature;
+      existing.rainfall_forecast = item.rainfall;
+      existing.wind_speed_forecast = item.wind_speed;
+    });
+    return Array.from(dataMap.values()).sort(
+      (a, b) => new Date(a.weather_datetime).getTime() - new Date(b.weather_datetime).getTime()
+    );
   }, [weatherActual, weatherForecast]);
 
   const handleModelToggle = (modelId: string | number, modelName: string) => {
@@ -187,6 +284,8 @@ export default function PricePredictionPage() {
       : [...currentValues, modelValue];
     handleModelChange({ target: { value: newValues } } as any);
   };
+
+  const currentTabKey = indexToTabKey(mainTab);
 
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -205,10 +304,8 @@ export default function PricePredictionPage() {
         colors={colors}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
-          {/* Top Toolbar: Menu Button, Time Selection, Quick Presets, Refresh, Download CSV */}
           <Box sx={{ flexShrink: 0 }}>
             <SimpleToolbar
-              // 使用暫存日期，避免第一次點擊就立即提交，並正確反映使用者在日曆中的當前選擇
               startDate={tempStartDate}
               endDate={tempEndDate}
               dateRangePreset={dateRangePreset}
@@ -217,45 +314,138 @@ export default function PricePredictionPage() {
               onDateMenuClose={onDateMenuClose}
               onRefresh={handleRefresh}
               onDownloadCsv={handleDownloadCsv}
+              currentTab={currentTabKey}
             />
           </Box>
 
-          {/* Main Content: Chart (Left) + Sidebar (Right) */}
-          <Box sx={{ flex: 1, display: 'flex', gap: 0.5, minHeight: 0, overflow: 'hidden' }}>
-            <ResizableLayout direction="horizontal" defaultSizes={[75, 25]} minSizes={[60, 20]}>
-              {/* Left: Large Chart */}
-              <PriceChartContainer areaName={selectedArea} />
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <TabPanel value={mainTab} index={0} id="main-tabpanel-0">
+              <ResizableLayout direction="horizontal" defaultSizes={[75, 25]} minSizes={[60, 20]}>
+                <PriceChartContainer areaName={selectedArea} />
+                <Box
+                  sx={{
+                    height: '100%',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    borderLeft: '1px solid var(--card-border)',
+                    backgroundColor: 'var(--card-bg)',
+                  }}
+                >
+                  <PricePredictionSidebar
+                    areas={areas}
+                    selectedArea={selectedArea}
+                    onAreaChange={handleAreaChange}
+                    models={models}
+                    selectedModels={selectedModels}
+                    calculatingDatesByModel={calculatingDatesByModel}
+                    onModelToggle={handleModelToggle}
+                    onModelCalculatingDateChange={handleModelCalculatingDateChange}
+                  />
+                </Box>
+              </ResizableLayout>
+            </TabPanel>
 
-              {/* Right: Four Sections Sidebar */}
-              <Box sx={{ 
-                height: '100%', 
-                overflowY: 'auto', 
-                overflowX: 'hidden',
-                borderLeft: '1px solid var(--card-border)',
-                backgroundColor: 'var(--card-bg)',
-              }}>
-                <PricePredictionSidebar
-                  areas={areas}
-                  selectedArea={selectedArea}
-                  onAreaChange={handleAreaChange}
-                  models={models}
-                  selectedModels={selectedModels}
-                  calculatingDatesByModel={calculatingDatesByModel}
-                  onModelToggle={handleModelToggle}
-                  onModelCalculatingDateChange={handleModelCalculatingDateChange}
-                />
+            <TabPanel value={mainTab} index={1} id="main-tabpanel-1">
+              <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                {isLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>Loading...</Box>
+                ) : (
+                  <Paper>
+                    <Tabs
+                      value={modelPerfSubTab}
+                      onChange={(_, v) => setModelPerfSubTab(v)}
+                      sx={{
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
+                      }}
+                    >
+                      <Tab label="收益分析" />
+                      <Tab label="MAE 分析" />
+                    </Tabs>
+                    {modelPerfSubTab === 0 && (
+                      <Box sx={{ p: 3 }}>
+                        <ProfitAnalysis
+                          chartData={chartData}
+                          selectedModels={selectedModels}
+                          topBottomPairs={topBottomPairs}
+                          setTopBottomPairs={setTopBottomPairs}
+                        />
+                      </Box>
+                    )}
+                    {modelPerfSubTab === 1 && (
+                      <Box sx={{ p: 3 }}>
+                        <MaeAnalysis chartData={chartData} selectedModels={selectedModels} />
+                      </Box>
+                    )}
+                  </Paper>
+                )}
               </Box>
-            </ResizableLayout>
+            </TabPanel>
+
+            <TabPanel value={mainTab} index={2} id="main-tabpanel-2">
+              <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                <Paper>
+                  <Tabs
+                    value={marketInfoSubTab}
+                    onChange={(_, v) => setMarketInfoSubTab(v)}
+                    sx={{
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                      '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
+                    }}
+                  >
+                    <Tab label="停機資訊" />
+                    <Tab label="互連流量" />
+                    <Tab label="天氣資料" />
+                  </Tabs>
+                  {marketInfoSubTab === 0 && (
+                    <Box sx={{ p: 3 }}>
+                      <OutagesPanel
+                        startDate={startDate}
+                        endDate={endDate}
+                        selectedArea={selectedArea}
+                      />
+                    </Box>
+                  )}
+                  {marketInfoSubTab === 1 && (
+                    <Box sx={{ p: 3 }}>
+                      <InterconnectionPanel
+                        startDate={startDate}
+                        endDate={endDate}
+                        selectedArea={selectedArea}
+                      />
+                    </Box>
+                  )}
+                  {marketInfoSubTab === 2 && (
+                    <Box sx={{ p: 3 }}>
+                      <WeatherChartSection
+                        weatherActual={weatherActual}
+                        weatherForecast={weatherForecast}
+                        weatherChartData={marketInfoWeatherChartData}
+                      />
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
+            </TabPanel>
           </Box>
         </Box>
       </PriceChartProvider>
 
-      {/* Loading Overlay for Initial Load */}
       <Snackbar
         open={isLoading}
         message="Loading market data..."
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       />
     </Box>
+  );
+}
+
+export default function PricePredictionPage() {
+  return (
+    <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading...</Box>}>
+      <PricePredictionContent />
+    </Suspense>
   );
 }

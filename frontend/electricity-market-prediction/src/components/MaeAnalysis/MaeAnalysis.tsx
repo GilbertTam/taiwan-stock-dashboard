@@ -5,7 +5,7 @@ import { Box, Alert } from '@mui/material';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { TimeSlot } from '@/types';
 import { useMaeAnalysis } from './hooks/useMaeAnalysis';
-import { MaeChart } from './MaeChart';
+import { MaeChartLightweight } from './MaeChartLightweight';
 import { MaeSummaryTable } from './MaeSummaryTable';
 
 interface MaeAnalysisProps {
@@ -55,7 +55,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels }) 
 
     return (
         <Box>
-            <MaeChart
+            <MaeChartLightweight
                 dailyMAEs={dailyMAEs}
                 selectedModels={selectedModels}
                 modelColorMap={modelColorMap}

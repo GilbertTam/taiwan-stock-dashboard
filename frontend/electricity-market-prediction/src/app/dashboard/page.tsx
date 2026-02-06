@@ -1,72 +1,270 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { Alert, Snackbar } from '@mui/material';
-import { useMarketDataContext } from '@/context/MarketDataContext';
-import { prepareChartData } from '@/utils/chartUtils';
-import { FilterPanel } from '@/components/market-dashboard/FilterPanel';
-import { KeyMetricsCards } from '@/components/dashboard/KeyMetricsCards';
-import { QuickAccessCards } from '@/components/dashboard/QuickAccessCards';
-import { PriceTrendPreview } from '@/components/dashboard/PriceTrendPreview';
-import { DashboardShell } from '@/components/layout/DashboardShell';
-import { RightSidebar } from '@/components/layout/RightSidebar';
-import { format } from 'date-fns';
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
+import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
+import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
+import { AllAreasPriceChart } from '@/components/dashboard/AllAreasPriceChart';
+import { AreaCardList } from '@/components/dashboard/AreaInfoCard';
+import { SimpleToolbar } from '@/components/tradingview/SimpleToolbar';
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
+import { format, subDays, subMonths } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import type { Area, HjksOutage } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
-// Custom Loader with new styling
-const LoadingComponent = () => (
-  <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
-    <div className="relative">
-      <div className="w-12 h-12 border-4 border-[var(--card-border)] border-t-[var(--primary)] rounded-full animate-spin"></div>
-    </div>
-    <p className="text-[var(--foreground)] opacity-70 animate-pulse">
-      Loading Market Data...
-    </p>
-  </div>
+// Custom Loader - designed spinner + label (no height:100% so wrapper controls centering)
+const LoadingSpinner = () => (
+  <>
+    <Box
+      sx={{
+        position: 'relative',
+        width: 56,
+        height: 56,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          border: '3px solid',
+          borderColor: 'var(--card-border)',
+          opacity: 0.3,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          border: '3px solid transparent',
+          borderTopColor: 'var(--primary)',
+          borderRightColor: 'var(--primary)',
+          animation: 'spin 0.8s linear infinite',
+        },
+        '@keyframes spin': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+      }}
+    />
+    <Typography sx={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>
+      載入市場資料...
+    </Typography>
+  </>
 );
 
+// Full-viewport centering so spinner is in the middle from first frame (no jump)
+const LoadingComponent = () => (
+  <Box
+    sx={{
+      position: 'fixed',
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      zIndex: 10,
+    }}
+  >
+    <LoadingSpinner />
+  </Box>
+);
+
+// Default 3 days in JST
+function getDefaultDateRange() {
+  const jstNow = toZonedTime(new Date(), 'Asia/Tokyo');
+  const end = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate(), 23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 2);
+  start.setHours(0, 0, 0, 0);
+  return { start, end };
+}
+
 export default function Dashboard() {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [allAreasChartData, setAllAreasChartData] = useState<Record<string, ChartDataPoint[]>>({});
+  const [allAreasLoading, setAllAreasLoading] = useState(true);
+  const [dataDate, setDataDate] = useState<string | null>(null);
+  const [highlightedArea, setHighlightedArea] = useState<string | null>(null);
+  const [outages, setOutages] = useState<HjksOutage[]>([]);
+  const [outagesLoading, setOutagesLoading] = useState(true);
 
-  // Use market data hook
-  const {
-    areas,
-    models,
-    calculatingDatesByModel,
-    selectedArea,
-    startDate,
-    endDate,
-    dateRangePreset,
-    selectedModels,
-    actualPrices,
-    predictionsByModel,
-    imbalanceData,
-    interconnectionData,
-    isLoading,
-    handleAreaChange,
-    handleModelChange,
-    handleModelCalculatingDateChange,
-    handleDateRangePreset,
-    setStartDate,
-    setEndDate,
-    handleMoveMonthBackward,
-    handleMoveMonthForward
-  } = useMarketDataContext();
+  const [startDate, setStartDate] = useState<Date | null>(() => getDefaultDateRange().start);
+  const [endDate, setEndDate] = useState<Date | null>(() => getDefaultDateRange().end);
+  const [dateRangePreset, setDateRangePreset] = useState<string | null>(null);
 
-  // Local state for date selection (buffer before fetch)
+  const handleDateRangePreset = useCallback((preset: string | null) => {
+    if (!preset) {
+      setDateRangePreset(null);
+      return;
+    }
+    const jstNow = toZonedTime(new Date(), 'Asia/Tokyo');
+    const today = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate(), 23, 59, 59, 999);
+    let start: Date;
+    switch (preset) {
+      case '1D': start = subDays(today, 1); break;
+      case 'week': start = subDays(today, 7); break;
+      case 'twoWeeks': start = subDays(today, 14); break;
+      case 'month': start = subMonths(today, 1); break;
+      case 'twoMonths': start = subMonths(today, 2); break;
+      case 'threeMonths': start = subMonths(today, 3); break;
+      case 'sixMonths': start = subMonths(today, 6); break;
+      default: start = subDays(today, 7);
+    }
+    start.setHours(0, 0, 0, 0);
+    setStartDate(start);
+    setEndDate(today);
+    setDateRangePreset(preset);
+  }, []);
+
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate,
     endDate,
     setStartDate,
     setEndDate,
-    clearPreset: () => handleDateRangePreset(null),
+    clearPreset: () => setDateRangePreset(null),
   });
 
-  // Prepare chart data for metrics
-  const chartData = prepareChartData(actualPrices, predictionsByModel);
+  const handleRefresh = useCallback(() => {
+    if (!startDate || !endDate) return;
+    const startDateStr = format(startDate, 'yyyyMMdd');
+    const endDateStr = format(endDate, 'yyyyMMdd');
+    setAllAreasLoading(true);
+    setOutagesLoading(true);
+    Promise.all([
+      fetchAllAreasPrices({ start_date: startDateStr, end_date: endDateStr }),
+      fetchHjksOutages({ start_date: startDateStr, end_date: endDateStr }),
+    ]).then(([allPrices, outagesData]) => {
+      const pricesByArea: Record<string, typeof allPrices> = {};
+      allPrices.forEach((price) => {
+        const areaName = price.name;
+        if (!pricesByArea[areaName]) pricesByArea[areaName] = [];
+        pricesByArea[areaName].push(price);
+      });
+      const chartData: Record<string, ChartDataPoint[]> = {};
+      areas.forEach((area) => {
+        const areaData = pricesByArea[area.name] || [];
+        chartData[area.name] = prepareChartData(areaData, {});
+      });
+      setAllAreasChartData(chartData);
+      if (allPrices.length > 0) setDataDate(allPrices[0].trade_date);
+      setOutages(outagesData);
+    }).catch((err) => console.error('Refresh failed:', err))
+      .finally(() => { setAllAreasLoading(false); setOutagesLoading(false); });
+  }, [areas, startDate, endDate]);
+
+  const handleDownloadCsv = useCallback(async () => {
+    if (!startDate || !endDate || areas.length === 0) return;
+    const areaName = areas[0].name;
+    try {
+      const blob = await downloadSpotCsv({
+        start_date: format(startDate, 'yyyyMMdd'),
+        end_date: format(endDate, 'yyyyMMdd'),
+        area_name: areaName,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `spot_${areaName}_${format(startDate, 'yyyyMMdd')}_${format(endDate, 'yyyyMMdd')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to download CSV', e);
+    }
+  }, [startDate, endDate, areas]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, router]);
+
+  // Fetch areas
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+
+    const loadAreas = async () => {
+      try {
+        const areasData = await fetchAreas();
+        if (!cancelled) setAreas(areasData);
+      } catch (error) {
+        console.error('Failed to fetch areas:', error);
+      }
+    };
+
+    loadAreas();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
+  // Fetch ALL areas prices for selected date range
+  useEffect(() => {
+    if (!isAuthenticated || !areas.length || !startDate || !endDate) return;
+
+    const startDateStr = format(startDate, 'yyyyMMdd');
+    const endDateStr = format(endDate, 'yyyyMMdd');
+
+    let cancelled = false;
+    setAllAreasLoading(true);
+
+    fetchAllAreasPrices({ start_date: startDateStr, end_date: endDateStr })
+      .then((allPrices) => {
+        if (cancelled) return;
+
+        const pricesByArea: Record<string, typeof allPrices> = {};
+        allPrices.forEach((price) => {
+          const areaName = price.name;
+          if (!pricesByArea[areaName]) pricesByArea[areaName] = [];
+          pricesByArea[areaName].push(price);
+        });
+
+        const chartData: Record<string, ChartDataPoint[]> = {};
+        areas.forEach((area) => {
+          const areaData = pricesByArea[area.name] || [];
+          chartData[area.name] = prepareChartData(areaData, {});
+        });
+
+        setAllAreasChartData(chartData);
+        if (allPrices.length > 0) setDataDate(allPrices[0].trade_date);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch prices:', error);
+      })
+      .finally(() => { if (!cancelled) setAllAreasLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [areas, isAuthenticated, startDate, endDate]);
+
+  // Fetch HJKS outages for selected date range
+  useEffect(() => {
+    if (!isAuthenticated || !startDate || !endDate) return;
+
+    const startDateStr = format(startDate, 'yyyyMMdd');
+    const endDateStr = format(endDate, 'yyyyMMdd');
+
+    let cancelled = false;
+    setOutagesLoading(true);
+
+    fetchHjksOutages({ start_date: startDateStr, end_date: endDateStr })
+      .then((data) => { if (!cancelled) setOutages(data); })
+      .catch((error) => {
+        console.error('Failed to fetch outages:', error);
+      })
+      .finally(() => { if (!cancelled) setOutagesLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, startDate, endDate]);
 
   useEffect(() => {
-    // Check if redirected from login
     const isFromLogin = sessionStorage.getItem('fromLogin') === 'true';
     if (isFromLogin) {
       setShowLoginSuccess(true);
@@ -74,90 +272,178 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Calculate daily spreads (high - low) for each area and compare with yesterday
+  const dailySpreadStats = useMemo(() => {
+    const now = new Date();
+    const jstNow = toZonedTime(now, 'Asia/Tokyo');
+    const todayStr = format(jstNow, 'yyyy-MM-dd');
+    const yesterday = new Date(jstNow);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+
+    const result: Record<string, { todaySpread: number | null; yesterdaySpread: number | null; change: number | null }> = {};
+
+    areas.forEach((area) => {
+      const data = allAreasChartData[area.name] || [];
+
+      // Group by date
+      const todayPrices = data.filter((p) => p.date === todayStr && p.actualPrice != null);
+      const yesterdayPrices = data.filter((p) => p.date === yesterdayStr && p.actualPrice != null);
+
+      const todayHigh = todayPrices.length > 0 ? Math.max(...todayPrices.map((p) => p.actualPrice!)) : null;
+      const todayLow = todayPrices.length > 0 ? Math.min(...todayPrices.map((p) => p.actualPrice!)) : null;
+      const todaySpread = todayHigh !== null && todayLow !== null ? todayHigh - todayLow : null;
+
+      const yesterdayHigh = yesterdayPrices.length > 0 ? Math.max(...yesterdayPrices.map((p) => p.actualPrice!)) : null;
+      const yesterdayLow = yesterdayPrices.length > 0 ? Math.min(...yesterdayPrices.map((p) => p.actualPrice!)) : null;
+      const yesterdaySpread = yesterdayHigh !== null && yesterdayLow !== null ? yesterdayHigh - yesterdayLow : null;
+
+      const change = todaySpread !== null && yesterdaySpread !== null && yesterdaySpread !== 0
+        ? ((todaySpread - yesterdaySpread) / yesterdaySpread) * 100
+        : null;
+
+      result[area.name] = { todaySpread, yesterdaySpread, change };
+    });
+
+    return result;
+  }, [allAreasChartData, areas]);
+
+  // Market average spread
+  const marketAvgSpread = useMemo(() => {
+    const spreads = Object.values(dailySpreadStats);
+    const validTodaySpreads = spreads.filter((s) => s.todaySpread !== null).map((s) => s.todaySpread!);
+    const validChanges = spreads.filter((s) => s.change !== null).map((s) => s.change!);
+
+    const avgSpread = validTodaySpreads.length > 0
+      ? validTodaySpreads.reduce((a, b) => a + b, 0) / validTodaySpreads.length
+      : null;
+    const avgChange = validChanges.length > 0
+      ? validChanges.reduce((a, b) => a + b, 0) / validChanges.length
+      : null;
+
+    return { avgSpread, avgChange };
+  }, [dailySpreadStats]);
+
+  // Active outages
+  const activeOutages = useMemo(() => {
+    const now = new Date();
+    return outages.filter((o) => {
+      if (!o.end_datetime) return true;
+      return new Date(o.end_datetime) > now;
+    });
+  }, [outages]);
+
+  const totalOutageCapacity = useMemo(() => {
+    return activeOutages.reduce((sum, o) => sum + (o.down_capacity || o.max_capacity || 0), 0);
+  }, [activeOutages]);
+
+  // Return null while redirecting (avoid flash)
+  if (!isAuthenticated) {
+    return <LoadingComponent />;
+  }
+
   return (
-    <div className="space-y-6">
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
       <Snackbar
         open={showLoginSuccess}
         autoHideDuration={3000}
         onClose={() => setShowLoginSuccess(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert
-          onClose={() => setShowLoginSuccess(false)}
-          severity="success"
-          sx={{
-            bgcolor: 'var(--card-bg)',
-            color: 'var(--success)',
-            border: '1px solid var(--success)',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
-          Login successful!
+        <Alert onClose={() => setShowLoginSuccess(false)} severity="success" variant="filled">
+          登入成功
         </Alert>
       </Snackbar>
 
-      {/* Filter Panel */}
-      <DashboardShell
-        main={
-          <>
-            <FilterPanel
-              areas={areas}
-              selectedArea={selectedArea}
-              startDate={tempStartDate}
-              endDate={tempEndDate}
-              dateRangePreset={dateRangePreset}
-              onAreaChange={handleAreaChange}
-              onDateRangePreset={handleDateRangePreset}
-              onDateRangeChange={onDateRangeChange}
-              onDateMenuClose={onDateMenuClose}
-              onMoveMonthBackward={handleMoveMonthBackward}
-              onMoveMonthForward={handleMoveMonthForward}
-              onRefresh={() => { }}
-              onDownloadCsv={() => { }}
-            />
+      {/* Toolbar - same style as price-prediction page, with nav / date range / refresh / CSV */}
+      <Box sx={{ flexShrink: 0, p: 0.5 }}>
+        <SimpleToolbar
+          startDate={tempStartDate}
+          endDate={tempEndDate}
+          dateRangePreset={dateRangePreset}
+          onDateRangeChange={onDateRangeChange}
+          onDateRangePreset={handleDateRangePreset}
+          onDateMenuClose={onDateMenuClose}
+          onRefresh={handleRefresh}
+          onDownloadCsv={handleDownloadCsv}
+          currentTab="home"
+        />
+      </Box>
 
-            <Suspense fallback={<LoadingComponent />}>
-              <div className="mt-6 space-y-8">
-                {/* Key Metrics Section */}
-                <section>
-                  <h2 className="text-xl font-bold mb-4 text-[var(--foreground)]">
-                    關鍵指標
-                  </h2>
-                  <KeyMetricsCards
-                    chartData={chartData}
-                    selectedModels={selectedModels}
-                    startDate={startDate}
-                    endDate={endDate}
-                    selectedArea={selectedArea}
-                    actualPrices={actualPrices}
-                    imbalanceData={imbalanceData}
-                    interconnectionData={interconnectionData}
-                    isLoading={isLoading}
-                  />
-                </section>
+      {/* Main Content */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        <Suspense fallback={<LoadingComponent />}>
+          {allAreasLoading ? (
+            <LoadingComponent />
+          ) : (
+            <>
+              {/* Left: Chart */}
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  p: 1.5,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <AllAreasPriceChart
+                  areas={areas}
+                  allAreasChartData={allAreasChartData}
+                  loading={allAreasLoading}
+                  highlightedArea={highlightedArea}
+                  outages={outages}
+                />
+              </Box>
 
-                <hr className="border-[var(--card-border)]" />
-
-                {/* Quick Access Section */}
-                <section>
-                  <h2 className="text-xl font-bold mb-4 text-[var(--foreground)]">
-                    快速入口
-                  </h2>
-                  <QuickAccessCards />
-                </section>
-
-                <hr className="border-[var(--card-border)]" />
-
-                {/* Price Trend Preview */}
-                <section>
-                  <PriceTrendPreview chartData={chartData} selectedArea={selectedArea} />
-                </section>
-              </div>
-            </Suspense>
-          </>
-        }
-        sidebar={<RightSidebar />}
-      />
-    </div>
+              {/* Right: Area Cards */}
+              <Box
+                sx={{
+                  width: 260,
+                  flexShrink: 0,
+                  p: 1.5,
+                  pt: 1,
+                  borderLeft: '1px solid var(--card-border)',
+                  backgroundColor: 'var(--card-bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, px: 0.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 12 }}>
+                    區域一覽
+                  </Typography>
+                  <Tooltip
+                    title="價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較"
+                    arrow
+                    placement="left"
+                  >
+                    <InfoOutlinedIcon sx={{ fontSize: 14, color: 'var(--muted)', cursor: 'help' }} />
+                  </Tooltip>
+                </Box>
+                <AreaCardList
+                  areas={areas}
+                  allAreasChartData={allAreasChartData}
+                  loading={allAreasLoading}
+                  focusedArea={highlightedArea}
+                  onAreaClick={(name) => setHighlightedArea((prev) => (prev === name ? null : name))}
+                  dailySpreadStats={dailySpreadStats}
+                />
+              </Box>
+            </>
+          )}
+        </Suspense>
+      </Box>
+    </Box>
   );
 }

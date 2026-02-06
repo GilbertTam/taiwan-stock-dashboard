@@ -352,7 +352,7 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
             borderColor: 'var(--primary)',
           }
         }}
-        onClick={() => router.push('/dashboard/price-prediction')}
+        onClick={() => router.push(selectedArea ? `/dashboard/price-prediction?area=${encodeURIComponent(selectedArea)}` : '/dashboard/price-prediction')}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" fontWeight="bold">
@@ -384,7 +384,7 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
           borderColor: 'var(--primary)',
         }
       }}
-      onClick={() => router.push('/dashboard/price-prediction')}
+      onClick={() => router.push(selectedArea ? `/dashboard/price-prediction?area=${encodeURIComponent(selectedArea)}` : '/dashboard/price-prediction')}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" fontWeight="bold">

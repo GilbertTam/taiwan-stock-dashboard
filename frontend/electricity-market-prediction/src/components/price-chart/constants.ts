@@ -29,11 +29,11 @@ export const occtoStackedFields = [
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [
-    { value: 'temperature', label: 'Temp', unit: '°C', color: '#ff4d4f' },      // 飽和紅
-    { value: 'rainfall', label: 'Rain', unit: 'mm', color: '#1e90ff' },         // 明亮藍
-    { value: 'snowfall', label: 'Snow', unit: 'mm', color: '#91d5ff' },         // 淺藍
-    { value: 'wind_speed', label: 'Wind', unit: 'm/s', color: '#52c41a' },      // 鮮綠
-    { value: 'relative_humidity', label: 'Humid', unit: '%', color: '#722ed1' },// 紫色
-    { value: 'clouds_all', label: 'Clouds', unit: '%', color: '#8c8c8c' },      // 中灰
+    { value: 'temperature', label: 'Temp', unit: '°C', color: '#ff9800' },
+    { value: 'rainfall', label: 'Rain', unit: 'mm', color: '#2196f3' },
+    { value: 'snowfall', label: 'Snow', unit: 'mm', color: '#90caf9' },
+    { value: 'wind_speed', label: 'Wind', unit: 'm/s', color: '#4caf50' },
+    { value: 'relative_humidity', label: 'Humid', unit: '%', color: '#9c27b0' },
+    { value: 'clouds_all', label: 'Clouds', unit: '%', color: '#607d8b' },
 ];
 

@@ -101,7 +101,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             type: 'bar',
             yAxisIndex: 0,
             barMaxWidth: 18,
-            itemStyle: { color: colors.actual, opacity: 0.3 },
+            itemStyle: { color: colors.actual, opacity: 0.6 },
             data: combinedData.map((d) => d.actualProfit ?? 0),
         });
 
@@ -112,7 +112,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
                 type: 'bar',
                 yAxisIndex: 0,
                 barMaxWidth: 18,
-                itemStyle: { color: modelColorMap[modelKey], opacity: 0.3 },
+                itemStyle: { color: modelColorMap[modelKey], opacity: 0.6 },
                 data: combinedData.map((d) => d[`${modelKey}_profit`] ?? 0),
             });
         });
