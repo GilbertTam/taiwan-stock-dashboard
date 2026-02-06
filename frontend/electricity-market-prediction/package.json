@@ -19,6 +19,7 @@
     "@types/react-date-range": "^1.4.10",
     "axios": "^1.8.3",
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
     "js-cookie": "^3.0.5",
