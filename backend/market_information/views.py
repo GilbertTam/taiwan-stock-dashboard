@@ -126,7 +126,7 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, description="開始日期 (YYYYMMDD)", type=openapi.TYPE_STRING, required=True),
             openapi.Parameter('end_date', openapi.IN_QUERY, description="結束日期 (YYYYMMDD)", type=openapi.TYPE_STRING, required=True),
-            openapi.Parameter('name', openapi.IN_QUERY, description="電力區域名稱", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('name', openapi.IN_QUERY, description="電力區域名稱 (可選，不提供則返回所有區域)", type=openapi.TYPE_STRING, required=False),
         ],
         responses={200: SpotTradeSerializer(many=True)}
     )
@@ -140,14 +140,13 @@ class MarketInformationViewSet(viewsets.ViewSet):
             self.validate_date_param(start_date, 'start_date')
             self.validate_date_param(end_date, 'end_date')
             
-            if not area_name:
-                return Response({"result": [{"Message": "Error", "Detail": "Missing required params"}]}, status=status.HTTP_400_BAD_REQUEST)
+            # area_name is now optional - if not provided, returns all areas
 
             es_service = ESService()
             results = es_service.get_jepx_trades(
                 start_date=start_date,
                 end_date=end_date,
-                area_name=area_name
+                area_name=area_name  # None means all areas
             )
             
             # The structure is the same, so we reuse the logic
