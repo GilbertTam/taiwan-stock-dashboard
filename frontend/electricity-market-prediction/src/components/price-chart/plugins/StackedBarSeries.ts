@@ -34,19 +34,27 @@ class StackedBarSeriesRenderer implements ICustomSeriesPaneRenderer {
 
     // target is likely CanvasRenderingContext2D-like but with extra methods in LWC environment.
     // Since types aren't exported, we use any or specific shape.
-    draw(target: any, priceConverter: any, isHovered: boolean, hitTestData?: unknown): void {
+    // priceConverter is a function (PriceToCoordinateConverter), not an object!
+    draw(target: any, priceToCoordinate: (price: number) => number | null, isHovered: boolean, hitTestData?: unknown): void {
         target.useBitmapCoordinateSpace((scope: any) => {
             const ctx = scope.context as CanvasRenderingContext2D;
+            const horizontalPixelRatio = scope.horizontalPixelRatio || 1;
+            const verticalPixelRatio = scope.verticalPixelRatio || 1;
 
             if (!this._data || this._data.bars.length === 0) return;
 
             const bars = this._data.bars;
-            const barSpacing = (this._data as any).barSpacing || 6;
-            const barWidth = Math.max(1, Math.floor(barSpacing * this._barWidth));
+            const barSpacing = (this._data as any).barSpacing ?? 6;
+            // Cap bar width so zooming out never makes bars overlap (width must be < spacing in pixels)
+            const maxBarWidthPx = Math.max(1, Math.floor((barSpacing - 0.5) * horizontalPixelRatio));
+            const barWidth = Math.min(
+                Math.max(1, Math.floor(barSpacing * this._barWidth * horizontalPixelRatio)),
+                maxBarWidthPx
+            );
             const halfWidth = barWidth / 2;
 
             bars.forEach((bar: any) => {
-                const x = bar.x;
+                const x = Math.round(bar.x * horizontalPixelRatio);
                 const originalData = bar.originalData as StackedBarData;
                 if (!originalData || !originalData.items) return;
 
@@ -61,18 +69,16 @@ class StackedBarSeriesRenderer implements ICustomSeriesPaneRenderer {
                     if (isPositive) posBase = toVal;
                     else negBase = toVal;
 
-                    // priceConverter usually has priceToCoordinate method
-                    const y1 = priceConverter.priceToCoordinate(fromVal);
-                    const y2 = priceConverter.priceToCoordinate(toVal);
+                    // priceToCoordinate is a FUNCTION, call it directly!
+                    const y1Media = priceToCoordinate(fromVal);
+                    const y2Media = priceToCoordinate(toVal);
 
-                    if (y1 !== null && y2 !== null) {
+                    if (y1Media !== null && y2Media !== null) {
+                        const y1 = Math.round(y1Media * verticalPixelRatio);
+                        const y2 = Math.round(y2Media * verticalPixelRatio);
                         const top = Math.min(y1, y2);
                         const bottom = Math.max(y1, y2);
-                        const height = bottom - top;
-
-                        if (height < 1 && height > 0) {
-                            // Min height if needed
-                        }
+                        const height = Math.max(1, bottom - top); // Minimum height of 1px
 
                         ctx.fillStyle = item.color;
                         ctx.fillRect(x - halfWidth, top, barWidth, height);

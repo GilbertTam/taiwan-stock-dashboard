@@ -19,8 +19,8 @@ export interface ChartDataPoint {
   modelAreaBottoms?: { [key: string]: number | null };
   // Intraday
   intraday_average?: number | null;
-  intraday_opening?: number | null;
-  intraday_closing?: number | null;
+  intraday_open?: number | null;
+  intraday_close?: number | null;
   intraday_high?: number | null;
   intraday_low?: number | null;
   intraday_bar_trigger?: number | null;
@@ -157,42 +157,44 @@ export const generateColor = (hash: number, usedColors: string[] = []): string =
     const index = Math.abs(hash) % DISTINCT_COLORS.length;
     return DISTINCT_COLORS[index];
   }
-  
+
   // Find the color that maximizes minimum distance to all used colors
   let bestColor = DISTINCT_COLORS[0];
   let maxMinDistance = 0;
-  
+
   for (const candidateColor of DISTINCT_COLORS) {
     if (usedColors.includes(candidateColor)) continue;
-    
+
     const minDistance = Math.min(
       ...usedColors.map(usedColor => colorDistance(candidateColor, usedColor))
     );
-    
+
     if (minDistance > maxMinDistance) {
       maxMinDistance = minDistance;
       bestColor = candidateColor;
     }
   }
-  
+
   return bestColor;
 };
 
 /**
  * Robustly parses a date string into a Unix timestamp.
  * Supports:
- * - ISO string: "2025-04-05T22:30:00"
- * - Space separated: "2025-04-05 22:30"
- * - Compact YYYYMMDD: "20250405" (assumes 00:00)
- * - Compact YYYYMMDDHHmm: "202504052230"
+ * - ISO string: "2025-04-05T22:30:00" or with offset "2025-04-05T22:30:00+09:00"
+ * - Space separated: "2025-04-05 22:30" (interpreted as JST for Japanese market data)
+ * - Compact YYYYMMDD: "20250405" (assumes 00:00 JST)
+ * - Compact YYYYMMDDHHmm: "202504052230" (JST)
+ * When the string has no timezone (no Z, +, -), it is treated as JST (Asia/Tokyo) so chart data matches API.
  */
 export const parseToTimestamp = (dateStr: string | null | undefined): number | null => {
   if (!dateStr) return null;
 
   try {
     let isoStr = dateStr;
+    let needsJst = false;
 
-    // 1. Handle "20231027" or "202310271000" (Compact format)
+    // 1. Handle "20231027" or "202310271000" (Compact format) — JST
     if (/^\d{8,}$/.test(dateStr)) {
       const y = dateStr.substring(0, 4);
       const m = dateStr.substring(4, 6);
@@ -210,10 +212,21 @@ export const parseToTimestamp = (dateStr: string | null | undefined): number | n
       }
 
       isoStr = `${y}-${m}-${d}T${H}:${M}:00`;
+      needsJst = true;
     }
-    // 2. Handle "2023-10-27 10:00" (Space separated)
+    // 2. Handle "2023-10-27 10:00" (Space separated) — JST
     else if (dateStr.includes(' ')) {
       isoStr = dateStr.replace(' ', 'T');
+      needsJst = true;
+    }
+    // 3. ISO without timezone (e.g. "2025-04-05T22:30:00") — treat as JST for consistency
+    else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr) && !/[Z+-]\d{2}:?\d{2}$/.test(dateStr)) {
+      needsJst = true;
+    }
+
+    if (needsJst && !isoStr.endsWith('Z') && !/[-+]\d{2}:?\d{2}$/.test(isoStr)) {
+      if (!/\d{2}:\d{2}:\d{2}/.test(isoStr)) isoStr = isoStr.replace(/(:\d{2})$/, '$1:00');
+      isoStr = `${isoStr}+09:00`;
     }
 
     const date = new Date(isoStr);
@@ -354,3 +367,33 @@ export function calculateModelMAE(chartData: ChartDataPoint[], modelId: string |
 
   return validPointsCount > 0 ? totalError / validPointsCount : 0;
 }
+
+// Helper to safely format time in target timezone (Standard Intl API)
+export const formatInTimezone = (timestamp: number, timezone: string, options?: Intl.DateTimeFormatOptions) => {
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  // Ensure valid timezone or fallback to Tokyo
+  let effectiveTz = timezone;
+  if (!effectiveTz || effectiveTz === 'undefined') effectiveTz = 'Asia/Tokyo';
+
+  // Default options for charts
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  };
+
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: effectiveTz,
+      ...(options || defaultOptions)
+    }).format(date);
+  } catch (e) {
+    console.warn(`Timezone '${effectiveTz}' invalid. Fallback to Tokyo.`);
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tokyo',
+      ...(options || defaultOptions)
+    }).format(date);
+  }
+};

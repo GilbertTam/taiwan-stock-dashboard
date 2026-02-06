@@ -57,8 +57,8 @@ interface PriceChartState {
     // Settings
     chartType: 'line' | 'stepLine';
     setChartType: (val: 'line' | 'stepLine') => void;
-    occtoChartType: 'line' | 'stacked' | 'percentage';
-    setOcctoChartType: (val: 'line' | 'stacked' | 'percentage') => void;
+    occtoChartType: 'stacked' | 'area';
+    setOcctoChartType: (val: 'stacked' | 'area') => void;
     selectedOcctoField: string;
     setSelectedOcctoField: (val: string) => void;
     selectedOcctoFields: Set<string>;
@@ -83,6 +83,8 @@ interface PriceChartState {
     selectedModels: any[];
     colors: any;
     darkMode: boolean;
+    timezone: string;
+    setTimezone: (val: string) => void;
 }
 
 const PriceChartContext = createContext<PriceChartState | undefined>(undefined);
@@ -142,6 +144,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [chartType, setChartType] = useState<'line' | 'stepLine'>('stepLine');
     const [adjacentPointsCount, setAdjacentPointsCount] = useState(1);
     const [showSettings, setShowSettings] = useState(false);
+
+    // Timezone - Default to Tokyo (JST)
+    const [timezone, setTimezone] = useState('Asia/Tokyo');
     const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
     const [selectedOcctoFields, setSelectedOcctoFields] = useState<Set<string>>(new Set(['area_demand']));
     const [selectedWeatherFieldsActual, setSelectedWeatherFieldsActual] = useState<Set<string>>(new Set(['temperature']));
@@ -152,7 +157,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedWeatherFieldsForecast.forEach(f => merged.add(f));
         return merged;
     }, [selectedWeatherFieldsActual, selectedWeatherFieldsForecast]);
-    const [occtoChartType, setOcctoChartType] = useState<'line' | 'stacked' | 'percentage'>('line');
+    const [occtoChartType, setOcctoChartType] = useState<'stacked' | 'area'>('stacked');
     const [showZScore, setShowZScore] = useState(true);
 
 
@@ -225,7 +230,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         areaName,
         selectedModels,
         colors,
-        darkMode
+        darkMode,
+        timezone,
+        setTimezone
     }), [
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
         hoveredData,

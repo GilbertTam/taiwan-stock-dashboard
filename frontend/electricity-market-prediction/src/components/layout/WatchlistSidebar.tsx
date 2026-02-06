@@ -449,8 +449,8 @@ function DataLayersPanel({
     let setSelectedOcctoFields: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
     let selectedWeatherFields: Set<string> = new Set(['temperature']);
     let setSelectedWeatherFields: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
-    let occtoChartType: 'line' | 'stacked' | 'percentage' = 'line';
-    let setOcctoChartType: (val: 'line' | 'stacked') => void = () => { };
+    let occtoChartType: 'stacked' | 'area' = 'stacked';
+    let setOcctoChartType: (val: 'stacked' | 'area') => void = () => { };
 
     try {
         const chartContext = usePriceChart();
@@ -603,26 +603,9 @@ function DataLayersPanel({
                 {/* OCCTO field toggles */}
                 {showOcctoArea && hasOcctoData && (
                     <div className="ml-2 space-y-2 rounded bg-teal-500/5 p-2">
-                        {/* Chart type toggle */}
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => setOcctoChartType('line')}
-                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[9px] transition-colors ${occtoChartType === 'line'
-                                    ? 'bg-teal-500/30 text-teal-400 font-bold'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]'
-                                    }`}
-                            >
-                                <ShowChart className="h-3 w-3" /> Line
-                            </button>
-                            <button
-                                onClick={() => setOcctoChartType('stacked')}
-                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[9px] transition-colors ${occtoChartType === 'stacked'
-                                    ? 'bg-teal-500/30 text-teal-400 font-bold'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]'
-                                    }`}
-                            >
-                                <BarChart className="h-3 w-3" /> Stack
-                            </button>
+                        {/* Stacked bar is the only mode - show label */}
+                        <div className="flex items-center gap-1 text-[9px] text-teal-400">
+                            <BarChart className="h-3 w-3" /> Stacked Bar Chart
                         </div>
                         {/* Field toggles */}
                         <div className="flex flex-wrap gap-1">

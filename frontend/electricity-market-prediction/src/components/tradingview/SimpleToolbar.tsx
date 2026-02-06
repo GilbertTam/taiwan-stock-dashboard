@@ -104,6 +104,56 @@ export const SimpleToolbar: React.FC<SimpleToolbarProps> = ({
           }}
         />
 
+        {/* Navigation Buttons */}
+        <Tooltip title="上一段區間">
+          <IconButton
+            size="small"
+            onClick={() => {
+              if (startDate && endDate) {
+                const diff = endDate.getTime() - startDate.getTime();
+                // Shift back by the current range duration (or 1 day if preferred, but range makes sense for "previous view")
+                // User asked for "Forward/Backward X days". Let's stick to 1 day shift for granular control as per common dashboard UX, 
+                // OR shift by the range length.
+                // Let's implement shifting by 1 day as a safe default for "scrolling".
+                const shiftMs = 24 * 60 * 60 * 1000;
+                // Wait, if I'm looking at a week, moving 1 day is slow.
+                // Let's use 20% of the range or 1 day, whichever is larger?
+                // Actually, "control forward/backward few days" - let's do 1 day for now as requested by "few days".
+                const ONE_DAY = 24 * 60 * 60 * 1000;
+                onDateRangeChange({
+                  selection: {
+                    startDate: new Date(startDate.getTime() - ONE_DAY),
+                    endDate: new Date(endDate.getTime() - ONE_DAY),
+                  }
+                });
+              }
+            }}
+            sx={{ border: '1px solid var(--card-border)', mr: 1 }}
+          >
+            <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'<'}</Box>
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="下一段區間">
+          <IconButton
+            size="small"
+            onClick={() => {
+              if (startDate && endDate) {
+                const ONE_DAY = 24 * 60 * 60 * 1000;
+                onDateRangeChange({
+                  selection: {
+                    startDate: new Date(startDate.getTime() + ONE_DAY),
+                    endDate: new Date(endDate.getTime() + ONE_DAY),
+                  }
+                });
+              }
+            }}
+            sx={{ border: '1px solid var(--card-border)', mr: 1 }}
+          >
+            <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'>'}</Box>
+          </IconButton>
+        </Tooltip>
+
         {/* Quick Time Range Switcher */}
         <TimeRangeSwitcher
           dateRangePreset={dateRangePreset}

@@ -4,7 +4,7 @@
  */
 
 import { UTCTimestamp } from 'lightweight-charts';
-import { ChartDataPoint, ModelPrediction } from './chartUtils';
+import { ChartDataPoint, ModelPrediction, formatInTimezone } from './chartUtils';
 import { ChartColors } from './chartColors';
 import { startOfDay } from 'date-fns';
 
@@ -36,13 +36,38 @@ export const toUTCTimestamp = (timestamp: number): UTCTimestamp => {
     return Math.floor(timestamp / 1000) as UTCTimestamp;
 };
 
+/** Fixed offset in seconds for chart timezone display (library uses UTC internally; we shift so UTC = local wall clock) */
+function getTimezoneOffsetSeconds(timezone: string): number {
+    if (timezone === 'Asia/Taipei') return 8 * 3600;
+    if (timezone === 'UTC') return 0;
+    return 9 * 3600; // Asia/Tokyo default
+}
+
 /**
- * Converts processedChartData to Line Series data format
+ * Convert actual UTC timestamp to "chart time" so the library's UTC-based axis shows the desired timezone.
+ * Official approach: adjust data time by +offset so UTC display equals local wall clock (e.g. JST 00:00 shows as 00:00).
+ */
+export function toChartTime(timestampMs: number, timezone: string): UTCTimestamp {
+    const utcSec = Math.floor(timestampMs / 1000);
+    return (utcSec + getTimezoneOffsetSeconds(timezone)) as UTCTimestamp;
+}
+
+/** Convert chart time (seconds) back to actual timestamp (ms) for crosshair → data lookup. */
+export function fromChartTime(chartTimeSec: number, timezone: string): number {
+    const offset = getTimezoneOffsetSeconds(timezone);
+    return (chartTimeSec - offset) * 1000;
+}
+
+/**
+ * Converts processedChartData to Line Series data format.
+ * If timezone is provided, uses chart-time (so axis shows same as tooltip in that zone).
  */
 export const convertToLineSeriesData = (
     data: ProcessedDataPoint[],
-    valueExtractor: (point: ProcessedDataPoint) => number | null
+    valueExtractor: (point: ProcessedDataPoint) => number | null,
+    timezone?: string
 ): { time: UTCTimestamp; value: number }[] => {
+    const timeFn = timezone ? (ts: number) => toChartTime(ts, timezone) : toUTCTimestamp;
     return data
         .map(point => {
             const value = valueExtractor(point);
@@ -50,7 +75,7 @@ export const convertToLineSeriesData = (
                 return null;
             }
             return {
-                time: toUTCTimestamp(point.timestamp),
+                time: timeFn(point.timestamp),
                 value,
             };
         })
@@ -58,24 +83,31 @@ export const convertToLineSeriesData = (
 };
 
 /**
- * Converts processedChartData to Candlestick Series data format
+ * Converts processedChartData to Candlestick Series data format.
+ * Only includes points that have valid intraday OHLC data.
+ * If timezone is provided, uses chart-time for axis alignment.
  */
 export const convertToCandlestickData = (
-    data: ProcessedDataPoint[]
+    data: ProcessedDataPoint[],
+    timezone?: string
 ): { time: UTCTimestamp; open: number; high: number; low: number; close: number }[] => {
+    const timeFn = timezone ? (ts: number) => toChartTime(ts, timezone) : toUTCTimestamp;
     return data
         .map(point => {
-            const open = point.intraday_open ?? point.intraday_close ?? point.actualPrice;
-            const close = point.intraday_close ?? point.intraday_open ?? point.actualPrice;
-            const high = point.intraday_high ?? Math.max(open ?? 0, close ?? 0);
-            const low = point.intraday_low ?? Math.min(open ?? 0, close ?? 0);
+            const open = point.intraday_open;
+            const close = point.intraday_close;
+            const high = point.intraday_high;
+            const low = point.intraday_low;
 
-            if (open === null || close === null || high === null || low === null) {
+            if (open === null || open === undefined ||
+                close === null || close === undefined ||
+                high === null || high === undefined ||
+                low === null || low === undefined) {
                 return null;
             }
 
             return {
-                time: toUTCTimestamp(point.timestamp),
+                time: timeFn(point.timestamp),
                 open,
                 high,
                 low,
@@ -86,13 +118,16 @@ export const convertToCandlestickData = (
 };
 
 /**
- * Converts processedChartData to Histogram Series data format
+ * Converts processedChartData to Histogram Series data format.
+ * If timezone is provided, uses chart-time for axis alignment.
  */
 export const convertToHistogramData = (
     data: ProcessedDataPoint[],
     valueExtractor: (point: ProcessedDataPoint) => number | null,
-    baseValue?: number
+    baseValue?: number,
+    timezone?: string
 ): { time: UTCTimestamp; value: number; color?: string }[] => {
+    const timeFn = timezone ? (ts: number) => toChartTime(ts, timezone) : toUTCTimestamp;
     return data
         .map(point => {
             const value = valueExtractor(point);
@@ -100,7 +135,7 @@ export const convertToHistogramData = (
                 return null;
             }
             return {
-                time: toUTCTimestamp(point.timestamp),
+                time: timeFn(point.timestamp),
                 value,
                 ...(baseValue !== undefined && { base: baseValue }),
             };
@@ -109,20 +144,23 @@ export const convertToHistogramData = (
 };
 
 /**
- * Converts processedChartData to Area Series data format (for prediction bands)
+ * Converts processedChartData to Area Series data format (for prediction bands).
+ * If timezone is provided, uses chart-time for axis alignment.
  */
 export const convertToAreaSeriesData = (
     data: ProcessedDataPoint[],
     topExtractor: (point: ProcessedDataPoint) => number | null,
-    bottomExtractor: (point: ProcessedDataPoint) => number | null
+    bottomExtractor: (point: ProcessedDataPoint) => number | null,
+    timezone?: string
 ): { time: UTCTimestamp; value: number }[][] => {
+    const timeFn = timezone ? (ts: number) => toChartTime(ts, timezone) : toUTCTimestamp;
     const topData: { time: UTCTimestamp; value: number }[] = [];
     const bottomData: { time: UTCTimestamp; value: number }[] = [];
 
     data.forEach(point => {
         const top = topExtractor(point);
         const bottom = bottomExtractor(point);
-        const time = toUTCTimestamp(point.timestamp);
+        const time = timeFn(point.timestamp);
 
         if (top !== null && top !== undefined && !isNaN(top)) {
             topData.push({ time, value: top });
@@ -230,13 +268,13 @@ export const createCrosshairOptions = (
         vertLine: {
             color: colors.text,
             width: 1,
-            style: 0, // Solid
+            style: 2, // Dashed - dotted line at mouse position
             labelBackgroundColor: colors.tooltipHeaderBg,
         },
         horzLine: {
             color: colors.text,
             width: 1,
-            style: 0, // Solid
+            style: 2, // Dashed - dotted line at mouse position
             labelBackgroundColor: colors.tooltipHeaderBg,
         },
     };

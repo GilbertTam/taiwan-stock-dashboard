@@ -1,109 +1,137 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, LineSeries, CandlestickSeries, Time } from 'lightweight-charts';
-import { Box } from '@mui/material';
+import { ChartInfoPanel } from './ChartInfoPanel';
+import {
+    createChart,
+    IChartApi,
+    ISeriesApi,
+    LineSeries,
+    AreaSeries,
+    CandlestickSeries,
+    HistogramSeries,
+    Time,
+    LineStyle,
+    ColorType,
+    CrosshairMode,
+} from 'lightweight-charts';
 import { usePriceChart } from './context/PriceChartContext';
+import { formatInTimezone } from '@/utils/chartUtils';
 import { useMarketDataContext } from '@/context/MarketDataContext';
-import { occtoFields, occtoStackedFields, weatherFields } from './constants';
-import { StackedBarSeries } from './plugins/StackedBarSeries';
-import { subDays, addDays } from 'date-fns';
+import { occtoStackedFields } from './constants';
+import { format as formatDate } from 'date-fns';
 import {
     convertToLineSeriesData,
     convertToCandlestickData,
     createChartLayout,
     createCrosshairOptions,
-    toUTCTimestamp,
+    toChartTime,
+    fromChartTime,
     ProcessedDataPoint,
 } from '@/utils/lightweightChartsHelpers';
+import { DayBackgroundPrimitive } from './plugins/DayBackgroundPrimitive';
+// Plugins (Dynamically imported or assumed available)
+import { StackedBarSeries } from './plugins/StackedBarSeries';
+import { StackedAreaSeries } from './plugins/StackedAreaSeries';
+
+// --- 1. Static Helpers & Constants (Moved outside component) ---
+
+const WEATHER_FIELD_COLORS: Record<string, string> = {
+    temperature: '#ff9800',
+    rainfall: '#2196f3',
+    snowfall: '#90caf9',
+    wind_speed: '#4caf50',
+    relative_humidity: '#9c27b0',
+    clouds_all: '#607d8b',
+};
+
+const hexToRgba = (hex: string, alpha: number): string => {
+    const h = hex.replace(/^#/, '');
+    if (h.length !== 6) return hex;
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+};
 
 export const PriceChartLightweight: React.FC = () => {
-    // 1. DOM & Chart Refs
+    // --- 2. Refs & Context ---
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const mainChartRef = useRef<IChartApi | null>(null);
     const seriesRefs = useRef<Map<string, ISeriesApi<any>>>(new Map());
+    const dayBackgroundRef = useRef<DayBackgroundPrimitive | null>(null);
+    const seriesWithBackgroundRef = useRef(new WeakSet<ISeriesApi<any>>());
+    const occtoChartTypeRef = useRef<'area' | 'stacked' | undefined>(undefined);
 
-    // 2. Context Data
     const {
-        processedChartData,
-        colors,
-        darkMode,
-        selectedModels,
-        modelColorMap,
-        showImbalance,
-        showIntraday,
-        showInterconnection,
-        showOcctoArea,
-        occtoChartType,
-        selectedOcctoFields,
-        showWeatherActual,
-        showWeatherForecast,
-        selectedWeatherFields,
-        selectedWeatherFieldsActual,
-        selectedWeatherFieldsForecast,
-        setHoveredData,
-        chartType,
+        processedChartData, colors, darkMode, selectedModels, modelColorMap,
+        showImbalance, showIntraday, showIntradayAverage, showInterconnection,
+        showOcctoArea, occtoChartType, selectedOcctoFields,
+        showWeather, showWeatherActual, showWeatherForecast,
+        selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
+        hoveredData, setHoveredData, areaName, timezone, setTimezone,
     } = usePriceChart();
 
     const {
-        highlightedModelId,
-        startDate,
-        endDate,
-        setStartDate,
-        setEndDate,
-        isLoading // 來自 Context 的全域 Loading 狀態
+        highlightedModelId, startDate, endDate, showActualPrice,
     } = useMarketDataContext();
 
-    // 3. 狀態同步 Refs (解決閉包問題)
-    const startDateRef = useRef(startDate);
-    const endDateRef = useRef(endDate);
+    // 解決閉包問題的 Refs
     const latestDataRef = useRef(processedChartData);
-
-    // [關鍵 Ref]: 鎖定標記。
-    // true = 這次資料更新是由「拖曳/縮放」觸發的 (不重設視角)。
-    // false = 這次資料更新是由「日期選擇器」觸發的 (重設視角)。
-    const isLoadingMoreData = useRef(false);
-
-    // [關鍵 Ref]: 冷卻時間，防止 React Render Loop 造成的無限觸發
-    const lastFetchTimeRef = useRef<number>(0);
-
-    // 隨時同步 Ref 數值
-    useEffect(() => { startDateRef.current = startDate; }, [startDate]);
-    useEffect(() => { endDateRef.current = endDate; }, [endDate]);
     useEffect(() => { latestDataRef.current = processedChartData; }, [processedChartData]);
 
+    // --- 3. Data Memoization (效能優化關鍵) ---
+    // 將昂貴的數據轉換移出 Effect，並加上緩存
 
-    // 4. Helper: 查找最近的數據點 (Hover 用)
-    const findNearestDataPoint = useCallback((targetTimestamp: number): ProcessedDataPoint | null => {
-        const data = latestDataRef.current;
-        if (!data || data.length === 0) return null;
+    const candleData = useMemo(() => 
+        showIntraday ? convertToCandlestickData(processedChartData, timezone) : [],
+    [processedChartData, showIntraday, timezone]);
 
-        let left = 0;
-        let right = data.length - 1;
-        let nearest = data[0];
-        let minDiff = Math.abs(data[0].timestamp - targetTimestamp);
+    const intradayAvgData = useMemo(() => 
+        (showIntraday && showIntradayAverage) ? convertToLineSeriesData(processedChartData, p => p.intraday_average ?? null, timezone) : [],
+    [processedChartData, showIntraday, showIntradayAverage, timezone]);
 
-        while (left <= right) {
-            const mid = Math.floor((left + right) / 2);
-            const currentTimestamp = data[mid].timestamp;
-            const diff = Math.abs(currentTimestamp - targetTimestamp);
-            if (diff < minDiff) {
-                minDiff = diff;
-                nearest = data[mid];
-            }
-            if (currentTimestamp < targetTimestamp) {
-                left = mid + 1;
-            } else {
-                right = mid - 1;
-            }
-        }
-        return nearest;
-    }, []);
+    const actualData = useMemo(() => 
+        convertToLineSeriesData(processedChartData, p => p.actualPrice, timezone), 
+    [processedChartData, timezone]);
 
+    const imbalanceData = useMemo(() => 
+        showImbalance ? convertToLineSeriesData(processedChartData, p => p.imbalance ?? null, timezone) : [],
+    [processedChartData, showImbalance, timezone]);
 
-    // --- Effect 1: Chart 初始化與事件綁定 ---
+    const interconnectionData = useMemo(() => 
+        showInterconnection ? convertToLineSeriesData(processedChartData, p => p.interconnection_flow_diff ?? null, timezone) : [],
+    [processedChartData, showInterconnection, timezone]);
+
+    // OCCTO Data Preparation
+    const occtoData = useMemo(() => {
+        if (!showOcctoArea) return [];
+        const occtoFieldColors: Record<string, string> = {};
+        occtoStackedFields.forEach(f => { occtoFieldColors[f.key] = f.color; });
+
+        return processedChartData
+            .filter(d => d.occto_values)
+            .map(d => {
+                const items: Array<{ value: number; color: string }> = [];
+                // Sort fields to ensure consistent stacking order
+                const sortedFields = Array.from(selectedOcctoFields).sort((a, b) => {
+                    const idxA = occtoStackedFields.findIndex(f => f.key === a);
+                    const idxB = occtoStackedFields.findIndex(f => f.key === b);
+                    return idxA - idxB;
+                });
+                sortedFields.forEach(field => {
+                    const val = d.occto_values?.[field];
+                    if (typeof val === 'number') {
+                        const base = occtoFieldColors[field] || '#6b7280';
+                        items.push({ value: val, color: hexToRgba(base, 0.75) });
+                    }
+                });
+                return { time: toChartTime(d.timestamp, timezone), items };
+            })
+            .filter(d => d.items.length > 0);
+    }, [processedChartData, showOcctoArea, selectedOcctoFields, timezone]);
+
+    // --- 4. Chart Initialization ---
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
-        // 如果圖表已存在，先銷毀重建 (支援 Theme/Color 切換)
+        // Clean up previous instance
         if (mainChartRef.current) {
             mainChartRef.current.remove();
             seriesRefs.current.clear();
@@ -123,81 +151,60 @@ export const PriceChartLightweight: React.FC = () => {
                 visible: true,
                 borderColor: colors.grid,
                 timeVisible: true,
+                secondsVisible: true,
+                tickMarkFormatter: (time: number) => {
+                    return formatInTimezone(time, 'UTC', {
+                        month: 'numeric', day: 'numeric',
+                        hour: 'numeric', minute: 'numeric', hour12: false
+                    }).replace(',', '');
+                },
             },
             crosshair: createCrosshairOptions(colors),
             grid: {
-                vertLines: { color: colors.grid, style: 1 },
-                horzLines: { color: colors.grid, style: 1 },
+                vertLines: { color: colors.grid, style: LineStyle.Dotted },
+                horzLines: { color: colors.grid, style: LineStyle.Dotted },
             },
         });
         mainChartRef.current = chart;
 
-        // A. Crosshair Handler
+        // Crosshair Handler (Binary Search)
+        const findNearest = (targetTimestamp: number) => {
+            const data = latestDataRef.current;
+            if (!data || data.length === 0) return null;
+            let left = 0, right = data.length - 1;
+            let nearest = data[0];
+            let minDiff = Math.abs(data[0].timestamp - targetTimestamp);
+
+            while (left <= right) {
+                const mid = Math.floor((left + right) / 2);
+                const currentTimestamp = data[mid].timestamp;
+                const diff = Math.abs(currentTimestamp - targetTimestamp);
+                if (diff < minDiff) { minDiff = diff; nearest = data[mid]; }
+                if (currentTimestamp < targetTimestamp) left = mid + 1;
+                else right = mid - 1;
+            }
+            return nearest;
+        };
+
         chart.subscribeCrosshairMove(param => {
             if (param.time) {
-                const timestamp = (param.time as number) * 1000;
-                const nearest = findNearestDataPoint(timestamp);
+                const actualMs = fromChartTime(param.time as number, timezone);
+                const nearest = findNearest(actualMs);
                 if (nearest) setHoveredData(nearest);
             } else {
                 setHoveredData(null);
             }
         });
 
-        // B. Visible Range Handler (自動載入邏輯)
-        const handleTimeRangeChange = (timeRange: any) => {
-            // 基本檢查
-            if (!timeRange || !latestDataRef.current || latestDataRef.current.length === 0) return;
-            // 如果正在載入中，直接退出
-            if (isLoadingMoreData.current || isLoading) return;
-            if (!startDateRef.current || !endDateRef.current) return;
-
-            // [BUG 1 FIX - 冷卻檢查]: 防止短時間內連續觸發 (Debounce 1秒)
-            const now = Date.now();
-            if (now - lastFetchTimeRef.current < 1000) return;
-
-            const visibleStartTime = (timeRange.from as number) * 1000;
-            const visibleEndTime = (timeRange.to as number) * 1000;
-
-            // [BUG 1 FIX - 判定基準]: 
-            // 使用「設定的日期範圍 (Allocated Range)」作為觸發邊界，而不是資料的邊界。
-            // 這樣當視角縮放導致 visibleEndTime 變大時，它會觸發一次 fetch，
-            // endDate 變大後，下一次條件就不會成立了 (直到使用者再往右拉)。
-            const currentStartDateMs = startDateRef.current.getTime();
-            const currentEndDateMs = endDateRef.current.getTime();
-
-            // 設定觸發閾值 (例如 12 小時)
-            const TRIGGER_THRESHOLD = 12 * 60 * 60 * 1000;
-
-            // Case A: 向左拉 (看過去)
-            if (visibleStartTime < currentStartDateMs + TRIGGER_THRESHOLD) {
-                console.log('Auto-expanding start date (Left)');
-                isLoadingMoreData.current = true; // [上鎖]: 標記這是自動載入
-                lastFetchTimeRef.current = Date.now();
-                setStartDate(subDays(startDateRef.current, 3));
-            }
-
-            // Case B: 向右拉 (看未來)
-            // 修正：只有當視角真的超過了「我們目前分配的 endDate」時才觸發。
-            if (visibleEndTime > currentEndDateMs - TRIGGER_THRESHOLD) {
-                console.log('Auto-expanding end date (Right)');
-                isLoadingMoreData.current = true; // [上鎖]: 標記這是自動載入
-                lastFetchTimeRef.current = Date.now();
-                setEndDate(addDays(endDateRef.current, 3));
-            }
-        };
-
-        chart.timeScale().subscribeVisibleTimeRangeChange(handleTimeRangeChange);
-
-        // C. Resize Handler
-        const handleResize = () => {
+        // Resize Observer
+        const resizeObserver = new ResizeObserver(() => {
             if (chartContainerRef.current && mainChartRef.current) {
                 mainChartRef.current.applyOptions({
                     width: chartContainerRef.current.clientWidth,
                     height: chartContainerRef.current.clientHeight,
                 });
             }
-        };
-        const resizeObserver = new ResizeObserver(handleResize);
+        });
         resizeObserver.observe(chartContainerRef.current);
 
         return () => {
@@ -206,10 +213,9 @@ export const PriceChartLightweight: React.FC = () => {
             mainChartRef.current = null;
             seriesRefs.current.clear();
         };
-    }, [colors, darkMode]); // 移除資料依賴，避免重建
+    }, [colors, darkMode, timezone]); // Re-create only on essential config changes
 
-
-    // --- Effect 2: 資料更新與視角管理 ---
+    // --- 5. Main Series Update Effect ---
     useEffect(() => {
         if (!mainChartRef.current || !processedChartData || processedChartData.length === 0) return;
 
@@ -218,16 +224,13 @@ export const PriceChartLightweight: React.FC = () => {
         const activeKeys = new Set<string>();
         const usedSubCharts = new Set<string>();
 
-        // 1. 更新或建立 Series (共用 Helper)
+        // Helper to Create/Update Series
         const updateOrAdd = (key: string, type: any, data: any[], opts: any) => {
             activeKeys.add(key);
             let s = seriesMap.get(key);
             if (!s) {
                 if (type === 'Custom' && opts.customSeriesInstance) {
-                    try {
-                        // @ts-ignore
-                        s = chart.addCustomSeries(opts.customSeriesInstance, opts);
-                    } catch (e) { console.error(e); return; }
+                    s = chart.addCustomSeries(opts.customSeriesInstance, opts);
                 } else {
                     s = chart.addSeries(type, opts);
                 }
@@ -235,44 +238,160 @@ export const PriceChartLightweight: React.FC = () => {
             } else {
                 s.applyOptions(opts);
             }
-            try {
-                if (data.length > 0) s.setData(data);
-            } catch (e) { console.warn('SetData failed', key, e); }
+            // Use try-catch for data updates to prevent crashing on invalid data
+            try { if (data.length > 0) s.setData(data); } 
+            catch (e) { console.warn(`SetData failed for ${key}`, e); }
+            return s;
         };
 
-        // --- Main Series (略過細節，邏輯不變) ---
-        const actualData = convertToLineSeriesData(processedChartData, p => p.actualPrice);
-        if (actualData.length > 0) updateOrAdd('actual', LineSeries, actualData, { color: colors.actual, lineWidth: 2, priceScaleId: 'right', visible: true });
+        // --- A. Background & Stacked Areas (Bottom Layer) ---
+        
+        // Day Background Primitive
+        if (!dayBackgroundRef.current) {
+            dayBackgroundRef.current = new DayBackgroundPrimitive({ even: 'rgba(0,0,0,0)', odd: 'rgba(60, 70, 90, 0.3)' });
+        }
+        dayBackgroundRef.current.updateZones(processedChartData.map(p => p.timestamp), timezone);
 
+        // OCCTO (Stacked)
+        if (showOcctoArea && occtoData.length > 0) {
+            const prevType = occtoChartTypeRef.current;
+            const typeChanged = prevType !== undefined && prevType !== occtoChartType;
+            if (typeChanged) {
+                const existing = seriesMap.get('occto_custom');
+                if (existing) {
+                    chart.removeSeries(existing);
+                    seriesMap.delete('occto_custom');
+                }
+            }
+            occtoChartTypeRef.current = occtoChartType;
+
+            const SeriesClass = occtoChartType === 'area' ? StackedAreaSeries : StackedBarSeries;
+            const customInstance = new SeriesClass();
+            const finalData = occtoChartType === 'area'
+                ? occtoData.map(d => ({ ...d, items: d.items.map(i => ({ value: i.value, lineColor: i.color, areaColor: i.color })) }))
+                : occtoData;
+
+            updateOrAdd('occto_custom', 'Custom', finalData, {
+                customSeriesInstance: customInstance,
+                priceScaleId: 'occto',
+                priceFormat: { type: 'volume' },
+            });
+            usedSubCharts.add('occto');
+        } else {
+            occtoChartTypeRef.current = undefined;
+        }
+
+        // Interconnection (Area)
+        if (interconnectionData.length > 0) {
+            updateOrAdd('interconnection', AreaSeries, interconnectionData, {
+                lineColor: colors.interconnection,
+                topColor: `${colors.interconnection}80`,
+                bottomColor: `${colors.interconnection}10`,
+                lineWidth: 1,
+                priceScaleId: 'interconnection'
+            });
+            usedSubCharts.add('interconnection');
+        }
+
+        // --- B. Bars & Histograms (Middle Layer) ---
+        
+        // Weather Data
+        if (showWeather) {
+            const processWeather = (fields: Set<string>, dataObjKey: 'weather_data_actual' | 'weather_data_forecast', prefix: string) => {
+                fields.forEach(field => {
+                    const isBar = field === 'rainfall' || field === 'snowfall';
+                    const seriesType = isBar ? HistogramSeries : LineSeries;
+                    // Note: Calculating line data here inside loop as it varies by field
+                    const data = convertToLineSeriesData(processedChartData, p => (p as any)[dataObjKey]?.[field] ?? null, timezone);
+                    
+                    if (data.length > 0) {
+                        updateOrAdd(`${prefix}_${field}`, seriesType, data, {
+                            color: WEATHER_FIELD_COLORS[field] || '#888',
+                            priceScaleId: 'weather',
+                            lineWidth: 2,
+                            lineStyle: prefix.includes('forecast') && !isBar ? LineStyle.Dashed : LineStyle.Solid,
+                        });
+                        usedSubCharts.add('weather');
+                    }
+                });
+            };
+            if (showWeatherActual) processWeather(selectedWeatherFieldsActual, 'weather_data_actual', 'weather_actual');
+            if (showWeatherForecast) processWeather(selectedWeatherFieldsForecast, 'weather_data_forecast', 'weather_forecast');
+        }
+
+        // --- C. Lines & Main Data (Top Layer) ---
+
+        // Imbalance
+        if (imbalanceData.length > 0) {
+            updateOrAdd('imbalance', LineSeries, imbalanceData, { color: colors.imbalance, priceScaleId: 'imbalance', lineWidth: 1 });
+            usedSubCharts.add('imbalance');
+        }
+
+        // Intraday Candlesticks
+        if (candleData.length > 0) {
+             // Reduce opacity if average line is shown
+             const alpha = showIntradayAverage ? 0.5 : 1;
+             updateOrAdd('intraday', CandlestickSeries, candleData, {
+                upColor: `rgba(239, 83, 80, ${alpha})`,
+                downColor: `rgba(38, 166, 154, ${alpha})`,
+                wickUpColor: `rgba(239, 83, 80, ${alpha})`,
+                wickDownColor: `rgba(38, 166, 154, ${alpha})`,
+                priceScaleId: 'right',
+            });
+        }
+        if (intradayAvgData.length > 0) {
+            updateOrAdd('intraday_avg', LineSeries, intradayAvgData, {
+                color: '#ffa726', lineWidth: 2, lineStyle: LineStyle.Dashed, priceScaleId: 'right'
+            });
+        }
+
+        // Models
         selectedModels.forEach(model => {
             const modelKey = `${model.id}|${model.name}`;
             const color = modelColorMap[modelKey];
             const isHighlighted = highlightedModelId === null || highlightedModelId === modelKey;
+            
+            // Calculating specific model data here (fast enough)
             const lineData = convertToLineSeriesData(processedChartData, p => {
                 const pred = p.modelPredictions.find(mp => `${mp.modelId}|${mp.modelName}` === modelKey);
                 return pred?.predictedPrice ?? null;
-            });
-            if (lineData.length > 0) updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
-                color: color,
-                lineWidth: isHighlighted ? 3 : 1,
-                priceScaleId: 'right',
-                visible: true
-            });
+            }, timezone);
+
+            if (lineData.length > 0) {
+                updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
+                    color: color,
+                    lineWidth: isHighlighted ? 3 : 1,
+                    priceScaleId: 'right',
+                    visible: true // Ensure visibility
+                });
+            }
         });
 
-        // --- Sub Charts (略過細節，邏輯不變) ---
-        if (showImbalance) {
-            const data = convertToLineSeriesData(processedChartData, p => p.imbalance ?? null);
-            if (data.length > 0) { updateOrAdd('imbalance', LineSeries, data, { color: colors.imbalance, priceScaleId: 'imbalance' }); usedSubCharts.add('imbalance'); }
+        // Actual Price (Top-most line)
+        if (actualData.length > 0 && showActualPrice) {
+            const s = updateOrAdd('actual', LineSeries, actualData, { 
+                color: colors.actual, 
+                lineWidth: 2, 
+                priceScaleId: 'right' 
+            });
+            
+            // Attach Day Background to the actual price series (or the first available series)
+            // This logic is simplified: always try to attach to 'actual', if not present, loop others.
+            if (dayBackgroundRef.current && s && !seriesWithBackgroundRef.current.has(s)) {
+                s.attachPrimitive(dayBackgroundRef.current);
+                seriesWithBackgroundRef.current.add(s);
+            }
+        } else if (activeKeys.size > 0 && dayBackgroundRef.current) {
+            // Fallback: attach background to the first available series if actual price is hidden
+            const firstSeriesKey = activeKeys.values().next().value;
+            const s = seriesMap.get(firstSeriesKey);
+            if (s && !seriesWithBackgroundRef.current.has(s)) {
+                s.attachPrimitive(dayBackgroundRef.current);
+                seriesWithBackgroundRef.current.add(s);
+            }
         }
-        // ... (其他 SubCharts: Interconnection, OCCTO, Weather 同理，省略以節省篇幅) ...
-        if (showInterconnection) {
-            const data = convertToLineSeriesData(processedChartData, p => p.interconnection_flow_diff ?? null);
-            if (data.length > 0) { updateOrAdd('interconnection', LineSeries, data, { color: colors.interconnection, priceScaleId: 'interconnection' }); usedSubCharts.add('interconnection'); }
-        }
-        // ... (OCCTO, Weather logic from previous code) ...
 
-        // 2. 清理舊 Series
+        // --- 6. Cleanup Unused Series ---
         const toRemove: string[] = [];
         seriesMap.forEach((_, k) => { if (!activeKeys.has(k)) toRemove.push(k); });
         toRemove.forEach(k => {
@@ -280,74 +399,120 @@ export const PriceChartLightweight: React.FC = () => {
             if (s) { chart.removeSeries(s); seriesMap.delete(k); }
         });
 
-        // 3. 配置 Layout Panes (SubCharts)
-        const desiredSubChartOrder = ['imbalance', 'interconnection', 'occto', 'weather'];
-        const activeSubCharts = desiredSubChartOrder.filter(k => usedSubCharts.has(k));
-        const subChartCount = activeSubCharts.length;
-        const subChartHeight = 0.2;
-        const gap = 0.05;
+        // --- 7. Layout Configuration (SubCharts) ---
+        const activeSubCharts = ['imbalance', 'interconnection', 'occto', 'weather'].filter(k => usedSubCharts.has(k));
+        const subHeight = 0.15; // 15% height per subchart
+        const gap = 0.02;
         let currentTop = 1.0;
-        activeSubCharts.reverse().forEach((key) => {
+
+        // Configure Sub-chart panes from bottom up
+        activeSubCharts.reverse().forEach(key => {
             const bottom = currentTop;
-            const top = currentTop - subChartHeight;
+            const top = Math.max(0, currentTop - subHeight);
             currentTop = top - gap;
+            
             chart.priceScale(key).applyOptions({
-                visible: true,
-                autoScale: true,
+                visible: true, autoScale: true,
                 scaleMargins: { top: 1 - bottom, bottom: 1 - top },
-                borderVisible: true,
-                borderColor: colors.grid,
+                borderVisible: true, borderColor: colors.grid,
             });
         });
-        const totalSubHeight = subChartCount * subChartHeight + (subChartCount > 0 ? (subChartCount * gap) : 0);
+
+        // Configure Main Chart Pane
+        const mainBottom = Math.max(0.1, activeSubCharts.length > 0 ? (activeSubCharts.length * (subHeight + gap)) : 0.08);
         chart.priceScale('right').applyOptions({
-            scaleMargins: { top: 0.05, bottom: Math.max(0.1, totalSubHeight) },
-            visible: true,
+            scaleMargins: { top: 0.05, bottom: mainBottom },
+            visible: true, borderVisible: true, borderColor: colors.grid,
         });
 
-        // --- 4. [BUG 2 FIX - 視角管理] ---
+        // --- 8. Set Visible Range (Only on data/date change) ---
         if (startDate && endDate && processedChartData.length > 0) {
-
-            // 判斷：如果是自動載入 (isLoadingMoreData 為 true)，我們 *什麼都不做*。
-            // Lightweight Charts 預設會維持 Scroll Position (資料會補在左邊，但視角不變)。
-            // 只有當「不是」自動載入 (isLoadingMoreData 為 false) 時，代表使用者用了 DatePicker，
-            // 這時我們才強制執行 setVisibleRange。
-
-            if (!isLoadingMoreData.current) {
-                try {
-                    const fromTime = startDate.getTime() / 1000 as Time;
-                    const toTime = endDate.getTime() / 1000 as Time;
-                    chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
-                } catch (e) {
-                    chart.timeScale().fitContent();
-                }
+            try {
+                const fromTime = toChartTime(startDate.getTime(), timezone) as Time;
+                const toTime = toChartTime(endDate.getTime() + 86400000 - 1, timezone) as Time;
+                chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
+            } catch (e) {
+                // If range is invalid (e.g. no data in range), fit content
+                chart.timeScale().fitContent();
             }
         }
 
-        // --- 5. [解鎖機制] ---
-        // 我們不能馬上解鎖，因為 isLoading 可能還沒變回 false (fetch 可能還沒結束)。
-        // 只有當 isLoading 確認為 false 時，我們才釋放鎖，並給一個延遲以確保渲染完成。
-        if (!isLoading) {
-            // 500ms 延遲：確保所有資料渲染完成，且 Scroll 事件已經冷卻
-            const timer = setTimeout(() => {
-                isLoadingMoreData.current = false;
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-
     }, [
-        processedChartData,
-        isLoading, // 必須加入 isLoading，以便在載入完成時觸發 Effect 來解鎖
-        startDate, endDate, // 用於 DatePicker 切換時的視角定位
-        colors, darkMode,
-        // ... 其他顯示設定依賴 ...
-        selectedModels, highlightedModelId, showImbalance, showInterconnection, showOcctoArea, showWeatherActual
+        // Dependencies: Only re-run if data structures or display flags change
+        processedChartData, 
+        actualData, candleData, imbalanceData, interconnectionData, occtoData, // Memoized Data
+        intradayAvgData,
+        colors, darkMode, timezone,
+        selectedModels, highlightedModelId, modelColorMap,
+        showImbalance, showInterconnection, showOcctoArea, occtoChartType,
+        showWeather, showWeatherActual, showWeatherForecast, selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
+        startDate, endDate, showActualPrice
     ]);
 
+    // --- 9. Handlers (Download / Fullscreen) ---
+    const handleDownload = useCallback((fileFormat: 'csv' | 'jpg' | 'png') => {
+        if (fileFormat === 'csv') {
+            if (!processedChartData?.length) return;
+            const headers = ['timestamp', 'actualPrice', 'intraday_average', 'imbalance'];
+            const rows = processedChartData.map(d => [
+                formatDate(new Date(d.timestamp), 'yyyy-MM-dd HH:mm:ss'),
+                d.actualPrice ?? '', d.intraday_average ?? '', d.imbalance ?? ''
+            ].join(','));
+            const csv = [headers.join(','), ...rows].join('\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+            const link = document.createElement('a');
+            link.download = `chart-data-${formatDate(new Date(), 'yyyyMMdd-HHmmss')}.csv`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        } else {
+            const chart = mainChartRef.current;
+            if (!chart) return;
+            const canvas = chart.takeScreenshot();
+            const link = document.createElement('a');
+            link.download = `chart-${formatDate(new Date(), 'yyyyMMdd-HHmmss')}.${fileFormat}`;
+            link.href = canvas.toDataURL(fileFormat === 'png' ? 'image/png' : 'image/jpeg');
+            link.click();
+        }
+    }, [processedChartData]);
 
+    const handleFullscreen = useCallback(() => {
+        if (!chartContainerRef.current) return;
+        if (!document.fullscreenElement) chartContainerRef.current.requestFullscreen().catch(console.error);
+        else document.exitFullscreen();
+    }, []);
+
+    // --- 10. Render ---
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
-            <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
-        </Box>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
+            {/* InfoPanel: 負責顯示 Header, Price, Weather 等資訊，固定高度 */}
+            <ChartInfoPanel
+                hoveredData={hoveredData}
+                selectedModels={selectedModels}
+                modelColorMap={modelColorMap}
+                colors={colors}
+                areaName={areaName}
+                showImbalance={showImbalance}
+                showIntraday={showIntraday}
+                showInterconnection={showInterconnection}
+                showOcctoArea={showOcctoArea}
+                showWeather={showWeather}
+                showWeatherActual={showWeatherActual}
+                showWeatherForecast={showWeatherForecast}
+                selectedOcctoFields={selectedOcctoFields}
+                selectedWeatherFieldsActual={selectedWeatherFieldsActual}
+                selectedWeatherFieldsForecast={selectedWeatherFieldsForecast}
+                onDownload={handleDownload}
+                onFullscreen={handleFullscreen}
+                timezone={timezone}
+                setTimezone={setTimezone}
+            />
+            {/* Chart Container: 填滿剩餘空間 */}
+            <div
+                ref={chartContainerRef}
+                className="price-chart-container"
+                style={{ position: 'relative', flex: 1, width: '100%', minHeight: 0 }}
+            />
+        </div>
     );
 };

@@ -95,8 +95,8 @@ const DatePresetButtons: React.FC<{
                     key={preset.key}
                     onClick={() => onDateRangePreset(preset.key)}
                     className={`rounded px-2 py-1 text-xs font-medium transition-colors ${dateRangePreset === preset.key
-                            ? 'bg-[var(--primary)] text-black'
-                            : 'bg-[var(--hover-bg)] text-[var(--foreground)] hover:bg-[var(--primary)]/20'
+                        ? 'bg-[var(--primary)] text-black'
+                        : 'bg-[var(--hover-bg)] text-[var(--foreground)] hover:bg-[var(--primary)]/20'
                         }`}
                 >
                     {preset.label}
@@ -177,8 +177,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     mb: 1.5,
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Typography variant="subtitle1" fontWeight="bold" sx={{ whiteSpace: 'nowrap' }}>
                         資料選擇
                     </Typography>
                     <Box sx={{ minWidth: 200 }}>

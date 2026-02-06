@@ -197,6 +197,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
     showWeatherActual, setShowWeatherActual,
     showWeatherForecast, setShowWeatherForecast,
     showOcctoArea, setShowOcctoArea,
+    showActualPrice, setShowActualPrice,
     imbalanceData,
     intradayData,
     interconnectionData,
@@ -231,8 +232,8 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
   let setSelectedWeatherFieldsActual: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
   let selectedWeatherFieldsForecast: Set<string> = new Set(['temperature']);
   let setSelectedWeatherFieldsForecast: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
-  let occtoChartType: 'line' | 'stacked' | 'percentage' = 'line';
-  let setOcctoChartType: (val: 'line' | 'stacked' | 'percentage') => void = () => { };
+  let occtoChartType: 'stacked' | 'area' = 'stacked';
+  let setOcctoChartType: (val: 'stacked' | 'area') => void = () => { };
 
   try {
     const chartContext = usePriceChart();
@@ -419,7 +420,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
                   const isSelected = selectedModels.some(m => `${m.id}|${m.name}` === modelKey);
                   const selectedModel = selectedModels.find(m => `${m.id}|${m.name}` === modelKey);
                   const modelIndex = selectedModel ? selectedModels.indexOf(selectedModel) : -1;
-                  const modelColor = modelColorMap[modelKey] || model.color || '#cccccc';
+                  const modelColor = modelColorMap[modelKey] || (model as any).color || '#cccccc';
 
                   // Helper to safe create alpha color (handles CSS vars and hex)
                   const getAlphaColor = (color: string, opacity: number) => {
@@ -591,6 +592,31 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
 
 
             <SubHeader label="市場價格與平衡" />
+
+            {/* Actual Price Toggle */}
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => setShowActualPrice(!showActualPrice)}
+                sx={{
+                  borderLeft: showActualPrice ? `4px solid #ef5350` : '4px solid transparent',
+                  backgroundColor: showActualPrice ? alpha('#ef5350', 0.1) : 'transparent',
+                  '&:hover': { backgroundColor: alpha('#ef5350', 0.15) }
+                }}
+              >
+                <Checkbox
+                  checked={showActualPrice}
+                  size="small"
+                  sx={{ color: '#ef5350', '&.Mui-checked': { color: '#ef5350' } }}
+                  onChange={(e) => { e.stopPropagation(); setShowActualPrice(e.target.checked); }}
+                  onClick={e => e.stopPropagation()}
+                />
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  <ShowChart sx={{ fontSize: '1.1rem', color: showActualPrice ? '#ef5350' : 'text.disabled' }} />
+                </ListItemIcon>
+                <ListItemText primary="Actual Price" primaryTypographyProps={{ fontSize: '0.85rem' }} />
+              </ListItemButton>
+            </ListItem>
+
 
             {/* Imbalance (Orange) */}
             <ListItem disablePadding>
@@ -839,9 +865,8 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
                     bgcolor: 'var(--card-bg)'
                   }}>
                     {[
-                      { id: 'line', icon: <ShowChart sx={{ fontSize: 16 }} />, label: 'Line' },
-                      { id: 'stacked', icon: <BarChart sx={{ fontSize: 16 }} />, label: 'Stack' },
-                      { id: 'percentage', icon: <Percent sx={{ fontSize: 16 }} />, label: '%' }
+                      { id: 'stacked', icon: <BarChart sx={{ fontSize: 16 }} />, label: 'Bar' },
+                      { id: 'area', icon: <ShowChart sx={{ fontSize: 16 }} />, label: 'Area' },
                     ].map((type, idx, arr) => {
                       const active = occtoChartType === type.id;
                       return (

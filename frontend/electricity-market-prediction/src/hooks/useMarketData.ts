@@ -78,6 +78,7 @@ export const useMarketData = () => {
     const [showWeatherActual, setShowWeatherActual] = useState<boolean>(false);
     const [showWeatherForecast, setShowWeatherForecast] = useState<boolean>(false);
     const [showOcctoArea, setShowOcctoArea] = useState<boolean>(false);
+    const [showActualPrice, setShowActualPrice] = useState<boolean>(true); // Default true - show actual price
 
     // Refs for race condition handling
     const latestActualDataRequestId = useRef<number>(0);
@@ -578,6 +579,7 @@ export const useMarketData = () => {
         showWeather, setShowWeather,
         showWeatherActual, setShowWeatherActual,
         showWeatherForecast, setShowWeatherForecast,
-        showOcctoArea, setShowOcctoArea
+        showOcctoArea, setShowOcctoArea,
+        showActualPrice, setShowActualPrice
     };
 };

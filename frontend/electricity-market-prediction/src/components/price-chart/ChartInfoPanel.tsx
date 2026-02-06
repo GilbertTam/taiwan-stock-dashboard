@@ -1,361 +1,323 @@
 'use client';
 
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { format } from 'date-fns';
-import { ModelPrediction } from '@/utils/chartUtils';
+import React, { useState, useMemo } from 'react';
+import { Box, Typography, IconButton, Menu, MenuItem, Tooltip, Paper, ListItemIcon, ListItemText } from '@mui/material';
+import { formatInTimezone } from '@/utils/chartUtils'; // 假設您有這個工具
 
-// Types for the chart data point
-interface ProcessedDataPoint {
-    timestamp: number;
-    actualPrice: number | null;
-    modelPredictions: ModelPrediction[];
-    modelDifferences?: Record<string, number | null>;
-    actualDelta?: number | null;
-    imbalance?: number | null;
-    intraday_average?: number | null;
-    interconnection_flow_diff?: number | null;
-    occto_values?: Record<string, number | null>;
-    weather_data?: {
-        temperature?: number | null;
-        rainfall?: number | null;
-        snowfall?: number | null;
-        wind_speed?: number | null;
-        relative_humidity?: number | null;
-        clouds_all?: number | null;
-        [key: string]: any;
-    };
-    weather_data_actual?: {
-        temperature?: number | null;
-        rainfall?: number | null;
-        snowfall?: number | null;
-        wind_speed?: number | null;
-        relative_humidity?: number | null;
-        clouds_all?: number | null;
-        [key: string]: any;
-    };
-    weather_data_forecast?: {
-        temperature?: number | null;
-        rainfall?: number | null;
-        snowfall?: number | null;
-        wind_speed?: number | null;
-        relative_humidity?: number | null;
-        clouds_all?: number | null;
-        [key: string]: any;
-    };
-}
+// --- Icons ---
+import DownloadIcon from '@mui/icons-material/Download';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+// Data Icons
+import ThermostatIcon from '@mui/icons-material/Thermostat';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
+import AirIcon from '@mui/icons-material/Air';
+import CloudIcon from '@mui/icons-material/Cloud';
+import OpacityIcon from '@mui/icons-material/Opacity';
+import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
+import FactoryIcon from '@mui/icons-material/Factory';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Solar
+import ModeFanOffIcon from '@mui/icons-material/ModeFanOff'; // Wind
+import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
 
-interface SelectedModel {
-    id: string | number;
-    name: string;
-    color: string;
-    calculatingDate: string;
-}
+// --- Constants ---
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+};
 
-interface ChartColors {
-    actual: string;
-    text: string;
-    subText: string;
-    background: string;
-    tooltipBg: string;
-    tooltipBorder: string;
-    delta: {
-        positive: string;
-        negative: string;
-        neutral: string;
-    };
-}
+// 為了讓這段程式碼獨立運作，我在此定義了 OCCTO 顏色映射。
+// 實務上您應該從 constants 引入 occtoStackedFields
+const OCCTO_COLOR_MAP: Record<string, string> = {
+    area_demand: '#14b8a6',       // Teal
+    nuclear_power: '#f59e0b',     // Amber
+    thermal: '#ef4444',           // Red
+    hydropower: '#3b82f6',        // Blue
+    geothermal_power: '#8b5cf6',  // Purple
+    biomass: '#10b981',           // Emerald
+    solar_power_generation_actual: '#fbbf24', // Yellow
+    wind_power_generation_actual: '#06b6d4',  // Cyan
+    pumped_storage: '#6366f1',    // Indigo
+    battery_storage: '#ec4899',   // Pink
+    interconnection_line: '#14b8a6',
+    others: '#6b7280'             // Gray
+};
 
-interface ChartInfoPanelProps {
-    hoveredData: ProcessedDataPoint | null;
-    selectedModels: SelectedModel[];
-    modelColorMap: Record<string, string>;
-    colors: ChartColors;
-    areaName: string;
-    showImbalance?: boolean;
-    showIntraday?: boolean;
-    showInterconnection?: boolean;
-    showOcctoArea?: boolean;
-    showWeather?: boolean;
-    showWeatherActual?: boolean;
-    showWeatherForecast?: boolean;
-    selectedOcctoFields?: Set<string>;
-    selectedWeatherFields?: Set<string>;
-    selectedWeatherFieldsActual?: Set<string>;
-    selectedWeatherFieldsForecast?: Set<string>;
-}
+// --- Helper Components ---
 
-/**
- * ChartInfoPanel - TradingView-style fixed header panel
- * Displayed above the chart in a reserved space to prevent layout shift and occlusion
- */
-export const ChartInfoPanel: React.FC<ChartInfoPanelProps> = ({
-    hoveredData,
-    selectedModels,
-    modelColorMap,
-    colors,
-    areaName,
-    showImbalance = false,
-    showIntraday = false,
-    showInterconnection = false,
-    showOcctoArea = false,
-    showWeather = false,
-    showWeatherActual = false,
-    showWeatherForecast = false,
-    selectedOcctoFields = new Set(['area_demand']),
-    selectedWeatherFields = new Set(['temperature']),
-    selectedWeatherFieldsActual = new Set(['temperature']),
-    selectedWeatherFieldsForecast = new Set(['temperature']),
-}) => {
-    // Format delta value with color
-    const formatDelta = (value: number | null | undefined) => {
-        if (value === null || value === undefined) return null;
-
-        const isPositive = value > 0;
-        const isNegative = value < 0;
-
-        return (
-            <Typography
-                component="span"
-                variant="caption"
-                sx={{
-                    color: isPositive
-                        ? colors.delta.positive
-                        : isNegative
-                            ? colors.delta.negative
-                            : colors.delta.neutral,
-                    fontWeight: 'bold',
-                    ml: 0.5,
-                }}
-            >
-                ({isPositive ? '+' : ''}{value.toFixed(2)})
-            </Typography>
-        );
-    };
-
-    // Always render container - fixed height header style (TradingView style)
+// 1. 極簡數據膠囊 (Compact Data Chip)
+const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = false }: any) => {
+    if (value == null) return null;
     return (
-        <Box
+        <Tooltip title={`${label} ${isForecast ? '(Forecast)' : ''}`}>
+            <Box sx={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: 0.5, 
+                bgcolor: `${color}10`, // 10% opacity background
+                px: 0.75, 
+                py: 0, 
+                height: 20, // 固定高度
+                borderRadius: 1,
+                border: `1px solid ${color}40`,
+                flexShrink: 0,
+                mr: 1 // Right margin for spacing
+            }}>
+                <Icon sx={{ fontSize: 13, color: color }} />
+                <Typography variant="caption" sx={{ 
+                    color: 'text.primary', 
+                    fontWeight: 600, 
+                    fontSize: '0.65rem', 
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap'
+                }}>
+                    <span style={{ opacity: 0.6, marginRight: 3, fontWeight: 400 }}>{label}:</span>
+                    {typeof value === 'number' ? value.toFixed(0) : value}{unit}
+                    {isForecast && <span style={{ opacity: 0.5, marginLeft: 1 }}>(F)</span>}
+                </Typography>
+            </Box>
+        </Tooltip>
+    );
+};
+
+// 2. 價格變動 (Compact)
+const DeltaBadge = ({ value, colors }: { value: number | null | undefined, colors: any }) => {
+    if (value == null) return null;
+    const isPos = value > 0;
+    const color = isPos ? colors.delta.positive : value < 0 ? colors.delta.negative : colors.delta.neutral;
+    return (
+        <Typography component="span" sx={{ 
+            color, 
+            fontSize: '0.65rem', 
+            fontWeight: 'bold',
+            ml: 0.5 
+        }}>
+            {isPos ? '+' : ''}{value.toFixed(2)}
+        </Typography>
+    );
+};
+
+// 3. 操作按鈕 (Compact)
+const ActionButtons = ({ onDownload, onFullscreen }: any) => {
+    const [downloadAnchor, setDownloadAnchor] = useState<null | HTMLElement>(null);
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip title="Export">
+                <IconButton size="small" onClick={(e) => setDownloadAnchor(e.currentTarget)} sx={{ p: 0.5 }}>
+                    <DownloadIcon sx={{ fontSize: '1.1rem' }} />
+                </IconButton>
+            </Tooltip>
+            <Menu
+                anchorEl={downloadAnchor}
+                open={Boolean(downloadAnchor)}
+                onClose={() => setDownloadAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <MenuItem onClick={() => { onDownload?.('csv'); setDownloadAnchor(null); }}>
+                    <ListItemIcon><DescriptionOutlinedIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="CSV" primaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+                <MenuItem onClick={() => { onDownload?.('png'); setDownloadAnchor(null); }}>
+                    <ListItemIcon><ImageOutlinedIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="PNG" primaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+            </Menu>
+            <Tooltip title="Fullscreen">
+                <IconButton size="small" onClick={onFullscreen} sx={{ p: 0.5 }}>
+                    <FullscreenIcon sx={{ fontSize: '1.2rem' }} />
+                </IconButton>
+            </Tooltip>
+        </Box>
+    );
+};
+
+// --- Main Component ---
+export const ChartInfoPanel: React.FC<any> = ({
+    hoveredData, selectedModels, colors, areaName,
+    showImbalance, showIntraday, showInterconnection, showOcctoArea,
+    showWeather, showWeatherActual, showWeatherForecast,
+    selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
+    onDownload, onFullscreen, timezone
+}) => {
+
+    const PANEL_HEIGHT = 100;
+
+    // 天氣欄位設定
+    const getWeatherConfig = (field: string) => {
+        const config: Record<string, any> = {
+            temperature: { icon: ThermostatIcon, unit: '°C', color: '#ff7043', label: 'T' },
+            rainfall: { icon: WaterDropIcon, unit: 'mm', color: '#42a5f5', label: 'Rain' },
+            snowfall: { icon: AcUnitIcon, unit: 'mm', color: '#90caf9', label: 'Snow' },
+            wind_speed: { icon: AirIcon, unit: 'm/s', color: '#66bb6a', label: 'Wind' },
+            relative_humidity: { icon: OpacityIcon, unit: '%', color: '#ab47bc', label: 'RH' },
+            clouds_all: { icon: CloudIcon, unit: '%', color: '#78909c', label: 'Cloud' },
+        };
+        return config[field];
+    };
+
+    // OCCTO 欄位設定 (包含圖示與顏色查找)
+    const getOcctoConfig = (field: string) => {
+        const color = OCCTO_COLOR_MAP[field] || '#26a69a'; // Fallback teal
+        let icon = FactoryIcon;
+        let label = field;
+
+        // 簡單的圖示/標籤映射優化
+        if (field.includes('solar')) { icon = WbSunnyIcon; label = 'Solar'; }
+        else if (field.includes('wind')) { icon = ModeFanOffIcon; label = 'Wind'; }
+        else if (field.includes('nuclear') || field.includes('thermal')) { icon = BoltIcon; label = field.includes('nuclear') ? 'Nucl' : 'Therm'; }
+        else if (field === 'area_demand') { label = 'Demand'; }
+        else if (field === 'interconnection_line') { label = 'Line'; }
+
+        return { icon, label, color, unit: 'MW' };
+    };
+
+    // 時間格式化 (YYYY/MM/DD HH:mm:ss)
+    const formattedTime = useMemo(() => {
+        if (!hoveredData) return '';
+        // formatInTimezone 回傳類似 "02/07/2026, 15:30:00" 或依據 locale
+        // 為了確保 YYYY/MM/DD 格式，我們可以做字串處理
+        const timeStr = formatInTimezone(hoveredData.timestamp, timezone || 'Asia/Tokyo', DATE_FORMAT_OPTIONS);
+        return timeStr.replace(/\-/g, '/'); // 確保分隔符統一
+    }, [hoveredData, timezone]);
+
+    return (
+        <Paper 
+            elevation={0}
             sx={{
                 width: '100%',
-                minHeight: 64, // Two rows
+                height: PANEL_HEIGHT,
+                minHeight: PANEL_HEIGHT,
                 display: 'flex',
                 flexDirection: 'column',
-                px: 2,
-                py: 0.75,
-                backgroundColor: 'var(--card-bg)',
+                bgcolor: 'var(--card-bg)', 
+                borderBottom: `1px solid ${colors.tooltipBorder}`,
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                px: 1.5,
+                py: 1
             }}
         >
             {!hoveredData ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.6 }}>
-                    移動滑鼠至圖表查看詳情
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column' }}>
+                    <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.7, letterSpacing: 1 }}>
+                        HOVER CHART FOR DETAILS
+                    </Typography>
+                    <Box sx={{ position: 'absolute', top: 8, right: 8, opacity: 0.5 }}>
+                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} />
+                    </Box>
                 </Box>
             ) : (
                 <>
-                    {/* Row 1: Time and Prices */}
+                    {/* --- Row 1: Header --- */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, height: 20 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                            <Typography variant="caption" sx={{ color: colors.subText, fontWeight: 700, fontSize: '0.7rem' }}>
+                                {areaName}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: colors.text, fontWeight: 700, fontFamily: 'Monospace', fontSize: '0.85rem' }}>
+                                {formattedTime}
+                            </Typography>
+                        </Box>
+                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} />
+                    </Box>
+
+                    {/* --- Row 2: Prices --- */}
                     <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
-                        gap: 1.5,
-                        mb: 0.75,
-                        flexWrap: 'wrap',
+                        height: 28,
+                        mb: 0.5,
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
                     }}>
-                    {/* Time display */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="caption" sx={{ color: colors.subText, fontWeight: 'bold' }}>
-                            {areaName}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: colors.text, fontWeight: 'bold' }}>
-                            {format(new Date(hoveredData.timestamp), 'MM/dd HH:mm')}
-                        </Typography>
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 2, pr: 2, borderRight: `1px dashed ${colors.tooltipBorder}` }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colors.actual, mr: 0.5 }} />
+                            <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>Obs:</Typography>
+                            <Typography variant="body2" sx={{ color: colors.actual, fontWeight: 800, fontSize: '0.9rem' }}>
+                                {hoveredData.actualPrice != null ? `¥${hoveredData.actualPrice.toFixed(2)}` : '-'}
+                            </Typography>
+                            <DeltaBadge value={hoveredData.actualDelta} colors={colors} />
+                        </Box>
+
+                        {selectedModels.map((model: any) => {
+                            const modelKey = `${model.id}|${model.name}`;
+                            const pred = hoveredData.modelPredictions?.find((p: any) => `${p.modelId}|${p.modelName}` === modelKey);
+                            const diff = hoveredData.modelDifferences?.[modelKey];
+                            return (
+                                <Box key={modelKey} sx={{ display: 'inline-flex', alignItems: 'center', mr: 2 }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: model.color, mr: 0.5 }} />
+                                    <Typography variant="caption" sx={{ color: colors.text, fontWeight: 600, fontSize: '0.75rem' }}>
+                                        {model.name}:
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: colors.text, ml: 0.5 }}>
+                                        {pred?.predictedPrice != null ? `¥${pred.predictedPrice.toFixed(2)}` : '-'}
+                                    </Typography>
+                                    <DeltaBadge value={diff} colors={colors} />
+                                </Box>
+                            );
+                        })}
                     </Box>
 
-                        {/* Actual price */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pl: 1.5, borderLeft: `1px solid ${colors.tooltipBorder}` }}>
-                        <Box
-                            sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                backgroundColor: colors.actual,
-                            }}
-                        />
-                        <Typography variant="caption" sx={{ color: colors.actual, fontWeight: 'bold' }}>
-                            Obs:
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: colors.actual }}>
-                            {hoveredData.actualPrice !== null
-                                ? `¥${hoveredData.actualPrice.toFixed(2)}`
-                                : '-'}
-                        </Typography>
-                        {formatDelta(hoveredData.actualDelta)}
-                    </Box>
-
-                    {/* Model predictions */}
-                    {selectedModels.map((model: SelectedModel) => {
-                        const modelKey = `${model.id}|${model.name}`;
-                        const modelColor = modelColorMap[modelKey] || model.color;
-                        const prediction = hoveredData.modelPredictions?.find(
-                            (mp: ModelPrediction) => `${mp.modelId}|${mp.modelName}` === modelKey
-                        );
-                        const difference = hoveredData.modelDifferences?.[modelKey];
-
-                        return (
-                            <Box key={modelKey} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Box
-                                    sx={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: '50%',
-                                        backgroundColor: modelColor,
-                                    }}
-                                />
-                                <Typography variant="caption" sx={{ color: modelColor, fontWeight: 'bold' }}>
-                                    {model.name}:
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: modelColor }}>
-                                    {prediction?.predictedPrice !== null && prediction?.predictedPrice !== undefined
-                                        ? `¥${prediction.predictedPrice.toFixed(2)}`
-                                        : '-'}
-                                </Typography>
-                                {formatDelta(difference)}
-                            </Box>
-                        );
-                    })}
-                    </Box>
-
-                    {/* Row 2: Other Metrics */}
+                    {/* --- Row 3: Secondary Metrics (OCCTO Colors Applied Here) --- */}
                     <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 1.5,
-                        flexWrap: 'wrap',
-                        pt: 0.75,
-                        borderTop: `1px solid ${colors.tooltipBorder}`,
+                        display: 'block',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        height: 24,
+                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
                     }}>
-                    {/* Optional: Intraday */}
-                    {showIntraday && hoveredData.intraday_average != null && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ color: '#82ca9d', fontWeight: 'bold' }}>
-                                Intra: ¥{hoveredData.intraday_average.toFixed(2)}
-                            </Typography>
-                        </Box>
-                    )}
-
-                    {/* Optional: Imbalance */}
-                    {showImbalance && hoveredData.imbalance != null && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ color: '#8884d8', fontWeight: 'bold' }}>
-                                Imb: {hoveredData.imbalance.toFixed(2)}
-                            </Typography>
-                        </Box>
-                    )}
-
-                    {/* Optional: Interconnection */}
-                    {showInterconnection && hoveredData.interconnection_flow_diff != null && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ color: '#ff7300', fontWeight: 'bold' }}>
-                                連系: {hoveredData.interconnection_flow_diff.toFixed(2)} MW
-                            </Typography>
-                        </Box>
-                    )}
-
-                        {/* Optional: OCCTO Fields */}
-                        {showOcctoArea && hoveredData.occto_values && (
-                            <>
-                                {Array.from(selectedOcctoFields).map((field) => {
-                                    const value = hoveredData.occto_values?.[field];
-                                    if (value === null || value === undefined) return null;
-                                    
-                                    // Get field color from occtoStackedFields
-                                    const fieldColors: Record<string, string> = {
-                                        area_demand: '#14b8a6',
-                                        nuclear_power: '#f59e0b',
-                                        thermal: '#ef4444',
-                                        hydropower: '#3b82f6',
-                                        geothermal_power: '#8b5cf6',
-                                        biomass: '#10b981',
-                                        solar_power_generation_actual: '#fbbf24',
-                                        wind_power_generation_actual: '#06b6d4',
-                                        pumped_storage: '#6366f1',
-                                        battery_storage: '#ec4899',
-                                        interconnection_line: '#14b8a6',
-                                        others: '#6b7280',
-                                    };
-                                    
-                                    return (
-                                        <Box key={field} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Typography variant="caption" sx={{ color: fieldColors[field] || '#14b8a6', fontWeight: 'bold' }}>
-                                                {field}: {value.toFixed(0)} MW
-                                            </Typography>
-                                        </Box>
-                                    );
-                                })}
-                            </>
+                        {/* 1. Market Data */}
+                        {showIntraday && hoveredData.intraday_average != null && (
+                            <DataChip icon={TrendingUpIcon} label="Intra" value={hoveredData.intraday_average} unit="¥" color="#ffa726" />
                         )}
+                        {showImbalance && hoveredData.imbalance != null && (
+                            <DataChip icon={ElectricBoltIcon} label="Imb" value={hoveredData.imbalance} unit="" color="#ef5350" />
+                        )}
+                        {showInterconnection && hoveredData.interconnection_flow_diff != null && (
+                            <DataChip icon={CompareArrowsIcon} label="Inter" value={hoveredData.interconnection_flow_diff} unit="MW" color="#ff7043" />
+                        )}
+                        
+                        {/* 2. OCCTO (Fixed: Using specific colors) */}
+                        {showOcctoArea && hoveredData.occto_values && Array.from(selectedOcctoFields).map((field: any) => {
+                            const config = getOcctoConfig(field);
+                            return (
+                                <DataChip 
+                                    key={field} 
+                                    icon={config.icon} 
+                                    label={config.label} 
+                                    value={hoveredData.occto_values[field]} 
+                                    unit={config.unit} 
+                                    color={config.color} // Using mapped color
+                                />
+                            );
+                        })}
 
-                        {/* Optional: Weather Fields */}
+                        {/* 3. Weather */}
                         {showWeather && (
                             <>
-                                {/* Weather Actual */}
-                                {showWeatherActual && Array.from(selectedWeatherFieldsActual).map((field) => {
-                                    const value = hoveredData.weather_data_actual?.[field as keyof typeof hoveredData.weather_data_actual];
-                                    if (value === null || value === undefined) return null;
-                                    
-                                    const fieldLabels: Record<string, { label: string; unit: string; color: string }> = {
-                                        temperature: { label: 'Temp', unit: '°C', color: '#ff4d4f' },
-                                        rainfall: { label: 'Rain', unit: 'mm', color: '#1e90ff' },
-                                        snowfall: { label: 'Snow', unit: 'mm', color: '#91d5ff' },
-                                        wind_speed: { label: 'Wind', unit: 'm/s', color: '#52c41a' },
-                                        relative_humidity: { label: 'Humid', unit: '%', color: '#722ed1' },
-                                        clouds_all: { label: 'Clouds', unit: '%', color: '#8c8c8c' },
-                                    };
-                                    
-                                    const fieldInfo = fieldLabels[field];
-                                    if (!fieldInfo) return null;
-                                    
-                                    return (
-                                        <Box key={`actual-${field}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Typography variant="caption" sx={{ color: fieldInfo.color, fontWeight: 'bold' }}>
-                                                {fieldInfo.label} (A): {typeof value === 'number' ? value.toFixed(1) : value} {fieldInfo.unit}
-                                            </Typography>
-                                        </Box>
-                                    );
+                                {showWeatherActual && Array.from(selectedWeatherFieldsActual).map((field: any) => {
+                                    const cfg = getWeatherConfig(field);
+                                    if(!cfg) return null;
+                                    return <DataChip key={`act-${field}`} {...cfg} value={hoveredData.weather_data_actual?.[field]} />;
                                 })}
-                                {/* Weather Forecast */}
-                                {showWeatherForecast && Array.from(selectedWeatherFieldsForecast).map((field) => {
-                                    const value = hoveredData.weather_data_forecast?.[field as keyof typeof hoveredData.weather_data_forecast];
-                                    if (value === null || value === undefined) return null;
-                                    
-                                    const fieldLabels: Record<string, { label: string; unit: string; color: string }> = {
-                                        temperature: { label: 'Temp', unit: '°C', color: '#ff4d4f' },
-                                        rainfall: { label: 'Rain', unit: 'mm', color: '#1e90ff' },
-                                        snowfall: { label: 'Snow', unit: 'mm', color: '#91d5ff' },
-                                        wind_speed: { label: 'Wind', unit: 'm/s', color: '#52c41a' },
-                                        relative_humidity: { label: 'Humid', unit: '%', color: '#722ed1' },
-                                        clouds_all: { label: 'Clouds', unit: '%', color: '#8c8c8c' },
-                                    };
-                                    
-                                    const fieldInfo = fieldLabels[field];
-                                    if (!fieldInfo) return null;
-                                    
-                                    return (
-                                        <Box key={`forecast-${field}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Typography variant="caption" sx={{ color: fieldInfo.color, fontWeight: 'bold', opacity: 0.6 }}>
-                                                {fieldInfo.label} (F): {typeof value === 'number' ? value.toFixed(1) : value} {fieldInfo.unit}
-                                            </Typography>
-                                        </Box>
-                                    );
+                                {showWeatherForecast && Array.from(selectedWeatherFieldsForecast).map((field: any) => {
+                                    const cfg = getWeatherConfig(field);
+                                    if(!cfg) return null;
+                                    return <DataChip key={`fcst-${field}`} {...cfg} value={hoveredData.weather_data_forecast?.[field]} isForecast />;
                                 })}
                             </>
                         )}
                     </Box>
                 </>
             )}
-        </Box>
+        </Paper>
     );
 };
-
-export default ChartInfoPanel;

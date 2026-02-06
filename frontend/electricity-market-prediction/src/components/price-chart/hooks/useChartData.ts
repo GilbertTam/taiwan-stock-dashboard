@@ -18,7 +18,7 @@ interface UseChartDataProps {
         calculatingDate: string;
     }[];
     topBottomPairs: number;
-    occtoChartType: 'line' | 'stacked' | 'percentage';
+    occtoChartType: 'stacked' | 'area';
     selectedOcctoField: string;
     selectedOcctoFields: Set<string>;
     selectedWeatherFields?: Set<string>;
@@ -226,8 +226,8 @@ export const useChartData = ({
                 if (ts) {
                     const point = ensurePoint(ts);
                     point.intraday_average = item.average_price;
-                    point.intraday_opening = item.opening_price;
-                    point.intraday_closing = item.closing_price;
+                    point.intraday_open = item.opening_price;
+                    point.intraday_close = item.closing_price;
                     point.intraday_high = item.high_price;
                     point.intraday_low = item.low_price;
 
@@ -283,11 +283,11 @@ export const useChartData = ({
         }
 
         // F. Weather Actual Data
-        // NOTE: 後端 Weather 時間為 UTC（例如 "2026-02-03T00:00:00+00:00"），parseToTimestamp 會正確解析為 UTC timestamp。
-        // 但價格資料的時間是本地時間（Asia/Taipei, UTC+8），例如 "2026-02-03 00:00" 被解析為本地午夜。
-        // 為了讓 Weather 與價格對齊，我們需要將 UTC timestamp 減去 8 小時，使其對應到本地時間的同一時刻。
-        // 例如：UTC 00:00 (timestamp X) 應該對應到本地 00:00 (timestamp X - 8h)，而不是本地 08:00。
-        const WEATHER_TIME_OFFSET_MS = -8 * 60 * 60 * 1000; // 減去 8 小時，將 UTC 時間對齊到本地時間
+        // NOTE: 後端 Weather 的 weather_datetime 為 UTC（例如 "2026-01-31T00:00:00+00:00"），parseToTimestamp 會解析為 UTC timestamp。
+        // 價格與圖表採用 JST（Asia/Tokyo, UTC+9），"2026-01-31 00:00" 表示 JST 午夜 = 前日 15:00 UTC。
+        // 為了讓 Weather 的「UTC 00:00」對齊到圖表上的「JST 00:00」同一時段，將 UTC timestamp 減去 9 小時，
+        // 使 UTC 00:00 → 對應 JST 00:00 的時刻（前日 15:00 UTC）。
+        const WEATHER_TIME_OFFSET_MS = -9 * 60 * 60 * 1000; // 減去 9 小時，將 UTC 對齊到 JST 同一鐘面時刻
         if (showWeatherActual && weatherActual && Array.isArray(weatherActual)) {
             weatherActual.forEach((item) => {
                 const tsRaw = parseToTimestamp(item.weather_datetime);
@@ -450,17 +450,17 @@ export const useChartData = ({
         const dataMin = Math.min(...allPrices);
         const dataMax = Math.max(...allPrices);
         const range = dataMax - dataMin;
-        
+
         // Add 10% padding on both sides, but ensure min is at least 0
         const min = Math.max(0, Math.floor(dataMin - range * 0.1));
         const max = Math.ceil(dataMax + range * 0.1);
-        
+
         // If range is too small, ensure minimum range for visibility
         if (max - min < 5) {
             const center = (min + max) / 2;
             return { min: Math.max(0, Math.floor(center - 2.5)), max: Math.ceil(center + 2.5) };
         }
-        
+
         return { min, max };
     }, [chartData, processedChartData]);
 
@@ -473,98 +473,76 @@ export const useChartData = ({
         const dataMin = Math.min(...values);
         const dataMax = Math.max(...values);
         const range = dataMax - dataMin;
-        
+
         // 使用固定的 padding 比例，避免範圍突然變化
         const padding = range > 0 ? range * 0.12 : 3.5; // 12% padding，最小 3.5
         const min = Math.floor(dataMin - padding);
         const max = Math.ceil(dataMax + padding);
-        
+
         // 確保最小範圍，避免視覺上的突然壓縮
         if (max - min < 7) {
             const center = (min + max) / 2;
             return { min: Math.floor(center - 3.5), max: Math.ceil(center + 3.5) };
         }
-        
+
         return { min, max };
     }, [processedChartData]);
 
     const occtoRange = useMemo(() => {
-        // 百分比模式使用固定的 0-100 範圍
-        if (occtoChartType === 'percentage') {
-            return { min: 0, max: 100 };
-        }
-        
+        // OCCTO is always stacked bar mode - calculate sum for each time point
         let values: number[] = [];
-        if (occtoChartType === 'stacked') {
-            // 在 stack 模式下，根據選中的子項目計算每個時間點的堆疊總和
-            processedChartData.forEach(p => {
-                if (p.occto_data) {
-                    let sum = 0;
-                    let hasValue = false;
-                    selectedOcctoFields.forEach(field => {
-                        const val = (p.occto_data as any)[field];
-                        if (val !== null && val !== undefined && !isNaN(val)) {
-                            sum += val;
-                            hasValue = true;
-                        }
-                    });
-                    if (hasValue) {
-                        values.push(sum);
+        processedChartData.forEach(p => {
+            if (p.occto_data) {
+                let sum = 0;
+                let hasValue = false;
+                selectedOcctoFields.forEach(field => {
+                    const val = (p.occto_data as any)[field];
+                    if (val !== null && val !== undefined && !isNaN(val)) {
+                        sum += val;
+                        hasValue = true;
                     }
+                });
+                if (hasValue) {
+                    values.push(sum);
                 }
-            });
-        } else {
-            // Collect values from all selected fields
-            processedChartData.forEach(p => {
-                if (p.occto_values) {
-                    selectedOcctoFields.forEach(field => {
-                        const val = p.occto_values![field];
-                        if (val !== null && val !== undefined && !isNaN(val)) {
-                            values.push(val);
-                        }
-                    });
-                }
-            });
-        }
+            }
+        });
 
         if (values.length === 0) return { min: 0, max: 100 };
-        
+
         const min = Math.min(...values);
         const max = Math.max(...values);
         const range = max - min;
-        
-        // 檢查是否有負值字段被選中（interconnection_line 和 battery_storage 可能有負值）
+
+        // Check if negative fields are selected
         const hasNegativeFields = selectedOcctoFields.has('interconnection_line') || selectedOcctoFields.has('battery_storage');
         const hasNegativeValues = min < 0;
-        
-        // 使用固定的 padding 比例，避免範圍突然變化
-        // 對於 stack 模式，需要更大的緩衝區以防止堆疊超出
-        const paddingRatio = occtoChartType === 'stacked' ? 0.12 : 0.1; // stack 模式使用 12% padding
+
+        // Stack mode uses 12% padding
+        const paddingRatio = 0.12;
         const padding = range > 0 ? range * paddingRatio : Math.max(Math.abs(max), Math.abs(min)) * 0.1 || 10;
-        
-        // 對於 stack 模式，額外確保最大值有足夠的空間（至少 5%）
-        const stackExtraBuffer = occtoChartType === 'stacked' ? Math.abs(max) * 0.05 : 0;
-        
-        // 如果有負值，允許 min 為負數；否則確保 min 至少為 0，以便與價格軸的 0 點對齊
+
+        // Extra 5% buffer for stacked maximum
+        const stackExtraBuffer = Math.abs(max) * 0.05;
+
+        // If negative values exist, allow min to be negative
         let finalMin: number;
         if (hasNegativeValues || hasNegativeFields) {
-            // 有負值時，允許 min 為負數，但添加 padding
             finalMin = Math.floor(min - padding);
         } else {
-            // 沒有負值時，確保 min 至少為 0
             finalMin = Math.max(0, Math.floor(min - padding));
         }
-        
+
         const finalMax = Math.ceil(max + padding + stackExtraBuffer);
-        
-        // 確保最小範圍，避免視覺上的突然壓縮
+
+        // Ensure minimum range
         if (finalMax - finalMin < 10) {
             const center = (finalMin + finalMax) / 2;
             return { min: Math.floor(center - 5), max: Math.ceil(center + 5) };
         }
-        
+
         return { min: finalMin, max: finalMax };
-    }, [processedChartData, occtoChartType, selectedOcctoFields]);
+    }, [processedChartData, selectedOcctoFields]);
 
     return {
         modelColorMap,
