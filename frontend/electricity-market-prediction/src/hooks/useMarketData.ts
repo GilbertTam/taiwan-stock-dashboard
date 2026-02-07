@@ -1,3 +1,27 @@
+/**
+ * @fileoverview Market Data Hook
+ *
+ * Custom React hook that manages state and data fetching for the electricity
+ * market dashboard. Handles areas, prediction models, actual prices, weather,
+ * and various grid operation data sources.
+ *
+ * Features:
+ * - Cached predictions to avoid redundant API calls
+ * - Race condition handling with request IDs
+ * - User preferences persistence (localStorage)
+ * - Date range presets and custom date selection
+ * - Multiple data layer toggles (imbalance, intraday, weather, etc.)
+ *
+ * @example
+ * const {
+ *   areas,
+ *   selectedArea,
+ *   handleAreaChange,
+ *   actualPrices,
+ *   isLoading
+ * } = useMarketData();
+ */
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { format, subDays, subMonths, addMonths, isValid } from 'date-fns';
 import {
@@ -20,56 +44,225 @@ import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
 import { useUserPreferences } from './useUserPreferences';
 
+/**
+ * Selected model configuration with display settings
+ */
+interface SelectedModelConfig {
+    /** Model ID (string or number depending on source) */
+    id: string | number;
+    /** Model display name */
+    name: string;
+    /** CSS color for chart series */
+    color: string;
+    /** Calculation date for predictions ('latest' or YYYY-MM-DD) */
+    calculatingDate: string;
+}
 
-export const useMarketData = () => {
+/**
+ * Return type for the useMarketData hook
+ */
+export interface UseMarketDataReturn {
+    // Data
+    areas: Area[];
+    models: PredictionModel[];
+    calculatingDatesByModel: { [key: string]: CalculatingDate[] };
+    selectedArea: string;
+    selectedModels: SelectedModelConfig[];
+    actualPrices: AreaPrice[];
+    predictionsByModel: { [key: string]: PricePrediction[] };
+    weatherActual: WeatherData[];
+    weatherForecast: WeatherData[];
+    imbalanceData: ImbalanceData[];
+    intradayData: IntradayData[];
+    interconnectionData: InterconnectionFlow[];
+    occtoAreaData: OcctoAreaData[];
+
+    // Date range
+    startDate: Date | null;
+    endDate: Date | null;
+    dateRangePreset: string | null;
+    setStartDate: React.Dispatch<React.SetStateAction<Date | null>>;
+    setEndDate: React.Dispatch<React.SetStateAction<Date | null>>;
+    setDateRangePreset: React.Dispatch<React.SetStateAction<string | null>>;
+
+    // Loading/Error states
+    isLoading: boolean;
+    isFetchingPredictions: boolean;
+    error: string | null;
+
+    // Handlers
+    handleAreaChange: (event: SelectChangeEvent) => void;
+    handleModelChange: (event: SelectChangeEvent<string[]>) => void;
+    handleModelCalculatingDateChange: (modelIndex: number, newCalculatingDate: string) => void;
+    handleDateRangePreset: (preset: string | null) => void;
+    handleMoveMonthBackward: () => void;
+    handleMoveMonthForward: () => void;
+    refreshData: () => void;
+
+    // Chart highlight/focus
+    highlightedModelId: string | null;
+    setHighlightedModelId: React.Dispatch<React.SetStateAction<string | null>>;
+    focusedDataSource: string | null;
+    setFocusedDataSource: React.Dispatch<React.SetStateAction<string | null>>;
+
+    // Data layer toggles
+    showImbalance: boolean;
+    setShowImbalance: React.Dispatch<React.SetStateAction<boolean>>;
+    showIntraday: boolean;
+    setShowIntraday: React.Dispatch<React.SetStateAction<boolean>>;
+    showIntradayAverage: boolean;
+    setShowIntradayAverage: React.Dispatch<React.SetStateAction<boolean>>;
+    showInterconnection: boolean;
+    setShowInterconnection: React.Dispatch<React.SetStateAction<boolean>>;
+    showWeather: boolean;
+    setShowWeather: React.Dispatch<React.SetStateAction<boolean>>;
+    showWeatherActual: boolean;
+    setShowWeatherActual: React.Dispatch<React.SetStateAction<boolean>>;
+    showWeatherForecast: boolean;
+    setShowWeatherForecast: React.Dispatch<React.SetStateAction<boolean>>;
+    showOcctoArea: boolean;
+    setShowOcctoArea: React.Dispatch<React.SetStateAction<boolean>>;
+    showActualPrice: boolean;
+    setShowActualPrice: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+/**
+ * Custom hook for managing electricity market dashboard data.
+ *
+ * Fetches and caches market data including predictions, actual prices,
+ * weather, and grid operation data. Manages user preferences for
+ * selected areas, models, and data layer visibility.
+ *
+ * @returns Hook state and handler functions
+ *
+ * @example
+ * ```tsx
+ * function Dashboard() {
+ *   const {
+ *     areas,
+ *     selectedArea,
+ *     handleAreaChange,
+ *     actualPrices,
+ *     isLoading,
+ *     error
+ *   } = useMarketData();
+ *
+ *   if (isLoading) return <Spinner />;
+ *   if (error) return <ErrorMessage message={error} />;
+ *
+ *   return (
+ *     <AreaSelect
+ *       areas={areas}
+ *       value={selectedArea}
+ *       onChange={handleAreaChange}
+ *     />
+ *   );
+ * }
+ * ```
+ */
+export const useMarketData = (): UseMarketDataReturn => {
     const { logout } = useAuth();
 
-    // State
-    const [areas, setAreas] = useState<Area[]>([]);
-    const [models, setModels] = useState<PredictionModel[]>([]);
-    const [calculatingDatesByModel, setCalculatingDatesByModel] = useState<{ [key: string]: CalculatingDate[] }>({});
-    const [selectedArea, setSelectedArea] = useState<string>('');
-    const [selectedModels, setSelectedModels] = useState<{
-        id: string | number;
-        name: string;
-        color: string;
-        calculatingDate: string;
-    }[]>([]);
+    // ==========================================================================
+    // Core State: Areas, Models, Selection
+    // ==========================================================================
 
+    /** Available electricity grid areas from API */
+    const [areas, setAreas] = useState<Area[]>([]);
+
+    /** Available prediction models from API */
+    const [models, setModels] = useState<PredictionModel[]>([]);
+
+    /** Available calculation dates per model, keyed by "modelId|modelName" */
+    const [calculatingDatesByModel, setCalculatingDatesByModel] = useState<{ [key: string]: CalculatingDate[] }>({});
+
+    /** Currently selected area name (e.g., 'tokyo', 'hokkaido') */
+    const [selectedArea, setSelectedArea] = useState<string>('');
+
+    /** Currently selected models with their display configuration */
+    const [selectedModels, setSelectedModels] = useState<SelectedModelConfig[]>([]);
+
+    // ==========================================================================
+    // Date Range State
+    // ==========================================================================
+
+    /** Start date for data queries (defaults to 7 days ago) */
     const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
+
+    /** End date for data queries (defaults to today) */
     const [endDate, setEndDate] = useState<Date | null>(new Date());
+
+    /** Active date range preset identifier (e.g., 'week', 'month') */
     const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
 
-    // Debounce dates for fetching
-    // Removed debounce as per user request to fetch on selection completion instead
-    // const debouncedDateRange = useDebounce(dateRange, 500);
+    // ==========================================================================
+    // Market Data State
+    // ==========================================================================
 
+    /** JEPX actual spot market prices */
     const [actualPrices, setActualPrices] = useState<AreaPrice[]>([]);
+
+    /** Predictions per model, keyed by "modelId|modelName" */
     const [predictionsByModel, setPredictionsByModel] = useState<{ [key: string]: PricePrediction[] }>({});
 
-    // Cache State
+    /**
+     * Prediction cache to avoid redundant API calls.
+     * Key format: "area_startDate_endDate_modelKey_calculatingDate"
+     */
     const [cachedPredictionsByModel, setCachedPredictionsByModel] = useState<{ [key: string]: PricePrediction[] }>({});
-    // Ref to hold the latest cache value for reading inside callbacks without dependency loops
+
+    /**
+     * Ref to hold the latest cache value for reading inside callbacks.
+     * This avoids adding cachedPredictionsByModel to dependency arrays,
+     * which would cause infinite re-fetch loops.
+     */
     const cacheRef = useRef(cachedPredictionsByModel);
 
+    /** Actual observed weather data */
     const [weatherActual, setWeatherActual] = useState<WeatherData[]>([]);
+
+    /** Weather forecast data */
     const [weatherForecast, setWeatherForecast] = useState<WeatherData[]>([]);
+
+    /** Grid imbalance data (supply vs demand gap) */
     const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
+
+    /** JEPX intraday market trading data */
     const [intradayData, setIntradayData] = useState<IntradayData[]>([]);
+
+    /** Interconnection line flow data between areas */
     const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
+
+    /** OCCTO area supply/demand data */
     const [occtoAreaData, setOcctoAreaData] = useState<OcctoAreaData[]>([]);
 
+    // ==========================================================================
+    // Loading and Error State
+    // ==========================================================================
+
+    /** True while fetching initial data or actual prices */
     const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    /** True while fetching prediction data specifically */
     const [isFetchingPredictions, setIsFetchingPredictions] = useState<boolean>(false);
+
+    /** Error message to display, null if no error */
     const [error, setError] = useState<string | null>(null);
 
-    // Highlighted model for chart focus - when set, other models fade out
+    // ==========================================================================
+    // Chart Highlight State
+    // ==========================================================================
+
+    /** Model ID to highlight in chart (others fade out) */
     const [highlightedModelId, setHighlightedModelId] = useState<string | null>(null);
 
-    // Focus states for data sources - when set, other sources fade out
+    /** Data source to focus in chart (e.g., 'imbalance', 'weather') */
     const [focusedDataSource, setFocusedDataSource] = useState<string | null>(null);
 
-    // Data layer toggles - shared between sidebar and chart
+    // ==========================================================================
+    // Data Layer Toggle State
+    // ==========================================================================
+
     const [showImbalance, setShowImbalance] = useState<boolean>(false);
     const [showIntraday, setShowIntraday] = useState<boolean>(false);
     const [showIntradayAverage, setShowIntradayAverage] = useState<boolean>(true);
@@ -78,25 +271,52 @@ export const useMarketData = () => {
     const [showWeatherActual, setShowWeatherActual] = useState<boolean>(false);
     const [showWeatherForecast, setShowWeatherForecast] = useState<boolean>(false);
     const [showOcctoArea, setShowOcctoArea] = useState<boolean>(false);
-    const [showActualPrice, setShowActualPrice] = useState<boolean>(true); // Default true - show actual price
+    const [showActualPrice, setShowActualPrice] = useState<boolean>(true);
 
-    // Refs for race condition handling
+    // ==========================================================================
+    // Race Condition Prevention Refs
+    // ==========================================================================
+
+    /**
+     * Request ID counters to handle race conditions.
+     * When a slower request completes after a newer one, we ignore its results.
+     */
     const latestActualDataRequestId = useRef<number>(0);
     const latestPredictionRequestId = useRef<number>(0);
     const latestCalcDateRequestId = useRef<number>(0);
 
-    // User preferences hook
+    // ==========================================================================
+    // User Preferences
+    // ==========================================================================
+
     const { loadPreferences, updatePreference } = useUserPreferences();
+    /** Flag to prevent saving preferences during initial load */
     const prefsLoadedRef = useRef(false);
 
-    // Sync cache ref whenever state changes
+    /**
+     * Memoized model key string to use in useEffect dependencies.
+     * This prevents unnecessary re-renders from creating new array references.
+     */
+    const selectedModelKeysString = useMemo(
+        () => selectedModels.map(m => `${m.id}|${m.name}|${m.calculatingDate}`).join(','),
+        [selectedModels]
+    );
+
+    // ==========================================================================
+    // Effects: Cache Sync
+    // ==========================================================================
+
+    // Keep cacheRef in sync with state for use in callbacks
     useEffect(() => {
         cacheRef.current = cachedPredictionsByModel;
     }, [cachedPredictionsByModel]);
 
-    // Auto-save preferences when data layer toggles change
+    // ==========================================================================
+    // Effects: Auto-save Preferences
+    // ==========================================================================
+
     useEffect(() => {
-        if (!prefsLoadedRef.current) return; // Don't save during initial load
+        if (!prefsLoadedRef.current) return;
         updatePreference('showImbalance', showImbalance);
     }, [showImbalance, updatePreference]);
 
@@ -120,19 +340,23 @@ export const useMarketData = () => {
         updatePreference('showOcctoArea', showOcctoArea);
     }, [showOcctoArea, updatePreference]);
 
-    // Auto-save area preference
     useEffect(() => {
         if (!prefsLoadedRef.current || !selectedArea) return;
         updatePreference('selectedArea', selectedArea);
     }, [selectedArea, updatePreference]);
 
-    // Auto-save model preferences
     useEffect(() => {
         if (!prefsLoadedRef.current) return;
         updatePreference('selectedModels', selectedModels);
     }, [selectedModels, updatePreference]);
 
-    // Initial Data Fetch
+    // ==========================================================================
+    // Effects: Initial Data Fetch
+    // ==========================================================================
+
+    /**
+     * On mount, fetch areas and models, then apply saved preferences.
+     */
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -145,10 +369,10 @@ export const useMarketData = () => {
                 setAreas(areasData);
                 setModels(modelsData);
 
-                // Load saved preferences
+                // Load and apply saved preferences
                 const prefs = loadPreferences();
 
-                // Apply area preference (or default to first area)
+                // Apply area preference (fallback to first area)
                 if (prefs.selectedArea && areasData.some(a => a.name === prefs.selectedArea)) {
                     setSelectedArea(prefs.selectedArea);
                 } else if (areasData.length > 0) {
@@ -162,9 +386,8 @@ export const useMarketData = () => {
                 if (prefs.showInterconnection !== undefined) setShowInterconnection(prefs.showInterconnection);
                 if (prefs.showOcctoArea !== undefined) setShowOcctoArea(prefs.showOcctoArea);
 
-                // Apply model preferences (if valid)
+                // Apply model preferences (filter to existing models only)
                 if (prefs.selectedModels && prefs.selectedModels.length > 0) {
-                    // Filter to only include models that still exist
                     const validModels = prefs.selectedModels.filter(pm =>
                         modelsData.some(m => m.id === pm.id && m.name === pm.name)
                     );
@@ -173,12 +396,13 @@ export const useMarketData = () => {
                     }
                 }
 
-                // Mark preferences as loaded (enable auto-save)
+                // Enable auto-save now that preferences are loaded
                 prefsLoadedRef.current = true;
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('獲取初始資料失敗', err);
-                if (err.response && err.response.status === 401) {
+                const error = err as { response?: { status: number } };
+                if (error.response?.status === 401) {
                     setError('認證已過期，請重新登入');
                     setTimeout(() => logout(), 2000);
                 } else {
@@ -192,9 +416,14 @@ export const useMarketData = () => {
         fetchInitialData();
     }, [logout, loadPreferences]);
 
+    // ==========================================================================
+    // Effects: Fetch Calculating Dates
+    // ==========================================================================
 
-
-    // Fetch Calculating Dates
+    /**
+     * Fetch available calculation dates whenever area, models, or date range changes.
+     * Resets model calculatingDate to 'latest' if previous date is no longer valid.
+     */
     useEffect(() => {
         const fetchAllCalculatingDates = async () => {
             if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) return;
@@ -217,13 +446,13 @@ export const useMarketData = () => {
                         dates
                     })).catch(err => {
                         console.warn(`Failed to fetch calculating dates for ${model.name}`, err);
-                        return { modelKey: `${model.id}|${model.name}`, dates: [] }; // Return empty on error
+                        return { modelKey: `${model.id}|${model.name}`, dates: [] };
                     })
                 );
 
                 const results = await Promise.all(datesPromises);
 
-                // Race condition guard
+                // Race condition guard: ignore stale responses
                 if (requestId !== latestCalcDateRequestId.current) return;
 
                 const newCalculatingDatesByModel: { [key: string]: CalculatingDate[] } = {};
@@ -233,36 +462,40 @@ export const useMarketData = () => {
 
                 setCalculatingDatesByModel(newCalculatingDatesByModel);
 
+                // Reset calculatingDate to 'latest' if previous date is no longer available
                 setSelectedModels(prev => {
                     let hasChanges = false;
                     const updatedModels = prev.map(model => {
                         const modelKey = `${model.id}|${model.name}`;
                         const availableDates = newCalculatingDatesByModel[modelKey] || [];
-                        // Check if current calculating date is valid for the new range
                         if (model.calculatingDate !== 'latest' &&
                             !availableDates.some(d => d.calculating_date === model.calculatingDate)) {
                             hasChanges = true;
-                            // Reset to latest if specific date is invalid in new range
                             return { ...model, calculatingDate: 'latest' };
                         }
                         return model;
                     });
-
                     return hasChanges ? updatedModels : prev;
                 });
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 if (requestId !== latestCalcDateRequestId.current) return;
                 console.error('獲取計算日期失敗', err);
-                // Don't log out here to avoid interrupting UX on minor failures
             }
         };
 
-
         fetchAllCalculatingDates();
-    }, [selectedArea, selectedModels.map(m => `${m.id}|${m.name}`).join(','), startDate, endDate, logout]);
+        // Use memoized string to avoid dependency on selectedModels array reference
+    }, [selectedArea, selectedModelKeysString, startDate, endDate, logout]);
 
-    // Fetch Actual Data
+    // ==========================================================================
+    // Data Fetching Functions
+    // ==========================================================================
+
+    /**
+     * Fetch actual market data (prices, weather, imbalance, etc.).
+     * Uses request ID to handle race conditions from rapid date changes.
+     */
     const fetchActualData = useCallback(async () => {
         if (!selectedArea || !startDate || !endDate) return;
         if (!isValid(startDate) || !isValid(endDate)) return;
@@ -275,16 +508,19 @@ export const useMarketData = () => {
             const formattedStartDate = format(startDate, 'yyyyMMdd');
             const formattedEndDate = format(endDate, 'yyyyMMdd');
 
+            // Fetch all data sources in parallel for performance
             const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult] = await Promise.all([
                 fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }),
                 fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }),
                 fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }),
+                // Catch individual errors to prevent one failure from blocking all data
                 fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; }),
                 fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; }),
                 fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(e => { console.error(e); return []; }),
                 fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; })
             ]);
 
+            // Race condition guard: ignore stale responses
             if (requestId !== latestActualDataRequestId.current) return;
 
             setActualPrices(actualData);
@@ -294,11 +530,12 @@ export const useMarketData = () => {
             setIntradayData(intradayDataResult);
             setInterconnectionData(interconnectionDataResult);
             setOcctoAreaData(occtoAreaDataResult);
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (requestId !== latestActualDataRequestId.current) return;
 
             console.error('獲取實際數據失敗', err);
-            if (err.response && err.response.status === 401) {
+            const error = err as { response?: { status: number } };
+            if (error.response?.status === 401) {
                 setError('認證已過期，請重新登入');
                 setTimeout(() => logout(), 2000);
             } else {
@@ -311,8 +548,12 @@ export const useMarketData = () => {
         }
     }, [selectedArea, startDate, endDate, logout]);
 
-    // Fetch Prediction Data with caching
-    // KEY FIX: Removed cachedPredictionsByModel from dependency array to prevent double-fetching loop
+    /**
+     * Fetch prediction data with caching.
+     *
+     * Uses cacheRef to check cache without adding it to dependency array,
+     * which prevents infinite re-fetch loops.
+     */
     const fetchPredictionData = useCallback(async () => {
         if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
             setPredictionsByModel({});
@@ -332,12 +573,12 @@ export const useMarketData = () => {
             const newCacheEntries: { [key: string]: PricePrediction[] } = {};
 
             const modelsToFetch: Array<{
-                model: typeof selectedModels[0];
+                model: SelectedModelConfig;
                 modelKey: string;
                 cacheKey: string;
             }> = [];
 
-            // KEY FIX: Use cacheRef.current to check cache without creating dependency
+            // Check cache using ref to avoid dependency loop
             const currentCache = cacheRef.current;
 
             selectedModels.forEach((model) => {
@@ -345,14 +586,16 @@ export const useMarketData = () => {
                 const cacheKey = `${selectedArea}_${formattedStartDate}_${formattedEndDate}_${modelKey}_${model.calculatingDate}`;
 
                 if (currentCache[cacheKey]) {
+                    // Cache hit: use cached data
                     predictionsData[modelKey] = currentCache[cacheKey];
                 } else {
+                    // Cache miss: queue for API fetch
                     modelsToFetch.push({ model, modelKey, cacheKey });
                 }
             });
 
             if (modelsToFetch.length > 0) {
-                // KEY FIX: Handle individual model failures so one bad request doesn't crash everything
+                // Fetch missing models individually so one failure doesn't block others
                 await Promise.all(modelsToFetch.map(async ({ model, modelKey, cacheKey }) => {
                     try {
                         let modelPredictions: PricePrediction[];
@@ -376,18 +619,17 @@ export const useMarketData = () => {
                             });
                         }
 
-                        // Only add to result if successful
                         predictionsData[modelKey] = modelPredictions;
                         newCacheEntries[cacheKey] = modelPredictions;
                     } catch (err) {
                         console.error(`Failed to fetch predictions for ${model.name}`, err);
-                        // We intentionally don't re-throw here so other models can still load.
-                        // You might want to track which models failed to show a specific error UI.
+                        // Don't re-throw: allow other models to load even if one fails
                     }
                 }));
 
                 if (requestId !== latestPredictionRequestId.current) return;
 
+                // Update cache with new entries
                 if (Object.keys(newCacheEntries).length > 0) {
                     setCachedPredictionsByModel(prev => ({ ...prev, ...newCacheEntries }));
                 }
@@ -396,12 +638,12 @@ export const useMarketData = () => {
             if (requestId !== latestPredictionRequestId.current) return;
 
             setPredictionsByModel(predictionsData);
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (requestId !== latestPredictionRequestId.current) return;
 
             console.error('獲取預測數據失敗', err);
-            // Only set global error if strictly needed, otherwise partial data is better
-            if (err.response && err.response.status === 401) {
+            const error = err as { response?: { status: number } };
+            if (error.response?.status === 401) {
                 setError('認證已過期，請重新登入');
                 setTimeout(() => logout(), 2000);
             }
@@ -410,9 +652,16 @@ export const useMarketData = () => {
                 setIsFetchingPredictions(false);
             }
         }
-    }, [selectedArea, selectedModels, startDate, endDate, logout]); // Removed cachedPredictionsByModel
+    }, [selectedArea, selectedModels, startDate, endDate, logout]);
 
-    // Clear cache when area or date range changes
+    // ==========================================================================
+    // Effects: Cache Cleanup & Data Refetch
+    // ==========================================================================
+
+    /**
+     * Clear cache entries that don't match current area/date range.
+     * Keeps cache from growing unbounded.
+     */
     useEffect(() => {
         if (selectedArea && startDate && endDate && isValid(startDate) && isValid(endDate)) {
             const formattedStartDate = format(startDate, 'yyyyMMdd');
@@ -421,6 +670,7 @@ export const useMarketData = () => {
             setCachedPredictionsByModel(prev => {
                 const newCache: { [key: string]: PricePrediction[] } = {};
                 Object.keys(prev).forEach(key => {
+                    // Only retain cache entries for current area and date range
                     if (key.startsWith(`${selectedArea}_${formattedStartDate}_${formattedEndDate}_`)) {
                         newCache[key] = prev[key];
                     }
@@ -430,13 +680,18 @@ export const useMarketData = () => {
         }
     }, [selectedArea, startDate, endDate]);
 
-    // Re-fetch when dependencies change
+    /**
+     * Re-fetch actual data when area or date range changes.
+     */
     useEffect(() => {
         if (selectedArea && startDate && endDate) {
             fetchActualData();
         }
     }, [selectedArea, startDate, endDate, fetchActualData]);
 
+    /**
+     * Re-fetch predictions when area, models, or date range changes.
+     */
     useEffect(() => {
         if (selectedArea && selectedModels.length > 0 && startDate && endDate) {
             fetchPredictionData();
@@ -445,11 +700,23 @@ export const useMarketData = () => {
         }
     }, [selectedArea, selectedModels, startDate, endDate, fetchPredictionData]);
 
-    // Handlers
+    // ==========================================================================
+    // Event Handlers
+    // ==========================================================================
+
+    /**
+     * Handle area dropdown change.
+     * @param event - MUI Select change event
+     */
     const handleAreaChange = (event: SelectChangeEvent) => {
         setSelectedArea(event.target.value);
     };
 
+    /**
+     * Handle model multi-select change.
+     * Generates colors for new models and preserves existing model settings.
+     * @param event - MUI Select change event with string array value
+     */
     const handleModelChange = (event: SelectChangeEvent<string[]>) => {
         const selectedValues = event.target.value as string[];
         if (selectedValues.length === 0) {
@@ -460,13 +727,20 @@ export const useMarketData = () => {
         const newSelectedModels = uniqueSelectedValues.map((modelValue) => {
             const [idStr, name] = modelValue.split('|');
             const id = isNaN(Number(idStr)) ? idStr : Number(idStr);
+            // Preserve existing model settings if already selected
             const existingModel = selectedModels.find(m => m.id === id && m.name === name);
             if (existingModel) return existingModel;
+            // Generate consistent color based on model value hash
             return { id, name, color: generateColor(hashString(modelValue)), calculatingDate: 'latest' };
         });
         setSelectedModels(newSelectedModels);
     };
 
+    /**
+     * Handle calculating date change for a specific model.
+     * @param modelIndex - Index of model in selectedModels array
+     * @param newCalculatingDate - New calculation date ('latest' or YYYY-MM-DD)
+     */
     const handleModelCalculatingDateChange = (modelIndex: number, newCalculatingDate: string) => {
         setSelectedModels(prev => {
             const updated = [...prev];
@@ -475,6 +749,11 @@ export const useMarketData = () => {
         });
     };
 
+    /**
+     * Apply a date range preset (e.g., 'week', 'month').
+     * Sets start/end dates based on preset relative to today.
+     * @param preset - Preset identifier or null to clear
+     */
     const handleDateRangePreset = (preset: string | null) => {
         if (!preset) {
             setDateRangePreset(null);
@@ -491,7 +770,7 @@ export const useMarketData = () => {
             case 'threeMonths': start = subMonths(today, 3); break;
             case 'sixMonths': start = subMonths(today, 6); break;
             case 'year': start = subMonths(today, 12); break;
-            case 'all': start = subMonths(today, 24); break; // Default to 2 years for "all"
+            case 'all': start = subMonths(today, 24); break;
             default: start = subDays(today, 7);
         }
         start.setHours(0, 0, 0, 0);
@@ -500,7 +779,10 @@ export const useMarketData = () => {
         setDateRangePreset(preset);
     };
 
-
+    /**
+     * Move date range one month backward.
+     * Clears date range preset since it's now a custom range.
+     */
     const handleMoveMonthBackward = () => {
         if (startDate && endDate) {
             setStartDate(subMonths(startDate, 1));
@@ -509,6 +791,10 @@ export const useMarketData = () => {
         }
     };
 
+    /**
+     * Move date range one month forward.
+     * Clears date range preset since it's now a custom range.
+     */
     const handleMoveMonthForward = () => {
         if (startDate && endDate) {
             setStartDate(addMonths(startDate, 1));
@@ -517,25 +803,25 @@ export const useMarketData = () => {
         }
     };
 
+    /**
+     * Force refresh all data by clearing cache and re-fetching.
+     * Useful when user wants latest data or suspects stale cache.
+     */
     const refreshData = useCallback(() => {
         if (selectedArea && startDate && endDate) {
-            // Clear cache to force re-fetch
-            const formattedStartDate = format(startDate, 'yyyyMMdd');
-            const formattedEndDate = format(endDate, 'yyyyMMdd');
-
-            // Optional: Only clear relevant cache to avoid wiping everything
-            // But for simplicity, we can let the fetch logic handle it or just force execution.
-            // Since fetchPredictionData checks cache, we should clear it for current View.
-
-            // Actually, we can just clear the specific entries or all for now.
+            // Clear entire prediction cache to force fresh API calls
             setCachedPredictionsByModel({});
-
             fetchActualData();
             fetchPredictionData();
         }
     }, [selectedArea, startDate, endDate, fetchActualData, fetchPredictionData]);
 
+    // ==========================================================================
+    // Return Hook API
+    // ==========================================================================
+
     return {
+        // Data
         areas,
         models,
         calculatingDatesByModel,
@@ -552,25 +838,32 @@ export const useMarketData = () => {
         intradayData,
         interconnectionData,
         occtoAreaData,
+
+        // Loading/Error
         isLoading,
         isFetchingPredictions,
         error,
+
+        // Date setters
         setStartDate,
         setEndDate,
         setDateRangePreset,
+
+        // Handlers
         handleAreaChange,
         handleModelChange,
         handleModelCalculatingDateChange,
         handleDateRangePreset,
         handleMoveMonthBackward,
         handleMoveMonthForward,
-        refreshData, // Expose refreshData
-        // Model highlight
+        refreshData,
+
+        // Chart highlight
         highlightedModelId,
         setHighlightedModelId,
-        // Data source focus
         focusedDataSource,
         setFocusedDataSource,
+
         // Data layer toggles
         showImbalance, setShowImbalance,
         showIntraday, setShowIntraday,
