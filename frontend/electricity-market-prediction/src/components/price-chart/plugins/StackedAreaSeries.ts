@@ -52,7 +52,8 @@ class StackedAreaSeriesRenderer implements ICustomSeriesPaneRenderer {
             if (!visibleRange) return;
 
             const zeroY = priceToCoordinate(0) ?? 0;
-            const zeroYPix = zeroY * verticalPixelRatio;
+            const bitmapHeightPx = scope.bitmapSize?.height ?? 0;
+            const clampPixY = (pix: number) => (bitmapHeightPx <= 0 ? pix : Math.max(0, Math.min(bitmapHeightPx, pix)));
 
             // Build points for each stack layer
             // layerPoints[i] contains the points defining the band for layer i
@@ -112,10 +113,11 @@ class StackedAreaSeriesRenderer implements ICustomSeriesPaneRenderer {
                         currentNegBase += item.value;
                     }
 
-                    // Convert to screen coordinates
-                    // accurate priceToCoordinate handles signs correctly
-                    const yBase = (priceToCoordinate(baseValue) ?? zeroY) * verticalPixelRatio;
-                    const yHead = (priceToCoordinate(headValue) ?? zeroY) * verticalPixelRatio;
+                    // Convert to screen coordinates (scale includes 0 so baseline is valid; clamp to avoid closure glitches)
+                    const yBaseRaw = (priceToCoordinate(baseValue) ?? zeroY) * verticalPixelRatio;
+                    const yHeadRaw = (priceToCoordinate(headValue) ?? zeroY) * verticalPixelRatio;
+                    const yBase = clampPixY(typeof yBaseRaw === 'number' && !Number.isNaN(yBaseRaw) ? yBaseRaw : 0);
+                    const yHead = clampPixY(typeof yHeadRaw === 'number' && !Number.isNaN(yHeadRaw) ? yHeadRaw : 0);
 
                     // Store points
                     // Note: In pixel coordinates, usually Y increases downwards.
@@ -186,14 +188,14 @@ export class StackedAreaSeries implements ICustomSeriesPaneView<Time, StackedAre
     }
 
     priceValueBuilder(plotRow: StackedAreaData): number[] {
-        // [min, max] of the stack needs to consider both positive and negative stacks
+        // [min, max] of the stack; always include 0 so baseline is on-scale (avoids area closure issues with mixed-sign data e.g. battery)
         let posSum = 0;
         let negSum = 0;
         plotRow.items.forEach(item => {
             if (item.value >= 0) posSum += item.value;
             else negSum += item.value;
         });
-        return [negSum, posSum];
+        return [Math.min(0, negSum), Math.max(0, posSum)];
     }
 
     isWhitespace(data: StackedAreaData | CustomSeriesWhitespaceData<Time>): data is CustomSeriesWhitespaceData<Time> {

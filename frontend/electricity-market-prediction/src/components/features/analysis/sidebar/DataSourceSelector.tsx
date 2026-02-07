@@ -15,7 +15,8 @@ import {
 } from '@mui/material';
 import {
     ExpandMore, ExpandLess,
-    Balance, SwapHoriz, Cloud, Map, ShowChart, BarChart, Percent
+    Balance, SwapHoriz, Cloud, Map, ShowChart, BarChart, Percent,
+    StackedLineChart
 } from '@mui/icons-material';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
@@ -428,8 +429,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             borderColor: occtoChartType === 'area' ? SOURCE_COLORS.occto : 'transparent'
                                         }}
                                     >
-                                        <Percent sx={{ fontSize: '1rem', color: occtoChartType === 'area' ? SOURCE_COLORS.occto : 'text.secondary' }} />
-                                        <Typography variant="caption" color={occtoChartType === 'area' ? 'text.primary' : 'text.secondary'}>百分比</Typography>
+                                        <StackedLineChart sx={{ fontSize: '1rem', color: occtoChartType === 'area' ? SOURCE_COLORS.occto : 'text.secondary' }} />
+                                        <Typography variant="caption" color={occtoChartType === 'area' ? 'text.primary' : 'text.secondary'}>區域</Typography>
                                     </Box>
                                 </Box>
 
