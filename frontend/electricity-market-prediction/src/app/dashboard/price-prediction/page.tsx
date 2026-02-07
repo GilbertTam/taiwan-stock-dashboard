@@ -7,16 +7,16 @@ import { useMarketDataContext } from '@/context/MarketDataContext';
 import { prepareChartData } from '@/utils/chartUtils';
 import { downloadSpotCsv } from '@/services/api';
 import { format } from 'date-fns';
-import { PriceChartContainer } from '@/components/tradingview/PriceChartContainer';
-import { SimpleToolbar } from '@/components/tradingview/SimpleToolbar';
-import { PricePredictionSidebar } from '@/components/tradingview/PricePredictionSidebar';
-import { ResizableLayout } from '@/components/tradingview/ResizableLayout';
+import { PriceChartContainer } from '@/components/features/analysis/PriceChartContainer';
+import { DashboardToolbar } from '@/components/features/nav/DashboardToolbar';
+import { PricePredictionSidebar } from '@/components/features/analysis/PricePredictionSidebar';
+import { ResizableLayout } from '@/components/ui/ResizableLayout';
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
-import ProfitAnalysis from '@/components/ProfitAnalysis/ProfitAnalysis';
-import MaeAnalysis from '@/components/MaeAnalysis/MaeAnalysis';
-import OutagesPanel from '@/components/market-info/OutagesPanel';
-import InterconnectionPanel from '@/components/market-info/InterconnectionPanel';
-import WeatherChartSection from '@/components/WeatherChartSection';
+import ProfitAnalysis from '@/components/features/analysis/ProfitAnalysis/ProfitAnalysis';
+import MaeAnalysis from '@/components/features/analysis/MaeAnalysis/MaeAnalysis';
+import OutagesPanel from '@/components/features/market-info/OutagesPanel';
+import InterconnectionPanel from '@/components/features/market-info/InterconnectionPanel';
+import WeatherChartSection from '@/components/features/market-info/WeatherChartSection';
 
 import { PriceChartProvider } from '@/components/price-chart/context/PriceChartContext';
 import { useTheme } from '@/app/ThemeProvider';
@@ -305,7 +305,7 @@ function PricePredictionContent() {
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
           <Box sx={{ flexShrink: 0 }}>
-            <SimpleToolbar
+            <DashboardToolbar
               startDate={tempStartDate}
               endDate={tempEndDate}
               dateRangePreset={dateRangePreset}

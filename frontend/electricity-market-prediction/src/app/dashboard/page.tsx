@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
 import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
 import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
-import { AllAreasPriceChart } from '@/components/dashboard/AllAreasPriceChart';
-import { AreaCardList } from '@/components/dashboard/AreaInfoCard';
-import { SimpleToolbar } from '@/components/tradingview/SimpleToolbar';
+import { AllAreasPriceChart } from '@/components/features/overview/AllAreasPriceChart';
+import { AreaCardList } from '@/components/features/overview/AreaCardList';
+import { DashboardToolbar } from '@/components/features/nav/DashboardToolbar';
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { format, subDays, subMonths } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -366,7 +366,7 @@ export default function Dashboard() {
 
       {/* Toolbar - same style as price-prediction page, with nav / date range / refresh / CSV */}
       <Box sx={{ flexShrink: 0, p: 0.5 }}>
-        <SimpleToolbar
+        <DashboardToolbar
           startDate={tempStartDate}
           endDate={tempEndDate}
           dateRangePreset={dateRangePreset}

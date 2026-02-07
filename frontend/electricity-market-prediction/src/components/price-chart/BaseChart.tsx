@@ -21,6 +21,7 @@ export const BaseChart = forwardRef<IChartApi | null, BaseChartProps>(({ options
         // Initialize chart
         const chart = createChart(containerRef.current, {
             ...options,
+            layout: { ...(options?.layout ?? {}), attributionLogo: false },
             width: containerRef.current.clientWidth,
             height: containerRef.current.clientHeight,
         });

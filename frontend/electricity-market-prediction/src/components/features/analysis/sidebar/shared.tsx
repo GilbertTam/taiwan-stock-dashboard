@@ -1,0 +1,89 @@
+
+import React from 'react';
+import { Box, Typography } from '@mui/material';
+import { ExpandMore } from '@mui/icons-material';
+
+// 1. 定義統一的顏色映射，方便維護並對應圖表顏色
+export const SOURCE_COLORS = {
+    imbalance: '#ff9800',
+    intraday: '#9c27b0',
+    interconnection: '#00bcd4',
+    weather: '#2196f3', // 統一天氣主色
+    weatherActual: '#ffc107',
+    weatherForecast: '#ff9800',
+    occto: '#009688',
+    primary: 'var(--primary)',
+    text: 'var(--text-primary)',
+    textSec: 'var(--text-secondary)',
+};
+
+export function SectionHeader({
+    children,
+    onClick,
+    expanded
+}: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    expanded?: boolean;
+}) {
+    return (
+        <Box
+            onClick={onClick}
+            sx={{
+                px: 1.5,
+                py: 1, //稍微增加高度讓點擊更容易
+                borderBottom: '1px solid var(--card-border)',
+                backgroundColor: expanded ? 'color-mix(in srgb, var(--primary), transparent 95%)' : 'var(--card-bg)', // 使用 color-mix 替代 alpha
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: onClick ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+                '&:hover': onClick ? {
+                    backgroundColor: 'color-mix(in srgb, var(--primary), transparent 92%)',
+                } : {},
+                // 移除左側粗邊框，改用背景色區分，視覺較乾淨
+            }}
+        >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {onClick && (
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: expanded ? 'var(--primary)' : 'var(--text-secondary)',
+                        transition: 'transform 0.2s ease',
+                        transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' // 使用旋轉動畫
+                    }}>
+                        <ExpandMore sx={{ fontSize: '1.2rem' }} />
+                    </Box>
+                )}
+                <Typography
+                    variant="subtitle2" // 改用 subtitle2 增加層次感
+                    sx={{
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: expanded ? 'var(--primary)' : 'var(--text-primary)',
+                    }}
+                >
+                    {children}
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
+
+// Helper: SubHeader used in Data Sources
+export function SubHeader({ label }: { label: string }) {
+    return (
+        <Box sx={{ px: 2, py: 0.5, mt: 1, bgcolor: 'var(--hover-bg)', borderTop: '1px solid var(--card-border)', borderBottom: '1px solid var(--card-border)' }}>
+            <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                {label}
+            </Typography>
+        </Box>
+    );
+}
