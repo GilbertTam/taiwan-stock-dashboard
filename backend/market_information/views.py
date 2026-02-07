@@ -1,37 +1,28 @@
 """
-Market Information API
-This API provides market information data from the Elasticsearch database.
-Endpoints:
-- spot-market-trades: Get spot market trades (JEPX)
-- spot-market-area-prices: Get area prices from spot market
-- imbalance: Get imbalance data
-- hjks: Get HJKS outages
-- interconnection: Get interconnection flows
-- intraday: Get intraday data
-- earthquakes: Get earthquakes
-- occto-area: Get OCCTO area data
-- occto-inter: Get OCCTO interconnection
-- occto-event: Get OCCTO events
-- tdgc: Get TDGC data
-- weather-actual: Get weather actual data
-- weather-forecast: Get weather forecast data
+Market Information API Views.
 
+This module provides API endpoints for fetching market information data from
+Elasticsearch. It serves as the bridge between the frontend dashboard and
+the ES data store for various market data types.
+
+Endpoints:
+    - spot-market-trades: Get spot market trades (JEPX)
+    - spot-market-area-prices: Get area prices from spot market
+    - imbalance: Get imbalance data
+    - hjks: Get HJKS outages
+    - interconnection: Get interconnection flows
+    - intraday: Get intraday data
+    - earthquakes: Get earthquakes
+    - occto-area: Get OCCTO area data
+    - occto-inter: Get OCCTO interconnection
+    - occto-event: Get OCCTO events
+    - tdgc: Get TDGC data
+    - weather-actual: Get weather actual data
+    - weather-forecast: Get weather forecast data
 
 Example Request:
-GET /api/market-info/spot-market-trades?start_date=20250101&end_date=20250102&name=hokkaido
-GET /api/market-info/spot-market-area-prices?start_date=20250101&end_date=20250102&name=hokkaido
-GET /api/market-info/imbalance?start_date=20250101&end_date=20250102
-GET /api/market-info/hjks?start_date=20250101&end_date=20250102&area_name=hokkaido
-GET /api/market-info/interconnection?start_date=20250101&end_date=20250102&line_name=interconnection1
-GET /api/market-info/intraday?start_date=20250101&end_date=20250102
-GET /api/market-info/earthquakes?start_date=20250101&end_date=20250102
-GET /api/market-info/occto-area?start_date=20250101&end_date=20250102&area_name=area1
-GET /api/market-info/occto-inter?start_date=20250101&end_date=20250102
-GET /api/market-info/occto-event?start_date=20250101&end_date=20250102
-GET /api/market-info/tdgc?start_date=20250101&end_date=20250102&area_name=area1
-GET /api/market-info/weather-actual?start_date=20250101&end_date=20250102&area_name=area1
-GET /api/market-info/weather-forecast?start_date=20250101&end_date=20250102&area_name=area1
-
+    GET /api/market-info/spot-market-trades?start_date=20250101&end_date=20250102&name=hokkaido
+    GET /api/market-info/imbalance?start_date=20250101&end_date=20250102
 """
 
 from rest_framework import viewsets, status
@@ -42,6 +33,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 import logging
 import datetime
+from typing import Tuple, Optional
 
 from market_information.serializers import (
     ImbalanceSerializer,
@@ -61,24 +53,61 @@ from common.es_service import ESService
 
 logger = logging.getLogger(__name__)
 
+
 class MarketInformationViewSet(viewsets.ViewSet):
     """
-    Market Information API
+    ViewSet for Market Information API.
+
+    Provides read-only endpoints for fetching various types of market data
+    from Elasticsearch. All endpoints require authentication and accept
+    date range parameters in YYYYMMDD format.
+
+    Attributes:
+        permission_classes: Tuple of permission classes requiring authentication.
+
+    Example:
+        >>> # Fetch spot market trades for Hokkaido region
+        >>> GET /api/market-info/spot-market-trades?start_date=20250101&end_date=20250102&name=hokkaido
     """
+
     permission_classes = (IsAuthenticated,)
 
-    def _validate_dates(self, request):
+    def _validate_dates(self, request) -> Tuple[str, str]:
+        """
+        Extract and validate date parameters from request.
+
+        Args:
+            request: The DRF request object containing query parameters.
+
+        Returns:
+            Tuple containing (start_date, end_date) as strings in YYYYMMDD format.
+
+        Raises:
+            ValueError: If start_date or end_date is missing.
+        """
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         if not start_date or not end_date:
             raise ValueError("start_date and end_date are required (YYYYMMDD)")
         return start_date, end_date
 
-    def validate_date_param(self, date_str, param_name):
-        """驗證日期參數"""
+    def validate_date_param(self, date_str: Optional[str], param_name: str) -> datetime.date:
+        """
+        Validate a single date parameter and convert to date object.
+
+        Args:
+            date_str: Date string in YYYYMMDD format, or None.
+            param_name: Name of the parameter (for error messages).
+
+        Returns:
+            datetime.date object representing the parsed date.
+
+        Raises:
+            ValueError: If date_str is None or not in valid YYYYMMDD format.
+        """
         if not date_str:
             raise ValueError(f'必須提供 {param_name} 參數 (YYYYMMDD 格式)')
-        
+
         try:
             return datetime.datetime.strptime(date_str, '%Y%m%d').date()
         except ValueError:
@@ -94,7 +123,24 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: SpotTradeSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='spot-market-trades')
-    def spot_market_trades(self, request):
+    def spot_market_trades(self, request) -> Response:
+        """
+        Retrieve spot market trade data from JEPX.
+
+        Fetches spot market trading data for the specified date range and
+        optionally filtered by area. Returns price, quantity, and other
+        trading metrics.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - name (str, optional): Area name filter (e.g., 'hokkaido').
+
+        Returns:
+            Response with trade data including system price, area price,
+            and contract quantities.
+        """
         try:
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
@@ -131,7 +177,23 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: SpotTradeSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='spot-market-area-prices')
-    def spot_market_area_prices(self, request):
+    def spot_market_area_prices(self, request) -> Response:
+        """
+        Retrieve area-specific spot market prices.
+
+        Similar to spot_market_trades but focused on area price data.
+        When no area is specified, returns prices for all areas, enabling
+        cross-area price comparison.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - name (str, optional): Area name filter. If omitted, returns all areas.
+
+        Returns:
+            Response with area price data per time slot.
+        """
         try:
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
@@ -139,17 +201,15 @@ class MarketInformationViewSet(viewsets.ViewSet):
 
             self.validate_date_param(start_date, 'start_date')
             self.validate_date_param(end_date, 'end_date')
-            
-            # area_name is now optional - if not provided, returns all areas
 
+            # Note: area_name is optional - None means all areas will be returned
             es_service = ESService()
             results = es_service.get_jepx_trades(
                 start_date=start_date,
                 end_date=end_date,
-                area_name=area_name  # None means all areas
+                area_name=area_name
             )
-            
-            # The structure is the same, so we reuse the logic
+
             return Response({
                 "result": [{"Message": "Success"}],
                 "code": 0,
@@ -170,7 +230,19 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: ImbalanceSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def imbalance(self, request):
+    def imbalance(self, request) -> Response:
+        """
+        Retrieve imbalance data for all areas.
+
+        Imbalance data shows the difference between planned and actual
+        power generation/consumption across all grid areas.
+
+        Args:
+            request: DRF request with start_date and end_date query params.
+
+        Returns:
+            Response with imbalance values per area and timestamp.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             es = ESService()
@@ -192,7 +264,22 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: HjksOutageSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def hjks(self, request):
+    def hjks(self, request) -> Response:
+        """
+        Retrieve HJKS power plant outage information.
+
+        HJKS (発電計画・実績・停止) data includes planned and unplanned
+        power plant outages that may affect electricity supply.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - area_name (str, optional): Filter by area (e.g., 'hokkaido').
+
+        Returns:
+            Response with outage details including plant info and duration.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             area_name = request.query_params.get('area_name')
@@ -215,7 +302,22 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: InterconnectionFlowSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def interconnection(self, request):
+    def interconnection(self, request) -> Response:
+        """
+        Retrieve interconnection line flow data.
+
+        Shows power flow between different grid areas through
+        interconnection transmission lines.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - line_name (str, optional): Filter by specific interconnection line.
+
+        Returns:
+            Response with flow data including capacity and margins.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             line_name = request.query_params.get('line_name')
@@ -237,7 +339,19 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: IntradaySerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def intraday(self, request):
+    def intraday(self, request) -> Response:
+        """
+        Retrieve JEPX intraday market trading data.
+
+        Intraday market data shows real-time trading prices and volumes
+        for same-day electricity delivery.
+
+        Args:
+            request: DRF request with start_date and end_date query params.
+
+        Returns:
+            Response with OHLC price data and volume information.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             es = ESService()
@@ -258,7 +372,19 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: EarthquakeSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def earthquakes(self, request):
+    def earthquakes(self, request) -> Response:
+        """
+        Retrieve earthquake event data.
+
+        Earthquake data from JMA (Japan Meteorological Agency) that may
+        impact power grid operations and electricity prices.
+
+        Args:
+            request: DRF request with start_date and end_date query params.
+
+        Returns:
+            Response with earthquake details including magnitude and location.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             es = ESService()
@@ -280,7 +406,23 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: OcctoAreaSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-area')
-    def occto_area(self, request):
+    def occto_area(self, request) -> Response:
+        """
+        Retrieve OCCTO area supply/demand data.
+
+        OCCTO (Organization for Cross-regional Coordination of Transmission
+        Operators) provides data about power generation mix and demand
+        per grid area.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - area_name (str, optional): Filter by area.
+
+        Returns:
+            Response with generation by source type and total demand.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             area_name = request.query_params.get('area_name')
@@ -302,14 +444,27 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: OcctoInterconnectionSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-inter')
-    def occto_inter(self, request):
+    def occto_inter(self, request) -> Response:
+        """
+        Retrieve OCCTO interconnection data.
+
+        Detailed interconnection line data from OCCTO including
+        operating capacity and wide-area adjustment capacity.
+
+        Args:
+            request: DRF request with start_date and end_date query params.
+
+        Returns:
+            Response with interconnection capacity and flow data.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             es = ESService()
             data = es.get_occto_interconnection(start_date, end_date)
             return Response({"result": "Success", "count": len(data), "data": data})
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Bug fix: Changed from HTTP_500 to HTTP_400 for client validation errors
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error fetching occto inter: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -323,7 +478,19 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: OcctoEventSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='occto-event')
-    def occto_event(self, request):
+    def occto_event(self, request) -> Response:
+        """
+        Retrieve OCCTO system event data.
+
+        System events from OCCTO that may affect grid operations,
+        such as emergency dispatch or demand response activations.
+
+        Args:
+            request: DRF request with start_date and end_date query params.
+
+        Returns:
+            Response with event descriptions and affected values.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             es = ESService()
@@ -345,7 +512,22 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: TdgcSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
-    def tdgc(self, request):
+    def tdgc(self, request) -> Response:
+        """
+        Retrieve TDGC (Tertiary Demand and Generation Control) data.
+
+        TDGC data shows real-time balancing market information
+        including reserve requirements and contracted quantities.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - area_name (str, optional): Filter by area.
+
+        Returns:
+            Response with TDGC pricing and quantity data.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             area_name = request.query_params.get('area_name')
@@ -368,7 +550,22 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: WeatherActualSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='weather-actual')
-    def weather_actual(self, request):
+    def weather_actual(self, request) -> Response:
+        """
+        Retrieve actual (observed) weather data.
+
+        Historical weather observations that can be correlated with
+        electricity demand and renewable generation output.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - area_name (str, optional): Filter by area (English name).
+
+        Returns:
+            Response with weather metrics including temperature, wind, etc.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             area_name = request.query_params.get('area_name')
@@ -391,7 +588,22 @@ class MarketInformationViewSet(viewsets.ViewSet):
         responses={200: WeatherForecastSerializer(many=True)}
     )
     @action(detail=False, methods=['get'], url_path='weather-forecast')
-    def weather_forecast(self, request):
+    def weather_forecast(self, request) -> Response:
+        """
+        Retrieve weather forecast data.
+
+        Predicted weather data used for electricity demand forecasting
+        and renewable generation predictions.
+
+        Args:
+            request: DRF request with query params:
+                - start_date (str): Start date in YYYYMMDD format.
+                - end_date (str): End date in YYYYMMDD format.
+                - area_name (str, optional): Filter by area (English name).
+
+        Returns:
+            Response with forecasted weather metrics.
+        """
         try:
             start_date, end_date = self._validate_dates(request)
             area_name = request.query_params.get('area_name')
