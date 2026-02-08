@@ -5,14 +5,20 @@ import { useRouter } from 'next/navigation';
 import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
 import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
 import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
-import { AllAreasPriceChart } from '@/components/features/overview/AllAreasPriceChart';
-import { AreaCardList } from '@/components/features/overview/AreaCardList';
-import { DashboardToolbar } from '@/components/features/nav/DashboardToolbar';
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
-import { format, subDays, subMonths } from 'date-fns';
+import { AllAreasPriceChart } from '@/components/features/dashboard/charts/AllAreasPriceChart';
+import { AreaCardList } from '@/components/features/dashboard/cards/AreaCardList';
+import { DashboardToolbar } from '@/components/features/navigation/DashboardToolbar';
+import { QuickAccessCards } from '@/components/features/dashboard/cards/QuickAccessCards';
+import { KeyMetricsCards } from '@/components/features/dashboard/cards/KeyMetricsCards';
+import { PriceTrendPreview } from '@/components/features/dashboard/charts/PriceTrendPreview';
+import { AreaPricePreviewGrid } from '@/components/features/dashboard/cards/AreaPricePreviewGrid';
+import { LoginOverlay } from '@/components/features/dashboard/overlay/LoginOverlay';
+import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import type { Area, HjksOutage } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { useMarketDataContext } from '@/context/MarketDataContext';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 // Custom Loader - designed spinner + label (no height:100% so wrapper controls centering)
@@ -72,19 +78,20 @@ const LoadingComponent = () => (
   </Box>
 );
 
-// Default 3 days in JST
-function getDefaultDateRange() {
-  const jstNow = toZonedTime(new Date(), 'Asia/Tokyo');
-  const end = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate(), 23, 59, 59, 999);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 2);
-  start.setHours(0, 0, 0, 0);
-  return { start, end };
-}
-
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+
+  // 共用日期範圍（與 header 及價格預測頁同步）
+  const {
+    startDate,
+    endDate,
+    dateRangePreset,
+    handleDateRangePreset,
+    setStartDate,
+    setEndDate,
+  } = useMarketDataContext();
+
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [areas, setAreas] = useState<Area[]>([]);
   const [allAreasChartData, setAllAreasChartData] = useState<Record<string, ChartDataPoint[]>>({});
@@ -94,40 +101,12 @@ export default function Dashboard() {
   const [outages, setOutages] = useState<HjksOutage[]>([]);
   const [outagesLoading, setOutagesLoading] = useState(true);
 
-  const [startDate, setStartDate] = useState<Date | null>(() => getDefaultDateRange().start);
-  const [endDate, setEndDate] = useState<Date | null>(() => getDefaultDateRange().end);
-  const [dateRangePreset, setDateRangePreset] = useState<string | null>(null);
-
-  const handleDateRangePreset = useCallback((preset: string | null) => {
-    if (!preset) {
-      setDateRangePreset(null);
-      return;
-    }
-    const jstNow = toZonedTime(new Date(), 'Asia/Tokyo');
-    const today = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate(), 23, 59, 59, 999);
-    let start: Date;
-    switch (preset) {
-      case '1D': start = subDays(today, 1); break;
-      case 'week': start = subDays(today, 7); break;
-      case 'twoWeeks': start = subDays(today, 14); break;
-      case 'month': start = subMonths(today, 1); break;
-      case 'twoMonths': start = subMonths(today, 2); break;
-      case 'threeMonths': start = subMonths(today, 3); break;
-      case 'sixMonths': start = subMonths(today, 6); break;
-      default: start = subDays(today, 7);
-    }
-    start.setHours(0, 0, 0, 0);
-    setStartDate(start);
-    setEndDate(today);
-    setDateRangePreset(preset);
-  }, []);
-
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate,
     endDate,
     setStartDate,
     setEndDate,
-    clearPreset: () => setDateRangePreset(null),
+    clearPreset: () => handleDateRangePreset(null),
   });
 
   const handleRefresh = useCallback(() => {
@@ -364,7 +343,7 @@ export default function Dashboard() {
         </Alert>
       </Snackbar>
 
-      {/* Toolbar - same style as price-prediction page, with nav / date range / refresh / CSV */}
+      {/* Toolbar - same style as forecast page, with nav / date range / refresh / CSV */}
       <Box sx={{ flexShrink: 0, p: 0.5 }}>
         <DashboardToolbar
           startDate={tempStartDate}

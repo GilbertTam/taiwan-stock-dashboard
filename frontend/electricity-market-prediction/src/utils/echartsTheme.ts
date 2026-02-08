@@ -3,7 +3,7 @@
  * Provides unified theme configuration for all ECharts instances
  */
 
-import { ChartColors } from './chartColors';
+import { ChartColors } from './chart-colors';
 import {
   createTimeAxis,
   createValueAxis,

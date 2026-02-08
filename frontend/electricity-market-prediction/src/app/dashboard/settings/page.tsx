@@ -34,7 +34,7 @@ export default function SettingsPage() {
         }}
       >
         <ArrowBackIcon sx={{ fontSize: 18 }} />
-        返回首頁
+        返回總覽
       </Link>
 
       <Typography

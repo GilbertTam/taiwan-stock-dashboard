@@ -186,13 +186,23 @@ export const useMarketData = (): UseMarketDataReturn => {
     // Date Range State
     // ==========================================================================
 
-    /** Start date for data queries (defaults to 7 days ago) */
-    const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
+    /** Start date for data queries (defaults to 7 days / week) */
+    const [startDate, setStartDate] = useState<Date | null>(() => {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        const start = subDays(today, 6);
+        start.setHours(0, 0, 0, 0);
+        return start;
+    });
 
     /** End date for data queries (defaults to today) */
-    const [endDate, setEndDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(() => {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        return today;
+    });
 
-    /** Active date range preset identifier (e.g., 'week', 'month') */
+    /** Active date range preset identifier (e.g., '3D', 'week', 'month') */
     const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
 
     // ==========================================================================
@@ -762,16 +772,19 @@ export const useMarketData = (): UseMarketDataReturn => {
         const today = new Date();
         today.setHours(23, 59, 59, 999);
         let start: Date;
+        // N 天 = 含今日往前 N 天（1D=1天, 3D=3天, week=7天）
         switch (preset) {
-            case '1D': start = subDays(today, 1); break;
-            case 'week': start = subDays(today, 7); break;
-            case 'twoWeeks': start = subDays(today, 14); break;
+            case '1D': start = new Date(today); break;                    // 今天 = 1 天
+            case '3D': start = subDays(today, 2); break;                  // 今日～2 天前 = 3 天
+            case 'week': start = subDays(today, 6); break;                // 今日～6 天前 = 7 天
+            case 'twoWeeks': start = subDays(today, 13); break;           // 14 天
             case 'month': start = subMonths(today, 1); break;
+            case 'twoMonths': start = subMonths(today, 2); break;
             case 'threeMonths': start = subMonths(today, 3); break;
             case 'sixMonths': start = subMonths(today, 6); break;
             case 'year': start = subMonths(today, 12); break;
             case 'all': start = subMonths(today, 24); break;
-            default: start = subDays(today, 7);
+            default: start = subDays(today, 6);                           // 預設 7 天
         }
         start.setHours(0, 0, 0, 0);
         setStartDate(start);

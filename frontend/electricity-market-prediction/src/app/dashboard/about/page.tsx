@@ -35,7 +35,7 @@ export default function AboutPage() {
         }}
       >
         <ArrowBackIcon sx={{ fontSize: 18 }} />
-        返回首頁
+        返回總覽
       </Link>
 
       <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--foreground)', mb: 3 }}>

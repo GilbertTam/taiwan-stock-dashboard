@@ -4,7 +4,7 @@
  */
 
 import { EChartsOption } from 'echarts';
-import { ChartColors } from './chartColors';
+import { ChartColors } from './chart-colors';
 import {
   createTimeAxis,
   createValueAxis,

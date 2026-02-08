@@ -5,7 +5,7 @@
 
 import { EChartsOption } from 'echarts';
 import { startOfDay } from 'date-fns';
-import { ChartColors } from './chartColors';
+import { ChartColors } from './chart-colors';
 
 /**
  * Creates a standardized time axis configuration
@@ -80,9 +80,9 @@ export const createValueAxis = (
     name: name ? (unit ? `${name} (${unit})` : name) : undefined,
     nameTextStyle: name
       ? {
-          color: colors.text,
-          padding: [0, 0, 0, 20],
-        }
+        color: colors.text,
+        padding: [0, 0, 0, 20],
+      }
       : undefined,
     nameLocation,
     nameGap,
@@ -256,10 +256,10 @@ export const createReferenceLine = (
       symbol: 'none',
       label: label
         ? {
-            formatter: label,
-            position: 'end',
-            color: colors.warning,
-          }
+          formatter: label,
+          position: 'end',
+          color: colors.warning,
+        }
         : { show: false },
       lineStyle: {
         color: colors.text,

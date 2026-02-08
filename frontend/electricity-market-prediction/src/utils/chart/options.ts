@@ -1,6 +1,6 @@
 
 import { UTCTimestamp } from 'lightweight-charts';
-import { ChartColors } from '../chartColors';
+import { ChartColors } from '../chart-colors';
 import { startOfDay } from 'date-fns';
 import { toUTCTimestamp } from './dates';
 
