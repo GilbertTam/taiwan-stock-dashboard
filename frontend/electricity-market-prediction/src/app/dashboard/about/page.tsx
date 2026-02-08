@@ -74,7 +74,7 @@ export default function AboutPage() {
           <li>區域與現貨價格（各區域即時與歷史價格）</li>
           <li>預測模型與預測結果（自訂模型預測資料）</li>
           <li>不平衡（imbalance）</li>
-          <li>連線潮流（interconnection flow）</li>
+          <li>連線流量（interconnection flow）</li>
           <li>停機資訊（HJKS）</li>
           <li>OCCTO（區域／連線／事件）</li>
           <li>TDGC</li>

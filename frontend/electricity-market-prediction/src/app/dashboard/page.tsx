@@ -72,6 +72,7 @@ const LoadingComponent = () => (
       justifyContent: 'center',
       gap: 2,
       zIndex: 10,
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
     }}
   >
     <LoadingSpinner />

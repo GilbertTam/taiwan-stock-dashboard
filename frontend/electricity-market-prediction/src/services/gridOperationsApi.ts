@@ -16,6 +16,7 @@ import {
     OcctoAreaData,
     OcctoInterconnection,
     OcctoEvent,
+    BatteryData,
     TdgcData
 } from '@/types';
 
@@ -37,10 +38,18 @@ export interface AreaDateRangeParams extends DateRangeParams {
     area_name?: string;
 }
 
-/** Date range with optional interconnection line filter */
+/** Date range with optional interconnection line filter and sampling interval */
 export interface InterconnectionParams extends DateRangeParams {
     /** Optional interconnection line name */
     line_name?: string;
+    /** Downsample to one point per N minutes (e.g. 30). Omit for raw 5-min data. */
+    interval_minutes?: number;
+}
+
+/** Date range with optional battery site filter */
+export interface BatteryDataParams extends DateRangeParams {
+    /** Optional site ID (e.g. Helios) */
+    site_id?: string;
 }
 
 // =============================================================================
@@ -93,6 +102,13 @@ export const fetchOcctoArea = async (params: AreaDateRangeParams): Promise<Occto
 export const fetchOcctoInterconnection = async (params: DateRangeParams): Promise<OcctoInterconnection[]> => {
     const api = createAuthenticatedApi();
     const response = await api.get<ApiResponse<OcctoInterconnection[]>>('/market-info/occto-inter', { params });
+    return response.data.data;
+};
+
+/** Fetch battery data (eflow). */
+export const fetchBatteryData = async (params: BatteryDataParams): Promise<BatteryData[]> => {
+    const api = createAuthenticatedApi();
+    const response = await api.get<ApiResponse<BatteryData[]>>('/market-info/battery-data', { params });
     return response.data.data;
 };
 

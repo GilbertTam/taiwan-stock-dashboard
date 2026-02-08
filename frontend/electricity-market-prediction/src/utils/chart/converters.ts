@@ -17,12 +17,12 @@ export const convertToLineSeriesData = (
     return data
         .map(point => {
             const value = valueExtractor(point);
-            if (value === null || value === undefined || isNaN(value)) {
-                return null;
-            }
+            if (value === null || value === undefined) return null;
+            const num = Number(value);
+            if (isNaN(num)) return null;
             return {
                 time: timeFn(point.timestamp),
-                value,
+                value: num,
             };
         })
         .filter((item): item is { time: UTCTimestamp; value: number } => item !== null);
@@ -127,32 +127,43 @@ export const prepareChartData = (
 
     const dataMap = new Map<number, ChartDataPoint>();
 
+    // Helper to ensure date is YYYY-MM-DD (handles YYYYMMDD, YYYY-MM-DD, or ISO with T)
+    const normalizeDate = (d: string) => {
+        if (!d) return d;
+        const s = String(d).trim();
+        if (/^\d{8}$/.test(s)) {
+            return `${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`;
+        }
+        if (s.includes('T')) return s.split('T')[0].substring(0, 10);
+        return s.substring(0, 10);
+    };
+
+    const toNum = (v: unknown): number | null => {
+        if (v == null) return null;
+        const n = Number(v);
+        return isNaN(n) ? null : n;
+    };
+
     // 1. 處理實際價格
     actualPrices.forEach((price) => {
         const datePart = price.trade_date;
-        const timeCode = price.time_code;
+        const timeCode = Number(price.time_code) || 0;
+        if (!timeCode || timeCode < 1 || timeCode > 48) return;
         const hour = Math.floor((timeCode - 1) / 2);
-        const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
-        const timePart = `${String(hour).padStart(2, '0')}:${minute}`;
-
-        // Helper to ensure date is YYYY-MM-DD
-        const normalizeDate = (d: string) => {
-            if (/^\d{8}$/.test(d)) {
-                return `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
-            }
-            return d;
-        };
+        const minute = (timeCode - 1) % 2 === 0 ? 0 : 30;
+        const timePart = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
         const sDatePart = normalizeDate(datePart);
         const dateTime = `${sDatePart} ${timePart}`;
         const timestamp = parseToTimestamp(dateTime);
 
         if (timestamp) {
+            const actualPrice = toNum(price.price);
             dataMap.set(timestamp, {
                 dateTime: dateTime,
                 timestamp: timestamp,
                 date: sDatePart,
                 time: timePart,
-                actualPrice: price.price,
+                actualPrice: actualPrice,
                 modelPredictions: [],
                 isPrediction: false
             });
@@ -166,18 +177,11 @@ export const prepareChartData = (
 
         predictions.forEach((prediction) => {
             const datePart = prediction.trade_date;
-            const timeCode = prediction.time_code;
+            const timeCode = Number(prediction.time_code) || 0;
+            if (!timeCode || timeCode < 1 || timeCode > 48) return;
             const hour = Math.floor((timeCode - 1) / 2);
-            const minute = (timeCode - 1) % 2 === 0 ? '00' : '30';
-            const timePart = `${String(hour).padStart(2, '0')}:${minute}`;
-
-            const normalizeDate = (d: string) => {
-                if (/^\d{8}$/.test(d)) {
-                    return `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
-                }
-                return d;
-            };
-
+            const minute = (timeCode - 1) % 2 === 0 ? 0 : 30;
+            const timePart = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
             const sDatePart = normalizeDate(datePart);
             const dateTime = `${sDatePart} ${timePart}`;
             const timestamp = parseToTimestamp(dateTime);
@@ -199,9 +203,9 @@ export const prepareChartData = (
                 point.modelPredictions.push({
                     modelId,
                     modelName,
-                    predictedPrice: prediction.price_50,
-                    predictedPrice5: prediction.price_5,
-                    predictedPrice95: prediction.price_95
+                    predictedPrice: toNum(prediction.price_50) ?? 0,
+                    predictedPrice5: toNum(prediction.price_5) ?? undefined,
+                    predictedPrice95: toNum(prediction.price_95) ?? undefined
                 });
             }
         });

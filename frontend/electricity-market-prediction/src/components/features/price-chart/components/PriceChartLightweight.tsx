@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useDeferredValue } from 'react';
 import { format as formatDate } from 'date-fns';
 
 import { ChartInfoPanel } from '../components/controls/ChartInfoPanel';
@@ -19,8 +19,11 @@ export const PriceChartLightweight: React.FC = () => {
     // 1. Context
     const {
         processedChartData, colors, darkMode, selectedModels, modelColorMap,
-        showImbalance, showIntraday, showIntradayAverage, showInterconnection,
+        showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate,
+        showIntraday, showIntradayAverage,
         showOcctoArea, occtoChartType, selectedOcctoFields,
+        selectedInterconnectionFields,
+        selectedBatteryFields,
         showWeather, showWeatherActual, showWeatherForecast,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
         hoveredData, setHoveredData, areaName, timezone, setTimezone,
@@ -32,6 +35,10 @@ export const PriceChartLightweight: React.FC = () => {
 
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Defer chart updates for interconnection/battery selection so checkbox stays responsive
+    const deferredInterconnectionFields = useDeferredValue(selectedInterconnectionFields);
+    const deferredBatteryFields = useDeferredValue(selectedBatteryFields);
+
     // 2. Data Transformation
     const transformedData = useChartDataTransformers({
         processedChartData,
@@ -39,7 +46,11 @@ export const PriceChartLightweight: React.FC = () => {
         showIntraday,
         showIntradayAverage,
         showImbalance,
-        showInterconnection,
+        showImbalanceQuantity,
+        showImbalanceSurplusRate,
+        showImbalanceDeficitRate,
+        selectedInterconnectionFields: deferredInterconnectionFields,
+        selectedBatteryFields: deferredBatteryFields,
         showOcctoArea,
         selectedOcctoFields,
         showActualPrice: !!showActualPrice,
@@ -75,7 +86,6 @@ export const PriceChartLightweight: React.FC = () => {
         showImbalance,
         showIntraday,
         showIntradayAverage,
-        showInterconnection,
         showOcctoArea,
         occtoChartType,
         showWeather,
@@ -105,7 +115,8 @@ export const PriceChartLightweight: React.FC = () => {
                 showIntraday,
                 showIntradayAverage,
                 showImbalance,
-                showInterconnection,
+                selectedInterconnectionFields,
+                selectedBatteryFields,
                 showOcctoArea,
                 selectedOcctoFields,
                 showWeather,
@@ -126,7 +137,7 @@ export const PriceChartLightweight: React.FC = () => {
     }, [
         processedChartData, colors, darkMode, selectedModels, modelColorMap,
         showActualPrice, showIntraday, showIntradayAverage, showImbalance,
-        showInterconnection, showOcctoArea, selectedOcctoFields,
+        showOcctoArea, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields,
         showWeather, showWeatherActual, showWeatherForecast,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast, transformedData.actualData
     ]);
@@ -148,7 +159,8 @@ export const PriceChartLightweight: React.FC = () => {
                 areaName={areaName}
                 showImbalance={showImbalance}
                 showIntraday={showIntraday}
-                showInterconnection={showInterconnection}
+                selectedInterconnectionFields={selectedInterconnectionFields}
+                selectedBatteryFields={selectedBatteryFields}
                 showOcctoArea={showOcctoArea}
                 showWeather={showWeather}
                 showWeatherActual={showWeatherActual}

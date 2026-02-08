@@ -40,13 +40,11 @@ export const ProfitChartLightweight: React.FC<ProfitChartLightweightProps> = ({
         visible: true,
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: 0.2 },
-        title: '每日收益 (¥)',
       },
       rightPriceScale: {
         visible: true,
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: 0.2 },
-        title: '累計收益 (¥)',
       },
       timeScale: {
         borderVisible: false,

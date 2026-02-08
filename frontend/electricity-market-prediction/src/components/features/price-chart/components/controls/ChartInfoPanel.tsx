@@ -25,6 +25,8 @@ import ModeFanOffIcon from '@mui/icons-material/ModeFanOff'; // Wind
 import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
 
 // --- Constants ---
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../../constants';
+
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -55,13 +57,13 @@ const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = fal
     if (value == null) return null;
     return (
         <Tooltip title={`${label} ${isForecast ? '(Forecast)' : ''}`}>
-            <Box sx={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: 0.5, 
+            <Box sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
                 bgcolor: `${color}10`, // 10% opacity background
-                px: 0.75, 
-                py: 0, 
+                px: 0.75,
+                py: 0,
                 height: 20, // 固定高度
                 borderRadius: 1,
                 border: `1px solid ${color}40`,
@@ -69,10 +71,10 @@ const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = fal
                 mr: 1 // Right margin for spacing
             }}>
                 <Icon sx={{ fontSize: 13, color: color }} />
-                <Typography variant="caption" sx={{ 
-                    color: 'text.primary', 
-                    fontWeight: 600, 
-                    fontSize: '0.65rem', 
+                <Typography variant="caption" sx={{
+                    color: 'text.primary',
+                    fontWeight: 600,
+                    fontSize: '0.65rem',
                     lineHeight: 1,
                     whiteSpace: 'nowrap'
                 }}>
@@ -91,11 +93,11 @@ const DeltaBadge = ({ value, colors }: { value: number | null | undefined, color
     const isPos = value > 0;
     const color = isPos ? colors.delta.positive : value < 0 ? colors.delta.negative : colors.delta.neutral;
     return (
-        <Typography component="span" sx={{ 
-            color, 
-            fontSize: '0.65rem', 
+        <Typography component="span" sx={{
+            color,
+            fontSize: '0.65rem',
             fontWeight: 'bold',
-            ml: 0.5 
+            ml: 0.5
         }}>
             {isPos ? '+' : ''}{value.toFixed(2)}
         </Typography>
@@ -140,7 +142,7 @@ const ActionButtons = ({ onDownload, onFullscreen }: any) => {
 // --- Main Component ---
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
-    showImbalance, showIntraday, showInterconnection, showOcctoArea,
+    showImbalance, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
     onDownload, onFullscreen, timezone
@@ -187,7 +189,7 @@ export const ChartInfoPanel: React.FC<any> = ({
     }, [hoveredData, timezone]);
 
     return (
-        <Paper 
+        <Paper
             elevation={0}
             sx={{
                 width: '100%',
@@ -195,7 +197,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                 minHeight: PANEL_HEIGHT,
                 display: 'flex',
                 flexDirection: 'column',
-                bgcolor: 'var(--card-bg)', 
+                bgcolor: 'var(--card-bg)',
                 borderBottom: `1px solid ${colors.tooltipBorder}`,
                 boxSizing: 'border-box',
                 overflow: 'hidden',
@@ -228,9 +230,9 @@ export const ChartInfoPanel: React.FC<any> = ({
                     </Box>
 
                     {/* --- Row 2: Prices --- */}
-                    <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
                         height: 28,
                         mb: 0.5,
                         overflow: 'hidden',
@@ -266,7 +268,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                     </Box>
 
                     {/* --- Row 3: Secondary Metrics (OCCTO Colors Applied Here) --- */}
-                    <Box sx={{ 
+                    <Box sx={{
                         display: 'block',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -278,23 +280,48 @@ export const ChartInfoPanel: React.FC<any> = ({
                         {showIntraday && hoveredData.intraday_average != null && (
                             <DataChip icon={TrendingUpIcon} label="Intra" value={hoveredData.intraday_average} unit="¥" color="#ffa726" />
                         )}
-                        {showImbalance && hoveredData.imbalance != null && (
-                            <DataChip icon={ElectricBoltIcon} label="Imb" value={hoveredData.imbalance} unit="" color="#ef5350" />
+                        {showImbalance && (
+                            <>
+                                {hoveredData.imbalance != null && (
+                                    <DataChip icon={ElectricBoltIcon} label="Imb" value={hoveredData.imbalance} unit="kWh" color="#ef5350" />
+                                )}
+                                {hoveredData.imbalance_surplus_rate != null && (
+                                    <DataChip icon={ElectricBoltIcon} label="Surplus" value={hoveredData.imbalance_surplus_rate} unit="¥" color="#4caf50" />
+                                )}
+                                {hoveredData.imbalance_deficit_rate != null && (
+                                    <DataChip icon={ElectricBoltIcon} label="Deficit" value={hoveredData.imbalance_deficit_rate} unit="¥" color="#e65100" />
+                                )}
+                            </>
                         )}
-                        {showInterconnection && hoveredData.interconnection_flow_diff != null && (
-                            <DataChip icon={CompareArrowsIcon} label="Inter" value={hoveredData.interconnection_flow_diff} unit="MW" color="#ff7043" />
-                        )}
-                        
+                        {Array.from(selectedInterconnectionFields).map((fieldKey) => {
+                            const f = INTERCONNECTION_FIELDS.find(x => x.key === fieldKey);
+                            if (!f) return null;
+                            const val = (hoveredData as any)[f.pointKey];
+                            if (val == null) return null;
+                            return (
+                                <DataChip key={f.key} icon={CompareArrowsIcon} label={f.label} value={val} unit="MW" color={f.color} />
+                            );
+                        })}
+                        {Array.from(selectedBatteryFields).map((fieldKey) => {
+                            const f = BATTERY_FIELDS.find(x => x.key === fieldKey);
+                            if (!f) return null;
+                            const val = (hoveredData as any)[f.pointKey];
+                            if (val == null) return null;
+                            return (
+                                <DataChip key={f.key} icon={ElectricBoltIcon} label={f.label} value={val} unit="" color={f.color} />
+                            );
+                        })}
+
                         {/* 2. OCCTO (Fixed: Using specific colors) */}
                         {showOcctoArea && hoveredData.occto_values && Array.from(selectedOcctoFields).map((field: any) => {
                             const config = getOcctoConfig(field);
                             return (
-                                <DataChip 
-                                    key={field} 
-                                    icon={config.icon} 
-                                    label={config.label} 
-                                    value={hoveredData.occto_values[field]} 
-                                    unit={config.unit} 
+                                <DataChip
+                                    key={field}
+                                    icon={config.icon}
+                                    label={config.label}
+                                    value={hoveredData.occto_values[field]}
+                                    unit={config.unit}
                                     color={config.color} // Using mapped color
                                 />
                             );
@@ -305,12 +332,12 @@ export const ChartInfoPanel: React.FC<any> = ({
                             <>
                                 {showWeatherActual && Array.from(selectedWeatherFieldsActual).map((field: any) => {
                                     const cfg = getWeatherConfig(field);
-                                    if(!cfg) return null;
+                                    if (!cfg) return null;
                                     return <DataChip key={`act-${field}`} {...cfg} value={hoveredData.weather_data_actual?.[field]} />;
                                 })}
                                 {showWeatherForecast && Array.from(selectedWeatherFieldsForecast).map((field: any) => {
                                     const cfg = getWeatherConfig(field);
-                                    if(!cfg) return null;
+                                    if (!cfg) return null;
                                     return <DataChip key={`fcst-${field}`} {...cfg} value={hoveredData.weather_data_forecast?.[field]} isForecast />;
                                 })}
                             </>

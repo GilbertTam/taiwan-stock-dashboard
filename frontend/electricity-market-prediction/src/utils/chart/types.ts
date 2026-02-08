@@ -38,10 +38,23 @@ export interface ChartDataPoint {
     } | null;
     // Imbalance
     imbalance?: number | null;
-    // Interconnection
+    imbalance_surplus_rate?: number | null;
+    imbalance_deficit_rate?: number | null;
+    // Interconnection (occto_inter)
     interconnection_flow_diff?: number | null;
     interconnection_forward?: number | null;
     interconnection_reverse?: number | null;
+    interconnection_actual_flow?: number | null;
+    interconnection_forward_available_capacity?: number | null;
+    interconnection_reverse_available_capacity?: number | null;
+    interconnection_forward_margin?: number | null;
+    interconnection_reverse_margin?: number | null;
+    // Battery (eflow battery_data)
+    battery_spot_value?: number | null;
+    battery_intraday_value?: number | null;
+    battery_primary_value?: number | null;
+    battery_soc_kwh?: number | null;
+    battery_actual_soc_kwh?: number | null;
     // Occto
     occto_data?: any | null;
     occto_value?: number | null;
@@ -100,6 +113,18 @@ export interface ProcessedDataPoint {
     intraday_high?: number | null;
     intraday_low?: number | null;
     interconnection_flow_diff?: number | null;
+    interconnection_forward?: number | null;
+    interconnection_reverse?: number | null;
+    interconnection_actual_flow?: number | null;
+    interconnection_forward_available_capacity?: number | null;
+    interconnection_reverse_available_capacity?: number | null;
+    interconnection_forward_margin?: number | null;
+    interconnection_reverse_margin?: number | null;
+    battery_spot_value?: number | null;
+    battery_intraday_value?: number | null;
+    battery_primary_value?: number | null;
+    battery_soc_kwh?: number | null;
+    battery_actual_soc_kwh?: number | null;
     occto_data?: Record<string, number | null> | null;
     occto_values?: Record<string, number | null>;
     weather_data_actual?: Record<string, number | null>;

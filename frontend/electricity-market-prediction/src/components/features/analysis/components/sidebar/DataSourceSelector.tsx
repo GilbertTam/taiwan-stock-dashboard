@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import {
     List,
     ListItem,
@@ -11,17 +11,29 @@ import {
     Collapse,
     Paper,
     Box,
-    alpha
+    alpha,
+    Alert,
+    Tooltip
 } from '@mui/material';
 import {
     ExpandMore, ExpandLess,
     Balance, SwapHoriz, Cloud, Map, ShowChart, BarChart, Percent,
-    StackedLineChart
+    StackedLineChart,
+    InfoOutlined,
+    BatteryChargingFull
 } from '@mui/icons-material';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { usePriceChart } from '@/components/features/price-chart/context/PriceChartContext';
-import { occtoFields, occtoStackedFields, weatherFields } from '@/components/features/price-chart/constants';
+import { occtoFields, occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '@/components/features/price-chart/constants';
 import { SectionHeader, SubHeader, SOURCE_COLORS } from './shared';
+
+const DataSourceInfo: React.FC<{ title: string }> = ({ title }) => (
+    <Tooltip title={title} placement="top" arrow enterDelay={300}>
+        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <InfoOutlined sx={{ fontSize: '1rem', color: 'text.secondary', ml: 0.5, verticalAlign: 'middle', cursor: 'help' }} />
+        </Box>
+    </Tooltip>
+);
 
 interface DataSourceSelectorProps {
     expanded: boolean;
@@ -40,22 +52,27 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
         weather: false,
         occto: true,
     });
+    const [, startTransition] = useTransition();
 
     const {
         focusedDataSource,
         setFocusedDataSource,
         showImbalance, setShowImbalance,
+        showImbalanceQuantity, setShowImbalanceQuantity,
+        showImbalanceSurplusRate, setShowImbalanceSurplusRate,
+        showImbalanceDeficitRate, setShowImbalanceDeficitRate,
         showIntraday, setShowIntraday,
         showIntradayAverage, setShowIntradayAverage,
-        showInterconnection, setShowInterconnection,
         showWeather, setShowWeather,
         showWeatherActual, setShowWeatherActual,
         showWeatherForecast, setShowWeatherForecast,
         showOcctoArea, setShowOcctoArea,
         showActualPrice, setShowActualPrice,
+        dataFetchWarnings,
         imbalanceData,
         intradayData,
         interconnectionData,
+        batteryData,
         weatherActual,
         weatherForecast,
         occtoAreaData,
@@ -65,6 +82,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     const hasImbalanceData = imbalanceData && imbalanceData.length > 0;
     const hasIntradayData = intradayData && intradayData.length > 0;
     const hasInterconnectionData = interconnectionData && interconnectionData.length > 0;
+    const hasBatteryData = batteryData && batteryData.length > 0;
     const hasWeatherActualData = weatherActual && weatherActual.length > 0;
     const hasWeatherForecastData = weatherForecast && weatherForecast.length > 0;
     const hasWeatherData = hasWeatherActualData || hasWeatherForecastData;
@@ -73,6 +91,10 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     // Context getters with fallbacks
     let selectedOcctoFields: Set<string> = new Set(['area_demand']);
     let setSelectedOcctoFields: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
+    let selectedInterconnectionFields: Set<string> = new Set(['flow_diff']);
+    let setSelectedInterconnectionFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void = () => { };
+    let selectedBatteryFields: Set<string> = new Set(['spot_value']);
+    let setSelectedBatteryFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void = () => { };
     let selectedWeatherFieldsActual: Set<string> = new Set(['temperature']);
     let setSelectedWeatherFieldsActual: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
     let selectedWeatherFieldsForecast: Set<string> = new Set(['temperature']);
@@ -84,6 +106,10 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
         const chartContext = usePriceChart();
         selectedOcctoFields = chartContext.selectedOcctoFields;
         setSelectedOcctoFields = chartContext.setSelectedOcctoFields;
+        selectedInterconnectionFields = chartContext.selectedInterconnectionFields;
+        setSelectedInterconnectionFields = chartContext.setSelectedInterconnectionFields;
+        selectedBatteryFields = chartContext.selectedBatteryFields;
+        setSelectedBatteryFields = chartContext.setSelectedBatteryFields;
         selectedWeatherFieldsActual = (chartContext as any).selectedWeatherFieldsActual ?? new Set(['temperature']);
         setSelectedWeatherFieldsActual = (chartContext as any).setSelectedWeatherFieldsActual ?? (() => { });
         selectedWeatherFieldsForecast = (chartContext as any).selectedWeatherFieldsForecast ?? new Set(['temperature']);
@@ -144,9 +170,10 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
             {!expanded && (() => {
                 const selected: string[] = [];
                 if (showActualPrice) selected.push('現貨實際價格');
-                if (showImbalance) selected.push('不平衡');
-                if (showIntraday) selected.push('日前');
-                if (showInterconnection) selected.push('互連');
+                if (showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate) selected.push('不平衡市場');
+                if (showIntraday || showIntradayAverage) selected.push('日前市場');
+                if (selectedInterconnectionFields.size > 0) selected.push('互連');
+                if (selectedBatteryFields.size > 0) selected.push('電池');
                 if (showWeather) selected.push('天氣');
                 if (showOcctoArea) selected.push('OCCTO 區域');
                 return (
@@ -171,9 +198,14 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                         pb: 0.5,
                     }}
                 >
+                    {dataFetchWarnings != null && dataFetchWarnings.length > 0 && (
+                        <Alert severity="warning" sx={{ mb: 1, py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
+                            部分資料無法載入：{dataFetchWarnings.join('、')}
+                        </Alert>
+                    )}
                     <List dense sx={{ p: 0 }}>
 
-                        <SubHeader label="市場價格與平衡" />
+                        <SubHeader label="市場價格" />
 
                     {/* Actual Price Toggle */}
                     <ListItem disablePadding>
@@ -196,35 +228,11 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ShowChart sx={{ fontSize: '1.1rem', color: showActualPrice ? '#ef5350' : 'text.disabled' }} />
                             </ListItemIcon>
                             <ListItemText primary="現貨實際價格" primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <DataSourceInfo title="JEPX 現貨市場實際成交價格（每 30 分鐘），依所選區域顯示。" />
                         </ListItemButton>
                     </ListItem>
 
-
-                    {/* Imbalance (Orange) */}
-                    <ListItem disablePadding>
-                        <ListItemButton
-                            onClick={() => setFocusedDataSource(focusedDataSource === 'imbalance' ? null : 'imbalance')}
-                            sx={{
-                                borderLeft: focusedDataSource === 'imbalance' ? `4px solid ${SOURCE_COLORS.imbalance}` : '4px solid transparent',
-                                backgroundColor: focusedDataSource === 'imbalance' ? alpha(SOURCE_COLORS.imbalance, 0.1) : 'transparent',
-                                '&:hover': { backgroundColor: alpha(SOURCE_COLORS.imbalance, 0.15) }
-                            }}
-                        >
-                            <Checkbox
-                                checked={showImbalance}
-                                size="small"
-                                sx={{ color: SOURCE_COLORS.imbalance, '&.Mui-checked': { color: SOURCE_COLORS.imbalance } }}
-                                onChange={(e) => { e.stopPropagation(); setShowImbalance(e.target.checked); }}
-                                onClick={e => e.stopPropagation()}
-                            />
-                            <ListItemIcon sx={{ minWidth: 32 }}>
-                                <Balance sx={{ fontSize: '1.1rem', color: showImbalance ? SOURCE_COLORS.imbalance : 'text.disabled' }} />
-                            </ListItemIcon>
-                            <ListItemText primary="不平衡" secondary={!hasImbalanceData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                        </ListItemButton>
-                    </ListItem>
-
-                    {/* Intraday (Purple) */}
+                    {/* 日前市場 - 子項：即時 K 線、平均價格線（與不平衡市場同結構） */}
                     <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                         <ListItemButton
                             onClick={() => setFocusedDataSource(focusedDataSource === 'intraday' ? null : 'intraday')}
@@ -234,17 +242,11 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 '&:hover': { backgroundColor: alpha(SOURCE_COLORS.intraday, 0.15) }
                             }}
                         >
-                            <Checkbox
-                                checked={showIntraday}
-                                size="small"
-                                sx={{ color: SOURCE_COLORS.intraday, '&.Mui-checked': { color: SOURCE_COLORS.intraday } }}
-                                onChange={(e) => { e.stopPropagation(); setShowIntraday(e.target.checked); }}
-                                onClick={e => e.stopPropagation()}
-                            />
                             <ListItemIcon sx={{ minWidth: 32 }}>
-                                <SwapHoriz sx={{ fontSize: '1.1rem', color: showIntraday ? SOURCE_COLORS.intraday : 'text.disabled' }} />
+                                <SwapHoriz sx={{ fontSize: '1.1rem', color: (showIntraday || showIntradayAverage) ? SOURCE_COLORS.intraday : 'text.disabled' }} />
                             </ListItemIcon>
-                            <ListItemText primary="日前" secondary={!hasIntradayData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <ListItemText primary="日前市場" secondary={!hasIntradayData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <DataSourceInfo title="JEPX 日前市場的 K 線（開高低收）與平均價，可分別勾選疊加於圖表。" />
                             {focusedDataSource === 'intraday' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                         </ListItemButton>
 
@@ -253,18 +255,87 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Checkbox
                                         size="small"
-                                        checked={showIntradayAverage}
-                                        onChange={(e) => setShowIntradayAverage(e.target.checked)}
+                                        checked={showIntraday}
+                                        onChange={(e) => setShowIntraday(e.target.checked)}
                                         sx={{ p: 0.5, mr: 1, color: SOURCE_COLORS.intraday, '&.Mui-checked': { color: SOURCE_COLORS.intraday } }}
                                     />
-                                    <Typography variant="caption">顯示平均價格線</Typography>
+                                    <Typography variant="caption">即時 K 線（開高低收）</Typography>
+                                    <DataSourceInfo title="日前市場每 30 分鐘的 K 線（開盤、最高、最低、收盤價）。" />
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Checkbox
+                                        size="small"
+                                        checked={showIntradayAverage}
+                                        onChange={(e) => setShowIntradayAverage(e.target.checked)}
+                                        sx={{ p: 0.5, mr: 1, color: '#ffa726', '&.Mui-checked': { color: '#ffa726' } }}
+                                    />
+                                    <Typography variant="caption">平均價格線</Typography>
+                                    <DataSourceInfo title="日前市場該時段平均成交價的折線。" />
                                 </Box>
                             </Box>
                         </Collapse>
                     </ListItem>
 
-                    {/* Interconnection (Cyan) */}
-                    <ListItem disablePadding>
+                    <SubHeader label="不平衡市場" />
+
+                    {/* Imbalance section: 不平衡量、剩餘單價、不足單價（與圖表同色） */}
+                    <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                        <ListItemButton
+                            onClick={() => setFocusedDataSource(focusedDataSource === 'imbalance' ? null : 'imbalance')}
+                            sx={{
+                                borderLeft: focusedDataSource === 'imbalance' ? `4px solid ${SOURCE_COLORS.imbalance}` : '4px solid transparent',
+                                backgroundColor: focusedDataSource === 'imbalance' ? alpha(SOURCE_COLORS.imbalance, 0.1) : 'transparent',
+                                '&:hover': { backgroundColor: alpha(SOURCE_COLORS.imbalance, 0.15) }
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 32 }}>
+                                <Balance sx={{ fontSize: '1.1rem', color: (showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate) ? SOURCE_COLORS.imbalance : 'text.disabled' }} />
+                            </ListItemIcon>
+                            <ListItemText primary="不平衡市場" secondary={!hasImbalanceData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <DataSourceInfo title="電力系統不平衡量與不平衡單價（剩餘／不足），可分別勾選數量、剩餘單價、不足單價疊加於圖表。" />
+                            {focusedDataSource === 'imbalance' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                        </ListItemButton>
+
+                        <Collapse in={focusedDataSource === 'imbalance'} timeout="auto" unmountOnExit>
+                            <Box sx={{ pl: 6, py: 0.5, bgcolor: alpha(SOURCE_COLORS.imbalance, 0.03) }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Checkbox
+                                        size="small"
+                                        checked={showImbalanceQuantity}
+                                        onChange={(e) => setShowImbalanceQuantity(e.target.checked)}
+                                        sx={{ p: 0.5, mr: 1, color: SOURCE_COLORS.imbalance, '&.Mui-checked': { color: SOURCE_COLORS.imbalance } }}
+                                    />
+                                    <Typography variant="caption">不平衡量 (Quantity)</Typography>
+                                    <DataSourceInfo title="每 30 分鐘的不平衡電量（kWh），顯示於副軸。" />
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Checkbox
+                                        size="small"
+                                        checked={showImbalanceSurplusRate}
+                                        onChange={(e) => setShowImbalanceSurplusRate(e.target.checked)}
+                                        sx={{ p: 0.5, mr: 1, color: '#4caf50', '&.Mui-checked': { color: '#4caf50' } }}
+                                    />
+                                    <Typography variant="caption">剩餘單價 (Surplus Rate)</Typography>
+                                    <DataSourceInfo title="電力剩餘時的不平衡單價（円/kWh），疊加於主圖右軸。" />
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Checkbox
+                                        size="small"
+                                        checked={showImbalanceDeficitRate}
+                                        onChange={(e) => setShowImbalanceDeficitRate(e.target.checked)}
+                                        sx={{ p: 0.5, mr: 1, color: '#e65100', '&.Mui-checked': { color: '#e65100' } }}
+                                    />
+                                    <Typography variant="caption">不足單價 (Deficit Rate)</Typography>
+                                    <DataSourceInfo title="電力不足時的不平衡單價（円/kWh），疊加於主圖右軸。" />
+                                </Box>
+                            </Box>
+                        </Collapse>
+                    </ListItem>
+
+                    <SubHeader label="互連" />
+
+                    {/* Interconnection section: 可展開，多欄位預留 */}
+                    <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                         <ListItemButton
                             onClick={() => setFocusedDataSource(focusedDataSource === 'interconnection' ? null : 'interconnection')}
                             sx={{
@@ -273,18 +344,85 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 '&:hover': { backgroundColor: alpha(SOURCE_COLORS.interconnection, 0.15) }
                             }}
                         >
-                            <Checkbox
-                                checked={showInterconnection}
-                                size="small"
-                                sx={{ color: SOURCE_COLORS.interconnection, '&.Mui-checked': { color: SOURCE_COLORS.interconnection } }}
-                                onChange={(e) => { e.stopPropagation(); setShowInterconnection(e.target.checked); }}
-                                onClick={e => e.stopPropagation()}
-                            />
                             <ListItemIcon sx={{ minWidth: 32 }}>
-                                <SwapHoriz sx={{ fontSize: '1.1rem', color: showInterconnection ? SOURCE_COLORS.interconnection : 'text.disabled' }} />
+                                <SwapHoriz sx={{ fontSize: '1.1rem', color: selectedInterconnectionFields.size > 0 ? SOURCE_COLORS.interconnection : 'text.disabled' }} />
                             </ListItemIcon>
                             <ListItemText primary="互連" secondary={!hasInterconnectionData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <DataSourceInfo title="區域間互連線的計畫流量、實際流量、可用容量、餘裕等欄位，可勾選要疊加於圖表的項目。" />
+                            {focusedDataSource === 'interconnection' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                         </ListItemButton>
+
+                        <Collapse in={focusedDataSource === 'interconnection'} timeout="auto" unmountOnExit>
+                            <Box sx={{ pl: 6, py: 0.5, bgcolor: alpha(SOURCE_COLORS.interconnection, 0.03) }}>
+                                {INTERCONNECTION_FIELDS.map((f) => (
+                                    <Box key={f.key} sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Checkbox
+                                            size="small"
+                                            checked={selectedInterconnectionFields.has(f.key)}
+                                            onChange={() => {
+                                                startTransition(() => {
+                                                    setSelectedInterconnectionFields((prev) => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(f.key)) next.delete(f.key);
+                                                        else next.add(f.key);
+                                                        return next;
+                                                    });
+                                                });
+                                            }}
+                                            sx={{ p: 0.5, mr: 1, color: f.color, '&.Mui-checked': { color: f.color } }}
+                                        />
+                                        <Typography variant="caption" sx={{ color: f.color }}>{f.label}</Typography>
+                                        <DataSourceInfo title={`${f.label}，單位 MW，顯示於互連副軸。`} />
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Collapse>
+                    </ListItem>
+
+                    <SubHeader label="電池" />
+
+                    <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                        <ListItemButton
+                            onClick={() => setFocusedDataSource(focusedDataSource === 'battery' ? null : 'battery')}
+                            sx={{
+                                borderLeft: focusedDataSource === 'battery' ? `4px solid ${SOURCE_COLORS.battery}` : '4px solid transparent',
+                                backgroundColor: focusedDataSource === 'battery' ? alpha(SOURCE_COLORS.battery, 0.1) : 'transparent',
+                                '&:hover': { backgroundColor: alpha(SOURCE_COLORS.battery, 0.15) }
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 32 }}>
+                                <BatteryChargingFull sx={{ fontSize: '1.1rem', color: selectedBatteryFields.size > 0 ? SOURCE_COLORS.battery : 'text.disabled' }} />
+                            </ListItemIcon>
+                            <ListItemText primary="電池" secondary={!hasBatteryData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                            <DataSourceInfo title="電池現貨/日前/一次調整力、SOC 等，負=充電、正=放電，可勾選疊加於圖表。" />
+                            {focusedDataSource === 'battery' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                        </ListItemButton>
+
+                        <Collapse in={focusedDataSource === 'battery'} timeout="auto" unmountOnExit>
+                            <Box sx={{ pl: 6, py: 0.5, bgcolor: alpha(SOURCE_COLORS.battery, 0.03) }}>
+                                {BATTERY_FIELDS.map((f) => (
+                                    <Box key={f.key} sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Checkbox
+                                            size="small"
+                                            checked={selectedBatteryFields.has(f.key)}
+                                            onChange={() => {
+                                                startTransition(() => {
+                                                    setSelectedBatteryFields((prev) => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(f.key)) next.delete(f.key);
+                                                        else next.add(f.key);
+                                                        return next;
+                                                    });
+                                                });
+                                            }}
+                                            sx={{ p: 0.5, mr: 1, color: f.color, '&.Mui-checked': { color: f.color } }}
+                                        />
+                                        <Typography variant="caption" sx={{ color: f.color }}>{f.label}</Typography>
+                                        <DataSourceInfo title={`${f.label}，顯示於電池副軸。負=充電、正=放電。`} />
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Collapse>
                     </ListItem>
 
                     <SubHeader label="環境" />
@@ -311,6 +449,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 primaryTypographyProps={{ fontSize: '0.85rem' }}
                                 secondaryTypographyProps={{ fontSize: '0.7rem' }}
                             />
+                            <DataSourceInfo title="氣溫、降雨、風速等氣象資料，可選實際觀測或預測值，疊加於副軸。" />
                             {expandedGroups.weather ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                         </ListItemButton>
 
@@ -428,6 +567,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 primaryTypographyProps={{ fontSize: '0.85rem' }}
                                 secondaryTypographyProps={{ fontSize: '0.7rem' }}
                             />
+                            <DataSourceInfo title="OCCTO 廣域營運的區域供需等數據（如需要電量、火力發電量等），可多選欄位疊加。" />
                             {expandedGroups.occto ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                         </ListItemButton>
 

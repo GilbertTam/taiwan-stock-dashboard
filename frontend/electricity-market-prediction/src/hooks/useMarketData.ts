@@ -36,9 +36,10 @@ import {
     fetchImbalance,
     fetchIntraday,
     fetchInterconnectionFlows,
-    fetchOcctoArea
+    fetchOcctoArea,
+    fetchBatteryData
 } from '@/services/api';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
@@ -76,6 +77,7 @@ export interface UseMarketDataReturn {
     intradayData: IntradayData[];
     interconnectionData: InterconnectionFlow[];
     occtoAreaData: OcctoAreaData[];
+    batteryData: BatteryData[];
 
     // Date range
     startDate: Date | null;
@@ -89,6 +91,8 @@ export interface UseMarketDataReturn {
     isLoading: boolean;
     isFetchingPredictions: boolean;
     error: string | null;
+    /** Labels of data sources that failed to load (e.g. ['天氣(實際)', '天氣(預報)']) — show in Snackbar */
+    dataFetchWarnings: string[];
 
     // Handlers
     handleAreaChange: (event: SelectChangeEvent) => void;
@@ -108,6 +112,12 @@ export interface UseMarketDataReturn {
     // Data layer toggles
     showImbalance: boolean;
     setShowImbalance: React.Dispatch<React.SetStateAction<boolean>>;
+    showImbalanceQuantity: boolean;
+    setShowImbalanceQuantity: React.Dispatch<React.SetStateAction<boolean>>;
+    showImbalanceSurplusRate: boolean;
+    setShowImbalanceSurplusRate: React.Dispatch<React.SetStateAction<boolean>>;
+    showImbalanceDeficitRate: boolean;
+    setShowImbalanceDeficitRate: React.Dispatch<React.SetStateAction<boolean>>;
     showIntraday: boolean;
     setShowIntraday: React.Dispatch<React.SetStateAction<boolean>>;
     showIntradayAverage: boolean;
@@ -246,6 +256,9 @@ export const useMarketData = (): UseMarketDataReturn => {
     /** OCCTO area supply/demand data */
     const [occtoAreaData, setOcctoAreaData] = useState<OcctoAreaData[]>([]);
 
+    /** Battery data (eflow) */
+    const [batteryData, setBatteryData] = useState<BatteryData[]>([]);
+
     // ==========================================================================
     // Loading and Error State
     // ==========================================================================
@@ -258,6 +271,9 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Error message to display, null if no error */
     const [error, setError] = useState<string | null>(null);
+
+    /** Data sources that failed in last fetch (for partial-failure Snackbar) */
+    const [dataFetchWarnings, setDataFetchWarnings] = useState<string[]>([]);
 
     // ==========================================================================
     // Chart Highlight State
@@ -274,6 +290,9 @@ export const useMarketData = (): UseMarketDataReturn => {
     // ==========================================================================
 
     const [showImbalance, setShowImbalance] = useState<boolean>(false);
+    const [showImbalanceQuantity, setShowImbalanceQuantity] = useState<boolean>(true);
+    const [showImbalanceSurplusRate, setShowImbalanceSurplusRate] = useState<boolean>(true);
+    const [showImbalanceDeficitRate, setShowImbalanceDeficitRate] = useState<boolean>(true);
     const [showIntraday, setShowIntraday] = useState<boolean>(false);
     const [showIntradayAverage, setShowIntradayAverage] = useState<boolean>(true);
     const [showInterconnection, setShowInterconnection] = useState<boolean>(false);
@@ -329,6 +348,21 @@ export const useMarketData = (): UseMarketDataReturn => {
         if (!prefsLoadedRef.current) return;
         updatePreference('showImbalance', showImbalance);
     }, [showImbalance, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showImbalanceQuantity', showImbalanceQuantity);
+    }, [showImbalanceQuantity, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showImbalanceSurplusRate', showImbalanceSurplusRate);
+    }, [showImbalanceSurplusRate, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('showImbalanceDeficitRate', showImbalanceDeficitRate);
+    }, [showImbalanceDeficitRate, updatePreference]);
 
     useEffect(() => {
         if (!prefsLoadedRef.current) return;
@@ -391,6 +425,9 @@ export const useMarketData = (): UseMarketDataReturn => {
 
                 // Apply data layer preferences
                 if (prefs.showImbalance !== undefined) setShowImbalance(prefs.showImbalance);
+                if (prefs.showImbalanceQuantity !== undefined) setShowImbalanceQuantity(prefs.showImbalanceQuantity);
+                if (prefs.showImbalanceSurplusRate !== undefined) setShowImbalanceSurplusRate(prefs.showImbalanceSurplusRate);
+                if (prefs.showImbalanceDeficitRate !== undefined) setShowImbalanceDeficitRate(prefs.showImbalanceDeficitRate);
                 if (prefs.showIntraday !== undefined) setShowIntraday(prefs.showIntraday);
                 if (prefs.showIntradayAverage !== undefined) setShowIntradayAverage(prefs.showIntradayAverage);
                 if (prefs.showInterconnection !== undefined) setShowInterconnection(prefs.showInterconnection);
@@ -513,21 +550,29 @@ export const useMarketData = (): UseMarketDataReturn => {
         const requestId = ++latestActualDataRequestId.current;
         setIsLoading(true);
         setError(null);
+        setDataFetchWarnings([]);
+
+        const formattedStartDate = format(startDate, 'yyyyMMdd');
+        const formattedEndDate = format(endDate, 'yyyyMMdd');
+        const failedLabels: string[] = [];
+
+        const catchWithLabel = (label: string) => (e: unknown) => {
+            console.warn(`[fetchActualData] ${label} 取得失敗:`, e);
+            failedLabels.push(label);
+            return [] as any;
+        };
 
         try {
-            const formattedStartDate = format(startDate, 'yyyyMMdd');
-            const formattedEndDate = format(endDate, 'yyyyMMdd');
-
-            // Fetch all data sources in parallel for performance
-            const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult] = await Promise.all([
-                fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }),
-                fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }),
-                fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }),
-                // Catch individual errors to prevent one failure from blocking all data
-                fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; }),
-                fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; }),
-                fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(e => { console.error(e); return []; }),
-                fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(e => { console.error(e); return []; })
+            // Fetch all data sources in parallel. Each .catch() prevents one failure from blocking others.
+            const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult, batteryDataResult] = await Promise.all([
+                fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }).catch(catchWithLabel('現貨')),
+                fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際)')),
+                fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報)')),
+                fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('不平衡')),
+                fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('日前')),
+                fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')),
+                fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')),
+                fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池'))
             ]);
 
             // Race condition guard: ignore stale responses
@@ -540,12 +585,17 @@ export const useMarketData = (): UseMarketDataReturn => {
             setIntradayData(intradayDataResult);
             setInterconnectionData(interconnectionDataResult);
             setOcctoAreaData(occtoAreaDataResult);
+            setBatteryData(batteryDataResult);
+
+            if (failedLabels.length > 0) {
+                setDataFetchWarnings(failedLabels);
+            }
         } catch (err: unknown) {
             if (requestId !== latestActualDataRequestId.current) return;
 
             console.error('獲取實際數據失敗', err);
-            const error = err as { response?: { status: number } };
-            if (error.response?.status === 401) {
+            const errRes = err as { response?: { status: number } };
+            if (errRes.response?.status === 401) {
                 setError('認證已過期，請重新登入');
                 setTimeout(() => logout(), 2000);
             } else {
@@ -851,11 +901,13 @@ export const useMarketData = (): UseMarketDataReturn => {
         intradayData,
         interconnectionData,
         occtoAreaData,
+        batteryData,
 
         // Loading/Error
         isLoading,
         isFetchingPredictions,
         error,
+        dataFetchWarnings,
 
         // Date setters
         setStartDate,
@@ -879,6 +931,9 @@ export const useMarketData = (): UseMarketDataReturn => {
 
         // Data layer toggles
         showImbalance, setShowImbalance,
+        showImbalanceQuantity, setShowImbalanceQuantity,
+        showImbalanceSurplusRate, setShowImbalanceSurplusRate,
+        showImbalanceDeficitRate, setShowImbalanceDeficitRate,
         showIntraday, setShowIntraday,
         showIntradayAverage, setShowIntradayAverage,
         showInterconnection, setShowInterconnection,

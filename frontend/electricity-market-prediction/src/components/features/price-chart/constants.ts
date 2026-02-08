@@ -27,6 +27,27 @@ export const occtoStackedFields = [
     { key: 'others', color: '#7f8c8d', gradient: ['#aab7b8', '#7f8c8d'], label: 'Others' },
 ];
 
+/** 互連 (occto_inter) 可選欄位：對應 ProcessedDataPoint 上的屬性 */
+export const INTERCONNECTION_FIELDS = [
+    { key: 'flow_diff', label: '計畫流量差（順向－逆向）', pointKey: 'interconnection_flow_diff' as const, color: '#00bcd4' },
+    { key: 'forward_planned_flow', label: '順向計畫流量', pointKey: 'interconnection_forward' as const, color: '#26a69a' },
+    { key: 'reverse_planned_flow', label: '逆向計畫流量', pointKey: 'interconnection_reverse' as const, color: '#78909c' },
+    { key: 'actual_flow', label: '實際流量', pointKey: 'interconnection_actual_flow' as const, color: '#ff7043' },
+    { key: 'forward_available_capacity', label: '順向可用容量', pointKey: 'interconnection_forward_available_capacity' as const, color: '#66bb6a' },
+    { key: 'reverse_available_capacity', label: '逆向可用容量', pointKey: 'interconnection_reverse_available_capacity' as const, color: '#ab47bc' },
+    { key: 'forward_margin', label: '順向餘裕', pointKey: 'interconnection_forward_margin' as const, color: '#42a5f5' },
+    { key: 'reverse_margin', label: '逆向餘裕', pointKey: 'interconnection_reverse_margin' as const, color: '#ef5350' },
+];
+
+/** 電池 (battery_data) 可選欄位：負=充電、正=放電 */
+export const BATTERY_FIELDS = [
+    { key: 'spot_value', label: '現貨電量', pointKey: 'battery_spot_value' as const, color: '#7e57c2' },
+    { key: 'intraday_value', label: '日前電量', pointKey: 'battery_intraday_value' as const, color: '#5c6bc0' },
+    { key: 'primary_value', label: '一次調整力', pointKey: 'battery_primary_value' as const, color: '#7986cb' },
+    { key: 'soc_kwh', label: '虛擬 SOC (kWh)', pointKey: 'battery_soc_kwh' as const, color: '#26a69a' },
+    { key: 'actual_soc_kwh', label: '實測 SOC (kWh)', pointKey: 'battery_actual_soc_kwh' as const, color: '#66bb6a' },
+];
+
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [
     { value: 'temperature', label: 'Temp', unit: '°C', color: '#ff9800' },

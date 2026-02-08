@@ -1,16 +1,20 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { usePriceChart } from '../../context/PriceChartContext';
-import { occtoStackedFields, weatherFields } from '../../constants';
+import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../../constants';
 
 export const ChartLegend: React.FC = () => {
     const {
         modelColorMap,
         selectedModels,
         showImbalance,
+        showImbalanceQuantity,
+        showImbalanceSurplusRate,
+        showImbalanceDeficitRate,
         showIntraday,
         showIntradayAverage,
-        showInterconnection,
+        selectedInterconnectionFields,
+        selectedBatteryFields,
         showOcctoArea,
         selectedOcctoFields,
         showWeather,
@@ -82,13 +86,20 @@ export const ChartLegend: React.FC = () => {
             </Box>
 
             {/* --- Intraday Section --- */}
-            {(showIntraday || showIntradayAverage || showImbalance || showInterconnection) && (
+            {(showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0) && (
                 <>
                     <GroupSeparator label="市場" />
                     {showIntraday && <LegendItem color={colors.intraday} label="即時" type="candlestick" />}
                     {showIntradayAverage && <LegendItem color="#ffa726" label="即時(平均)" type="dashed" />}
-                    {showImbalance && <LegendItem color={colors.imbalance} label="不平衡值" />}
-                    {showInterconnection && <LegendItem color={colors.interconnection} label="互連流量" />}
+                    {showImbalanceQuantity && <LegendItem color={colors.imbalance} label="不平衡(數量)" />}
+                    {showImbalanceSurplusRate && <LegendItem color="#4caf50" label="剩餘單價" />}
+                    {showImbalanceDeficitRate && <LegendItem color="#e65100" label="不足單價" />}
+                    {INTERCONNECTION_FIELDS.filter(f => selectedInterconnectionFields.has(f.key)).map(f => (
+                        <LegendItem key={f.key} color={f.color} label={f.label} />
+                    ))}
+                    {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
+                        <LegendItem key={f.key} color={f.color} label={f.label} />
+                    ))}
                 </>
             )}
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData } from '@/types';
 
 interface UseChartDataProps {
     chartData: ChartDataPoint[];
@@ -8,6 +8,7 @@ interface UseChartDataProps {
     intradayData: IntradayData[];
     interconnectionData: InterconnectionFlow[];
     occtoAreaData: OcctoAreaData[];
+    batteryData?: BatteryData[];
     weatherActual?: WeatherData[];
     weatherForecast?: WeatherData[];
     areaName: string;
@@ -32,6 +33,7 @@ export const useChartData = ({
     intradayData,
     interconnectionData,
     occtoAreaData,
+    batteryData = [],
     weatherActual,
     weatherForecast,
     areaName,
@@ -190,33 +192,40 @@ export const useChartData = ({
             return dataMap.get(ts)!;
         };
 
-        // A. Base Chart Data
+        // A. Base Chart Data (spot + predictions)
         if (chartData && Array.isArray(chartData)) {
             chartData.forEach(p => {
-                if (p.timestamp && !isNaN(p.timestamp)) {
-                    dataMap.set(p.timestamp, { ...p });
+                const ts = p?.timestamp;
+                if (typeof ts === 'number' && !isNaN(ts)) {
+                    dataMap.set(ts, { ...p });
                 }
             });
         }
 
         // B. Imbalance Data
         if (imbalanceData && Array.isArray(imbalanceData)) {
-            const areaFieldMap: Record<string, keyof ImbalanceData> = {
-                'hokkaido': 'hokkaido', 'tohoku': 'tohoku', 'tokyo': 'tokyo',
-                'chubu': 'chubu', 'hokuriku': 'hokuriku', 'kansai': 'kansai',
-                'chugoku': 'chugoku', 'shikoku': 'shikoku', 'kyushu': 'kyushu'
-            };
-            const areaField = areaFieldMap[areaName?.toLowerCase() || ''];
-            if (areaField) {
-                imbalanceData.forEach(item => {
+            const targetArea = areaName?.toLowerCase();
+            imbalanceData.forEach(item => {
+                // Check if this record belongs to the selected area
+                // Backend returns English area names (e.g., "hokkaido")
+                if (item.area && item.area.toLowerCase() === targetArea) {
                     const ts = parseToTimestamp(item.datetime);
                     if (ts) {
                         const point = ensurePoint(ts);
-                        const val = item[areaField];
+
+                        // Map quantity
+                        const val = item.imbalance_quantity;
                         point.imbalance = (typeof val === 'number' && !isNaN(val)) ? val : null;
+
+                        // Map rates
+                        const surplus = item.imbalance_surplus_rate;
+                        point.imbalance_surplus_rate = (typeof surplus === 'number' && !isNaN(surplus)) ? surplus : null;
+
+                        const deficit = item.imbalance_deficit_rate;
+                        point.imbalance_deficit_rate = (typeof deficit === 'number' && !isNaN(deficit)) ? deficit : null;
                     }
-                });
-            }
+                }
+            });
         }
 
         // C. Intraday Data
@@ -247,7 +256,7 @@ export const useChartData = ({
             });
         }
 
-        // D. Interconnection Data
+        // D. Interconnection Data (occto_inter: 計畫流量、實際流量、可用容量、餘裕等)
         if (interconnectionData && Array.isArray(interconnectionData)) {
             interconnectionData.forEach(item => {
                 const ts = parseToTimestamp(item.datetime);
@@ -258,11 +267,41 @@ export const useChartData = ({
                     point.interconnection_flow_diff = forward - reverse;
                     point.interconnection_forward = forward;
                     point.interconnection_reverse = reverse;
+                    point.interconnection_actual_flow = (typeof (item as any).actual_flow === 'number') ? (item as any).actual_flow : null;
+                    point.interconnection_forward_available_capacity = (typeof (item as any).forward_available_capacity === 'number') ? (item as any).forward_available_capacity : null;
+                    point.interconnection_reverse_available_capacity = (typeof (item as any).reverse_available_capacity === 'number') ? (item as any).reverse_available_capacity : null;
+                    point.interconnection_forward_margin = (typeof (item as any).forward_margin === 'number') ? (item as any).forward_margin : null;
+                    point.interconnection_reverse_margin = (typeof (item as any).reverse_margin === 'number') ? (item as any).reverse_margin : null;
                 }
             });
         }
 
-        // E. Occto Data
+        // E. Battery Data (eflow battery_data: aggregate by event_time)
+        if (batteryData && batteryData.length > 0) {
+            const byTs: Record<number, { spot: number[]; intraday: number[]; primary: number[]; soc: number[]; actualSoc: number[] }> = {};
+            batteryData.forEach(item => {
+                const ts = parseToTimestamp(item.event_time);
+                if (!ts) return;
+                if (!byTs[ts]) byTs[ts] = { spot: [], intraday: [], primary: [], soc: [], actualSoc: [] };
+                if (typeof item.spot_value === 'number') byTs[ts].spot.push(item.spot_value);
+                if (typeof item.intraday_value === 'number') byTs[ts].intraday.push(item.intraday_value);
+                if (typeof item.primary_value === 'number') byTs[ts].primary.push(item.primary_value);
+                if (typeof item.soc_kwh === 'number') byTs[ts].soc.push(item.soc_kwh);
+                if (typeof item.actual_soc_kwh === 'number') byTs[ts].actualSoc.push(item.actual_soc_kwh);
+            });
+            Object.keys(byTs).forEach(tsStr => {
+                const ts = Number(tsStr);
+                const point = ensurePoint(ts);
+                const g = byTs[ts];
+                point.battery_spot_value = g.spot.length ? g.spot.reduce((a, b) => a + b, 0) : null;
+                point.battery_intraday_value = g.intraday.length ? g.intraday.reduce((a, b) => a + b, 0) : null;
+                point.battery_primary_value = g.primary.length ? g.primary.reduce((a, b) => a + b, 0) : null;
+                point.battery_soc_kwh = g.soc.length ? g.soc.reduce((a, b) => a + b, 0) / g.soc.length : null;
+                point.battery_actual_soc_kwh = g.actualSoc.length ? g.actualSoc.reduce((a, b) => a + b, 0) / g.actualSoc.length : null;
+            });
+        }
+
+        // F. Occto Data
         if (occtoAreaData && Array.isArray(occtoAreaData)) {
             occtoAreaData.forEach(item => {
                 const ts = parseToTimestamp(item.datetime);
@@ -282,7 +321,7 @@ export const useChartData = ({
             });
         }
 
-        // F. Weather Actual Data
+        // G. Weather Actual Data
         // NOTE: 後端 Weather 的 weather_datetime 為 UTC（例如 "2026-01-31T00:00:00+00:00"），parseToTimestamp 會解析為 UTC timestamp。
         // 價格與圖表採用 JST（Asia/Tokyo, UTC+9），"2026-01-31 00:00" 表示 JST 午夜 = 前日 15:00 UTC。
         // 為了讓 Weather 的「UTC 00:00」對齊到圖表上的「JST 00:00」同一時段，將 UTC timestamp 減去 9 小時，
@@ -319,7 +358,7 @@ export const useChartData = ({
             });
         }
 
-        // F2. Weather Forecast Data
+        // G2. Weather Forecast Data
         // 使用相同的時區對齊邏輯
         if (showWeatherForecast && weatherForecast && Array.isArray(weatherForecast)) {
             weatherForecast.forEach((item) => {
@@ -422,7 +461,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {

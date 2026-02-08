@@ -31,6 +31,7 @@ export type {
     OcctoAreaData,
     OcctoInterconnection,
     OcctoEvent,
+    BatteryData,
     TdgcData,
 } from './gridOperations';
 

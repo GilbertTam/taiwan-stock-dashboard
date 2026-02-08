@@ -11,6 +11,9 @@ interface UserPreferences {
         calculatingDate: string;
     }>;
     showImbalance: boolean;
+    showImbalanceQuantity: boolean;
+    showImbalanceSurplusRate: boolean;
+    showImbalanceDeficitRate: boolean;
     showIntraday: boolean;
     showIntradayAverage: boolean;
     showInterconnection: boolean;

@@ -35,6 +35,7 @@ interface PriceChartProps {
     intradayData?: IntradayData[];
     interconnectionData?: InterconnectionFlow[];
     occtoAreaData?: OcctoAreaData[];
+    batteryData?: import('@/types').BatteryData[];
 }
 
 // Optimization: Memoize the chart component to prevent heavy re-renders 

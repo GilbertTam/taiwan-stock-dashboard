@@ -43,7 +43,6 @@ interface UseChartSeriesParams {
     showImbalance: boolean;
     showIntraday: boolean;
     showIntradayAverage: boolean;
-    showInterconnection: boolean;
     showOcctoArea: boolean;
     occtoChartType?: 'area' | 'stacked';
     showWeather: boolean;
@@ -71,7 +70,6 @@ export const useChartSeries = ({
     showImbalance,
     showIntraday,
     showIntradayAverage,
-    showInterconnection,
     showOcctoArea,
     occtoChartType,
     showWeather,
@@ -147,7 +145,10 @@ export const useChartSeries = ({
             intradayAvgData,
             actualData,
             imbalanceData,
-            interconnectionData,
+            imbalanceSurplusData,
+            imbalanceDeficitData,
+            interconnectionSeries,
+            batterySeries,
             occtoData,
         } = transformedData;
 
@@ -191,16 +192,27 @@ export const useChartSeries = ({
         }
 
         // Interconnection (Area)
-        if (interconnectionData.length > 0) {
-            updateOrAdd('interconnection', AreaSeries, interconnectionData, {
-                lineColor: colors.interconnection,
-                topColor: `${colors.interconnection}80`,
-                bottomColor: `${colors.interconnection}10`,
-                lineWidth: 1,
-                priceScaleId: 'interconnection'
-            });
-            usedSubCharts.add('interconnection');
-        }
+        interconnectionSeries.forEach(({ fieldKey, data, color }) => {
+            if (data.length > 0) {
+                updateOrAdd(`interconnection_${fieldKey}`, LineSeries, data, {
+                    color,
+                    lineWidth: 1,
+                    priceScaleId: 'interconnection'
+                });
+                usedSubCharts.add('interconnection');
+            }
+        });
+
+        batterySeries.forEach(({ fieldKey, data, color }) => {
+            if (data.length > 0) {
+                updateOrAdd(`battery_${fieldKey}`, LineSeries, data, {
+                    color,
+                    lineWidth: 1,
+                    priceScaleId: 'battery'
+                });
+                usedSubCharts.add('battery');
+            }
+        });
 
         // --- B. Bars & Histograms (Middle Layer) ---
 
@@ -230,10 +242,28 @@ export const useChartSeries = ({
 
         // --- C. Lines & Main Data (Top Layer) ---
 
-        // Imbalance
+        // Imbalance Quantity (Separate Axis)
         if (imbalanceData.length > 0) {
             updateOrAdd('imbalance', LineSeries, imbalanceData, { color: colors.imbalance, priceScaleId: 'imbalance', lineWidth: 1 });
             usedSubCharts.add('imbalance');
+        }
+
+        // Imbalance Rates (Main Axis)
+        if (imbalanceSurplusData && imbalanceSurplusData.length > 0) {
+            updateOrAdd('imbalance_surplus', LineSeries, imbalanceSurplusData, {
+                color: '#4caf50', // Green
+                priceScaleId: 'right',
+                lineWidth: 2,
+                title: 'Surplus Rate'
+            });
+        }
+        if (imbalanceDeficitData && imbalanceDeficitData.length > 0) {
+            updateOrAdd('imbalance_deficit', LineSeries, imbalanceDeficitData, {
+                color: '#e65100', // Deep orange（與現貨紅 #ef5350 區隔）
+                priceScaleId: 'right',
+                lineWidth: 2,
+                title: 'Deficit Rate'
+            });
         }
 
         // Intraday Candlesticks
@@ -308,7 +338,7 @@ export const useChartSeries = ({
 
         // --- Layout Configuration (SubCharts) ---
         try {
-            const activeSubCharts = ['imbalance', 'interconnection', 'occto', 'weather'].filter(k => usedSubCharts.has(k));
+            const activeSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather'].filter(k => usedSubCharts.has(k));
             const subHeight = 0.15;
             const gap = 0.02;
             let currentTop = 1.0;
@@ -349,7 +379,7 @@ export const useChartSeries = ({
     }, [
         processedChartData, transformedData, colors, darkMode, timezone,
         selectedModels, highlightedModelId, modelColorMap,
-        showImbalance, showInterconnection, showOcctoArea, occtoChartType,
+        showImbalance, showOcctoArea, occtoChartType,
         showWeather, showWeatherActual, showWeatherForecast, selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
         startDate, endDate, showActualPrice
     ]);

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
 import { ChartDataPoint } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData } from '@/types';
 import { useChartData } from '../hooks/useChartData';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 
@@ -37,6 +37,12 @@ interface PriceChartState {
     setShowPredictionRange: (val: boolean) => void;
     showImbalance: boolean;
     setShowImbalance: (val: boolean) => void;
+    showImbalanceQuantity: boolean;
+    setShowImbalanceQuantity: (val: boolean) => void;
+    showImbalanceSurplusRate: boolean;
+    setShowImbalanceSurplusRate: (val: boolean) => void;
+    showImbalanceDeficitRate: boolean;
+    setShowImbalanceDeficitRate: (val: boolean) => void;
     showIntraday: boolean;
     setShowIntraday: (val: boolean) => void;
     showIntradayAverage: boolean;
@@ -63,6 +69,10 @@ interface PriceChartState {
     setSelectedOcctoField: (val: string) => void;
     selectedOcctoFields: Set<string>;
     setSelectedOcctoFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedInterconnectionFields: Set<string>;
+    setSelectedInterconnectionFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedBatteryFields: Set<string>;
+    setSelectedBatteryFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     selectedWeatherFields: Set<string>;
     selectedWeatherFieldsActual: Set<string>;
     setSelectedWeatherFieldsActual: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -78,6 +88,7 @@ interface PriceChartState {
     hasIntradayData: boolean;
     hasInterconnectionData: boolean;
     hasOcctoAreaData: boolean;
+    hasBatteryData: boolean;
     hasWeatherData: boolean;
     areaName: string;
     selectedModels: any[];
@@ -105,6 +116,7 @@ interface PriceChartProviderProps {
     intradayData?: IntradayData[];
     interconnectionData?: InterconnectionFlow[];
     occtoAreaData?: OcctoAreaData[];
+    batteryData?: BatteryData[];
     weatherActual?: any[];
     weatherForecast?: any[];
     darkMode: boolean;
@@ -121,6 +133,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     intradayData = [],
     interconnectionData = [],
     occtoAreaData = [],
+    batteryData = [],
     weatherActual = [], // Destructure weatherActual
     weatherForecast = [], // Destructure weatherForecast
     darkMode,
@@ -129,6 +142,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     // Get shared data layer toggles from MarketDataContext
     const {
         showImbalance, setShowImbalance,
+        showImbalanceQuantity, setShowImbalanceQuantity,
+        showImbalanceSurplusRate, setShowImbalanceSurplusRate,
+        showImbalanceDeficitRate, setShowImbalanceDeficitRate,
         showIntraday, setShowIntraday,
         showIntradayAverage, setShowIntradayAverage,
         showInterconnection, setShowInterconnection,
@@ -149,6 +165,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [timezone, setTimezone] = useState('Asia/Tokyo');
     const [selectedOcctoField, setSelectedOcctoField] = useState<string>('area_demand');
     const [selectedOcctoFields, setSelectedOcctoFields] = useState<Set<string>>(new Set(['area_demand']));
+    const [selectedInterconnectionFields, setSelectedInterconnectionFields] = useState<Set<string>>(new Set(['flow_diff']));
+    const [selectedBatteryFields, setSelectedBatteryFields] = useState<Set<string>>(new Set(['spot_value']));
     const [selectedWeatherFieldsActual, setSelectedWeatherFieldsActual] = useState<Set<string>>(new Set(['temperature']));
     const [selectedWeatherFieldsForecast, setSelectedWeatherFieldsForecast] = useState<Set<string>>(new Set(['temperature']));
     const selectedWeatherFields = useMemo(() => {
@@ -178,6 +196,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         intradayData,
         interconnectionData,
         occtoAreaData,
+        batteryData,
         weatherActual,
         weatherForecast,
         areaName,
@@ -203,6 +222,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hoveredData, setHoveredData,
         showPredictionRange, setShowPredictionRange,
         showImbalance, setShowImbalance,
+        showImbalanceQuantity, setShowImbalanceQuantity,
+        showImbalanceSurplusRate, setShowImbalanceSurplusRate,
+        showImbalanceDeficitRate, setShowImbalanceDeficitRate,
         showIntraday, setShowIntraday,
         showIntradayAverage, setShowIntradayAverage,
         showInterconnection, setShowInterconnection,
@@ -215,6 +237,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         occtoChartType, setOcctoChartType,
         selectedOcctoField, setSelectedOcctoField,
         selectedOcctoFields, setSelectedOcctoFields,
+        selectedInterconnectionFields, setSelectedInterconnectionFields,
+        selectedBatteryFields, setSelectedBatteryFields,
         selectedWeatherFields,
         selectedWeatherFieldsActual,
         setSelectedWeatherFieldsActual,
@@ -226,6 +250,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hasIntradayData: intradayData && intradayData.length > 0,
         hasInterconnectionData: interconnectionData && interconnectionData.length > 0,
         hasOcctoAreaData: occtoAreaData && occtoAreaData.length > 0,
+        hasBatteryData: batteryData && batteryData.length > 0,
         hasWeatherData: weatherActual && weatherActual.length > 0,
         areaName,
         selectedModels,
@@ -237,8 +262,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
         hoveredData,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore,
-        chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
-        imbalanceData, intradayData, interconnectionData, occtoAreaData, weatherActual,
+        chartType, occtoChartType, selectedOcctoField, selectedOcctoFields,         selectedInterconnectionFields, selectedBatteryFields, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
+        imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, weatherActual,
         areaName, selectedModels, colors, darkMode
     ]);
 

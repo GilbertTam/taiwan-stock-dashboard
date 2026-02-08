@@ -5,6 +5,14 @@ import {
 } from '@/utils/lightweightChartsHelpers';
 import { transformOcctoData } from '../utils/transformers';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
+
+export interface InterconnectionSeriesItem {
+    fieldKey: string;
+    data: { time: string; value: number }[];
+    label: string;
+    color: string;
+}
 
 interface UseChartDataTransformersParams {
     processedChartData: ProcessedDataPoint[];
@@ -12,7 +20,11 @@ interface UseChartDataTransformersParams {
     showIntraday: boolean;
     showIntradayAverage: boolean;
     showImbalance: boolean;
-    showInterconnection: boolean;
+    showImbalanceQuantity: boolean;
+    showImbalanceSurplusRate: boolean;
+    showImbalanceDeficitRate: boolean;
+    selectedInterconnectionFields: Set<string>;
+    selectedBatteryFields: Set<string>;
     showOcctoArea: boolean;
     selectedOcctoFields: Set<string>;
     showActualPrice: boolean;
@@ -24,7 +36,11 @@ export const useChartDataTransformers = ({
     showIntraday,
     showIntradayAverage,
     showImbalance,
-    showInterconnection,
+    showImbalanceQuantity,
+    showImbalanceSurplusRate,
+    showImbalanceDeficitRate,
+    selectedInterconnectionFields,
+    selectedBatteryFields,
     showOcctoArea,
     selectedOcctoFields,
     showActualPrice,
@@ -35,20 +51,48 @@ export const useChartDataTransformers = ({
         [processedChartData, showIntraday, timezone]);
 
     const intradayAvgData = useMemo(() =>
-        (showIntraday && showIntradayAverage) ? convertToLineSeriesData(processedChartData, p => p.intraday_average ?? null, timezone) : [],
-        [processedChartData, showIntraday, showIntradayAverage, timezone]);
+        showIntradayAverage ? convertToLineSeriesData(processedChartData, p => p.intraday_average ?? null, timezone) : [],
+        [processedChartData, showIntradayAverage, timezone]);
 
     const actualData = useMemo(() =>
         convertToLineSeriesData(processedChartData, p => p.actualPrice, timezone),
         [processedChartData, timezone]);
 
     const imbalanceData = useMemo(() =>
-        showImbalance ? convertToLineSeriesData(processedChartData, p => p.imbalance ?? null, timezone) : [],
-        [processedChartData, showImbalance, timezone]);
+        showImbalanceQuantity ? convertToLineSeriesData(processedChartData, p => p.imbalance ?? null, timezone) : [],
+        [processedChartData, showImbalanceQuantity, timezone]);
 
-    const interconnectionData = useMemo(() =>
-        showInterconnection ? convertToLineSeriesData(processedChartData, p => p.interconnection_flow_diff ?? null, timezone) : [],
-        [processedChartData, showInterconnection, timezone]);
+    const imbalanceSurplusData = useMemo(() =>
+        showImbalanceSurplusRate ? convertToLineSeriesData(processedChartData, p => p.imbalance_surplus_rate ?? null, timezone) : [],
+        [processedChartData, showImbalanceSurplusRate, timezone]);
+
+    const imbalanceDeficitData = useMemo(() =>
+        showImbalanceDeficitRate ? convertToLineSeriesData(processedChartData, p => p.imbalance_deficit_rate ?? null, timezone) : [],
+        [processedChartData, showImbalanceDeficitRate, timezone]);
+
+    const interconnectionSeries = useMemo((): InterconnectionSeriesItem[] => {
+        const out: InterconnectionSeriesItem[] = [];
+        INTERCONNECTION_FIELDS.forEach(f => {
+            if (!selectedInterconnectionFields.has(f.key)) return;
+            const data = convertToLineSeriesData(processedChartData, p => (p as any)[f.pointKey] ?? null, timezone);
+            if (data.length > 0) {
+                out.push({ fieldKey: f.key, data, label: f.label, color: f.color });
+            }
+        });
+        return out;
+    }, [processedChartData, selectedInterconnectionFields, timezone]);
+
+    const batterySeries = useMemo((): InterconnectionSeriesItem[] => {
+        const out: InterconnectionSeriesItem[] = [];
+        BATTERY_FIELDS.forEach(f => {
+            if (!selectedBatteryFields.has(f.key)) return;
+            const data = convertToLineSeriesData(processedChartData, p => (p as any)[f.pointKey] ?? null, timezone);
+            if (data.length > 0) {
+                out.push({ fieldKey: f.key, data, label: f.label, color: f.color });
+            }
+        });
+        return out;
+    }, [processedChartData, selectedBatteryFields, timezone]);
 
     const occtoData = useMemo(() =>
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),
@@ -59,7 +103,10 @@ export const useChartDataTransformers = ({
         intradayAvgData,
         actualData,
         imbalanceData,
-        interconnectionData,
+        imbalanceSurplusData,
+        imbalanceDeficitData,
+        interconnectionSeries,
+        batterySeries,
         occtoData,
     };
 };

@@ -10,15 +10,24 @@
 export interface ImbalanceData {
     /** Timestamp (ISO format) */
     datetime: string;
-    hokkaido: number;
-    tohoku: number;
-    tokyo: number;
-    chubu: number;
-    hokuriku: number;
-    kansai: number;
-    chugoku: number;
-    shikoku: number;
-    kyushu: number;
+    /** Area name */
+    area: string;
+    /** Imbalance quantity (kWh) */
+    imbalance_quantity?: number | null;
+    /** Surplus imbalance rate (yen/kWh) */
+    imbalance_surplus_rate?: number | null;
+    /** Deficit imbalance rate (yen/kWh) */
+    imbalance_deficit_rate?: number | null;
+    /** Direction */
+    dir?: string;
+    /** Source */
+    source?: string;
+    /** Dataset */
+    dataset?: string;
+    /** URL */
+    url?: string;
+    /** MD5 ID */
+    md5_id?: string;
 }
 
 /**
@@ -207,6 +216,47 @@ export interface OcctoEvent {
     description: string;
     /** Associated value (context-dependent) */
     value: number;
+}
+
+/**
+ * Battery data (eflow): spot/intraday/primary values, SOC, charge/discharge.
+ * Negative = charge, positive = discharge.
+ */
+export interface BatteryData {
+    /** Data time (ISO format) */
+    event_time: string;
+    /** Site ID (e.g. Helios) */
+    site_id?: string;
+    /** Crawl time */
+    crawl_time?: string;
+    /** Source (eflow) */
+    source?: string;
+    /** Dataset (battery_data) */
+    dataset?: string;
+    /** Spot power: negative=charge, positive=discharge (kW or kWh) */
+    spot_value?: number | null;
+    spot_direction?: string | null;
+    /** Intraday power */
+    intraday_value?: number | null;
+    intraday_direction?: string | null;
+    /** Primary adjustment power */
+    primary_value?: number | null;
+    primary_direction?: string | null;
+    spot_charge_volume?: number | null;
+    spot_discharge_volume?: number | null;
+    intraday_charge_volume?: number | null;
+    intraday_discharge_volume?: number | null;
+    primary_charge_volume?: number | null;
+    primary_discharge_volume?: number | null;
+    /** Virtual SOC (kWh) */
+    soc_kwh?: number | null;
+    /** Charge/discharge plan */
+    charge_discharge_plan?: number | null;
+    /** Actual SOC (kWh) */
+    actual_soc_kwh?: number | null;
+    /** Actual SOC (%) */
+    actual_soc_per?: number | null;
+    md5_id?: string;
 }
 
 /**

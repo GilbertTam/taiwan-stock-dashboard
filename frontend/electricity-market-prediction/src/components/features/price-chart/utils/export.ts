@@ -1,7 +1,7 @@
 import { IChartApi } from 'lightweight-charts';
 import { format as formatDate } from 'date-fns';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
-import { occtoStackedFields, weatherFields } from '../constants';
+import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
 import { hexToRgba } from '../utils';
 
 export const handleDownloadCsv = (processedChartData: ProcessedDataPoint[] | null) => {
@@ -31,7 +31,8 @@ interface GenerateChartImageParams {
     showIntraday: boolean;
     showIntradayAverage: boolean;
     showImbalance: boolean;
-    showInterconnection: boolean;
+    selectedInterconnectionFields: Set<string>;
+    selectedBatteryFields: Set<string>;
     showOcctoArea: boolean;
     selectedOcctoFields: Set<string>;
     showWeather: boolean;
@@ -52,7 +53,8 @@ export const generateChartImage = ({
     showIntraday,
     showIntradayAverage,
     showImbalance,
-    showInterconnection,
+    selectedInterconnectionFields,
+    selectedBatteryFields,
     showOcctoArea,
     selectedOcctoFields,
     showWeather,
@@ -90,12 +92,17 @@ export const generateChartImage = ({
     });
 
     // Market Section
-    if (showIntraday || showIntradayAverage || showImbalance || showInterconnection) {
+    if (showIntraday || showIntradayAverage || showImbalance || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0) {
         if (ops.length > 0) ops.push({ type: 'separator', label: '市場' });
         if (showIntraday) ops.push({ type: 'item', label: '即時', color: colors.intraday, symbolType: 'candlestick' });
         if (showIntradayAverage) ops.push({ type: 'item', label: '即時(平均)', color: '#ffa726', symbolType: 'dashed' });
         if (showImbalance) ops.push({ type: 'item', label: '不平衡值', color: colors.imbalance, symbolType: 'line' });
-        if (showInterconnection) ops.push({ type: 'item', label: '互連流量', color: colors.interconnection, symbolType: 'line' });
+        INTERCONNECTION_FIELDS.filter(f => selectedInterconnectionFields.has(f.key)).forEach(f => {
+            ops.push({ type: 'item', label: f.label, color: f.color, symbolType: 'line' });
+        });
+        BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).forEach(f => {
+            ops.push({ type: 'item', label: f.label, color: f.color, symbolType: 'line' });
+        });
     }
 
     // OCCTO Section

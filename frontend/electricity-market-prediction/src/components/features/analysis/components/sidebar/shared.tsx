@@ -3,11 +3,12 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { ExpandMore } from '@mui/icons-material';
 
-// 1. 定義統一的顏色映射，方便維護並對應圖表顏色
+// 1. 定義統一的顏色映射，與圖表 (chart-colors) 一致
 export const SOURCE_COLORS = {
-    imbalance: '#ff9800',
+    imbalance: '#8884d8', // 與圖表不平衡量線一致
     intraday: '#9c27b0',
     interconnection: '#00bcd4',
+    battery: '#7e57c2',
     weather: '#2196f3', // 統一天氣主色
     weatherActual: '#ffc107',
     weatherForecast: '#ff9800',
