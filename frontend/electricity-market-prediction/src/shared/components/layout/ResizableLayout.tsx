@@ -8,19 +8,31 @@ interface ResizableLayoutProps {
   children: ReactNode[];
   defaultSizes?: number[];
   minSizes?: number[];
+  /** Controlled mode: when provided, sizes are driven by parent (e.g. for collapse/expand animation). */
+  sizes?: number[];
+  onSizesChange?: (sizes: number[]) => void;
   onResize?: (sizes: number[]) => void;
   storageKey?: string;
+  /** When true, size changes are animated (e.g. flex transition). Set false during drag for instant feedback. */
+  animateSizeChanges?: boolean;
 }
+
+const DEFAULT_ANIMATION_MS = 350;
 
 export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
   direction = 'vertical',
   children,
   defaultSizes = [70, 30],
   minSizes = [30, 20],
+  sizes: controlledSizes,
+  onSizesChange,
   onResize,
-  storageKey
+  storageKey,
+  animateSizeChanges = false,
 }) => {
-  const [sizes, setSizes] = useState<number[]>(() => {
+  const isControlled = controlledSizes != null;
+
+  const [internalSizes, setInternalSizes] = useState<number[]>(() => {
     if (storageKey && typeof window !== 'undefined') {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -34,6 +46,17 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
     return defaultSizes;
   });
 
+  const [isDragging, setIsDragging] = useState(false);
+  const sizes = isControlled ? controlledSizes : internalSizes;
+  const setSizes = (next: number[] | ((prev: number[]) => number[])) => {
+    const nextValue = typeof next === 'function' ? next(sizes) : next;
+    if (isControlled && onSizesChange) {
+      onSizesChange(nextValue);
+    } else {
+      setInternalSizes(nextValue);
+    }
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const startPosRef = useRef(0);
@@ -42,17 +65,18 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
   const pendingSizesRef = useRef<number[] | null>(null);
 
   useEffect(() => {
-    if (storageKey && typeof window !== 'undefined') {
+    if (!isControlled && storageKey && typeof window !== 'undefined') {
       localStorage.setItem(storageKey, JSON.stringify(sizes));
     }
     if (onResize) {
       onResize(sizes);
     }
-  }, [sizes, storageKey, onResize]);
+  }, [sizes, storageKey, onResize, isControlled]);
 
   const handleMouseDown = (index: number, e: React.MouseEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
+    setIsDragging(true);
     startPosRef.current = direction === 'vertical' ? e.clientY : e.clientX;
     startSizesRef.current = [...sizes];
     document.addEventListener('mousemove', handleMouseMove);
@@ -105,6 +129,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
 
   const handleMouseUp = () => {
     isDraggingRef.current = false;
+    setIsDragging(false);
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
     if (rafIdRef.current !== null) {
@@ -120,6 +145,8 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
 
   const totalSize = normalizedSizes.reduce((sum, size) => sum + size, 0);
   const normalizedPercentages = normalizedSizes.map(size => (size / totalSize) * 100);
+
+  const useTransition = animateSizeChanges && !isDragging;
 
   return (
     <Box
@@ -140,6 +167,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              transition: useTransition ? `flex ${DEFAULT_ANIMATION_MS}ms ease-out` : 'none',
             }}
           >
             {child}

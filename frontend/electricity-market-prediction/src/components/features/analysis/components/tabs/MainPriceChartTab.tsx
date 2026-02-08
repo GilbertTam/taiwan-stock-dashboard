@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Tabs,
@@ -24,6 +24,7 @@ import MaeAnalysis from '../mae-analysis/MaeAnalysis';
 import OutagesPanel from '@/components/features/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/features/market/interconnection/InterconnectionPanel';
 import WeatherChartSection from '@/components/features/market/weather/WeatherChartSection';
+import { ResizableLayout } from '@/shared/components/layout/ResizableLayout';
 
 interface MainPriceChartTabProps {
   areaName: string;
@@ -42,6 +43,11 @@ interface MainPriceChartTabProps {
 type SubTabIndex = 0 | 1 | 2 | 3 | 4;
 
 const BOTTOM_BAR_HEIGHT = 40;
+const STORAGE_KEY = 'main-price-chart-bottom-panel';
+/** 收合時下方只留一條 tab 列，比例收到底 */
+const COLLAPSED_SIZES = [96, 4] as const;
+const COLLAPSED_MIN_SIZES = [92, 4] as const;
+const DEFAULT_EXPANDED_SIZES = [72, 28];
 
 export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   areaName,
@@ -59,6 +65,24 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   const [topBottomPairs, setTopBottomPairs] = useState(2);
   const [subTab, setSubTab] = useState<SubTabIndex>(defaultPanelMarketInfo ? 2 : 0); // 2 = 停機資訊
   const [collapsed, setCollapsed] = useState(!defaultPanelMarketInfo);
+  const [panelSizes, setPanelSizes] = useState<number[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_EXPANDED_SIZES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as number[];
+        if (Array.isArray(parsed) && parsed.length === 2) return parsed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_EXPANDED_SIZES;
+  });
+  useEffect(() => {
+    if (!collapsed && typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(panelSizes));
+    }
+  }, [collapsed, panelSizes]);
   const isDark = theme.palette.mode === 'dark';
   const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const cardBg = isDark ? alpha(theme.palette.background.paper, 0.6) : theme.palette.background.paper;
@@ -268,22 +292,20 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   const bottomPanelSection = (
     <Box
       sx={{
-        flexShrink: 0,
-        height: collapsed ? BOTTOM_BAR_HEIGHT : '28%',
-        minHeight: BOTTOM_BAR_HEIGHT,
+        height: '100%',
+        minHeight: 0,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         borderTop: `1px solid ${borderColor}`,
         backgroundColor: cardBg,
-        transition: 'height 0.35s ease-out',
       }}
     >
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          borderBottom: collapsed ? 'none' : `1px solid ${borderColor}`,
+          borderBottom: `1px solid ${borderColor}`,
           flexShrink: 0,
           height: BOTTOM_BAR_HEIGHT,
           minHeight: BOTTOM_BAR_HEIGHT,
@@ -315,6 +337,8 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
     </Box>
   );
 
+  const layoutSizes = collapsed ? [...COLLAPSED_SIZES] : panelSizes;
+
   return (
     <Box
       sx={{
@@ -325,8 +349,19 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         flexDirection: 'column',
       }}
     >
-      {chartSection}
-      {bottomPanelSection}
+      <ResizableLayout
+        direction="vertical"
+        defaultSizes={DEFAULT_EXPANDED_SIZES}
+        minSizes={collapsed ? [...COLLAPSED_MIN_SIZES] : [35, 8]}
+        sizes={layoutSizes}
+        onSizesChange={(sizes) => {
+          if (!collapsed) setPanelSizes(sizes);
+        }}
+        animateSizeChanges
+      >
+        {chartSection}
+        {bottomPanelSection}
+      </ResizableLayout>
     </Box>
   );
 };
