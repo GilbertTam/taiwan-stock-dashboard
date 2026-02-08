@@ -44,6 +44,7 @@ from market_information.serializers import (
     OcctoAreaSerializer,
     OcctoInterconnectionSerializer,
     OcctoEventSerializer,
+    BatteryDataSerializer,
     TdgcSerializer,
     WeatherActualSerializer,
     WeatherForecastSerializer,
@@ -517,6 +518,35 @@ class MarketInformationViewSet(viewsets.ViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error fetching occto event: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @swagger_auto_schema(
+        operation_summary="Get Battery Data",
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('site_id', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Site ID (e.g. Helios)"),
+        ],
+        responses={200: BatteryDataSerializer(many=True)}
+    )
+    @action(detail=False, methods=['get'], url_path='battery-data')
+    def battery_data(self, request) -> Response:
+        """
+        Retrieve battery data (eflow).
+
+        Spot/intraday/primary values, SOC, charge/discharge volumes.
+        Negative values = charge, positive = discharge.
+        """
+        try:
+            start_date, end_date = self._validate_dates(request)
+            site_id = request.query_params.get('site_id')
+            es = ESService()
+            data = es.get_battery_data(start_date, end_date, site_id)
+            return Response({"result": "Success", "count": len(data), "data": data})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error fetching battery data: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @swagger_auto_schema(

@@ -224,6 +224,41 @@ class OcctoEventSerializer(serializers.Serializer):
 
 
 # =============================================================================
+# Battery Data Serializers
+# =============================================================================
+
+class BatteryDataSerializer(serializers.Serializer):
+    """
+    Serializer for battery data (eflow).
+
+    Spot/intraday/primary values (negative=charge, positive=discharge),
+    SOC, and charge/discharge volumes.
+    """
+    source = serializers.CharField(required=False)
+    dataset = serializers.CharField(required=False)
+    site_id = serializers.CharField(required=False)
+    event_time = serializers.DateTimeField(required=False)
+    crawl_time = serializers.DateTimeField(required=False)
+    spot_value = serializers.FloatField(required=False)
+    spot_direction = serializers.CharField(required=False)
+    intraday_value = serializers.FloatField(required=False)
+    intraday_direction = serializers.CharField(required=False)
+    primary_value = serializers.FloatField(required=False)
+    primary_direction = serializers.CharField(required=False)
+    spot_charge_volume = serializers.FloatField(required=False)
+    spot_discharge_volume = serializers.FloatField(required=False)
+    intraday_charge_volume = serializers.FloatField(required=False)
+    intraday_discharge_volume = serializers.FloatField(required=False)
+    primary_charge_volume = serializers.FloatField(required=False)
+    primary_discharge_volume = serializers.FloatField(required=False)
+    soc_kwh = serializers.FloatField(required=False)
+    charge_discharge_plan = serializers.FloatField(required=False)
+    actual_soc_kwh = serializers.FloatField(required=False)
+    actual_soc_per = serializers.FloatField(required=False)
+    md5_id = serializers.CharField(required=False)
+
+
+# =============================================================================
 # Grid Balancing Serializers
 # =============================================================================
 

@@ -129,6 +129,7 @@ class ESService:
         self.tdgc_index = es_indices.get('tdgc', 'tdgc')
         self.weather_actual_index = es_indices.get('weather_actual', 'weather_actual')
         self.weather_forecast_index = es_indices.get('weather_forecast', 'weather_forecast')
+        self.battery_data_index = es_indices.get('battery_data', 'battery_data')
 
         # JEPX field name mapping: field suffix in ES -> normalized area code
         # Some ES fields use 'touhoku' but our API uses 'tohoku'
@@ -657,6 +658,38 @@ class ESService:
         if interval_minutes and interval_minutes > 0:
             rows = _downsample_by_interval(rows, interval_minutes, datetime_key='datetime', line_key='interconnection_name')
         return rows
+
+    def get_battery_data(
+        self,
+        start_date: str,
+        end_date: str,
+        site_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch battery data (eflow).
+
+        Args:
+            start_date: Start date in YYYYMMDD format.
+            end_date: End date in YYYYMMDD format.
+            site_id: Optional site ID filter (e.g. 'Helios').
+
+        Returns:
+            List of battery_data records (spot_value, intraday_value, soc_kwh, etc.).
+        """
+        s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
+        e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+        # event_time is ISO format e.g. 2025-11-29T00:30:00
+        s = Search(using=self.client, index=self.battery_data_index)
+        s = s.filter('range', **{'event_time': {'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'}})
+
+        if site_id:
+            s = s.filter('term', site_id=site_id)
+
+        s = s.extra(size=MAX_ES_RESULTS)
+        s = s.sort('event_time')
+
+        response = s.execute()
+        return [hit.to_dict() for hit in response]
 
     def get_occto_events(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
