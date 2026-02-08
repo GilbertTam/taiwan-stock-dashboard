@@ -16,7 +16,7 @@ Example:
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
 from django.conf import settings
@@ -30,6 +30,45 @@ logger = logging.getLogger(__name__)
 # Maximum number of documents to return from ES queries
 # ES default is 10000; larger values require scroll API
 MAX_ES_RESULTS = 10000
+
+
+def _downsample_by_interval(
+    rows: List[Dict[str, Any]],
+    interval_minutes: int,
+    datetime_key: str = 'datetime',
+    line_key: Optional[str] = 'interconnection_name',
+) -> List[Dict[str, Any]]:
+    """
+    Keep one record per (time_bucket, line) so that data is sampled at most every interval_minutes.
+    Time bucket is the floor of the record datetime to the interval (e.g. 05:25 -> 05:00 for 30-min).
+    Assumes rows are sorted by datetime. Keeps the first record in each bucket per line.
+    """
+    if not rows or interval_minutes <= 0:
+        return rows
+    seen: set = set()
+    out: List[Dict[str, Any]] = []
+    fmt = '%Y-%m-%d %H:%M:%S'
+    for rec in rows:
+        dt_str = rec.get(datetime_key)
+        if not dt_str:
+            out.append(rec)
+            continue
+        try:
+            dt = datetime.strptime(dt_str, fmt)
+        except (ValueError, TypeError):
+            out.append(rec)
+            continue
+        # Floor to interval: e.g. 05:25 with interval 30 -> 05:00
+        total_mins = dt.hour * 60 + dt.minute
+        bucket_mins = (total_mins // interval_minutes) * interval_minutes
+        bucket_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(minutes=bucket_mins)
+        line = rec.get(line_key) or ''
+        key = (bucket_dt, line)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(rec)
+    return out
 
 
 class ESService:
@@ -46,7 +85,8 @@ class ESService:
         host: Elasticsearch host:port string.
         client: Elasticsearch client instance.
         prediction_index: Name of the prediction index.
-        jepx_index: Name of the JEPX spot market index.
+        jepx_index: Name of the JEPX spot area price index (jepx_spot_area_price).
+        jepx_system_index: Name of the JEPX spot system index (jepx_spot_system).
         (other indices for various data types)
 
     Example:
@@ -73,13 +113,14 @@ class ESService:
             verify_certs=True
         )
 
-        # Load index names from settings with fallback defaults
+        # Load index names from settings with fallback defaults (match data-mapping.md)
         es_indices = getattr(settings, 'ELASTICSEARCH_INDICES', {})
         self.prediction_index = es_indices.get('prediction', 'prediction')
-        self.jepx_index = es_indices.get('jepx', 'jepx_spot_nightly')
+        self.jepx_index = es_indices.get('jepx', 'jepx_spot_area_price')
+        self.jepx_system_index = es_indices.get('jepx_system', 'jepx_spot_system')
         self.imbalance_index = es_indices.get('imbalance', 'imbalance')
-        self.hjks_index = es_indices.get('hjks', 'hjks')
-        self.interconnection_index = es_indices.get('interconnection', 'interconnection')
+        self.hjks_index = es_indices.get('hjks', 'hjks_outage')
+        self.interconnection_index = es_indices.get('interconnection', 'occto_inter')
         self.intraday_index = es_indices.get('intraday', 'jepx_intraday')
         self.earthquake_index = es_indices.get('earthquake', 'jma_earthquake_actual')
         self.occto_area_index = es_indices.get('occto_area', 'occto_area')
@@ -93,7 +134,7 @@ class ESService:
         # Some ES fields use 'touhoku' but our API uses 'tohoku'
         self.jepx_area_map: Dict[str, str] = {
             'hokkaido': 'hokkaido',
-            'touhoku': 'tohoku',  # Note: ES uses 'touhoku', API uses 'tohoku'
+            'tohoku': 'tohoku',
             'tokyo': 'tokyo',
             'chubu': 'chubu',
             'hokuriku': 'hokuriku',
@@ -113,13 +154,16 @@ class ESService:
         Code 1 = 00:00-00:30, Code 2 = 00:30-01:00, etc.
 
         Args:
-            dt_str: Datetime string in "YYYY-MM-DD HH:MM:SS" format.
+            dt_str: Datetime string in "YYYY-MM-DD HH:MM:SS" or ISO "YYYY-MM-DDTHH:MM:SS".
 
         Returns:
             Integer time code from 1 to 48.
         """
-        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
-        # Formula: hour*2 + (1 if minutes >= 30 else 0) + 1
+        if isinstance(dt_str, datetime):
+            dt = dt_str
+        else:
+            s = str(dt_str).replace('T', ' ')[:19]
+            dt = datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
         return (dt.hour * 2) + (1 if dt.minute >= 30 else 0) + 1
 
     def _get_trade_date(self, dt_str: str) -> str:
@@ -127,12 +171,15 @@ class ESService:
         Extract date portion from datetime string.
 
         Args:
-            dt_str: Datetime string containing date and time.
+            dt_str: Datetime string containing date and time (space or T separator).
 
         Returns:
             Date string in "YYYY-MM-DD" format.
         """
-        return dt_str.split(' ')[0]
+        s = str(dt_str)
+        if 'T' in s:
+            return s.split('T')[0][:10]
+        return s.split(' ')[0][:10]
 
     def get_predictions(
         self,
@@ -176,15 +223,12 @@ class ESService:
 
         s = Search(using=self.client, index=self.prediction_index)
 
-        # Filter by target delivery datetime range
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        # Filter by target delivery datetime range (ES strict_date_optional_time expects ISO 8601 with T)
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
 
         if area_name:
-            # Map English area name to Japanese for ES query
-            # ES stores area as Japanese text (e.g., "東京")
-            area_jp = AREA_EN_JP_MAP.get(area_name)
-            if area_jp:
-                s = s.query(Q('match', area=area_jp))
+            # New index uses English area names directly
+            s = s.filter('term', area=area_name)
 
         if model_name:
             s = s.query(Q('match', source=model_name))
@@ -201,8 +245,8 @@ class ESService:
         results = []
         for hit in response:
             try:
-                area_jp = hit.area
-                area_en = self.jp_en_area_map.get(area_jp)
+                # Use area directly as it is now English in ES
+                area_en = hit.area
                 if not area_en:
                     continue
 
@@ -231,9 +275,9 @@ class ESService:
                     "calculating_date": hit.calculate_time,
                     "area_name": area_en,
                     "area_name_ch": AREA_EN_CH_MAP.get(area_en, ""),
-                    "area_name_jp": area_jp,
+                    "area_name_jp": AREA_EN_JP_MAP.get(area_en, ""),
                     "price_5": price_5,
-                    "price_50": hit.forecast_price,
+                    "price_50": float(hit.forecast_price) if isinstance(hit.forecast_price, str) else hit.forecast_price,
                     "price_95": price_95,
                     "additional_data": additional
                 })
@@ -286,18 +330,16 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.prediction_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
 
         if area_name:
-            area_jp = AREA_EN_JP_MAP.get(area_name)
-            if area_jp:
-                s = s.query(Q('match', area=area_jp))
+            s = s.filter('term', area=area_name)
 
         if model_name:
             s = s.query(Q('match', source=model_name))
 
-        # Aggregate unique calculate_time values, sorted descending
-        s.aggs.bucket('dates', 'terms', field='calculate_time', size=1000, order={'_key': 'desc'})
+        # Aggregate unique calculate_time values (use .keyword when field is text)
+        s.aggs.bucket('dates', 'terms', field='calculate_time.keyword', size=1000, order={'_key': 'desc'})
         s = s.extra(size=0)  # We only need aggregation results
 
         response = s.execute()
@@ -347,8 +389,8 @@ class ESService:
         """
         Fetch JEPX spot market trade data.
 
-        Retrieves trading data including prices and quantities from
-        the JEPX spot market for Day-Ahead trading.
+        Retrieves trading data including prices from the JEPX spot market
+        for Day-Ahead trading using the new jepx_spot_area_price index.
 
         Args:
             start_date: Start date in YYYYMMDD format.
@@ -357,81 +399,84 @@ class ESService:
                 all areas.
 
         Returns:
-            List of trade dicts with price, quantity, and area information.
+            List of trade dicts with price and area information.
         """
+        # Convert YYYYMMDD to YYYY-MM-DD for event_time query
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+        range_gte = s_date + ' 00:00:00'
+        range_lte = e_date + ' 23:59:59'
 
         s = Search(using=self.client, index=self.jepx_index)
-        s = s.filter('range', trade_date={'gte': s_date, 'lte': e_date})
+        # Use event_time.keyword for range when field is text (lexicographic range)
+        s = s.filter('range', **{'event_time.keyword': {'gte': range_gte, 'lte': range_lte}})
+        
+        if area_name:
+            s = s.filter('term', area=area_name)
+            
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('trade_date', 'time_code')
+        s = s.sort('event_time.keyword')
 
         response = s.execute()
 
         results = []
-        target_areas = [area_name] if area_name else self.jepx_area_map.values()
-
+        
         for hit in response:
             try:
-                for en_area in target_areas:
-                    # Find the JEPX field key for this area
-                    # Example: en_area='tohoku' maps to jepx_key='touhoku'
-                    jepx_key = None
-                    for k, v in self.jepx_area_map.items():
-                        if v == en_area:
-                            jepx_key = k
-                            break
+                area_en = hit.area
+                event_time_str = hit.event_time
+                time_code = self._get_time_code(event_time_str)
+                trade_date = self._get_trade_date(event_time_str)
 
-                    if not jepx_key:
-                        continue
-
-                    # Access area-specific price field (e.g., eria_price_tokyo)
-                    price_field = f"eria_price_{jepx_key}"
-                    if not hasattr(hit, price_field):
-                        continue
-
-                    price = getattr(hit, price_field)
-
-                    results.append({
-                        "id": f"{hit.trade_date}-{hit.time_code}-{en_area}",
-                        "trade_date": hit.trade_date,
-                        "time_code": hit.time_code,
-                        "sell_quantity": hit.sell_quantity,
-                        "buy_quantity": hit.buy_quantity,
-                        "contract_quantity": hit.contract_quantity,
-                        "system_price": hit.system_price,
-                        "name": en_area,
-                        "name_ch": AREA_EN_CH_MAP.get(en_area, ""),
-                        "name_jp": AREA_EN_JP_MAP.get(en_area, ""),
-                        "price": price,
-                        # Note: Field has typo "aboidable" in source data
-                        "avoidable_cost": getattr(hit, f"aboidable_cost_{jepx_key}", 0)
-                    })
+                results.append({
+                    "id": f"{trade_date}-{time_code}-{area_en}",
+                    "trade_date": trade_date,
+                    "time_code": time_code,
+                    "name": area_en,
+                    "name_ch": AREA_EN_CH_MAP.get(area_en, ""),
+                    "name_jp": AREA_EN_JP_MAP.get(area_en, ""),
+                    "price": hit.area_price,
+                    # Optional fields that might not exist in new index, provide defaults or None
+                    "sell_quantity": getattr(hit, 'sell_quantity', 0),
+                    "buy_quantity": getattr(hit, 'buy_quantity', 0),
+                    "contract_quantity": getattr(hit, 'contract_quantity', 0),
+                    "system_price": getattr(hit, 'system_price', 0),
+                    "avoidable_cost": getattr(hit, 'avoidable_cost', 0)
+                })
             except Exception as e:
                 logger.error(f"Error parsing jepx hit: {e}")
                 continue
 
         return results
 
-    def get_imbalance_data(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+    def get_imbalance_data(
+        self,
+        start_date: str,
+        end_date: str,
+        area_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Fetch imbalance data for all areas.
+        Fetch imbalance data.
 
         Args:
             start_date: Start date in YYYYMMDD format.
             end_date: End date in YYYYMMDD format.
+            area_name: Optional English area name filter.
 
         Returns:
-            List of imbalance records with values per area.
+            List of imbalance records.
         """
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.imbalance_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+
+        if area_name:
+             s = s.filter('term', area=area_name)
+
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -457,15 +502,14 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.hjks_index)
-        s = s.filter('range', start_datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'start_datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
-            area_jp = AREA_EN_JP_MAP.get(area_name)
-            if area_jp:
-                s = s.query(Q('match', area=area_jp))
+            s = s.filter('term', area=area_name)
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('start_datetime')
+        # Sort by .keyword: index may map start_datetime as text; sorting requires keyword or date type
+        s = s.sort('start_datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -474,7 +518,8 @@ class ESService:
         self,
         start_date: str,
         end_date: str,
-        line_name: Optional[str] = None
+        line_name: Optional[str] = None,
+        interval_minutes: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Fetch interconnection line flow data.
@@ -483,6 +528,7 @@ class ESService:
             start_date: Start date in YYYYMMDD format.
             end_date: End date in YYYYMMDD format.
             line_name: Optional interconnection line name filter.
+            interval_minutes: If set (e.g. 30), downsample to one record per interval per line (avoids overload with 5-min data).
 
         Returns:
             List of flow records.
@@ -491,16 +537,19 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.interconnection_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if line_name:
             s = s.query(Q('match', interconnection_name=line_name))
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        rows = [hit.to_dict() for hit in response]
+        if interval_minutes and interval_minutes > 0:
+            rows = _downsample_by_interval(rows, interval_minutes, datetime_key='datetime', line_key='interconnection_name')
+        return rows
 
     def get_intraday_data(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
@@ -517,9 +566,9 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.intraday_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -567,26 +616,30 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_area_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
-            area_jp = AREA_EN_JP_MAP.get(area_name)
-            if area_jp:
-                s = s.query(Q('match', area=area_jp))
+            s = s.filter('term', area=area_name)
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
 
-    def get_occto_interconnection(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+    def get_occto_interconnection(
+        self,
+        start_date: str,
+        end_date: str,
+        interval_minutes: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Fetch OCCTO interconnection data.
 
         Args:
             start_date: Start date in YYYYMMDD format.
             end_date: End date in YYYYMMDD format.
+            interval_minutes: If set (e.g. 30), downsample to one record per interval per line (avoids overload with 5-min data).
 
         Returns:
             List of OCCTO interconnection records.
@@ -595,12 +648,15 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_inter_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        rows = [hit.to_dict() for hit in response]
+        if interval_minutes and interval_minutes > 0:
+            rows = _downsample_by_interval(rows, interval_minutes, datetime_key='datetime', line_key='interconnection_name')
+        return rows
 
     def get_occto_events(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """
@@ -617,9 +673,9 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_event_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -645,16 +701,21 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.tdgc_index)
-        s = s.filter('range', datetime={'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'})
+        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
-            area_jp = AREA_EN_JP_MAP.get(area_name)
-            if area_jp:
-                # Note: TDGC uses 'Area' field (capital A) unlike other indices
-                s = s.query(Q('match', Area=area_jp))
+            # Note: TDGC uses 'Area' field (capital A) or 'area' depending on index mapping.
+            # Task description says "if new index ... use area + English".
+            # Assuming 'area' field for new consistent English index, but keeping 'Area' if that's the field name.
+            # If the value is English, we match directly.
+            # If the index structure changed to lowercase 'area' and English values, we should use that.
+            # Based on instruction: "if new index is lowercase area ... use area + English".
+            # I will assume we should try to match the English name.
+            # If the field is still 'Area' but values are English:
+            s = s.query(Q('match', Area=area_name))
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime')
+        s = s.sort('datetime.keyword')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]

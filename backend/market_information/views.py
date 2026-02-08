@@ -226,27 +226,29 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('area_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Area name (optional)"),
         ],
         responses={200: ImbalanceSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def imbalance(self, request) -> Response:
         """
-        Retrieve imbalance data for all areas.
+        Retrieve imbalance data.
 
         Imbalance data shows the difference between planned and actual
-        power generation/consumption across all grid areas.
+        power generation/consumption.
 
         Args:
-            request: DRF request with start_date and end_date query params.
+            request: DRF request with start_date, end_date, and optional area_name query params.
 
         Returns:
-            Response with imbalance values per area and timestamp.
+            Response with imbalance values.
         """
         try:
             start_date, end_date = self._validate_dates(request)
+            area_name = request.query_params.get('area_name')
             es = ESService()
-            data = es.get_imbalance_data(start_date, end_date)
+            data = es.get_imbalance_data(start_date, end_date, area_name)
             return Response({"result": "Success", "count": len(data), "data": data})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -298,6 +300,7 @@ class MarketInformationViewSet(viewsets.ViewSet):
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('line_name', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Interconnection name"),
+            openapi.Parameter('interval_minutes', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=False, description="Downsample to one point per N minutes (e.g. 30 for half-hour). Omit for raw 5-min data."),
         ],
         responses={200: InterconnectionFlowSerializer(many=True)}
     )
@@ -314,6 +317,7 @@ class MarketInformationViewSet(viewsets.ViewSet):
                 - start_date (str): Start date in YYYYMMDD format.
                 - end_date (str): End date in YYYYMMDD format.
                 - line_name (str, optional): Filter by specific interconnection line.
+                - interval_minutes (int, optional): Downsample to one record per N minutes (e.g. 30). Omit for raw data.
 
         Returns:
             Response with flow data including capacity and margins.
@@ -321,8 +325,14 @@ class MarketInformationViewSet(viewsets.ViewSet):
         try:
             start_date, end_date = self._validate_dates(request)
             line_name = request.query_params.get('line_name')
+            interval_minutes = request.query_params.get('interval_minutes')
+            if interval_minutes is not None:
+                try:
+                    interval_minutes = int(interval_minutes)
+                except (ValueError, TypeError):
+                    interval_minutes = None
             es = ESService()
-            data = es.get_interconnection_flows(start_date, end_date, line_name)
+            data = es.get_interconnection_flows(start_date, end_date, line_name, interval_minutes)
             return Response({"result": "Success", "count": len(data), "data": data})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -440,6 +450,7 @@ class MarketInformationViewSet(viewsets.ViewSet):
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
             openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('interval_minutes', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=False, description="Downsample to one point per N minutes (e.g. 30). Omit for raw 5-min data."),
         ],
         responses={200: OcctoInterconnectionSerializer(many=True)}
     )
@@ -452,15 +463,21 @@ class MarketInformationViewSet(viewsets.ViewSet):
         operating capacity and wide-area adjustment capacity.
 
         Args:
-            request: DRF request with start_date and end_date query params.
+            request: DRF request with start_date, end_date, and optional interval_minutes.
 
         Returns:
             Response with interconnection capacity and flow data.
         """
         try:
             start_date, end_date = self._validate_dates(request)
+            interval_minutes = request.query_params.get('interval_minutes')
+            if interval_minutes is not None:
+                try:
+                    interval_minutes = int(interval_minutes)
+                except (ValueError, TypeError):
+                    interval_minutes = None
             es = ESService()
-            data = es.get_occto_interconnection(start_date, end_date)
+            data = es.get_occto_interconnection(start_date, end_date, interval_minutes)
             return Response({"result": "Success", "count": len(data), "data": data})
         except ValueError as e:
             # Bug fix: Changed from HTTP_500 to HTTP_400 for client validation errors

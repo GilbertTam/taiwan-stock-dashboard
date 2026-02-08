@@ -26,20 +26,17 @@ class ImbalanceSerializer(serializers.Serializer):
     Serializer for grid imbalance data.
 
     Represents the difference between planned and actual power
-    generation/consumption for each grid area at a given time.
+    generation/consumption for a specific grid area at a given time.
     """
     datetime = serializers.DateTimeField()
-    hokkaido = serializers.FloatField()
-    tohoku = serializers.FloatField()
-    tokyo = serializers.FloatField()
-    chubu = serializers.FloatField()
-    hokuriku = serializers.FloatField()
-    kansai = serializers.FloatField()
-    chugoku = serializers.FloatField()
-    shikoku = serializers.FloatField()
-    kyushu = serializers.FloatField()
-    url = serializers.URLField(required=False)
+    area = serializers.CharField()
+    imbalance_quantity = serializers.FloatField(required=False, allow_null=True)
+    imbalance_surplus_rate = serializers.FloatField(required=False, allow_null=True)
+    imbalance_deficit_rate = serializers.FloatField(required=False, allow_null=True)
     dir = serializers.CharField(required=False)
+    source = serializers.CharField(required=False)
+    dataset = serializers.CharField(required=False)
+    url = serializers.URLField(required=False)
     md5_id = serializers.CharField(required=False)
 
 
@@ -116,10 +113,10 @@ class SpotTradeSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     trade_date = serializers.DateField()
     time_code = serializers.IntegerField()
-    sell_quantity = serializers.IntegerField()
-    buy_quantity = serializers.IntegerField()
-    contract_quantity = serializers.IntegerField()
-    system_price = serializers.FloatField()
+    sell_quantity = serializers.IntegerField(required=False)
+    buy_quantity = serializers.IntegerField(required=False)
+    contract_quantity = serializers.IntegerField(required=False)
+    system_price = serializers.FloatField(required=False)
     name = serializers.CharField(help_text="Area Name (EN)")
     name_ch = serializers.CharField(help_text="Area Name (Chinese)")
     name_jp = serializers.CharField(help_text="Area Name (Japanese)")
