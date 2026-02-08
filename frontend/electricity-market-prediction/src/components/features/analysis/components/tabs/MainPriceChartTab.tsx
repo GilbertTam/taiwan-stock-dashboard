@@ -24,7 +24,6 @@ import MaeAnalysis from '../mae-analysis/MaeAnalysis';
 import OutagesPanel from '@/components/features/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/features/market/interconnection/InterconnectionPanel';
 import WeatherChartSection from '@/components/features/market/weather/WeatherChartSection';
-import { ResizableLayout } from '@/shared/components/layout/ResizableLayout';
 
 interface MainPriceChartTabProps {
   areaName: string;
@@ -43,7 +42,6 @@ interface MainPriceChartTabProps {
 type SubTabIndex = 0 | 1 | 2 | 3 | 4;
 
 const BOTTOM_BAR_HEIGHT = 40;
-const STORAGE_KEY = 'main-price-chart-bottom-panel';
 
 export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   areaName,
@@ -270,79 +268,52 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   const bottomPanelSection = (
     <Box
       sx={{
-        height: '100%',
-        minHeight: 0,
+        flexShrink: 0,
+        height: collapsed ? BOTTOM_BAR_HEIGHT : '28%',
+        minHeight: BOTTOM_BAR_HEIGHT,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         borderTop: `1px solid ${borderColor}`,
         backgroundColor: cardBg,
+        transition: 'height 0.35s ease-out',
       }}
     >
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          borderBottom: `1px solid ${borderColor}`,
+          borderBottom: collapsed ? 'none' : `1px solid ${borderColor}`,
           flexShrink: 0,
+          height: BOTTOM_BAR_HEIGHT,
+          minHeight: BOTTOM_BAR_HEIGHT,
         }}
       >
         {tabBar}
         <IconButton
           size="small"
-          onClick={() => setCollapsed(true)}
+          onClick={() => {
+            if (collapsed) {
+              setSubTab(0);
+              setCollapsed(false);
+            } else {
+              setCollapsed(true);
+            }
+          }}
           sx={{ mr: 0.5, color: 'text.secondary' }}
-          title="收合"
-          aria-label="收合"
+          title={collapsed ? '展開' : '收合'}
+          aria-label={collapsed ? '展開' : '收合'}
         >
-          <UnfoldLessIcon sx={{ fontSize: 20 }} />
+          {collapsed ? (
+            <UnfoldMoreIcon sx={{ fontSize: 20 }} aria-hidden />
+          ) : (
+            <UnfoldLessIcon sx={{ fontSize: 20 }} />
+          )}
         </IconButton>
       </Box>
       {tabContent}
     </Box>
   );
-
-  if (collapsed) {
-    return (
-      <Box
-        sx={{
-          height: '100%',
-          minHeight: 0,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <PriceChartContainer areaName={areaName} />
-        </Box>
-        <Box
-          sx={{
-            flexShrink: 0,
-            height: BOTTOM_BAR_HEIGHT,
-            borderTop: `1px solid ${borderColor}`,
-            backgroundColor: cardBg,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          {tabBar}
-          <IconButton
-            size="small"
-            onClick={() => {
-              setSubTab(0);
-              setCollapsed(false);
-            }}
-            sx={{ mr: 0.5, color: 'text.secondary' }}
-            title="展開"
-            aria-label="展開"
-          >
-            <UnfoldMoreIcon sx={{ fontSize: 20 }} aria-hidden />
-          </IconButton>
-        </Box>
-      </Box>
-    );
-  }
 
   return (
     <Box
@@ -354,15 +325,8 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         flexDirection: 'column',
       }}
     >
-      <ResizableLayout
-        direction="vertical"
-        defaultSizes={[72, 28]}
-        minSizes={[35, 12]}
-        storageKey={STORAGE_KEY}
-      >
-        {chartSection}
-        {bottomPanelSection}
-      </ResizableLayout>
+      {chartSection}
+      {bottomPanelSection}
     </Box>
   );
 };
