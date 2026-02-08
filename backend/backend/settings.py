@@ -521,13 +521,15 @@ ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
 ELASTICSEARCH_USERNAME = os.environ.get("ELASTICSEARCH_USERNAME", "")
 ELASTICSEARCH_PASSWORD = os.environ.get("ELASTICSEARCH_PASSWORD", "")
 
-# Elasticsearch Index Names
+# Elasticsearch Index Names (defaults match data-mapping.md)
+# jepx = 現貨區域價格, jepx_system = 現貨系統資訊 (system_price, volumes)
 ELASTICSEARCH_INDICES = {
     'prediction': os.environ.get("ES_INDEX_PREDICTION", "prediction"),
-    'jepx': os.environ.get("ES_INDEX_JEPX", "jepx_spot_nightly"),
+    'jepx': os.environ.get("ES_INDEX_JEPX", "jepx_spot_area_price"),
+    'jepx_system': os.environ.get("ES_INDEX_JEPX_SYSTEM", "jepx_spot_system"),
     'imbalance': os.environ.get("ES_INDEX_IMBALANCE", "imbalance"),
-    'hjks': os.environ.get("ES_INDEX_HJKS", "hjks"),
-    'interconnection': os.environ.get("ES_INDEX_INTERCONNECTION", "interconnection"),
+    'hjks': os.environ.get("ES_INDEX_HJKS", "hjks_outage"),
+    'interconnection': os.environ.get("ES_INDEX_INTERCONNECTION", "occto_inter"),
     'intraday': os.environ.get("ES_INDEX_INTRADAY", "jepx_intraday"),
     'earthquake': os.environ.get("ES_INDEX_EARTHQUAKE", "jma_earthquake_actual"),
     'occto_area': os.environ.get("ES_INDEX_OCCTO_AREA", "occto_area"),
