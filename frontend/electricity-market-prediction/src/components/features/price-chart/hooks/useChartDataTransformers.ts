@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { UTCTimestamp } from 'lightweight-charts';
 import {
     convertToLineSeriesData,
     convertToCandlestickData,
@@ -9,7 +10,7 @@ import { INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
 
 export interface InterconnectionSeriesItem {
     fieldKey: string;
-    data: { time: string; value: number }[];
+    data: { time: UTCTimestamp; value: number }[];
     label: string;
     color: string;
 }

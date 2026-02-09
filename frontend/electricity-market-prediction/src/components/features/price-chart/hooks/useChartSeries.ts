@@ -192,7 +192,7 @@ export const useChartSeries = ({
         }
 
         // Interconnection (Area)
-        interconnectionSeries.forEach(({ fieldKey, data, color }) => {
+        interconnectionSeries.forEach(({ fieldKey, data, color }: { fieldKey: string; data: any[]; color: string }) => {
             if (data.length > 0) {
                 updateOrAdd(`interconnection_${fieldKey}`, LineSeries, data, {
                     color,
@@ -203,7 +203,7 @@ export const useChartSeries = ({
             }
         });
 
-        batterySeries.forEach(({ fieldKey, data, color }) => {
+        batterySeries.forEach(({ fieldKey, data, color }: { fieldKey: string; data: any[]; color: string }) => {
             if (data.length > 0) {
                 updateOrAdd(`battery_${fieldKey}`, LineSeries, data, {
                     color,
