@@ -2,7 +2,10 @@
 supervisor
 
 # Control the dependencies
+setuptools
 numpy==1.26.4
+
+requests
 
 # Django
 Django==5.1.4
@@ -20,7 +23,7 @@ django-redis==5.4.0
 django-import-export==4.1.1
 
 # Swagger documentation
-drf-yasg==1.21.4
+drf-yasg==1.21.14
 
 # Database
 elasticsearch>=8.8.0
