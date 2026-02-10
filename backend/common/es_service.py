@@ -409,14 +409,14 @@ class ESService:
         range_lte = e_date + ' 23:59:59'
 
         s = Search(using=self.client, index=self.jepx_index)
-        # Use event_time.keyword for range when field is text (lexicographic range)
-        s = s.filter('range', **{'event_time.keyword': {'gte': range_gte, 'lte': range_lte}})
+        # event_time is date or text; use event_time for range/sort (no .keyword - mapping may be date type)
+        s = s.filter('range', **{'event_time': {'gte': range_gte, 'lte': range_lte}})
         
         if area_name:
             s = s.filter('term', area=area_name)
             
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('event_time.keyword')
+        s = s.sort('event_time')
 
         response = s.execute()
 
@@ -471,13 +471,13 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.imbalance_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
              s = s.filter('term', area=area_name)
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -509,7 +509,6 @@ class ESService:
             s = s.filter('term', area=area_name)
 
         s = s.extra(size=MAX_ES_RESULTS)
-        # Sort by .keyword: index may map start_datetime as text; sorting requires keyword or date type
         s = s.sort('start_datetime.keyword')
 
         response = s.execute()
@@ -538,13 +537,13 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.interconnection_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if line_name:
             s = s.query(Q('match', interconnection_name=line_name))
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         rows = [hit.to_dict() for hit in response]
@@ -567,9 +566,9 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.intraday_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -617,13 +616,13 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_area_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
             s = s.filter('term', area=area_name)
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -649,9 +648,9 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_inter_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         rows = [hit.to_dict() for hit in response]
@@ -706,9 +705,9 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.occto_event_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
@@ -734,7 +733,7 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.tdgc_index)
-        s = s.filter('range', **{'datetime.keyword': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
+        s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
 
         if area_name:
             # Note: TDGC uses 'Area' field (capital A) or 'area' depending on index mapping.
@@ -748,7 +747,7 @@ class ESService:
             s = s.query(Q('match', Area=area_name))
 
         s = s.extra(size=MAX_ES_RESULTS)
-        s = s.sort('datetime.keyword')
+        s = s.sort('datetime')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]
