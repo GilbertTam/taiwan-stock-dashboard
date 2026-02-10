@@ -14,22 +14,33 @@
 export function getApiBaseUrl(): string {
   // 優先使用完整 URL 環境變量（如果設定的話）
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.endsWith('/') 
+    return process.env.NEXT_PUBLIC_API_URL.endsWith('/')
       ? process.env.NEXT_PUBLIC_API_URL.slice(0, -1)
       : process.env.NEXT_PUBLIC_API_URL;
   }
 
-  // 如果設定了端口環境變量（分離測試場景）
+  // 瀏覽器環境（依據當前網址判斷）
+  if (typeof window !== 'undefined') {
+    const { origin, hostname } = window.location;
+
+    // 若前端是跑在本機（localhost），且有設定 PORT，則走 localhost:PORT（方便分離開發）
+    if (
+      (hostname === 'localhost' || hostname === '127.0.0.1') &&
+      process.env.NEXT_PUBLIC_API_PORT
+    ) {
+      return `http://localhost:${process.env.NEXT_PUBLIC_API_PORT}/api`;
+    }
+
+    // 其他情況（例如正式網域）一律使用當前網域 + /api
+    return `${origin}/api`;
+  }
+
+  // SSR 環境中：
+  // - 若有設定 PORT，多半是本機開發，使用 localhost:PORT
+  // - 否則使用相對路徑，由前端在瀏覽器解析為當前網域
   if (process.env.NEXT_PUBLIC_API_PORT) {
     return `http://localhost:${process.env.NEXT_PUBLIC_API_PORT}/api`;
   }
 
-  // 在瀏覽器環境中，使用當前域名（全 docker 部署場景）
-  if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    return `${origin}/api`;
-  }
-
-  // SSR 環境中，使用相對路徑（會在客戶端自動解析為當前域名）
   return '/api';
 }
