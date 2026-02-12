@@ -33,6 +33,7 @@ export type {
     OcctoEvent,
     BatteryData,
     TdgcData,
+    BidPlanData,
 } from './gridOperations';
 
 // External data types

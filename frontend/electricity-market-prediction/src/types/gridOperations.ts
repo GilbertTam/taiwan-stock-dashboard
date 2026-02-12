@@ -296,3 +296,33 @@ export interface TdgcData {
     /** Commodity category identifier */
     CommodityCategory: string;
 }
+
+/**
+ * Bid plan data: buy/sell prices and volumes for spot/intraday bids.
+ */
+export interface BidPlanData {
+    /** Event time (ISO format) */
+    event_time: string;
+    /** Commodity category (e.g. 'spot', 'intraday') */
+    commodity_category: string;
+    /** Site ID */
+    site_id?: string;
+    /** Bid buy price (yen/kWh) */
+    bid_buy_price?: number | null;
+    /** Bid buy volume (kWh) */
+    bid_buy_volume?: number | null;
+    /** Bid sell price (yen/kWh) */
+    bid_sell_price?: number | null;
+    /** Bid sell volume (kWh) */
+    bid_sell_volume?: number | null;
+    /** MD5 ID */
+    md5_id?: string;
+    /** Original filename */
+    original_filename?: string;
+    /** Email subject */
+    email_subject?: string;
+    /** Received time */
+    received_time?: string;
+    /** Crawl time */
+    crawl_time?: string;
+}

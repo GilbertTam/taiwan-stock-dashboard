@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode, useEffect } from 'react';
 import { ChartDataPoint } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
 import { useChartData } from '../hooks/useChartData';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 
@@ -73,6 +73,14 @@ interface PriceChartState {
     setSelectedInterconnectionFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     selectedBatteryFields: Set<string>;
     setSelectedBatteryFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedBidPlanFields: Set<string>;
+    setSelectedBidPlanFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    availableBidPlanCategories: string[];
+    selectedBidPlanCategories: Set<string>;
+    setSelectedBidPlanCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedSiteIds: Set<string>;
+    setSelectedSiteIds: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    availableSiteIds: string[];
     selectedWeatherFields: Set<string>;
     selectedWeatherFieldsActual: Set<string>;
     setSelectedWeatherFieldsActual: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -89,6 +97,7 @@ interface PriceChartState {
     hasInterconnectionData: boolean;
     hasOcctoAreaData: boolean;
     hasBatteryData: boolean;
+    hasBidPlansData: boolean;
     hasWeatherData: boolean;
     areaName: string;
     selectedModels: any[];
@@ -96,6 +105,10 @@ interface PriceChartState {
     darkMode: boolean;
     timezone: string;
     setTimezone: (val: string) => void;
+
+    // View Options
+    showRightAxisLabels: boolean;
+    setShowRightAxisLabels: (val: boolean) => void;
 }
 
 const PriceChartContext = createContext<PriceChartState | undefined>(undefined);
@@ -117,6 +130,7 @@ interface PriceChartProviderProps {
     interconnectionData?: InterconnectionFlow[];
     occtoAreaData?: OcctoAreaData[];
     batteryData?: BatteryData[];
+    bidPlansData?: BidPlanData[];
     weatherActual?: any[];
     weatherForecast?: any[];
     darkMode: boolean;
@@ -134,6 +148,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     interconnectionData = [],
     occtoAreaData = [],
     batteryData = [],
+    bidPlansData = [],
     weatherActual = [], // Destructure weatherActual
     weatherForecast = [], // Destructure weatherForecast
     darkMode,
@@ -167,6 +182,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedOcctoFields, setSelectedOcctoFields] = useState<Set<string>>(new Set(['area_demand']));
     const [selectedInterconnectionFields, setSelectedInterconnectionFields] = useState<Set<string>>(new Set(['flow_diff']));
     const [selectedBatteryFields, setSelectedBatteryFields] = useState<Set<string>>(new Set(['spot_value']));
+    const [selectedBidPlanFields, setSelectedBidPlanFields] = useState<Set<string>>(new Set(['buy_price'])); // 存储去掉 'bid_' 前缀的字段名
     const [selectedWeatherFieldsActual, setSelectedWeatherFieldsActual] = useState<Set<string>>(new Set(['temperature']));
     const [selectedWeatherFieldsForecast, setSelectedWeatherFieldsForecast] = useState<Set<string>>(new Set(['temperature']));
     const selectedWeatherFields = useMemo(() => {
@@ -177,10 +193,39 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     }, [selectedWeatherFieldsActual, selectedWeatherFieldsForecast]);
     const [occtoChartType, setOcctoChartType] = useState<'stacked' | 'area'>('stacked');
     const [showZScore, setShowZScore] = useState(true);
+    const [showRightAxisLabels, setShowRightAxisLabels] = useState(true);
+
+    // Dynamic bid plan category discovery
+    const availableBidPlanCategories = useMemo(() => {
+        if (!bidPlansData || bidPlansData.length === 0) return [];
+        return Array.from(new Set(bidPlansData.map(d => d.commodity_category).filter(Boolean))).sort();
+    }, [bidPlansData]);
+    // 预设选择现货市场
+    const [selectedBidPlanCategories, setSelectedBidPlanCategories] = useState<Set<string>>(new Set(['spot']));
+
+    // Site ID management
+    const availableSiteIds = useMemo(() => {
+        if (!bidPlansData || bidPlansData.length === 0) return [];
+        return Array.from(new Set(bidPlansData.map(d => d.site_id).filter(Boolean))).sort() as string[];
+    }, [bidPlansData]);
+    const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set());
+
+    // 当有新的 availableSiteIds 时，如果当前没有选中任何 site，自动选中第一个
+    useEffect(() => {
+        if (availableSiteIds.length > 0 && selectedSiteIds.size === 0) {
+            setSelectedSiteIds(new Set([availableSiteIds[0]]));
+        }
+    }, [availableSiteIds, selectedSiteIds]);
 
 
     // Hover state for info panel
     const [hoveredData, setHoveredData] = useState<ProcessedDataPoint | null>(null);
+
+    // Filter bid plans by selected site IDs
+    const filteredBidPlansData = useMemo(() => {
+        if (selectedSiteIds.size === 0) return bidPlansData;
+        return bidPlansData.filter(item => item.site_id && selectedSiteIds.has(item.site_id));
+    }, [bidPlansData, selectedSiteIds]);
 
     // Use existing hook for now (will refactor later)
     const {
@@ -197,6 +242,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         interconnectionData,
         occtoAreaData,
         batteryData,
+        bidPlansData: filteredBidPlansData,
+        selectedBidPlanCategories,
         weatherActual,
         weatherForecast,
         areaName,
@@ -239,6 +286,11 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedOcctoFields, setSelectedOcctoFields,
         selectedInterconnectionFields, setSelectedInterconnectionFields,
         selectedBatteryFields, setSelectedBatteryFields,
+        selectedBidPlanFields, setSelectedBidPlanFields,
+        availableBidPlanCategories,
+        selectedBidPlanCategories, setSelectedBidPlanCategories,
+        selectedSiteIds, setSelectedSiteIds,
+        availableSiteIds,
         selectedWeatherFields,
         selectedWeatherFieldsActual,
         setSelectedWeatherFieldsActual,
@@ -251,19 +303,22 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hasInterconnectionData: interconnectionData && interconnectionData.length > 0,
         hasOcctoAreaData: occtoAreaData && occtoAreaData.length > 0,
         hasBatteryData: batteryData && batteryData.length > 0,
+        hasBidPlansData: bidPlansData && bidPlansData.length > 0,
         hasWeatherData: weatherActual && weatherActual.length > 0,
         areaName,
         selectedModels,
         colors,
         darkMode,
         timezone,
-        setTimezone
+        setTimezone,
+        showRightAxisLabels, setShowRightAxisLabels
     }), [
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
         hoveredData,
-        showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore,
-        chartType, occtoChartType, selectedOcctoField, selectedOcctoFields,         selectedInterconnectionFields, selectedBatteryFields, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
-        imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, weatherActual,
+        showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore, showRightAxisLabels,
+        chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields, availableBidPlanCategories, selectedBidPlanCategories, selectedSiteIds, setSelectedSiteIds, availableSiteIds, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
+        bidPlansData, // 添加 bidPlansData 到依赖
+        imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, filteredBidPlansData, weatherActual,
         areaName, selectedModels, colors, darkMode
     ]);
 

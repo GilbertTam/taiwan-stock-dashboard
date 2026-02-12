@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { usePriceChart } from '../../context/PriceChartContext';
-import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../../constants';
+import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from '../../constants';
 
 export const ChartLegend: React.FC = () => {
     const {
@@ -15,6 +15,8 @@ export const ChartLegend: React.FC = () => {
         showIntradayAverage,
         selectedInterconnectionFields,
         selectedBatteryFields,
+        selectedBidPlanFields,
+        selectedBidPlanCategories,
         showOcctoArea,
         selectedOcctoFields,
         showWeather,
@@ -86,7 +88,7 @@ export const ChartLegend: React.FC = () => {
             </Box>
 
             {/* --- Intraday Section --- */}
-            {(showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0) && (
+            {(showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0 || selectedBidPlanFields.size > 0) && (
                 <>
                     <GroupSeparator label="市場" />
                     {showIntraday && <LegendItem color={colors.intraday} label="即時" type="candlestick" />}
@@ -99,6 +101,19 @@ export const ChartLegend: React.FC = () => {
                     ))}
                     {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
                         <LegendItem key={f.key} color={f.color} label={f.label} />
+                    ))}
+                    {/* Bid Plan Fields - 根据选中的 category 显示 */}
+                    {selectedBidPlanCategories.has('spot') && BID_PLAN_SPOT_FIELDS.filter(f => {
+                        const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
+                        return selectedBidPlanFields.has(fieldKeyWithoutPrefix);
+                    }).map(f => (
+                        <LegendItem key={`bp-spot-${f.key}`} color={f.color} label={f.label} />
+                    ))}
+                    {selectedBidPlanCategories.has('intraday') && BID_PLAN_INTRADAY_FIELDS.filter(f => {
+                        const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
+                        return selectedBidPlanFields.has(fieldKeyWithoutPrefix);
+                    }).map(f => (
+                        <LegendItem key={`bp-intraday-${f.key}`} color={f.color} label={f.label} />
                     ))}
                 </>
             )}

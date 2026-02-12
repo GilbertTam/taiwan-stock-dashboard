@@ -127,6 +127,15 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemText primary="市場資訊" />
             </ListItemButton>
           </ListItem>
+
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => handleNavigate('/dashboard/site-revenue')}>
+              <ListItemIcon>
+                <TrendingUpIcon />
+              </ListItemIcon>
+              <ListItemText primary="案場收益" />
+            </ListItemButton>
+          </ListItem>
         </List>
 
         <Divider sx={{ my: 2, borderColor: 'var(--card-border)' }} />

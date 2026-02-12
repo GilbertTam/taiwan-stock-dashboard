@@ -58,3 +58,43 @@ export const weatherFields = [
     { value: 'clouds_all', label: 'Clouds', unit: '%', color: '#607d8b' },
 ];
 
+/** 投標計畫 (bid_plans) 基礎欄位定義 */
+export const BID_PLAN_BASE_FIELDS = [
+    { key: 'bid_buy_price', label: '買入價格', color: '#fbc02d' },
+    { key: 'bid_buy_volume', label: '買入電量', color: '#00897b' },
+    { key: 'bid_sell_price', label: '賣出價格', color: '#fb8c00' },
+    { key: 'bid_sell_volume', label: '賣出電量', color: '#8e24aa' },
+];
+
+/** 投標計畫 (bid_plans) 可選欄位 - 現貨市場 (spot) */
+export const BID_PLAN_SPOT_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
+    ...f,
+    pointKey: `bid_spot_${f.key.replace('bid_', '')}` as const,
+    label: `現貨-${f.label}`,
+    category: 'spot' as const,
+}));
+
+/** 投標計畫 (bid_plans) 可選欄位 - 日內市場 (intraday) */
+export const BID_PLAN_INTRADAY_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
+    ...f,
+    pointKey: `bid_intraday_${f.key.replace('bid_', '')}` as const,
+    label: `日內-${f.label}`,
+    category: 'intraday' as const,
+    // 使用稍微不同的颜色以区分
+    color: f.key === 'bid_buy_price' ? '#ffc107' : 
+           f.key === 'bid_buy_volume' ? '#009688' :
+           f.key === 'bid_sell_price' ? '#ff9800' : '#9c27b0',
+}));
+
+/** 投標計畫 (bid_plans) 可選欄位 - 向後兼容，默認使用 spot */
+export const BID_PLAN_FIELDS = BID_PLAN_SPOT_FIELDS;
+
+/** 投標計畫 (bid_plans) 副圖縮放參數 */
+// 量: 以最大絕對值為基礎，對稱放大整個刻度範圍，讓 0 在中間、最大柱子大約落在 75% 高度
+//    範圍約為 [-maxAbs * BID_PLAN_VOLUME_PADDING_FACTOR, maxAbs * BID_PLAN_VOLUME_PADDING_FACTOR]
+export const BID_PLAN_VOLUME_PADDING_FACTOR = 2.0;
+// 價格: 以實際最大絕對值為基礎，再放大一定倍率，讓線條不貼邊
+export const BID_PLAN_PRICE_RANGE_FACTOR = 4.0;
+// 價格 / 電量 的最小可視 range，避免所有值幾乎為 0 時圖像完全扁平
+export const BID_PLAN_MIN_VISUAL_RANGE = 10;
+

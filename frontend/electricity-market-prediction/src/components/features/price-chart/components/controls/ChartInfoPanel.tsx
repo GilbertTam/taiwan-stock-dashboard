@@ -9,6 +9,9 @@ import DownloadIcon from '@mui/icons-material/Download';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
+import LabelOffOutlinedIcon from '@mui/icons-material/LabelOffOutlined';
+
 // Data Icons
 import ThermostatIcon from '@mui/icons-material/Thermostat';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
@@ -25,7 +28,7 @@ import ModeFanOffIcon from '@mui/icons-material/ModeFanOff'; // Wind
 import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
 
 // --- Constants ---
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from '../../constants';
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -53,7 +56,7 @@ const OCCTO_COLOR_MAP: Record<string, string> = {
 // --- Helper Components ---
 
 // 1. 極簡數據膠囊 (Compact Data Chip)
-const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = false }: any) => {
+const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = false, decimals = 0 }: any) => {
     if (value == null) return null;
     return (
         <Tooltip title={`${label} ${isForecast ? '(Forecast)' : ''}`}>
@@ -79,7 +82,7 @@ const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = fal
                     whiteSpace: 'nowrap'
                 }}>
                     <span style={{ opacity: 0.6, marginRight: 3, fontWeight: 400 }}>{label}:</span>
-                    {typeof value === 'number' ? value.toFixed(0) : value}{unit}
+                    {typeof value === 'number' ? value.toFixed(decimals) : value}{unit}
                     {isForecast && <span style={{ opacity: 0.5, marginLeft: 1 }}>(F)</span>}
                 </Typography>
             </Box>
@@ -105,10 +108,19 @@ const DeltaBadge = ({ value, colors }: { value: number | null | undefined, color
 };
 
 // 3. 操作按鈕 (Compact)
-const ActionButtons = ({ onDownload, onFullscreen }: any) => {
+const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggleRightAxisLabels }: any) => {
     const [downloadAnchor, setDownloadAnchor] = useState<null | HTMLElement>(null);
     return (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip title={showRightAxisLabels ? "Hide Right Axis Labels" : "Show Right Axis Labels"}>
+                <IconButton size="small" onClick={onToggleRightAxisLabels} sx={{ p: 0.5 }}>
+                    {showRightAxisLabels ? (
+                        <LabelOutlinedIcon sx={{ fontSize: '1.1rem', color: 'text.primary' }} />
+                    ) : (
+                        <LabelOffOutlinedIcon sx={{ fontSize: '1.1rem', color: 'text.secondary' }} />
+                    )}
+                </IconButton>
+            </Tooltip>
             <Tooltip title="Export">
                 <IconButton size="small" onClick={(e) => setDownloadAnchor(e.currentTarget)} sx={{ p: 0.5 }}>
                     <DownloadIcon sx={{ fontSize: '1.1rem' }} />
@@ -142,10 +154,11 @@ const ActionButtons = ({ onDownload, onFullscreen }: any) => {
 // --- Main Component ---
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
-    showImbalance, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), showOcctoArea,
+    showImbalance, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
-    onDownload, onFullscreen, timezone
+    onDownload, onFullscreen, timezone,
+    showRightAxisLabels, onToggleRightAxisLabels
 }) => {
 
     const PANEL_HEIGHT = 100;
@@ -211,7 +224,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                         HOVER CHART FOR DETAILS
                     </Typography>
                     <Box sx={{ position: 'absolute', top: 8, right: 8, opacity: 0.5 }}>
-                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} />
+                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} showRightAxisLabels={showRightAxisLabels} onToggleRightAxisLabels={onToggleRightAxisLabels} />
                     </Box>
                 </Box>
             ) : (
@@ -226,7 +239,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 {formattedTime}
                             </Typography>
                         </Box>
-                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} />
+                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} showRightAxisLabels={showRightAxisLabels} onToggleRightAxisLabels={onToggleRightAxisLabels} />
                     </Box>
 
                     {/* --- Row 2: Prices --- */}
@@ -309,6 +322,27 @@ export const ChartInfoPanel: React.FC<any> = ({
                             if (val == null) return null;
                             return (
                                 <DataChip key={f.key} icon={ElectricBoltIcon} label={f.label} value={val} unit="" color={f.color} />
+                            );
+                        })}
+                        {/* Bid Plan Fields - 根据选中的 category 显示 */}
+                        {selectedBidPlanCategories.has('spot') && Array.from(selectedBidPlanFields as Set<string>).map((fieldKey) => {
+                            // fieldKey 是 'buy_price' 等（去掉 'bid_' 前缀）
+                            const f = BID_PLAN_SPOT_FIELDS.find(x => x.key.replace('bid_', '') === fieldKey);
+                            if (!f) return null;
+                            const val = (hoveredData as any)[f.pointKey];
+                            if (val == null) return null;
+                            return (
+                                <DataChip key={`bp-spot-${fieldKey}`} icon={TrendingUpIcon} label={f.label} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
+                            );
+                        })}
+                        {selectedBidPlanCategories.has('intraday') && Array.from(selectedBidPlanFields as Set<string>).map((fieldKey) => {
+                            // fieldKey 是 'buy_price' 等（去掉 'bid_' 前缀）
+                            const f = BID_PLAN_INTRADAY_FIELDS.find(x => x.key.replace('bid_', '') === fieldKey);
+                            if (!f) return null;
+                            const val = (hoveredData as any)[f.pointKey];
+                            if (val == null) return null;
+                            return (
+                                <DataChip key={`bp-intraday-${fieldKey}`} icon={TrendingUpIcon} label={f.label} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
                             );
                         })}
 

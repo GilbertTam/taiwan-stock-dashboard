@@ -3,10 +3,11 @@ import { UTCTimestamp } from 'lightweight-charts';
 import {
     convertToLineSeriesData,
     convertToCandlestickData,
+    convertToHistogramData,
 } from '@/utils/lightweightChartsHelpers';
 import { transformOcctoData } from '../utils/transformers';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from '../constants';
 
 export interface InterconnectionSeriesItem {
     fieldKey: string;
@@ -26,6 +27,8 @@ interface UseChartDataTransformersParams {
     showImbalanceDeficitRate: boolean;
     selectedInterconnectionFields: Set<string>;
     selectedBatteryFields: Set<string>;
+    selectedBidPlanFields: Set<string>;
+    selectedBidPlanCategories: Set<string>;
     showOcctoArea: boolean;
     selectedOcctoFields: Set<string>;
     showActualPrice: boolean;
@@ -42,6 +45,8 @@ export const useChartDataTransformers = ({
     showImbalanceDeficitRate,
     selectedInterconnectionFields,
     selectedBatteryFields,
+    selectedBidPlanFields,
+    selectedBidPlanCategories,
     showOcctoArea,
     selectedOcctoFields,
     showActualPrice,
@@ -60,7 +65,7 @@ export const useChartDataTransformers = ({
         [processedChartData, timezone]);
 
     const imbalanceData = useMemo(() =>
-        showImbalanceQuantity ? convertToLineSeriesData(processedChartData, p => p.imbalance ?? null, timezone) : [],
+        showImbalanceQuantity ? convertToHistogramData(processedChartData, p => p.imbalance ?? null, 0, timezone) : [],
         [processedChartData, showImbalanceQuantity, timezone]);
 
     const imbalanceSurplusData = useMemo(() =>
@@ -99,6 +104,65 @@ export const useChartDataTransformers = ({
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),
         [processedChartData, showOcctoArea, selectedOcctoFields, timezone]);
 
+    const bidPlanSeries = useMemo((): InterconnectionSeriesItem[] => {
+        const out: InterconnectionSeriesItem[] = [];
+
+        // 根据选中的 category 生成不同的 series
+        if (selectedBidPlanCategories.has('spot')) {
+            BID_PLAN_SPOT_FIELDS.forEach(f => {
+                // f.key 是 'bid_buy_price' 等，需要去掉 'bid_' 前缀来匹配 selectedBidPlanFields
+                const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
+                if (!selectedBidPlanFields.has(fieldKeyWithoutPrefix)) return;
+
+                const isVolume = f.key.includes('volume');
+                const isSell = f.key.includes('sell'); // Works for both sell_volume and sell_price
+                const data = isVolume
+                    ? convertToHistogramData(processedChartData, p => {
+                        const val = (p as any)[f.pointKey];
+                        if (val == null) return null;
+                        return isSell ? -Math.abs(val) : val;
+                    }, 0, timezone)
+                    : convertToLineSeriesData(processedChartData, p => {
+                        const val = (p as any)[f.pointKey];
+                        if (val == null) return null;
+                        return isSell ? -Math.abs(val) : val;
+                    }, timezone);
+
+                if (data.length > 0) {
+                    out.push({ fieldKey: `spot_${fieldKeyWithoutPrefix}`, data, label: f.label, color: f.color });
+                }
+            });
+        }
+
+        if (selectedBidPlanCategories.has('intraday')) {
+            BID_PLAN_INTRADAY_FIELDS.forEach(f => {
+                // f.key 是 'bid_buy_price' 等，需要去掉 'bid_' 前缀来匹配 selectedBidPlanFields
+                const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
+                if (!selectedBidPlanFields.has(fieldKeyWithoutPrefix)) return;
+
+                const isVolume = f.key.includes('volume');
+                const isSell = f.key.includes('sell');
+                const data = isVolume
+                    ? convertToHistogramData(processedChartData, p => {
+                        const val = (p as any)[f.pointKey];
+                        if (val == null) return null;
+                        return isSell ? -Math.abs(val) : val;
+                    }, 0, timezone)
+                    : convertToLineSeriesData(processedChartData, p => {
+                        const val = (p as any)[f.pointKey];
+                        if (val == null) return null;
+                        return isSell ? -Math.abs(val) : val;
+                    }, timezone);
+
+                if (data.length > 0) {
+                    out.push({ fieldKey: `intraday_${fieldKeyWithoutPrefix}`, data, label: f.label, color: f.color });
+                }
+            });
+        }
+
+        return out;
+    }, [processedChartData, selectedBidPlanFields, selectedBidPlanCategories, timezone]);
+
     return {
         candleData,
         intradayAvgData,
@@ -108,6 +172,7 @@ export const useChartDataTransformers = ({
         imbalanceDeficitData,
         interconnectionSeries,
         batterySeries,
+        bidPlanSeries,
         occtoData,
     };
 };

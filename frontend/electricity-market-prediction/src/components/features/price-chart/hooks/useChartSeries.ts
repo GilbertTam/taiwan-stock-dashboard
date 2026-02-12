@@ -19,7 +19,12 @@ import { StackedAreaSeries } from '../plugins/StackedAreaSeries';
 import { DayBackgroundPrimitive } from '@/shared/components/charts/plugins';
 import { hexToRgba } from '../utils';
 // import { weatherFields } from '../constants'; // Pass this as prop or import? Import is fine.
-import { weatherFields } from '../constants';
+import {
+    weatherFields,
+    BID_PLAN_VOLUME_PADDING_FACTOR,
+    BID_PLAN_PRICE_RANGE_FACTOR,
+    BID_PLAN_MIN_VISUAL_RANGE,
+} from '../constants';
 
 const WEATHER_FIELD_COLORS = weatherFields.reduce((acc, curr) => {
     acc[curr.value] = curr.color;
@@ -52,6 +57,9 @@ interface UseChartSeriesParams {
     selectedWeatherFieldsForecast: Set<string>;
     showActualPrice: boolean;
 
+    // Display Options
+    showRightAxisLabels: boolean;
+
     // Range params
     startDate: Date | null;
     endDate: Date | null;
@@ -78,6 +86,7 @@ export const useChartSeries = ({
     selectedWeatherFieldsActual,
     selectedWeatherFieldsForecast,
     showActualPrice,
+    showRightAxisLabels,
     startDate,
     endDate,
 }: UseChartSeriesParams) => {
@@ -149,6 +158,7 @@ export const useChartSeries = ({
             imbalanceDeficitData,
             interconnectionSeries,
             batterySeries,
+            bidPlanSeries,
             occtoData,
         } = transformedData;
 
@@ -197,7 +207,8 @@ export const useChartSeries = ({
                 updateOrAdd(`interconnection_${fieldKey}`, LineSeries, data, {
                     color,
                     lineWidth: 1,
-                    priceScaleId: 'interconnection'
+                    priceScaleId: 'interconnection',
+                    title: showRightAxisLabels ? fieldKey : '',
                 });
                 usedSubCharts.add('interconnection');
             }
@@ -208,9 +219,71 @@ export const useChartSeries = ({
                 updateOrAdd(`battery_${fieldKey}`, LineSeries, data, {
                     color,
                     lineWidth: 1,
-                    priceScaleId: 'battery'
+                    priceScaleId: 'battery',
+                    title: showRightAxisLabels ? fieldKey : '',
                 });
                 usedSubCharts.add('battery');
+            }
+        });
+
+        bidPlanSeries.forEach(({ fieldKey, data, label, color }: { fieldKey: string; data: any[]; label: string; color: string }) => {
+            if (data.length > 0) {
+                const scaleId = `bidPlan_${fieldKey.replace('_buy', '').replace('_sell', '')}`;
+                const isVolume = fieldKey.includes('volume');
+                const SeriesType = isVolume ? HistogramSeries : LineSeries;
+                const commonOptions = {
+                    color,
+                    priceScaleId: scaleId,
+                    // Title controls the Y-axis label text for this bid plan scale.
+                    // Use showRightAxisLabels to toggle visibility of these names.
+                    title: showRightAxisLabels ? label : '',
+                };
+
+                // Add specific options based on series type
+                const options = isVolume
+                    ? {
+                        ...commonOptions,
+                        autoscaleInfoProvider: (original: any) => {
+                            const res = original.priceRange;
+                            if (!res) return null;
+
+                            // 以最大絕對值為基礎，對稱擴展刻度，確保 0 在中間、正負柱狀圖都有 headroom
+                            const maxAbs = Math.max(Math.abs(res.minValue), Math.abs(res.maxValue), 0);
+                            const base = Math.max(maxAbs, BID_PLAN_MIN_VISUAL_RANGE);
+                            const targetMax = base * BID_PLAN_VOLUME_PADDING_FACTOR;
+
+                            return {
+                                priceRange: {
+                                    minValue: -targetMax,
+                                    maxValue: targetMax,
+                                },
+                            };
+                        },
+                    }
+                    : {
+                        ...commonOptions,
+                        lineWidth: 2,
+                        autoscaleInfoProvider: (original: any) => {
+                            const res = original.priceRange;
+                            if (!res) return null;
+
+                            // 以最大絕對值為基礎，至少保證一個最小可視範圍
+                            const maxAbs = Math.max(Math.abs(res.minValue), Math.abs(res.maxValue));
+                            const base = Math.max(maxAbs, BID_PLAN_MIN_VISUAL_RANGE);
+                            // 放大一定倍率，讓線條在副圖中間帶內活動而不貼邊
+                            const targetMax = base * BID_PLAN_PRICE_RANGE_FACTOR;
+
+                            return {
+                                priceRange: {
+                                    minValue: -targetMax,
+                                    maxValue: targetMax,
+                                },
+                            };
+                        },
+                    };
+
+                updateOrAdd(`bidPlan_${fieldKey}`, SeriesType, data, options);
+                usedSubCharts.add(scaleId);
             }
         });
 
@@ -226,11 +299,14 @@ export const useChartSeries = ({
                     const data = convertToLineSeriesData(processedChartData, p => (p as any)[dataObjKey]?.[field] ?? null, timezone);
 
                     if (data.length > 0) {
+                        const weatherConfig = weatherFields.find(w => w.value === field);
+                        const label = weatherConfig?.label ?? field;
                         updateOrAdd(`${prefix}_${field}`, seriesType, data, {
                             color: WEATHER_FIELD_COLORS[field] || '#888',
                             priceScaleId: 'weather',
                             lineWidth: 2,
                             lineStyle: prefix.includes('forecast') && !isBar ? LineStyle.Dashed : LineStyle.Solid,
+                            title: showRightAxisLabels ? label : '',
                         });
                         usedSubCharts.add('weather');
                     }
@@ -244,7 +320,11 @@ export const useChartSeries = ({
 
         // Imbalance Quantity (Separate Axis)
         if (imbalanceData.length > 0) {
-            updateOrAdd('imbalance', LineSeries, imbalanceData, { color: colors.imbalance, priceScaleId: 'imbalance', lineWidth: 1 });
+            updateOrAdd('imbalance', HistogramSeries, imbalanceData, {
+                color: colors.imbalance,
+                priceScaleId: 'imbalance',
+                title: showRightAxisLabels ? 'Imbalance Qty' : '',
+            });
             usedSubCharts.add('imbalance');
         }
 
@@ -254,7 +334,9 @@ export const useChartSeries = ({
                 color: '#4caf50', // Green
                 priceScaleId: 'right',
                 lineWidth: 2,
-                title: 'Surplus Rate'
+                // Use title on the right price scale to show the line name;
+                // toggle it via showRightAxisLabels.
+                title: showRightAxisLabels ? 'Surplus Rate' : '',
             });
         }
         if (imbalanceDeficitData && imbalanceDeficitData.length > 0) {
@@ -262,7 +344,7 @@ export const useChartSeries = ({
                 color: '#e65100', // Deep orange（與現貨紅 #ef5350 區隔）
                 priceScaleId: 'right',
                 lineWidth: 2,
-                title: 'Deficit Rate'
+                title: showRightAxisLabels ? 'Deficit Rate' : '',
             });
         }
 
@@ -275,11 +357,16 @@ export const useChartSeries = ({
                 wickUpColor: `rgba(239, 83, 80, ${alpha})`,
                 wickDownColor: `rgba(38, 166, 154, ${alpha})`,
                 priceScaleId: 'right',
+                title: showRightAxisLabels ? 'Intraday' : '',
             });
         }
         if (intradayAvgData.length > 0) {
             updateOrAdd('intraday_avg', LineSeries, intradayAvgData, {
-                color: '#ffa726', lineWidth: 2, lineStyle: LineStyle.Dashed, priceScaleId: 'right'
+                color: '#ffa726',
+                lineWidth: 2,
+                lineStyle: LineStyle.Dashed,
+                priceScaleId: 'right',
+                title: showRightAxisLabels ? 'Intraday Avg' : '',
             });
         }
 
@@ -299,7 +386,8 @@ export const useChartSeries = ({
                     color: color,
                     lineWidth: isHighlighted ? 3 : 1,
                     priceScaleId: 'right',
-                    visible: true
+                    visible: true,
+                    title: showRightAxisLabels ? model.name : '',
                 });
             }
         });
@@ -309,7 +397,8 @@ export const useChartSeries = ({
             const s = updateOrAdd('actual', LineSeries, actualData, {
                 color: colors.actual,
                 lineWidth: 2,
-                priceScaleId: 'right'
+                priceScaleId: 'right',
+                title: showRightAxisLabels ? 'Actual' : '',
             });
 
             if (dayBackgroundRef.current && s && !seriesWithBackgroundRef.current.has(s)) {
@@ -338,7 +427,11 @@ export const useChartSeries = ({
 
         // --- Layout Configuration (SubCharts) ---
         try {
-            const activeSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather'].filter(k => usedSubCharts.has(k));
+            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather'];
+            const dynamicBidPlanCharts = Array.from(usedSubCharts).filter(k => k.startsWith('bidPlan_'));
+            // 为 bid plan 系列创建统一的副轴，spot 和 intraday 可以共享
+            const bidPlanSubChartId = dynamicBidPlanCharts.length > 0 ? 'bidPlan' : null;
+            const activeSubCharts = [...knownSubCharts, ...(bidPlanSubChartId ? [bidPlanSubChartId] : [])].filter(k => usedSubCharts.has(k) || k === bidPlanSubChartId);
             const subHeight = 0.15;
             const gap = 0.02;
             let currentTop = 1.0;
@@ -348,17 +441,30 @@ export const useChartSeries = ({
                 const top = Math.max(0, currentTop - subHeight);
                 currentTop = top - gap;
 
-                chart.priceScale(key).applyOptions({
-                    visible: true, autoScale: true,
-                    scaleMargins: { top: 1 - bottom, bottom: 1 - top },
-                    borderVisible: true, borderColor: colors.grid,
-                });
+                if (key === 'bidPlan') {
+                    // 为所有 bid plan 系列设置统一的副轴
+                    dynamicBidPlanCharts.forEach(bidPlanKey => {
+                        chart.priceScale(bidPlanKey).applyOptions({
+                            visible: true, autoScale: true,
+                            scaleMargins: { top: 1 - bottom, bottom: 1 - top },
+                            borderVisible: true, borderColor: colors.grid,
+                        });
+                    });
+                } else {
+                    chart.priceScale(key).applyOptions({
+                        visible: true, autoScale: true,
+                        scaleMargins: { top: 1 - bottom, bottom: 1 - top },
+                        borderVisible: true, borderColor: colors.grid,
+                    });
+                }
             });
 
             const mainBottom = Math.max(0.1, activeSubCharts.length > 0 ? (activeSubCharts.length * (subHeight + gap)) : 0.08);
             chart.priceScale('right').applyOptions({
                 scaleMargins: { top: 0.05, bottom: mainBottom },
-                visible: true, borderVisible: true, borderColor: colors.grid,
+                visible: true,
+                borderVisible: true,
+                borderColor: colors.grid,
             });
 
             // --- Set Visible Range (only on initial load for this chart instance) ---
@@ -381,6 +487,6 @@ export const useChartSeries = ({
         selectedModels, highlightedModelId, modelColorMap,
         showImbalance, showOcctoArea, occtoChartType,
         showWeather, showWeatherActual, showWeatherForecast, selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
-        startDate, endDate, showActualPrice
+        startDate, endDate, showActualPrice, showRightAxisLabels
     ]);
 };

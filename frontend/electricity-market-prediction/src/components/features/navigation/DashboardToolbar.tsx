@@ -42,6 +42,7 @@ interface SimpleToolbarProps {
 const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.ElementType }[] = [
   { key: 'home', label: '總覽', path: '/dashboard', Icon: DashboardIcon },
   { key: 'price', label: '預測分析', path: '/dashboard/forecast', Icon: TrendingUpIcon },
+  { key: 'site-revenue', label: '案場收益', path: '/dashboard/site-revenue', Icon: TrendingUpIcon },
 ];
 
 export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
@@ -87,9 +88,11 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
           gap: 1,
         }}
       >
-        {/* Nav: 總覽, 預測分析 */}
+        {/* Nav: 總覽, 預測分析, 案場收益 */}
         {NAV_ITEMS.map(({ key, label, path, Icon }) => {
-          const isActive = pathname === path || (key === 'price' && pathname.startsWith('/dashboard/forecast'));
+          const isActive = pathname === path || 
+            (key === 'price' && pathname.startsWith('/dashboard/forecast')) ||
+            (key === 'site-revenue' && pathname.startsWith('/dashboard/site-revenue'));
           return (
             <Button
               key={key}

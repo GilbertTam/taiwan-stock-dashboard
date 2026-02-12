@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData, BidPlanData } from '@/types';
 
 interface UseChartDataProps {
     chartData: ChartDataPoint[];
@@ -9,6 +9,8 @@ interface UseChartDataProps {
     interconnectionData: InterconnectionFlow[];
     occtoAreaData: OcctoAreaData[];
     batteryData?: BatteryData[];
+    bidPlansData?: BidPlanData[];
+    selectedBidPlanCategories?: Set<string>;
     weatherActual?: WeatherData[];
     weatherForecast?: WeatherData[];
     areaName: string;
@@ -34,6 +36,8 @@ export const useChartData = ({
     interconnectionData,
     occtoAreaData,
     batteryData = [],
+    bidPlansData = [],
+    selectedBidPlanCategories = new Set<string>(),
     weatherActual,
     weatherForecast,
     areaName,
@@ -301,6 +305,50 @@ export const useChartData = ({
             });
         }
 
+        // E2. Bid Plans Data (aggregate by event_time and commodity_category, filtered by selected categories)
+        const filteredBidPlans = selectedBidPlanCategories.size > 0
+            ? bidPlansData.filter(item => selectedBidPlanCategories.has(item.commodity_category))
+            : bidPlansData;
+        
+        if (filteredBidPlans && filteredBidPlans.length > 0) {
+            // 按 commodity_category 分组处理
+            const byCategory: Record<string, BidPlanData[]> = {};
+            filteredBidPlans.forEach(item => {
+                const cat = item.commodity_category || 'spot';
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(item);
+            });
+
+            // 为每个 category 分别处理数据
+            Object.keys(byCategory).forEach(category => {
+                const categoryData = byCategory[category];
+                const byTs: Record<number, { buyPrice: number[]; buyVolume: number[]; sellPrice: number[]; sellVolume: number[] }> = {};
+                
+                categoryData.forEach(item => {
+                    const ts = parseToTimestamp(item.event_time);
+                    if (!ts) return;
+                    if (!byTs[ts]) byTs[ts] = { buyPrice: [], buyVolume: [], sellPrice: [], sellVolume: [] };
+                    if (typeof item.bid_buy_price === 'number') byTs[ts].buyPrice.push(item.bid_buy_price);
+                    if (typeof item.bid_buy_volume === 'number') byTs[ts].buyVolume.push(item.bid_buy_volume);
+                    if (typeof item.bid_sell_price === 'number') byTs[ts].sellPrice.push(item.bid_sell_price);
+                    if (typeof item.bid_sell_volume === 'number') byTs[ts].sellVolume.push(item.bid_sell_volume);
+                });
+
+                // 根据 category 设置不同的字段名
+                const prefix = category === 'spot' ? 'bid_spot' : category === 'intraday' ? 'bid_intraday' : `bid_${category}`;
+                
+                Object.keys(byTs).forEach(tsStr => {
+                    const ts = Number(tsStr);
+                    const point = ensurePoint(ts);
+                    const g = byTs[ts];
+                    (point as any)[`${prefix}_buy_price`] = g.buyPrice.length ? g.buyPrice.reduce((a, b) => a + b, 0) / g.buyPrice.length : null;
+                    (point as any)[`${prefix}_buy_volume`] = g.buyVolume.length ? g.buyVolume.reduce((a, b) => a + b, 0) : null;
+                    (point as any)[`${prefix}_sell_price`] = g.sellPrice.length ? g.sellPrice.reduce((a, b) => a + b, 0) / g.sellPrice.length : null;
+                    (point as any)[`${prefix}_sell_volume`] = g.sellVolume.length ? g.sellVolume.reduce((a, b) => a + b, 0) : null;
+                });
+            });
+        }
+
         // F. Occto Data
         if (occtoAreaData && Array.isArray(occtoAreaData)) {
             occtoAreaData.forEach(item => {
@@ -461,7 +509,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, bidPlansData, selectedBidPlanCategories, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {

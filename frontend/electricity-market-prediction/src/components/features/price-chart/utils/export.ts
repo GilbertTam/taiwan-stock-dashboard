@@ -33,6 +33,7 @@ interface GenerateChartImageParams {
     showImbalance: boolean;
     selectedInterconnectionFields: Set<string>;
     selectedBatteryFields: Set<string>;
+    selectedBidPlanFields: Set<string>;
     showOcctoArea: boolean;
     selectedOcctoFields: Set<string>;
     showWeather: boolean;

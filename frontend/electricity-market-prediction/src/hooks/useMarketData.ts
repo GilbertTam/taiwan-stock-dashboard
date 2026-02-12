@@ -37,9 +37,10 @@ import {
     fetchIntraday,
     fetchInterconnectionFlows,
     fetchOcctoArea,
-    fetchBatteryData
+    fetchBatteryData,
+    fetchBidPlans
 } from '@/services/api';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
@@ -78,6 +79,10 @@ export interface UseMarketDataReturn {
     interconnectionData: InterconnectionFlow[];
     occtoAreaData: OcctoAreaData[];
     batteryData: BatteryData[];
+    bidPlansData: BidPlanData[];
+    selectedSiteIds: Set<string>;
+    setSelectedSiteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+    availableSiteIds: string[];
 
     // Date range
     startDate: Date | null;
@@ -258,6 +263,25 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Battery data (eflow) */
     const [batteryData, setBatteryData] = useState<BatteryData[]>([]);
+
+    /** Bid plan data (spot) */
+    const [bidPlansData, setBidPlansData] = useState<BidPlanData[]>([]);
+
+    /** Selected site IDs for bid plans filtering */
+    const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set());
+
+    /** Available site IDs extracted from bid plans data */
+    const availableSiteIds = useMemo(() => {
+        if (!bidPlansData || bidPlansData.length === 0) return [];
+        return Array.from(new Set(bidPlansData.map(d => d.site_id).filter(Boolean))).sort() as string[];
+    }, [bidPlansData]);
+
+    // 当有新的 availableSiteIds 时，如果当前没有选中任何 site，自动选中第一个
+    useEffect(() => {
+        if (availableSiteIds.length > 0 && selectedSiteIds.size === 0) {
+            setSelectedSiteIds(new Set([availableSiteIds[0]]));
+        }
+    }, [availableSiteIds, selectedSiteIds]);
 
     // ==========================================================================
     // Loading and Error State
@@ -564,7 +588,7 @@ export const useMarketData = (): UseMarketDataReturn => {
 
         try {
             // Fetch all data sources in parallel. Each .catch() prevents one failure from blocking others.
-            const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult, batteryDataResult] = await Promise.all([
+            const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult, batteryDataResult, bidPlansDataResult] = await Promise.all([
                 fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }).catch(catchWithLabel('現貨')),
                 fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際)')),
                 fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報)')),
@@ -572,7 +596,12 @@ export const useMarketData = (): UseMarketDataReturn => {
                 fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('日前')),
                 fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')),
                 fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')),
-                fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池'))
+                fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池')),
+                fetchBidPlans({ 
+                    start_date: formattedStartDate, 
+                    end_date: formattedEndDate
+                    // commodity_category 和 site_id 筛选在前端进行，以支持多选和预设 spot
+                }).catch(catchWithLabel('投標計畫'))
             ]);
 
             // Race condition guard: ignore stale responses
@@ -586,6 +615,8 @@ export const useMarketData = (): UseMarketDataReturn => {
             setInterconnectionData(interconnectionDataResult);
             setOcctoAreaData(occtoAreaDataResult);
             setBatteryData(batteryDataResult);
+            // 注意：site_id 筛选在 PriceChartContext 中进行，这里先设置所有数据
+            setBidPlansData(bidPlansDataResult);
 
             if (failedLabels.length > 0) {
                 setDataFetchWarnings(failedLabels);
@@ -741,13 +772,13 @@ export const useMarketData = (): UseMarketDataReturn => {
     }, [selectedArea, startDate, endDate]);
 
     /**
-     * Re-fetch actual data when area or date range changes.
+     * Re-fetch actual data when area, date range, or selected site IDs change.
      */
     useEffect(() => {
         if (selectedArea && startDate && endDate) {
             fetchActualData();
         }
-    }, [selectedArea, startDate, endDate, fetchActualData]);
+    }, [selectedArea, startDate, endDate, selectedSiteIds, fetchActualData]);
 
     /**
      * Re-fetch predictions when area, models, or date range changes.
@@ -902,6 +933,10 @@ export const useMarketData = (): UseMarketDataReturn => {
         interconnectionData,
         occtoAreaData,
         batteryData,
+        bidPlansData,
+        selectedSiteIds,
+        setSelectedSiteIds,
+        availableSiteIds,
 
         // Loading/Error
         isLoading,

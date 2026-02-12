@@ -9,6 +9,7 @@ export const SOURCE_COLORS = {
     intraday: '#9c27b0',
     interconnection: '#00bcd4',
     battery: '#7e57c2',
+    bidPlans: '#e91e63',
     weather: '#2196f3', // 統一天氣主色
     weatherActual: '#ffc107',
     weatherForecast: '#ff9800',
@@ -38,7 +39,7 @@ export function SectionHeader({
                 px: 1.5,
                 py: 1,
                 borderBottom: '1px solid var(--card-border)',
-                backgroundColor: expanded ? 'color-mix(in srgb, var(--primary), transparent 95%)' : 'var(--card-bg)',
+                backgroundColor: 'var(--background)',
                 position: 'sticky',
                 top: 0,
                 zIndex: 10,
@@ -48,7 +49,7 @@ export function SectionHeader({
                 cursor: onClick ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 '&:hover': onClick ? {
-                    backgroundColor: 'color-mix(in srgb, var(--primary), transparent 92%)',
+                    backgroundColor: 'var(--background)',
                 } : {},
             }}
         >

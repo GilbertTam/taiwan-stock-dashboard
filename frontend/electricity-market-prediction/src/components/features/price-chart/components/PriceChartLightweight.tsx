@@ -24,9 +24,12 @@ export const PriceChartLightweight: React.FC = () => {
         showOcctoArea, occtoChartType, selectedOcctoFields,
         selectedInterconnectionFields,
         selectedBatteryFields,
+        selectedBidPlanFields,
+        selectedBidPlanCategories,
         showWeather, showWeatherActual, showWeatherForecast,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
         hoveredData, setHoveredData, areaName, timezone, setTimezone,
+        showRightAxisLabels, setShowRightAxisLabels,
     } = usePriceChart();
 
     const {
@@ -38,6 +41,7 @@ export const PriceChartLightweight: React.FC = () => {
     // Defer chart updates for interconnection/battery selection so checkbox stays responsive
     const deferredInterconnectionFields = useDeferredValue(selectedInterconnectionFields);
     const deferredBatteryFields = useDeferredValue(selectedBatteryFields);
+    const deferredBidPlanFields = useDeferredValue(selectedBidPlanFields);
 
     // 2. Data Transformation
     const transformedData = useChartDataTransformers({
@@ -51,6 +55,8 @@ export const PriceChartLightweight: React.FC = () => {
         showImbalanceDeficitRate,
         selectedInterconnectionFields: deferredInterconnectionFields,
         selectedBatteryFields: deferredBatteryFields,
+        selectedBidPlanFields: deferredBidPlanFields,
+        selectedBidPlanCategories,
         showOcctoArea,
         selectedOcctoFields,
         showActualPrice: !!showActualPrice,
@@ -62,6 +68,7 @@ export const PriceChartLightweight: React.FC = () => {
         colors,
         darkMode,
         timezone,
+        showRightAxisLabels,
     });
 
     // 4. Crosshair Handler
@@ -94,6 +101,7 @@ export const PriceChartLightweight: React.FC = () => {
         selectedWeatherFieldsActual,
         selectedWeatherFieldsForecast,
         showActualPrice: !!showActualPrice,
+        showRightAxisLabels,
         startDate,
         endDate,
     });
@@ -117,6 +125,7 @@ export const PriceChartLightweight: React.FC = () => {
                 showImbalance,
                 selectedInterconnectionFields,
                 selectedBatteryFields,
+                selectedBidPlanFields,
                 showOcctoArea,
                 selectedOcctoFields,
                 showWeather,
@@ -137,7 +146,7 @@ export const PriceChartLightweight: React.FC = () => {
     }, [
         processedChartData, colors, darkMode, selectedModels, modelColorMap,
         showActualPrice, showIntraday, showIntradayAverage, showImbalance,
-        showOcctoArea, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields,
+        showOcctoArea, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields,
         showWeather, showWeatherActual, showWeatherForecast,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast, transformedData.actualData
     ]);
@@ -161,6 +170,8 @@ export const PriceChartLightweight: React.FC = () => {
                 showIntraday={showIntraday}
                 selectedInterconnectionFields={selectedInterconnectionFields}
                 selectedBatteryFields={selectedBatteryFields}
+                selectedBidPlanFields={selectedBidPlanFields}
+                selectedBidPlanCategories={selectedBidPlanCategories}
                 showOcctoArea={showOcctoArea}
                 showWeather={showWeather}
                 showWeatherActual={showWeatherActual}
@@ -172,6 +183,8 @@ export const PriceChartLightweight: React.FC = () => {
                 onFullscreen={handleFullscreen}
                 timezone={timezone}
                 setTimezone={setTimezone}
+                showRightAxisLabels={showRightAxisLabels}
+                onToggleRightAxisLabels={() => setShowRightAxisLabels(!showRightAxisLabels)}
             />
             <div
                 ref={containerRef}

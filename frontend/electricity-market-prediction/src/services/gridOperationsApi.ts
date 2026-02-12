@@ -17,7 +17,8 @@ import {
     OcctoInterconnection,
     OcctoEvent,
     BatteryData,
-    TdgcData
+    TdgcData,
+    BidPlanData
 } from '@/types';
 
 // =============================================================================
@@ -50,6 +51,14 @@ export interface InterconnectionParams extends DateRangeParams {
 export interface BatteryDataParams extends DateRangeParams {
     /** Optional site ID (e.g. Helios) */
     site_id?: string;
+}
+
+/** Date range with optional bid plan filters */
+export interface BidPlanParams extends DateRangeParams {
+    /** Optional site ID */
+    site_id?: string;
+    /** Commodity category (default: spot) */
+    commodity_category?: string;
 }
 
 // =============================================================================
@@ -123,5 +132,12 @@ export const fetchOcctoEvents = async (params: DateRangeParams): Promise<OcctoEv
 export const fetchTdgc = async (params: AreaDateRangeParams): Promise<TdgcData[]> => {
     const api = createAuthenticatedApi();
     const response = await api.get<ApiResponse<TdgcData[]>>('/market-info/tdgc', { params });
+    return response.data.data;
+};
+
+/** Fetch bid plan data. */
+export const fetchBidPlans = async (params: BidPlanParams): Promise<BidPlanData[]> => {
+    const api = createAuthenticatedApi();
+    const response = await api.get<ApiResponse<BidPlanData[]>>('/market-info/bid-plans', { params });
     return response.data.data;
 };

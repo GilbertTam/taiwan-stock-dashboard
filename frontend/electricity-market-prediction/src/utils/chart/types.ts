@@ -97,6 +97,11 @@ export interface ChartDataPoint {
     // Legacy fields (optional but kept for compatibility during refactor)
     date?: string;
     time?: string;
+    // Bid Plan (spot)
+    bid_spot_buy_price?: number | null;
+    bid_spot_buy_volume?: number | null;
+    bid_spot_sell_price?: number | null;
+    bid_spot_sell_volume?: number | null;
 }
 
 // Type for processed chart data point (from PriceChartContext)
@@ -129,5 +134,10 @@ export interface ProcessedDataPoint {
     occto_values?: Record<string, number | null>;
     weather_data_actual?: Record<string, number | null>;
     weather_data_forecast?: Record<string, number | null>;
+    // Bid Plan (spot)
+    bid_spot_buy_price?: number | null;
+    bid_spot_buy_volume?: number | null;
+    bid_spot_sell_price?: number | null;
+    bid_spot_sell_volume?: number | null;
     [key: string]: any;
 }

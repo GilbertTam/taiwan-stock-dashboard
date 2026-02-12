@@ -26,11 +26,16 @@ export const useChartLifecycle = ({
     darkMode,
     timezone = 'UTC',
     chartOptions = {},
-}: UseChartLifecycleParams) => {
+    showRightAxisLabels = true,
+}: UseChartLifecycleParams & { showRightAxisLabels?: boolean }) => {
     const chartRef = useRef<IChartApi | null>(null);
     // Use ref for chartOptions to avoid infinite re-renders from object reference changes
     const chartOptionsRef = useRef(chartOptions);
     chartOptionsRef.current = chartOptions;
+
+    // NOTE: right price scale is kept always visible.
+    // The `showRightAxisLabels` flag is used by series/options to control
+    // label visibility (names) instead of hiding the entire axis.
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -111,7 +116,7 @@ export const useChartLifecycle = ({
             chartRef.current?.remove();
             chartRef.current = null;
         };
-    }, [colors, darkMode, timezone]); // Removed chartOptions - use ref instead
+    }, [colors, darkMode, timezone]); // chartOptions and showRightAxisLabels are purposefully excluded from reconstruction dependency to avoid flicker
 
     return chartRef;
 };
