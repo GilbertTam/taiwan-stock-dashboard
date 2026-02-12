@@ -258,6 +258,26 @@ class BatteryDataSerializer(serializers.Serializer):
     md5_id = serializers.CharField(required=False)
 
 
+class BidPlanSerializer(serializers.Serializer):
+    """
+    Serializer for bid plan data.
+
+    Contains bid prices and volumes for spot/intraday commodities.
+    """
+    event_time = serializers.DateTimeField(required=False)
+    commodity_category = serializers.CharField(required=False)
+    site_id = serializers.CharField(required=False)
+    bid_buy_price = serializers.FloatField(required=False, allow_null=True)
+    bid_buy_volume = serializers.FloatField(required=False, allow_null=True)
+    bid_sell_price = serializers.FloatField(required=False, allow_null=True)
+    bid_sell_volume = serializers.FloatField(required=False, allow_null=True)
+    md5_id = serializers.CharField(required=False)
+    original_filename = serializers.CharField(required=False)
+    email_subject = serializers.CharField(required=False)
+    received_time = serializers.DateTimeField(required=False)
+    crawl_time = serializers.DateTimeField(required=False)
+
+
 # =============================================================================
 # Grid Balancing Serializers
 # =============================================================================

@@ -539,6 +539,7 @@ ELASTICSEARCH_INDICES = {
     'weather_actual': os.environ.get("ES_INDEX_WEATHER_ACTUAL", "weather_actual"),
     'weather_forecast': os.environ.get("ES_INDEX_WEATHER_FORECAST", "weather_forecast"),
     'battery_data': os.environ.get("ES_INDEX_BATTERY_DATA", "battery_data"),
+    'bid_plans': os.environ.get("ES_INDEX_BID_PLANS", "bid_plans"),
 }
 # -------------- END - Elasticsearch Setting --------------
 

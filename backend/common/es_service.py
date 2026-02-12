@@ -130,6 +130,7 @@ class ESService:
         self.weather_actual_index = es_indices.get('weather_actual', 'weather_actual')
         self.weather_forecast_index = es_indices.get('weather_forecast', 'weather_forecast')
         self.battery_data_index = es_indices.get('battery_data', 'battery_data')
+        self.bid_plans_index = es_indices.get('bid_plans', 'bid_plans')
 
         # JEPX field name mapping: field suffix in ES -> normalized area code
         # Some ES fields use 'touhoku' but our API uses 'tohoku'
@@ -813,6 +814,43 @@ class ESService:
 
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('weather_datetime')
+
+        response = s.execute()
+        return [hit.to_dict() for hit in response]
+
+    def get_bid_plans(
+        self,
+        start_date: str,
+        end_date: str,
+        site_id: Optional[str] = None,
+        commodity_category: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch bid plan data.
+
+        Args:
+            start_date: Start date in YYYYMMDD format.
+            end_date: End date in YYYYMMDD format.
+            site_id: Optional site ID filter.
+            commodity_category: Commodity category filter (default: 'spot').
+
+        Returns:
+            List of bid plan records.
+        """
+        s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
+        e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+
+        s = Search(using=self.client, index=self.bid_plans_index)
+        s = s.filter('range', **{'event_time': {'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'}})
+
+        if commodity_category:
+            s = s.filter('term', commodity_category=commodity_category)
+
+        if site_id:
+            s = s.filter('term', site_id=site_id)
+
+        s = s.extra(size=MAX_ES_RESULTS)
+        s = s.sort('event_time')
 
         response = s.execute()
         return [hit.to_dict() for hit in response]

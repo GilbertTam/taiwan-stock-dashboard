@@ -45,6 +45,7 @@ from market_information.serializers import (
     OcctoInterconnectionSerializer,
     OcctoEventSerializer,
     BatteryDataSerializer,
+    BidPlanSerializer,
     TdgcSerializer,
     WeatherActualSerializer,
     WeatherForecastSerializer,
@@ -661,4 +662,34 @@ class MarketInformationViewSet(viewsets.ViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error fetching weather forecast: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @swagger_auto_schema(
+        operation_summary="Get Bid Plans",
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="YYYYMMDD"),
+            openapi.Parameter('site_id', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Site ID"),
+            openapi.Parameter('commodity_category', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Commodity category (default: spot)"),
+        ],
+        responses={200: BidPlanSerializer(many=True)}
+    )
+    @action(detail=False, methods=['get'], url_path='bid-plans')
+    def bid_plans(self, request) -> Response:
+        """
+        Retrieve bid plan data.
+
+        Bid prices and volumes for spot/intraday commodities.
+        """
+        try:
+            start_date, end_date = self._validate_dates(request)
+            site_id = request.query_params.get('site_id')
+            commodity_category = request.query_params.get('commodity_category', None)
+            es = ESService()
+            data = es.get_bid_plans(start_date, end_date, site_id, commodity_category)
+            return Response({"result": "Success", "count": len(data), "data": data})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error fetching bid plans: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
