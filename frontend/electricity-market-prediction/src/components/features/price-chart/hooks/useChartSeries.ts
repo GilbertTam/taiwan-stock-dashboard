@@ -99,17 +99,18 @@ export const useChartSeries = ({
     const prevChartRef = useRef<IChartApi | null>(null);
     // Track if initial visible range was set for current chart instance
     const hasSetInitialRangeRef = useRef(false);
+    const lastLayoutKeyRef = useRef<string | null>(null);
 
     // Effect to clean up series refs when chart instance changes
     useEffect(() => {
         const currentChart = chartRef.current;
         if (prevChartRef.current !== currentChart) {
-            // Chart instance changed - clear all series refs as they are now stale
             seriesRefs.current.clear();
             seriesWithBackgroundRef.current = new WeakSet();
             dayBackgroundRef.current = null;
             occtoChartTypeRef.current = undefined;
-            hasSetInitialRangeRef.current = false; // Reset range flag for new chart
+            hasSetInitialRangeRef.current = false;
+            lastLayoutKeyRef.current = null; // Force layout re-apply for new chart
             prevChartRef.current = currentChart;
         }
     });
@@ -226,60 +227,44 @@ export const useChartSeries = ({
             }
         });
 
+        // 投標電量使用左 Y 軸（買賣電共用），投標價格使用右側 overlay
+        const bidPlanVolumeMaxByScale = new Map<string, number>();
+        bidPlanSeries.forEach(({ fieldKey, data }: { fieldKey: string; data: any[] }) => {
+            if (!fieldKey.includes('volume') || data.length === 0) return;
+            const scaleId = 'left';
+            let currentMax = bidPlanVolumeMaxByScale.get(scaleId) ?? 0;
+            data.forEach((point: any) => {
+                const v = typeof point.value === 'number' ? Math.abs(point.value) : null;
+                if (v != null && !Number.isNaN(v) && v > currentMax) {
+                    currentMax = v;
+                }
+            });
+            if (currentMax > 0) {
+                bidPlanVolumeMaxByScale.set(scaleId, currentMax);
+            }
+        });
+
         bidPlanSeries.forEach(({ fieldKey, data, label, color }: { fieldKey: string; data: any[]; label: string; color: string }) => {
             if (data.length > 0) {
-                const scaleId = `bidPlan_${fieldKey.replace('_buy', '').replace('_sell', '')}`;
                 const isVolume = fieldKey.includes('volume');
+                const scaleId = isVolume ? 'left' : 'bidPlan_price';
                 const SeriesType = isVolume ? HistogramSeries : LineSeries;
                 const commonOptions = {
                     color,
                     priceScaleId: scaleId,
-                    // Title controls the Y-axis label text for this bid plan scale.
-                    // Use showRightAxisLabels to toggle visibility of these names.
-                    title: showRightAxisLabels ? label : '',
+                    title: showRightAxisLabels ? (isVolume ? '投標計畫 電量' : '投標計畫 價格') : '',
                 };
 
                 // Add specific options based on series type
                 const options = isVolume
                     ? {
                         ...commonOptions,
-                        autoscaleInfoProvider: (original: any) => {
-                            const res = original.priceRange;
-                            if (!res) return null;
-
-                            // 以最大絕對值為基礎，對稱擴展刻度，確保 0 在中間、正負柱狀圖都有 headroom
-                            const maxAbs = Math.max(Math.abs(res.minValue), Math.abs(res.maxValue), 0);
-                            const base = Math.max(maxAbs, BID_PLAN_MIN_VISUAL_RANGE);
-                            const targetMax = base * BID_PLAN_VOLUME_PADDING_FACTOR;
-
-                            return {
-                                priceRange: {
-                                    minValue: -targetMax,
-                                    maxValue: targetMax,
-                                },
-                            };
-                        },
+                        // Remove custom autoscale to let chart show full range
                     }
                     : {
                         ...commonOptions,
                         lineWidth: 2,
-                        autoscaleInfoProvider: (original: any) => {
-                            const res = original.priceRange;
-                            if (!res) return null;
-
-                            // 以最大絕對值為基礎，至少保證一個最小可視範圍
-                            const maxAbs = Math.max(Math.abs(res.minValue), Math.abs(res.maxValue));
-                            const base = Math.max(maxAbs, BID_PLAN_MIN_VISUAL_RANGE);
-                            // 放大一定倍率，讓線條在副圖中間帶內活動而不貼邊
-                            const targetMax = base * BID_PLAN_PRICE_RANGE_FACTOR;
-
-                            return {
-                                priceRange: {
-                                    minValue: -targetMax,
-                                    maxValue: targetMax,
-                                },
-                            };
-                        },
+                        // Remove custom autoscale to let chart show full range
                     };
 
                 updateOrAdd(`bidPlan_${fieldKey}`, SeriesType, data, options);
@@ -426,39 +411,12 @@ export const useChartSeries = ({
         });
 
         // --- Layout Configuration (SubCharts) ---
+        // 雙 Y 軸：投標電量用左軸 (left)、投標價格用右側 overlay (bidPlan_price)
         try {
-            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather'];
-            const dynamicBidPlanCharts = Array.from(usedSubCharts).filter(k => k.startsWith('bidPlan_'));
-            // 为 bid plan 系列创建统一的副轴，spot 和 intraday 可以共享
-            const bidPlanSubChartId = dynamicBidPlanCharts.length > 0 ? 'bidPlan' : null;
-            const activeSubCharts = [...knownSubCharts, ...(bidPlanSubChartId ? [bidPlanSubChartId] : [])].filter(k => usedSubCharts.has(k) || k === bidPlanSubChartId);
-            const subHeight = 0.15;
+            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather', 'bidPlan_price', 'left'];
+            const activeSubCharts = knownSubCharts.filter(k => usedSubCharts.has(k));
+            const subHeight = 0.12;
             const gap = 0.02;
-            let currentTop = 1.0;
-
-            activeSubCharts.reverse().forEach(key => {
-                const bottom = currentTop;
-                const top = Math.max(0, currentTop - subHeight);
-                currentTop = top - gap;
-
-                if (key === 'bidPlan') {
-                    // 为所有 bid plan 系列设置统一的副轴
-                    dynamicBidPlanCharts.forEach(bidPlanKey => {
-                        chart.priceScale(bidPlanKey).applyOptions({
-                            visible: true, autoScale: true,
-                            scaleMargins: { top: 1 - bottom, bottom: 1 - top },
-                            borderVisible: true, borderColor: colors.grid,
-                        });
-                    });
-                } else {
-                    chart.priceScale(key).applyOptions({
-                        visible: true, autoScale: true,
-                        scaleMargins: { top: 1 - bottom, bottom: 1 - top },
-                        borderVisible: true, borderColor: colors.grid,
-                    });
-                }
-            });
-
             const mainBottom = Math.max(0.1, activeSubCharts.length > 0 ? (activeSubCharts.length * (subHeight + gap)) : 0.08);
             chart.priceScale('right').applyOptions({
                 scaleMargins: { top: 0.05, bottom: mainBottom },
@@ -466,6 +424,26 @@ export const useChartSeries = ({
                 borderVisible: true,
                 borderColor: colors.grid,
             });
+
+            const layoutKey = activeSubCharts.slice().sort().join(',');
+            if (lastLayoutKeyRef.current !== layoutKey) {
+                lastLayoutKeyRef.current = layoutKey;
+                let currentTop = 1.0;
+                activeSubCharts.reverse().forEach(key => {
+                    const bottom = currentTop;
+                    const top = Math.max(0, currentTop - subHeight);
+                    currentTop = top - gap;
+                    const margins = { top: 1 - bottom, bottom: 1 - top };
+                    chart.priceScale(key).applyOptions({
+                        visible: true, autoScale: true,
+                        scaleMargins: margins,
+                        borderVisible: true, borderColor: colors.grid,
+                    });
+                });
+            }
+            if (!usedSubCharts.has('left')) {
+                chart.priceScale('left').applyOptions({ visible: false });
+            }
 
             // --- Set Visible Range (only on initial load for this chart instance) ---
             if (!hasSetInitialRangeRef.current && startDate && endDate && processedChartData.length > 0) {
