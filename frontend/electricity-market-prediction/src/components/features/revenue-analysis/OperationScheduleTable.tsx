@@ -172,7 +172,16 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                             return (
                                 <TableRow hover role="checkbox" tabIndex={-1} key={`${row.datetime}-${index}`}>
                                     <TableCell component="th" scope="row">
-                                        {format(new Date(row.datetime), 'MM/dd HH:mm')}
+                                        {(() => {
+                                            if (!row.datetime) return '-';
+                                            try {
+                                                const d = new Date(row.datetime);
+                                                if (isNaN(d.getTime())) return '-';
+                                                return format(d, 'MM/dd HH:mm');
+                                            } catch {
+                                                return '-';
+                                            }
+                                        })()}
                                     </TableCell>
                                     <TableCell align="center">
                                         {timeCode}
