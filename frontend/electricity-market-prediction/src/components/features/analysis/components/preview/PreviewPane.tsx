@@ -93,7 +93,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
     const series: any[] = [
       {
         name: '現貨實際價格',
-        type: 'line',
+        type: 'line' as const,
         data: previewData.map(d => [d.timestamp, d.price]),
         smooth: false,
         symbol: 'none',
@@ -117,7 +117,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
       if (modelData.length > 0) {
         series.push({
           name: model.name,
-          type: 'line',
+          type: 'line' as const,
           data: modelData,
           smooth: false,
           symbol: 'none',
@@ -158,7 +158,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
         containLabel: false
       },
       xAxis: {
-        type: 'time',
+        type: 'time' as const,
         boundaryGap: [0, 0],
         axisLine: {
           lineStyle: {
@@ -175,7 +175,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
         }
       },
       yAxis: {
-        type: 'value',
+        type: 'value' as const,
         axisLine: {
           lineStyle: {
             color: gridColor
@@ -191,12 +191,12 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
           show: true,
           lineStyle: {
             color: gridColor,
-            type: 'dashed'
+            type: 'dashed' as const
           }
         }
       },
       tooltip: {
-        trigger: 'axis',
+        trigger: 'axis' as const,
         backgroundColor: darkMode ? 'rgba(33, 33, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
         borderColor: darkMode ? '#444' : '#d9d9d9',
         textStyle: {
@@ -219,7 +219,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
       },
       dataZoom: [
         {
-          type: 'slider',
+          type: 'slider' as const,
           show: !minimized,
           xAxisIndex: 0,
           start: brushStart,
@@ -246,7 +246,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
           }
         },
         {
-          type: 'inside',
+          type: 'inside' as const,
           xAxisIndex: 0,
           start: brushStart,
           end: brushEnd

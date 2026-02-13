@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Alert, Snackbar } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { format } from 'date-fns';
@@ -13,15 +13,25 @@ import { DashboardToolbar } from '@/components/features/navigation/DashboardTool
 import { PriceChartProvider } from '@/components/features/price-chart/context/PriceChartContext';
 
 // Feature Components
-import { PricePredictionSidebar } from '@/components/features/analysis/components/PricePredictionSidebar';
-import { MainPriceChartTab } from '@/components/features/analysis/components/tabs/MainPriceChartTab';
+import { RevenueAnalysisSidebar } from '@/components/features/revenue-analysis/RevenueAnalysisSidebar';
+import { RevenueAnalysisContainer } from '@/components/features/revenue-analysis/RevenueAnalysisContainer';
 import { ResizableLayout } from '@/shared/components/layout/ResizableLayout';
 
 // Hooks
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { usePricePredictionData } from '@/components/features/analysis/hooks/usePricePredictionData';
 
-// 與首頁一致的載入轉圈
+// Types & Services
+import { BatteryConfig, DEFAULT_BATTERY_CONFIG, OptimizationResult, GanttChartData, GanttOperation, ViewOptions, DEFAULT_VIEW_OPTIONS } from '@/types/revenueAnalysis';
+import { calculateRevenue } from '@/services/marketApi';
+import { getJepxTimeCode } from '@/utils/jepxUtils';
+
+interface ModelResult {
+  optimization: OptimizationResult;
+  realizedRevenue: number;
+}
+
+// Loading Components
 const LoadingSpinner = () => (
   <>
     <Box
@@ -87,10 +97,9 @@ function SiteRevenueContent() {
     areas, models, calculatingDatesByModel, selectedArea, selectedModels,
     startDate, endDate, dateRangePreset, actualPrices, predictionsByModel,
     weatherActual, weatherForecast, imbalanceData, intradayData,
-    interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading,
+    interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading: isDataLoading,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
     handleDateRangePreset, setStartDate, setEndDate, refreshData,
-    selectedSiteIds, setSelectedSiteIds, availableSiteIds,
   } = useMarketDataContext();
 
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
@@ -99,8 +108,6 @@ function SiteRevenueContent() {
   });
 
   const areaFromUrl = searchParams.get('area') || '';
-  const panelFromUrl = searchParams.get('panel') || '';
-  const defaultPanelMarketInfo = panelFromUrl === 'market-info';
 
   // Sync Area URL param
   useEffect(() => {
@@ -111,24 +118,29 @@ function SiteRevenueContent() {
   }, [areaFromUrl, areas, handleAreaChange]);
 
   // Data Preparation
-  const { chartData, weatherChartData, marketInfoWeatherChartData } = usePricePredictionData({
+  const { chartData } = usePricePredictionData({
     actualPrices, predictionsByModel, weatherActual, weatherForecast
   });
 
-  // Handlers
-  const handleDownloadCsv = async () => {
-    try {
-      if (!startDate || !endDate || !selectedArea) return;
-      const start = format(startDate, 'yyyyMMdd');
-      const end = format(endDate, 'yyyyMMdd');
-      const modelNames = selectedModels.map((m) => m.name).filter(Boolean).join(',');
-      // Note: CSV download for bid plans would need a separate endpoint
-      // For now, using the same endpoint structure
-    } catch (e) {
-      console.error('Failed to download CSV', e);
-    }
-  };
+  // Local State for Simulation
+  const [config, setConfig] = useState<BatteryConfig>(DEFAULT_BATTERY_CONFIG);
+  const [actualResult, setActualResult] = useState<OptimizationResult | null>(null);
+  const [modelResults, setModelResults] = useState<Record<string, ModelResult>>({});
+  const [ganttData, setGanttData] = useState<GanttChartData | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [viewOptions, setViewOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
+  const [error, setError] = useState<string | null>(null);
 
+  // Clear results when core data changes
+  useEffect(() => {
+    setActualResult(null);
+    setModelResults({});
+    setGanttData(null);
+    setError(null);
+  }, [chartData.length, selectedModels.length]);
+
+  // Handlers
+  const handleDownloadCsv = async () => { /* reuse existing if needed or omit */ };
   const handleRefresh = () => { refreshData ? refreshData() : window.location.reload(); };
 
   const handleModelToggle = (modelId: string | number, modelName: string) => {
@@ -140,9 +152,139 @@ function SiteRevenueContent() {
     handleModelChange({ target: { value: newValues } } as any);
   };
 
+  // --- Simulation Logic ---
+  const handleCalculate = async () => {
+    setIsSimulating(true);
+    setError(null);
+    try {
+      // Relax filter: Allow points if they have actualPrice OR any model prediction
+      const validData = chartData.filter(d =>
+        d.actualPrice !== null || d.modelPredictions.length > 0
+      );
+
+      if (validData.length === 0) {
+        setError("此期間無可用資料（無實際價格或預測結果）。請嘗試其他日期或區域。");
+        return;
+      }
+
+      const runConfig = { ...config, T: validData.length };
+
+      let optResult: OptimizationResult | null = null;
+
+      // 1. Run Optimal (Actual) - Only if we have actual prices for all points (or enough to matter)
+      const hasAllActuals = validData.every(d => d.actualPrice !== null);
+
+      if (hasAllActuals) {
+        const actualInputData = validData.map(d => ({
+          Spot_Price: d.actualPrice as number,
+          Bal_Price: 0,
+          Mask_Ch: 1,
+          Mask_Dis: 1
+        }));
+        optResult = await calculateRevenue(runConfig, actualInputData);
+        if (optResult?.results) {
+          optResult.results = optResult.results.map((res: any, idx: number) => ({
+            ...res, time: validData[idx].time
+          }));
+        }
+        setActualResult(optResult);
+      } else {
+        setActualResult(null); // Clear previous result if any
+      }
+
+      // 2. Run Models
+      const newModelResults: Record<string, ModelResult> = {};
+      for (const model of selectedModels) {
+        const modelKey = `${model.id}|${model.name}`;
+        const modelInputData = validData.map(d => {
+          const pred = d.modelPredictions.find(p => `${p.modelId}|${p.modelName}` === modelKey);
+          const price = pred?.predictedPrice ?? d.actualPrice ?? 0;
+          return {
+            Spot_Price: price,
+            Bal_Price: 0, Mask_Ch: 1, Mask_Dis: 1
+          };
+        });
+        const modelOpt = await calculateRevenue(runConfig, modelInputData);
+        if (modelOpt?.results) {
+          modelOpt.results = modelOpt.results.map((res: any, idx: number) => ({
+            ...res, time: validData[idx].time
+          }));
+        }
+
+        // Calculate Realized (or Projected) Revenue
+        let revenue = 0;
+        modelOpt.results.forEach((step, idx) => {
+          if (idx < validData.length) {
+            const actualP = validData[idx].actualPrice;
+            const pred = validData[idx].modelPredictions.find(p => `${p.modelId}|${p.modelName}` === modelKey);
+            const calculationPrice = actualP !== null ? actualP : (pred?.predictedPrice ?? 0);
+
+            const rev = step.power_spot * calculationPrice * runConfig.dt;
+            const cost = step.power_ch * calculationPrice * runConfig.dt;
+            const deg_cost = ((step.power_spot * runConfig.dt) / runConfig.eff_dis + (step.power_bal * runConfig.dt) * runConfig.beta_bal) * runConfig.Cost_cycle;
+            revenue += (rev - cost - deg_cost);
+          }
+        });
+        newModelResults[modelKey] = { optimization: modelOpt, realizedRevenue: revenue };
+      }
+      setModelResults(newModelResults);
+
+      // 3. Prepare Gantt Data
+      const transformToGantt = (optimization: OptimizationResult): GanttOperation[] => {
+        return optimization.results.map((r: any, idx: number) => {
+          const time = validData[idx]?.time || new Date().toISOString();
+          const timeCode = getJepxTimeCode(time);
+          let action: GanttOperation['action'] = 'Idle';
+          if (r.action === 'Charge') action = 'Charge';
+          if (r.action === 'Spot') action = 'Spot';
+          if (r.action === 'Balance') action = 'Balance';
+
+          return {
+            timeStep: r.time_step,
+            timeCode: timeCode,
+            datetime: time,
+            action: action,
+            power: action === 'Charge' ? r.power_ch : (r.power_spot + r.power_bal),
+            soc: r.soc_pct,
+            price: r.price_spot,
+            revenue: r.revenue
+          };
+        });
+      };
+
+      const ganttOps: GanttChartData = {
+        optimal: optResult ? transformToGantt(optResult) : [],
+        models: {},
+        dateRange: {
+          start: validData[0]?.time || new Date().toISOString(),
+          end: validData[validData.length - 1]?.time || new Date().toISOString()
+        }
+      };
+
+      Object.entries(newModelResults).forEach(([key, val]) => {
+        ganttOps.models[key] = transformToGantt(val.optimization);
+      });
+
+      setGanttData(ganttOps);
+
+    } catch (e: any) {
+      console.error("Simulation failed", e);
+      setError(e.message || "Simulation failed");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-      {isLoading && <LoadingOverlay />}
+      {(isDataLoading || isSimulating) && <LoadingOverlay />}
+
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
+
       <PriceChartProvider
         chartData={chartData}
         areaName={selectedArea}
@@ -190,7 +332,7 @@ function SiteRevenueContent() {
                   backgroundColor: 'var(--card-bg)',
                 }}
               >
-                <PricePredictionSidebar
+                <RevenueAnalysisSidebar
                   areas={areas}
                   selectedArea={selectedArea}
                   onAreaChange={handleAreaChange}
@@ -199,20 +341,24 @@ function SiteRevenueContent() {
                   calculatingDatesByModel={calculatingDatesByModel}
                   onModelToggle={handleModelToggle}
                   onModelCalculatingDateChange={handleModelCalculatingDateChange}
+                  config={config}
+                  onConfigChange={setConfig}
+                  onRunSimulation={handleCalculate}
+                  isLoading={isSimulating}
+                  chartData={chartData}
+                  viewOptions={viewOptions}
+                  onViewOptionsChange={setViewOptions}
                 />
               </Box>
               <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <MainPriceChartTab
-                  areaName={selectedArea}
-                  chartData={chartData}
+                <RevenueAnalysisContainer
+                  actualResult={actualResult}
+                  modelResults={modelResults}
+                  ganttData={ganttData}
                   selectedModels={selectedModels}
-                  isLoading={isLoading}
-                  startDate={startDate}
-                  endDate={endDate}
-                  weatherActual={weatherActual}
-                  weatherForecast={weatherForecast}
-                  marketInfoWeatherChartData={marketInfoWeatherChartData}
-                  defaultPanelMarketInfo={defaultPanelMarketInfo}
+                  colors={colors}
+                  dt={config.dt}
+                  viewOptions={viewOptions}
                 />
               </Box>
             </ResizableLayout>

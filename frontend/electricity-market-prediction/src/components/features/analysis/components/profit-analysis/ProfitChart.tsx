@@ -116,7 +116,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
         // 每日收益 bar（左軸），並排：barGap + barCategoryGap
         series.push({
             name: 'Optimal (Daily)',
-            type: 'bar',
+            type: 'bar' as const,
             yAxisIndex: 0,
             barMaxWidth: 24,
             barGap: '30%',
@@ -128,7 +128,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             const modelKey = `${model.id}|${model.name}`;
             series.push({
                 name: `${model.name} (Daily)`,
-                type: 'bar',
+                type: 'bar' as const,
                 yAxisIndex: 0,
                 barMaxWidth: 24,
                 barGap: '30%',
@@ -141,7 +141,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
         // 累計收益 line（右軸）
         series.push({
             name: 'Optimal (Cumulative)',
-            type: 'line',
+            type: 'line' as const,
             yAxisIndex: 1,
             showSymbol: false,
             smooth: true,
@@ -152,7 +152,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             const modelKey = `${model.id}|${model.name}`;
             series.push({
                 name: `${model.name} (Cumulative)`,
-                type: 'line',
+                type: 'line' as const,
                 yAxisIndex: 1,
                 showSymbol: false,
                 smooth: true,
@@ -166,15 +166,15 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             grid: style.grid,
             legend: style.legend,
             tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'cross' },
+                trigger: 'axis' as const,
+                axisPointer: { type: 'cross' as const },
                 backgroundColor: 'transparent',
                 borderWidth: 0,
                 extraCssText: 'pointer-events:none;',
                 formatter: tooltipFormatter as any,
             },
             xAxis: {
-                type: 'category',
+                type: 'category' as const,
                 data: xLabels,
                 ...style.axis,
                 splitLine: { show: false },
@@ -191,17 +191,17 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             },
             yAxis: [
                 {
-                    type: 'value',
+                    type: 'value' as const,
                     name: '每日收益 (¥)',
-                    position: 'left',
+                    position: 'left' as const,
                     ...style.axis,
                     nameTextStyle: { color: colors.text, fontSize: 11 },
-                    splitLine: { show: true, lineStyle: { color: colors.grid, type: 'dashed' } },
+                    splitLine: { show: true, lineStyle: { color: colors.grid, type: 'dashed' as const } },
                 },
                 {
-                    type: 'value',
+                    type: 'value' as const,
                     name: '累計收益 (¥)',
-                    position: 'right',
+                    position: 'right' as const,
                     ...style.axis,
                     nameTextStyle: { color: colors.text, fontSize: 11 },
                     splitLine: { show: false },

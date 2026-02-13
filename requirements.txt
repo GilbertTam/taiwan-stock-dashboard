@@ -4,6 +4,7 @@ supervisor
 # Control the dependencies
 setuptools
 numpy==1.26.4
+pulp
 
 requests
 

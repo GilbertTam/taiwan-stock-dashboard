@@ -101,7 +101,7 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
         containLabel: false
       },
       xAxis: {
-        type: 'time',
+        type: 'time' as const,
         boundaryGap: [0, 0],
         axisLine: {
           lineStyle: {
@@ -124,14 +124,14 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
           show: true,
           lineStyle: {
             color: gridColor,
-            type: 'dashed'
+            type: 'dashed' as const
           }
         }
       },
       yAxis: {
-        type: 'value',
+        type: 'value' as const,
         name: '價格 (¥)',
-        nameLocation: 'middle',
+        nameLocation: 'middle' as const,
         nameGap: 50,
         nameTextStyle: {
           color: textColor,
@@ -151,14 +151,14 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
           show: true,
           lineStyle: {
             color: gridColor,
-            type: 'dashed'
+            type: 'dashed' as const
           }
         }
       },
       tooltip: {
-        trigger: 'axis',
+        trigger: 'axis' as const,
         axisPointer: {
-          type: 'cross',
+          type: 'cross' as const,
           label: {
             show: true,
             backgroundColor: darkMode ? 'rgba(33, 33, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
@@ -206,7 +206,7 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
       series: [
         {
           name: '現貨實際價格',
-          type: 'line',
+          type: 'line' as const,
           data: previewData
             .filter(d => !isNaN(d.price) && isFinite(d.price) && d.price !== null && d.price !== undefined)
             .map(d => [d.timestamp, d.price]),
@@ -218,7 +218,7 @@ export const PriceTrendPreview: React.FC<PriceTrendPreviewProps> = ({
           },
           areaStyle: {
             color: {
-              type: 'linear',
+              type: 'linear' as const,
               x: 0,
               y: 0,
               x2: 0,

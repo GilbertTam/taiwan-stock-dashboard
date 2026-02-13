@@ -234,10 +234,10 @@ const WeatherChartSection = ({
         grid: createGrid(SMALL_GRID),
         xAxis: createTimeAxis(colors, minT, maxT),
         yAxis: createValueAxis(colors, { name: '誤差', unit }),
-        tooltip: { trigger: 'axis', formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
+        tooltip: { trigger: 'axis' as const, formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
         series: [
           {
-            type: 'line',
+            type: 'line' as const,
             name: title + ' 誤差',
             data,
             showSymbol: true,
@@ -247,7 +247,7 @@ const WeatherChartSection = ({
             markLine: {
               silent: true,
               symbol: 'none',
-              lineStyle: { color: colors.dividerLine, type: 'dashed', width: 1 },
+              lineStyle: { color: colors.dividerLine, type: 'dashed' as const, width: 1 },
               data: [{ yAxis: 0 }],
             },
           } as any,
@@ -290,12 +290,12 @@ const WeatherChartSection = ({
       };
       return {
         grid: createGrid(SMALL_GRID),
-        xAxis: { type: 'value', name: '預報', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } }, axisLine: { lineStyle: { color: colors.text } } },
-        yAxis: { type: 'value', name: '實際', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } }, axisLine: { lineStyle: { color: colors.text } } },
-        tooltip: { trigger: 'item', formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
+        xAxis: { type: 'value' as const, name: '預報', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
+        yAxis: { type: 'value' as const, name: '實際', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
+        tooltip: { trigger: 'item' as const, formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
         series: [
-          { type: 'scatter', name: title, data, symbolSize: 8, itemStyle: { color }, emphasis: { scale: 1.2 } } as any,
-          { type: 'line', name: '45°', data: [[range[0], range[0]], [range[1], range[1]]], showSymbol: false, lineStyle: { color: colors.dividerLine, type: 'dashed', width: 1 }, silent: true } as any,
+          { type: 'scatter' as const, name: title, data, symbolSize: 8, itemStyle: { color }, emphasis: { scale: 1.2 } } as any,
+          { type: 'line' as const, name: '45°', data: [[range[0], range[0]], [range[1], range[1]]], showSymbol: false, lineStyle: { color: colors.dividerLine, type: 'dashed' as const, width: 1 }, silent: true } as any,
         ],
         animation: false,
       };
@@ -316,10 +316,10 @@ const WeatherChartSection = ({
       if (!binLabels.length || !counts.length) return {};
       return {
         grid: createGrid(SMALL_GRID),
-        xAxis: { type: 'category', data: binLabels, axisLabel: { color: colors.text, fontSize: 10, rotate: 45 }, axisLine: { lineStyle: { color: colors.text } }, splitLine: { show: false } },
+        xAxis: { type: 'category' as const, data: binLabels, axisLabel: { color: colors.text, fontSize: 10, rotate: 45 }, axisLine: { lineStyle: { color: colors.text } }, splitLine: { show: false } },
         yAxis: createValueAxis(colors, { name: '筆數' }),
-        tooltip: { trigger: 'axis', backgroundColor: colors.tooltipBg, borderColor: colors.tooltipBorder, borderWidth: 1, textStyle: { color: colors.text, fontSize: 12 } },
-        series: [{ type: 'bar', name: title + ' 誤差', data: counts, barMaxWidth: 28, itemStyle: { color: colors.rainActual } } as any],
+        tooltip: { trigger: 'axis' as const, backgroundColor: colors.tooltipBg, borderColor: colors.tooltipBorder, borderWidth: 1, textStyle: { color: colors.text, fontSize: 12 } },
+        series: [{ type: 'bar' as const, name: title + ' 誤差', data: counts, barMaxWidth: 28, itemStyle: { color: colors.rainActual } } as any],
         animation: false,
       };
     };

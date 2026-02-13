@@ -59,3 +59,14 @@ export const fetchAllAreasPrices = async (params: AllAreasPricesParams): Promise
     const response = await api.get<ApiResponse<AreaPrice[]>>('/market-info/spot-market-area-prices', { params });
     return response.data.data;
 };
+
+/**
+ * Calculate revenue using battery optimization.
+ */
+import { BatteryConfig, OptimizationResult } from '@/types/revenueAnalysis';
+
+export const calculateRevenue = async (config: BatteryConfig, data: any[]): Promise<OptimizationResult> => {
+    const api = createAuthenticatedApi();
+    const response = await api.post<OptimizationResult>('/market-info/analyze/revenue', { config, data });
+    return response.data;
+};

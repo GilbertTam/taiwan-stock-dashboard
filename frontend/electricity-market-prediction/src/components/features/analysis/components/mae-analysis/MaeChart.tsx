@@ -120,7 +120,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
 
             return {
                 name: model.name,
-                type: 'bar',
+                type: 'bar' as const,
                 barMaxWidth: 24,
                 barGap: '30%',
                 barCategoryGap: '40%',
@@ -134,15 +134,15 @@ export const MaeChart: React.FC<MaeChartProps> = ({
             grid: style.grid,
             legend: style.legend,
             tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
+                trigger: 'axis' as const,
+                axisPointer: { type: 'shadow' as const },
                 backgroundColor: 'transparent',
                 borderWidth: 0,
                 extraCssText: 'pointer-events:none;',
                 formatter: tooltipFormatter as any,
             },
             xAxis: {
-                type: 'category',
+                type: 'category' as const,
                 data: xLabels,
                 ...style.axis,
                 splitLine: { show: false },
@@ -158,7 +158,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
                 },
             },
             yAxis: {
-                type: 'value',
+                type: 'value' as const,
                 name: 'MAE (¥/kWh)',
                 nameTextStyle: { color: colors.text, fontSize: 11 },
                 ...style.axis,

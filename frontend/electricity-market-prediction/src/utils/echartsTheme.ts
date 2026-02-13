@@ -117,7 +117,7 @@ export const getStandardTooltip = (colors: ChartColors) => {
 export const getStandardDataZoom = (colors: ChartColors) => {
   return [
     {
-      type: 'slider',
+      type: 'slider' as const,
       show: true,
       xAxisIndex: 0,
       start: 0,
@@ -128,7 +128,7 @@ export const getStandardDataZoom = (colors: ChartColors) => {
       textStyle: { color: colors.text },
     },
     {
-      type: 'inside',
+      type: 'inside' as const,
       xAxisIndex: 0,
       start: 0,
       end: 100,

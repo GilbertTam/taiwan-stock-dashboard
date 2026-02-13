@@ -16,7 +16,7 @@ export const createTimeAxis = (
   dataMaxTime?: number
 ): EChartsOption['xAxis'] => {
   return {
-    type: 'time',
+    type: 'time' as const,
     axisLabel: {
       formatter: {
         year: '{yyyy}',
@@ -31,7 +31,7 @@ export const createTimeAxis = (
     },
     axisPointer: {
       show: true,
-      type: 'line',
+      type: 'line' as const,
       label: {
         show: true,
         backgroundColor: colors.tooltipHeaderBg,
@@ -76,7 +76,7 @@ export const createValueAxis = (
   } = options;
 
   return {
-    type: 'value',
+    type: 'value' as const,
     name: name ? (unit ? `${name} (${unit})` : name) : undefined,
     nameTextStyle: name
       ? {
@@ -97,7 +97,7 @@ export const createValueAxis = (
     splitLine: {
       lineStyle: {
         color: colors.grid,
-        type: 'dashed',
+        type: 'dashed' as const,
       },
     },
     axisLine: {
@@ -163,7 +163,7 @@ export const createTooltip = (
     },
     ...(formatter && { formatter }),
     axisPointer: {
-      type: 'cross',
+      type: 'cross' as const,
       label: {
         backgroundColor: colors.tooltipHeaderBg,
       },
@@ -214,7 +214,7 @@ export const createGhostSeries = (
 
   return {
     name: 'Ghost',
-    type: 'line',
+    type: 'line' as const,
     data: timestamps.map((ts) => [ts, yValue]),
     itemStyle: { opacity: 0 },
     lineStyle: { opacity: 0 },
@@ -247,17 +247,17 @@ export const createReferenceLine = (
     };
   } = {}
 ): any => {
-  const { label, lineStyle = { type: 'dashed', width: 1 } } = options;
+  const { label, lineStyle = { type: 'dashed' as const, width: 1 } } = options;
 
   return {
-    type: 'line',
+    type: 'line' as const,
     markLine: {
       silent: true,
       symbol: 'none',
       label: label
         ? {
           formatter: label,
-          position: 'end',
+          position: 'end' as const,
           color: colors.warning,
         }
         : { show: false },
