@@ -23,7 +23,11 @@ function Execute-Script {
 
 # Main script logic
 $subCommand = $args[0]
-$remainingArgs = $args[1..($args.Length - 1)]
+if ($args.Count -gt 1) {
+    $remainingArgs = $args[1..($args.Count - 1)]
+} else {
+    $remainingArgs = @()
+}
 
 switch ($subCommand) {
     "create-superuser" {
@@ -36,26 +40,14 @@ switch ($subCommand) {
     "ipython" {
         Execute-Script "dev-shell" $remainingArgs
     }
-    "supervisorctl" {
-        Execute-Script "dev-supervisorctl" $remainingArgs
-    }
     "migration" {
         Execute-Script "dev-migrations" $remainingArgs
     }
     "backend-debug" {
         Execute-Script "dev-backend-debug" $remainingArgs
     }
-    "collect-static" {
-        Execute-Script "dev-collect-statics" $remainingArgs
-    }
-    "django-startapp" {
-        Execute-Script "dev-startapp" $remainingArgs
-    }
     "reload-nginx" {
         Execute-Script "dev-reload-nginx" $remainingArgs
-    }
-    "clean-migrations" {
-        Execute-Script "dev-clean-migrations" $remainingArgs
     }
     default {
         Write-ColorMessage "YELLOW" "Usage: .\dev-tool.ps1 sub-command [args]"
@@ -63,12 +55,8 @@ switch ($subCommand) {
         Write-ColorMessage "GREEN" "  create-superuser: Create an admin account for management."
         Write-ColorMessage "GREEN" "  shell: Create a shell to run arbitrary command."
         Write-ColorMessage "GREEN" "  ipython: Create a shell to run ipython."
-        Write-ColorMessage "GREEN" "  supervisorctl: Attach to supervisor control shell."
         Write-ColorMessage "GREEN" "  migration: Run migration process."
         Write-ColorMessage "GREEN" "  backend-debug: Recreate and attach to backend container."
-        Write-ColorMessage "GREEN" "  collect-static: Collect static files to increase rendering speed."
-        Write-ColorMessage "GREEN" "  django-startapp: Create a new Django app."
         Write-ColorMessage "GREEN" "  reload-nginx: Reload Nginx configuration."
-        Write-ColorMessage "GREEN" "  clean-migrations: Clean up migration files."
     }
 }

@@ -1,8 +1,13 @@
-# PowerShell version of dev-migrations.sh
+[CmdletBinding()]
+param (
+    [string]$ContainerName = "jpex-dashboard-api"
+)
 
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $scriptPath "common.ps1")
-
-Write-ColorMessage "BLUE" "Running database migrations in ${script:CONTAINER_WEB_NAME}..."
-docker exec -it ${script:CONTAINER_WEB_NAME} bash -c 'python manage.py makemigrations && python manage.py migrate'
-Write-ColorMessage "GREEN" "Database migrations completed."
+try {
+    Write-Host "Running migrations..." -ForegroundColor Cyan
+    docker exec -it $ContainerName alembic upgrade head
+    Write-Host "Migrations completed successfully." -ForegroundColor Green
+}
+catch {
+    Write-Host "Error running migrations: $_" -ForegroundColor Red
+}

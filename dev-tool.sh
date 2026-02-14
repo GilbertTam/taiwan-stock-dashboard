@@ -47,10 +47,6 @@ case "$1" in
         shift
         execute_script "dev-shell" "$@"
         ;;
-    supervisorctl)
-        shift
-        execute_script "dev-supervisorctl" "$@"
-        ;;
     migration)
         shift
         execute_script "dev-migrations" "$@"
@@ -59,21 +55,9 @@ case "$1" in
         shift
         execute_script "dev-backend-debug" "$@"
         ;;
-    collect-static)
-        shift
-        execute_script "dev-collect-statics" "$@"
-        ;;
-    django-startapp)
-        shift
-        execute_script "dev-startapp" "$@"
-        ;;
     reload-nginx)
         shift
         execute_script "dev-reload-nginx" "$@"
-        ;;
-    clean-migrations)
-        shift
-        execute_script "dev-clean-migrations" "$@"
         ;;
     *)
         print_message "$YELLOW" "Usage: $0 sub-command [args]"
@@ -81,12 +65,8 @@ case "$1" in
         print_message "$GREEN" "  create-superuser: Create an admin account for management."
         print_message "$GREEN" "  shell: Create a shell to run arbitrary command."
         print_message "$GREEN" "  ipython: Create a shell to run ipython."
-        print_message "$GREEN" "  supervisorctl: Attach to supervisor control shell."
         print_message "$GREEN" "  migration: Run migration process."
         print_message "$GREEN" "  backend-debug: Recreate and attach to backend container."
-        print_message "$GREEN" "  collect-static: Collect static files to increase rendering speed."
-        print_message "$GREEN" "  django-startapp: Create a new Django app."
         print_message "$GREEN" "  reload-nginx: Reload Nginx configuration."
-        print_message "$GREEN" "  clean-migrations: Clean up migration files."
         ;;
 esac

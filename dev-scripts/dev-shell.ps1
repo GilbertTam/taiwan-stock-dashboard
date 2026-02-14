@@ -1,7 +1,12 @@
-# PowerShell version of dev-shell.sh
+[CmdletBinding()]
+param (
+    [string]$ContainerName = "jpex-dashboard-api"
+)
 
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $scriptPath "common.ps1")
-
-Write-ColorMessage "BLUE" "Starting IPython shell in ${script:CONTAINER_WEB_NAME}..."
-docker exec -it ${script:CONTAINER_WEB_NAME} bash -c 'python manage.py shell'
+try {
+    Write-Host "Opening shell in backend container..." -ForegroundColor Cyan
+    docker exec -it $ContainerName /bin/bash
+}
+catch {
+    Write-Host "Error opening shell: $_" -ForegroundColor Red
+}
