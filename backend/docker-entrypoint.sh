@@ -1,16 +1,15 @@
-#!/bin/bash
-echo "=============== Running docker-entrypoint.sh ==============="
+#!/bin/sh
 
-DEBUG_="$(tr [A-Z] [a-z] <<<"$DEBUG")"
+# Exit immediately if a command exits with a non-zero status
+set -e
 
-echo "> Debug mode: $DEBUG_"
+# Run database migrations (if any)
+# Run database migrations
+alembic upgrade head
 
-echo "> Django migrations"
-python manage.py makemigrations
-python manage.py migrate
+# Start the application
+# Create initial superuser if not exists
+python scripts/create_user.py admin admin@example.com admin true || true
 
-echo "> Collect Static"
-python manage.py collectstatic --noinput
-
-echo "> Running server"
-/usr/local/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+# Start the application
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
