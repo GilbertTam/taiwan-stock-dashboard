@@ -197,22 +197,3 @@ docker-compose down -v && docker-compose build && docker-compose up
 | `battery_data` | 電池數據 |
 | `bid_plans` | 投標計畫 |
 
----
-
-## 📸 截圖
-
-| 總覽 | 預測分析 | 案場收益 |
-|------|----------|----------|
-| ![Dashboard](./docs/dashboard.png) | *新增截圖* | *新增截圖* |
-
----
-
-## 📄 授權
-
-本專案為專屬專案，版權所有。
-
----
-
-## 🤝 貢獻
-
-貢獻前請先閱讀 `data-mapping.md` 了解資料來源與 Index 結構。
