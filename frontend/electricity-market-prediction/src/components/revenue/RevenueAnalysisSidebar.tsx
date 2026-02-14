@@ -6,11 +6,10 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 import { Area, PredictionModel, CalculatingDate } from '@/types';
-import { BatteryConfig, DEFAULT_BATTERY_CONFIG, ViewOptions } from '@/types/revenueAnalysis';
+import { BatteryConfig, DEFAULT_BATTERY_CONFIG } from '@/types/revenueAnalysis';
 import { RevenueParameterPanel } from './RevenueParameterPanel';
 import { AreaSelector } from '@/components/selectors/AreaSelector';
 import { ModelSelector } from '@/components/selectors/ModelSelector';
-import { ViewOptionsPanel } from './ViewOptionsPanel';
 import { ChartDataPoint } from '@/utils/chartUtils';
 
 interface RevenueAnalysisSidebarProps {
@@ -43,9 +42,6 @@ interface RevenueAnalysisSidebarProps {
     // Data for Model Selector (MAE calculation)
     chartData: ChartDataPoint[];
 
-    // View Options
-    viewOptions: ViewOptions;
-    onViewOptionsChange: (options: ViewOptions) => void;
 }
 
 export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
@@ -62,8 +58,6 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
     onRunSimulation,
     isLoading,
     chartData,
-    viewOptions,
-    onViewOptionsChange
 }) => {
     const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
         area: false,
@@ -162,10 +156,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
 
             <Divider sx={{ borderColor: 'var(--card-border)', my: 1 }} />
 
-            {/* Section 3: View Options */}
-            <Box sx={{ p: 0 }}>
-                {viewOptions && <ViewOptionsPanel options={viewOptions} onChange={onViewOptionsChange} />}
-            </Box>
+
 
             <Box sx={{ p: 2 }} />
         </Box>

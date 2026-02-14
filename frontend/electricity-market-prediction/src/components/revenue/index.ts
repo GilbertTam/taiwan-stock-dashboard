@@ -13,4 +13,6 @@ export { OperationGanttChart } from './OperationGanttChart';
 export { OperationScheduleTable } from './OperationScheduleTable';
 export { RevenueParameterPanel } from './RevenueParameterPanel';
 export { SocChart } from './SocChart';
-export { ViewOptionsPanel } from './ViewOptionsPanel';
+export { OperationScheduleChart } from './OperationScheduleChart';
+export { SocLineChart } from './SocLineChart';
+

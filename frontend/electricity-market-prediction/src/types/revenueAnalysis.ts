@@ -66,6 +66,10 @@ export interface GanttOperation {
     soc: number;
     price: number;
     revenue: number;
+    // New fields for Actual vs Predicted
+    priceActual?: number | null;
+    pricePredicted?: number;
+    revenueRealized?: number;
 }
 
 export interface GanttChartData {
@@ -74,16 +78,4 @@ export interface GanttChartData {
     dateRange: { start: string; end: string };
 }
 
-export interface ViewOptions {
-    showOperation: boolean;
-    showSoC: boolean;
-    showGrid: boolean;
-    showTooltips: boolean;
-}
 
-export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
-    showOperation: true,
-    showSoC: true,
-    showGrid: true,
-    showTooltips: true
-};

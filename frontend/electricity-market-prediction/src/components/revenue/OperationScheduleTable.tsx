@@ -129,38 +129,38 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                             </TableCell>
                             <TableCell align="right">
                                 <TableSortLabel
-                                    active={orderBy === 'price'}
-                                    direction={orderBy === 'price' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('price')}
-                                >
-                                    Price (JPY)
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell align="right">
-                                <TableSortLabel
                                     active={orderBy === 'power'}
                                     direction={orderBy === 'power' ? order : 'asc'}
                                     onClick={() => handleRequestSort('power')}
                                 >
-                                    Power (MW)
+                                    Power (kW)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
                                 <TableSortLabel
-                                    active={orderBy === 'soc'}
-                                    direction={orderBy === 'soc' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('soc')}
+                                    active={orderBy === 'priceActual'}
+                                    direction={orderBy === 'priceActual' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('priceActual' as any)}
                                 >
-                                    SoC (%)
+                                    Price (Actual)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
                                 <TableSortLabel
-                                    active={orderBy === 'revenue'}
-                                    direction={orderBy === 'revenue' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('revenue')}
+                                    active={orderBy === 'pricePredicted'}
+                                    direction={orderBy === 'pricePredicted' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('pricePredicted' as any)}
                                 >
-                                    Revenue (JPY)
+                                    Price (Pred)
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell align="right">
+                                <TableSortLabel
+                                    active={orderBy === 'revenueRealized'}
+                                    direction={orderBy === 'revenueRealized' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('revenueRealized' as any)}
+                                >
+                                    Revenue (Realized)
                                 </TableSortLabel>
                             </TableCell>
                         </TableRow>
@@ -195,16 +195,25 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                         />
                                     </TableCell>
                                     <TableCell align="right">
-                                        {Number.isFinite(row.price) ? row.price.toFixed(2) : '-'}
-                                    </TableCell>
-                                    <TableCell align="right">
                                         {Number.isFinite(row.power) ? row.power.toFixed(2) : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {Number.isFinite(row.soc) ? (row.soc * 100).toFixed(1) + '%' : '-'}
+                                        {/* Show Actual Price, fallback to price if not present */}
+                                        {Number.isFinite(row.priceActual)
+                                            ? row.priceActual!.toFixed(2)
+                                            : (Number.isFinite(row.price) ? row.price.toFixed(2) : '-')}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {Number.isFinite(row.revenue) ? row.revenue!.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '-'}
+                                        {/* Predicted Price */}
+                                        {Number.isFinite(row.pricePredicted)
+                                            ? row.pricePredicted!.toFixed(2)
+                                            : '-'}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        {/* Revenue Realized */}
+                                        {Number.isFinite(row.revenueRealized)
+                                            ? row.revenueRealized!.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                            : (Number.isFinite(row.revenue) ? row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '-')}
                                     </TableCell>
                                 </TableRow>
                             );
@@ -221,6 +230,11 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
-        </Paper>
+            <Box sx={{ p: 1, borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
+                <Typography variant="caption" color="text.secondary">
+                    * Realized Revenue is calculated using Actual Prices. Power is in kW.
+                </Typography>
+            </Box>
+        </Paper >
     );
 };

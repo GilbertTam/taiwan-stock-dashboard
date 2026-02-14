@@ -170,7 +170,7 @@ export const ChargeDischargeChart: React.FC<ChargeDischargeChartProps> = ({
 
                                             return (
                                                 <g key={`${row.id}-${colIdx}`}>
-                                                    <title>{`${row.name}\nTime: ${getTimeLabel(colIdx)}\nAction: ${op.action}\nPower: ${op.power.toFixed(2)} MW\nPrice: ${op.price.toFixed(2)} JPY`}</title>
+                                                    <title>{`${row.name}\nTime: ${getTimeLabel(colIdx)}\nAction: ${op.action}\nPower: ${op.power.toFixed(2)} kW\nPrice (Actual): ${(op.priceActual ?? op.price).toFixed(2)} JPY\nPrice (Pred): ${(op.pricePredicted ?? op.price).toFixed(2)} JPY\nRev (Realized): ${(op.revenueRealized ?? op.revenue).toLocaleString()} JPY`}</title>
                                                     <rect
                                                         x={x + 1}
                                                         y={4}

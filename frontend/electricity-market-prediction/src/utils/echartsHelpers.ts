@@ -202,6 +202,56 @@ export const createMarkArea = (
 };
 
 /**
+ * Creates mark area data for category axis (e.g. "MM-DD HH:mm" or "MM-DD").
+ * Shades odd-indexed days to match DayBackgroundPrimitive visual.
+ */
+export const createMarkAreaForCategoryAxis = (
+  categoryLabels: string[],
+  darkMode: boolean
+): { markAreaData: [ { xAxis: string }, { xAxis: string } ][]; itemStyle: { color: string; opacity: number } } => {
+  const markAreaData: [ { xAxis: string }, { xAxis: string } ][] = [];
+  if (categoryLabels.length === 0) {
+    return {
+      markAreaData,
+      itemStyle: {
+        color: darkMode ? '#444444' : '#e0e0e0',
+        opacity: 0.4,
+      },
+    };
+  }
+
+  const dayKey = (label: string) => (label.length >= 8 ? label.substring(0, 5) : label);
+  const dayOrder: string[] = [];
+  const dayToIndices: Record<string, number[]> = {};
+  categoryLabels.forEach((label, idx) => {
+    const key = dayKey(label);
+    if (!dayToIndices[key]) {
+      dayOrder.push(key);
+      dayToIndices[key] = [];
+    }
+    dayToIndices[key].push(idx);
+  });
+
+  dayOrder.forEach((key, dayIndex) => {
+    if (dayIndex % 2 !== 1) return;
+    const indices = dayToIndices[key];
+    if (!indices?.length) return;
+    const first = categoryLabels[indices[0]];
+    const last = categoryLabels[indices[indices.length - 1]];
+    // Use same start/end so the band covers only this day (ECharts category band is inclusive)
+    markAreaData.push([{ xAxis: first }, { xAxis: last }]);
+  });
+
+  return {
+    markAreaData,
+    itemStyle: {
+      color: darkMode ? '#444444' : '#e0e0e0',
+      opacity: 0.4,
+    },
+  };
+};
+
+/**
  * Creates a ghost series for mark area (background shading)
  */
 export const createGhostSeries = (

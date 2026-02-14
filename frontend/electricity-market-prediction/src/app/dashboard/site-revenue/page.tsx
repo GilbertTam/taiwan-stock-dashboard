@@ -26,7 +26,7 @@ import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { usePricePredictionData } from '@/components/forecast/hooks/usePricePredictionData';
 
 // Types & Services
-import { BatteryConfig, DEFAULT_BATTERY_CONFIG, OptimizationResult, GanttChartData, GanttOperation, ViewOptions, DEFAULT_VIEW_OPTIONS } from '@/types/revenueAnalysis';
+import { BatteryConfig, DEFAULT_BATTERY_CONFIG, OptimizationResult, GanttChartData, GanttOperation } from '@/types/revenueAnalysis';
 import { calculateRevenue } from '@/services/marketApi';
 import { getJepxTimeCode } from '@/utils/jepxUtils';
 
@@ -75,7 +75,7 @@ function SiteRevenueContent() {
   const [modelResults, setModelResults] = useState<Record<string, ModelResult>>({});
   const [ganttData, setGanttData] = useState<GanttChartData | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [viewOptions, setViewOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
+
   const [error, setError] = useState<string | null>(null);
 
   // Clear results when core data changes
@@ -114,70 +114,123 @@ function SiteRevenueContent() {
         return;
       }
 
-      const runConfig = { ...config, T: validData.length };
+      // Group data by date
+      const dataByDate: Record<string, any[]> = {};
+      validData.forEach(d => {
+        const dateStr = d.dateTime.substring(0, 10);
+        if (!dataByDate[dateStr]) dataByDate[dateStr] = [];
+        dataByDate[dateStr].push(d);
+      });
 
+      const dates = Object.keys(dataByDate).sort();
+
+      // Helper to run optimization for a specific set of data (one day)
+      const runDailyOptimization = async (dayData: any[], useActuals: boolean, modelKey?: string) => {
+        const T = dayData.length;
+        const currentConfig = { ...config, T }; // Independent daily config
+
+        const inputData = dayData.map(d => {
+          let price = 0;
+          if (useActuals) {
+            price = d.actualPrice ?? 0;
+          } else if (modelKey) {
+            const pred = d.modelPredictions.find((p: any) => `${p.modelId}|${p.modelName}` === modelKey);
+            // If prediction missing, fallback to actual or 0 (but usually we filter for valid points)
+            price = pred?.predictedPrice ?? d.actualPrice ?? 0;
+          }
+          return {
+            Spot_Price: price,
+            Bal_Price: 0,
+            Mask_Ch: 1,
+            Mask_Dis: 1
+          };
+        });
+
+        const res = await calculateRevenue(currentConfig, inputData);
+        // Map back to global time
+        if (res?.results) {
+          res.results = res.results.map((r: any, idx: number) => ({
+            ...r,
+            time: dayData[idx].time // Keep original time reference if needed
+          }));
+        }
+        return res;
+      };
+
+      // 1. Run Optimal (Actual) - day by day
       let optResult: OptimizationResult | null = null;
-
-      // 1. Run Optimal (Actual) - Only if we have actual prices for all points (or enough to matter)
       const hasAllActuals = validData.every(d => d.actualPrice !== null);
 
       if (hasAllActuals) {
-        const actualInputData = validData.map(d => ({
-          Spot_Price: d.actualPrice as number,
-          Bal_Price: 0,
-          Mask_Ch: 1,
-          Mask_Dis: 1
-        }));
-        optResult = await calculateRevenue(runConfig, actualInputData);
-        if (optResult?.results) {
-          optResult.results = optResult.results.map((res: any, idx: number) => ({
-            ...res, time: validData[idx].time
-          }));
+        let combinedActualResults: any[] = [];
+        let totalActualRevenue = 0;
+        for (const date of dates) {
+          const dayData = dataByDate[date];
+          const result = await runDailyOptimization(dayData, true);
+          if (result?.results) {
+            combinedActualResults = [...combinedActualResults, ...result.results];
+            totalActualRevenue += result.summary.total_revenue;
+          }
         }
+        optResult = {
+          status: 'Optimal',
+          summary: { total_revenue: totalActualRevenue },
+          results: combinedActualResults
+        };
         setActualResult(optResult);
       } else {
-        setActualResult(null); // Clear previous result if any
+        setActualResult(null);
       }
 
-      // 2. Run Models
+      // 2. Run Models - day by day
       const newModelResults: Record<string, ModelResult> = {};
       for (const model of selectedModels) {
         const modelKey = `${model.id}|${model.name}`;
-        const modelInputData = validData.map(d => {
-          const pred = d.modelPredictions.find(p => `${p.modelId}|${p.modelName}` === modelKey);
-          const price = pred?.predictedPrice ?? d.actualPrice ?? 0;
-          return {
-            Spot_Price: price,
-            Bal_Price: 0, Mask_Ch: 1, Mask_Dis: 1
-          };
-        });
-        const modelOpt = await calculateRevenue(runConfig, modelInputData);
-        if (modelOpt?.results) {
-          modelOpt.results = modelOpt.results.map((res: any, idx: number) => ({
-            ...res, time: validData[idx].time
-          }));
+        let combinedModelResults: any[] = [];
+        let totalModelRevenue = 0;
+        for (const date of dates) {
+          const dayData = dataByDate[date];
+          const result = await runDailyOptimization(dayData, false, modelKey);
+          if (result?.results) {
+            combinedModelResults = [...combinedModelResults, ...result.results];
+            totalModelRevenue += result.summary.total_revenue;
+          }
         }
+        const modelOpt = {
+          status: 'model',
+          summary: { total_revenue: totalModelRevenue },
+          results: combinedModelResults
+        };
 
-        // Calculate Realized (or Projected) Revenue
-        let revenue = 0;
+        // Calculate Realized Revenue (using Actual Price)
+        let totalRealizedRevenue = 0;
         modelOpt.results.forEach((step, idx) => {
           if (idx < validData.length) {
             const actualP = validData[idx].actualPrice;
             const pred = validData[idx].modelPredictions.find(p => `${p.modelId}|${p.modelName}` === modelKey);
-            const calculationPrice = actualP !== null ? actualP : (pred?.predictedPrice ?? 0);
 
-            const rev = step.power_spot * calculationPrice * runConfig.dt;
-            const cost = step.power_ch * calculationPrice * runConfig.dt;
-            const deg_cost = ((step.power_spot * runConfig.dt) / runConfig.eff_dis + (step.power_bal * runConfig.dt) * runConfig.beta_bal) * runConfig.Cost_cycle;
-            revenue += (rev - cost - deg_cost);
+            const calcPrice = actualP !== null ? actualP : 0;
+
+            const p_spot_kW = step.power_spot * 1000;
+            const p_ch_kW = step.power_ch * 1000;
+            const rev = p_spot_kW * calcPrice * config.dt;
+            const cost = p_ch_kW * calcPrice * config.dt;
+            const deg_cost = ((step.power_spot * config.dt) / config.eff_dis + (step.power_bal * config.dt) * config.beta_bal) * config.Cost_cycle;
+
+            const realizedStepRevenue = (rev - cost - deg_cost);
+            totalRealizedRevenue += realizedStepRevenue;
+
+            (step as any)._realizedRevenue = realizedStepRevenue;
+            (step as any)._actualPrice = actualP;
+            (step as any)._predictedPrice = pred?.predictedPrice ?? null;
           }
         });
-        newModelResults[modelKey] = { optimization: modelOpt, realizedRevenue: revenue };
+        newModelResults[modelKey] = { optimization: modelOpt, realizedRevenue: totalRealizedRevenue };
       }
       setModelResults(newModelResults);
 
       // 3. Prepare Gantt Data
-      const transformToGantt = (optimization: OptimizationResult): GanttOperation[] => {
+      const transformToGantt = (optimization: OptimizationResult, isOptimal: boolean = false): GanttOperation[] => {
         return optimization.results.map((r: any, idx: number) => {
           // Fix 6: Use dateTime (YYYY-MM-DD HH:mm) instead of time (HH:mm) for accurate parsing
           const dateTime = validData[idx]?.dateTime || new Date().toISOString();
@@ -188,8 +241,27 @@ function SiteRevenueContent() {
           if (r.action === 'Spot') action = 'Spot';
           if (r.action === 'Balance') action = 'Balance';
 
-          // Fix 7: Clamp SoC between 0 and 1 (backend might return > 1 due to float precision)
-          const soc = Math.min(1, Math.max(0, r.soc_pct));
+          // Backend returns soc_pct 0-100; normalize to 0-1 for frontend
+          const soc = Math.min(1, Math.max(0, (r.soc_pct ?? 0) / 100));
+
+          // Determine prices and realized revenue
+          let priceActual = validData[idx]?.actualPrice ?? null;
+          let pricePredicted = (r as any)._predictedPrice ?? r.price_spot; // Default to spot if not set
+          let revenueRealized = (r as any)._realizedRevenue ?? r.revenue;
+
+          if (isOptimal) {
+            // For Optimal, Predicted = Actual
+            pricePredicted = priceActual;
+            // Recalculate for Optimal (since we built it from combined daily results)
+
+            const calcPrice = priceActual || 0;
+            const p_spot_kW = r.power_spot * 1000;
+            const p_ch_kW = r.power_ch * 1000;
+            const rev = (p_spot_kW * config.dt) * calcPrice;
+            const cost = (p_ch_kW * config.dt) * calcPrice;
+            const deg_cost = ((r.power_spot * config.dt) / config.eff_dis + (r.power_bal * config.dt) * config.beta_bal) * config.Cost_cycle;
+            revenueRealized = rev - cost - deg_cost;
+          }
 
           return {
             timeStep: r.time_step,
@@ -198,14 +270,19 @@ function SiteRevenueContent() {
             action: action,
             power: action === 'Charge' ? r.power_ch : (r.power_spot + r.power_bal),
             soc: soc,
-            price: r.price_spot,
-            revenue: r.revenue
+            price: r.price_spot, // Keep original "price used for decision" or just spot
+            revenue: r.revenue,  // Keep original "projected revenue"
+
+            // New fields
+            priceActual: priceActual,
+            pricePredicted: pricePredicted,
+            revenueRealized: revenueRealized
           };
         });
       };
 
       const ganttOps: GanttChartData = {
-        optimal: optResult ? transformToGantt(optResult) : [],
+        optimal: optResult ? transformToGantt(optResult, true) : [],
         models: {},
         dateRange: {
           // Fix 8: Use dateTime to ensure valid date parsing in Gantt chart
@@ -299,8 +376,6 @@ function SiteRevenueContent() {
                   onRunSimulation={handleCalculate}
                   isLoading={isSimulating}
                   chartData={chartData}
-                  viewOptions={viewOptions}
-                  onViewOptionsChange={setViewOptions}
                 />
               </Box>
               <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -311,7 +386,6 @@ function SiteRevenueContent() {
                   selectedModels={selectedModels}
                   colors={colors}
                   dt={config.dt}
-                  viewOptions={viewOptions}
                 />
               </Box>
             </ResizableLayout>

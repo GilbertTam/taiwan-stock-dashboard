@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, TextField, Typography, Paper, Grid, Tooltip, IconButton, Divider } from '@mui/material';
+import { Box, TextField, Typography, Paper, Grid, Tooltip, Divider } from '@mui/material';
 import { BatteryConfig } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -76,32 +76,37 @@ export const RevenueParameterPanel: React.FC<RevenueParameterPanelProps> = ({ co
                 borderRadius: 2
             }}
         >
-            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                System Configuration
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    系統參數
+                </Typography>
+                <Tooltip title="本演算法以日為單位執行最佳化，實際值（Optimal）與各預測模型皆逐日計算後合併結果。" arrow placement="top">
+                    <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+                </Tooltip>
+            </Box>
 
-            {renderSection('Capacity & Power', (
+            {renderSection('容量與功率', (
                 <>
-                    {renderField('E_cap', 'Capacity', 'MWh', 1, 'Total energy capacity of the battery')}
-                    {renderField('P_max_dis', 'Max Discharge', 'MW', 1, 'Maximum discharge power')}
-                    {renderField('P_max_ch', 'Max Charge', 'MW', 1, 'Maximum charge power')}
-                    {renderField('Min_bid', 'Min Bid', 'MW', 0.1, 'Minimum bid quantity')}
+                    {renderField('E_cap', 'Capacity', 'MWh', 1, '儲能總容量（MWh）')}
+                    {renderField('P_max_dis', 'Max Discharge', 'MW', 1, '最大放電功率（MW）')}
+                    {renderField('P_max_ch', 'Max Charge', 'MW', 1, '最大充電功率（MW）')}
+                    {renderField('Min_bid', 'Min Bid', 'MW', 0.1, '最小投標量（MW）')}
                 </>
             ))}
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('Efficiency & Losses', (
+            {renderSection('效率與損耗', (
                 <>
-                    {renderField('eff_ch', 'Charge Eff.', '%', 0.001, 'Charging efficiency (0-1 or %) check unit')}
-                    {renderField('eff_dis', 'Discharge Eff.', '%', 0.001, 'Discharging efficiency')}
-                    {renderField('E_loss', 'Self Loss', 'MWh', 0.01, 'Self-discharge loss per period?')}
+                    {renderField('eff_ch', 'Charge Eff.', '%', 0.001, '充電效率（0–1 或 %）')}
+                    {renderField('eff_dis', 'Discharge Eff.', '%', 0.001, '放電效率')}
+                    {renderField('E_loss', 'Self Loss', 'MWh', 0.01, '每時段自放電損失（MWh）')}
                 </>
             ))}
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('SoC Constraints', (
+            {renderSection('SoC 限制', (
                 <>
                     {renderField('SoC_min_pct', 'SoC Min', '%', 0.01)}
                     {renderField('SoC_max_pct', 'SoC Max', '%', 0.01)}
@@ -112,10 +117,10 @@ export const RevenueParameterPanel: React.FC<RevenueParameterPanelProps> = ({ co
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('Economic', (
+            {renderSection('經濟參數', (
                 <>
                     {renderField('beta_bal', 'Balance Coeff', '', 0.01)}
-                    {renderField('Cycle_limit', 'Cycle Limit', 'times')}
+                    {renderField('Cycle_limit', 'Cycle Limit', 'times', 0.1, '整段區間內最大等效滿循環次數（總放電量 ≤ 此值 × 容量）。愈大允許愈多充放電。')}
                 </>
             ))}
         </Paper>

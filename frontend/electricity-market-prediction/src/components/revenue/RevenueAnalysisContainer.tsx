@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { RevenueSummaryChart } from './RevenueSummaryChart';
-import { OptimizationResult, GanttChartData, ViewOptions } from '@/types/revenueAnalysis';
+import { OptimizationResult, GanttChartData } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
 
 interface RevenueAnalysisContainerProps {
@@ -15,7 +15,6 @@ interface RevenueAnalysisContainerProps {
     }>;
     colors: any;
     dt: number;
-    viewOptions: ViewOptions;
 }
 
 export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> = ({
@@ -24,8 +23,7 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
     ganttData,
     selectedModels,
     colors,
-    dt,
-    viewOptions
+    dt
 }) => {
     const { darkMode } = useTheme();
 
@@ -60,7 +58,6 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
                 selectedModels={selectedModels}
                 colors={colors}
                 dt={dt}
-                viewOptions={viewOptions}
             />
         </Paper>
     );

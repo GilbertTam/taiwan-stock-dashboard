@@ -1,9 +1,15 @@
-import React, { useMemo, useState } from 'react';
-import { Box, Typography, useTheme, Card, CardContent, Grid, Divider, Paper, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { Box, Typography, useTheme, Card, CardContent, Grid, Divider, Paper, FormControl, InputLabel, Select, MenuItem, Tooltip } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import type { EChartsOption } from 'echarts';
 import { BaseChart } from '@/components/charts/BaseChart';
-import { OptimizationResult, GanttChartData, ViewOptions } from '@/types/revenueAnalysis';
+import { OptimizationResult, GanttChartData } from '@/types/revenueAnalysis';
 import { RevenueGanttChart } from './RevenueGanttChart';
 import { OperationScheduleTable } from './OperationScheduleTable';
+import { PriceOperationChart } from './PriceOperationChart';
+
+/** Scale factor for revenue display (backend returns in different unit). */
+const REVENUE_DISPLAY_SCALE = 1;
 
 interface RevenueSummaryChartProps {
     actualResult: OptimizationResult | null;
@@ -19,7 +25,6 @@ interface RevenueSummaryChartProps {
     }[];
     colors: any;
     dt?: number;
-    viewOptions: ViewOptions;
 }
 
 export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
@@ -28,31 +33,49 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
     ganttData,
     selectedModels,
     colors,
-    dt = 0.5,
-    viewOptions
+    dt = 0.5
 }) => {
     const theme = useTheme();
     const darkMode = theme.palette.mode === 'dark';
     const [selectedScheduleId, setSelectedScheduleId] = useState<string>('optimal');
+    const priceChartRef = useRef<{ getInstance: () => any }>(null);
+    const opChartRef = useRef<{ getInstance: () => any }>(null);
+    const socChartRef = useRef<{ getInstance: () => any }>(null);
 
-    // Metrics Calculation
+    // Metrics: computed only from Detailed Operation Schedule (ganttData), no separate API data
     const metrics = useMemo(() => {
-        if (!actualResult) return null;
-        const optimalRev = actualResult.summary.total_revenue;
+        if (!ganttData) return null;
+        const hasOptimal = (ganttData.optimal?.length ?? 0) > 0;
+        const modelKeys = Object.keys(ganttData.models || {});
+        if (!hasOptimal && modelKeys.length === 0) return null;
 
-        // Find best model
-        let bestModelRev = 0;
+        const sumRevenue = (ops: { revenueRealized?: number; revenue?: number }[]) =>
+            ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
+
+        const optimalRev = hasOptimal
+            ? sumRevenue(ganttData.optimal!)
+            : 0;
+
+        let bestModelRev = -Infinity;
         let bestModelName = '-';
 
-        Object.entries(modelResults).forEach(([key, val]) => {
-            if (val && val.realizedRevenue > bestModelRev) {
-                bestModelRev = val.realizedRevenue;
-                const name = key.split('|')[1] || key;
-                bestModelName = name;
+        selectedModels.forEach((model) => {
+            const key = `${model.id}|${model.name}`;
+            const ops = ganttData.models?.[key];
+            if (ops?.length) {
+                const rev = sumRevenue(ops);
+                if (rev > bestModelRev) {
+                    bestModelRev = rev;
+                    bestModelName = model.name;
+                }
             }
         });
 
-        const efficiency = optimalRev > 0 ? (bestModelRev / optimalRev) * 100 : 0;
+        if (bestModelRev === -Infinity) bestModelRev = 0;
+        // Efficiency only meaningful when both same sign (both positive or both negative)
+        const sameSign = (optimalRev > 0 && bestModelRev > 0) || (optimalRev < 0 && bestModelRev < 0);
+        const efficiency: number | null =
+            optimalRev !== 0 && sameSign ? (bestModelRev / optimalRev) * 100 : null;
 
         return {
             optimalRev,
@@ -60,201 +83,153 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             bestModelName,
             efficiency
         };
-    }, [actualResult, modelResults]);
+    }, [ganttData, selectedModels]);
 
-    // 1. Total Revenue Comparison
-    const totalRevenueOption = useMemo(() => {
-        const optimalRevenue = actualResult?.summary.total_revenue ?? 0;
-        const xData = ['Optimal'];
-        const yData = [optimalRevenue];
-        const barColors = [colors.actual || '#ff4d4f'];
 
-        selectedModels.forEach(model => {
-            const key = `${model.id}|${model.name}`;
-            const res = modelResults[key];
-            xData.push(model.name);
-            yData.push(res?.realizedRevenue ?? 0);
-            barColors.push(model.color);
-        });
 
-        const percentages = yData.map(val => optimalRevenue ? (val / optimalRevenue) * 100 : 0);
+    // 2. Consolidated Daily Analysis (Net Revenue vs Cumulative)
+    const dailyAnalysisOption = useMemo(() => {
+        if (!actualResult && selectedModels.length === 0) return {};
 
-        return {
-            title: { text: 'Total Revenue Comparison', textStyle: { color: colors.text, fontSize: 14 } },
-            backgroundColor: 'transparent',
-            tooltip: {
-                trigger: 'axis' as const,
-                axisPointer: { type: 'shadow' as const },
-                formatter: (params: any) => {
-                    const p = params[0];
-                    return `<div style="font-weight:bold">${p.name}</div>
-                            <div>Revenue: ¥${p.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                            <div>Perf: ${percentages[p.dataIndex].toFixed(1)}%</div>`;
-                }
-            },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '30', containLabel: true },
-            xAxis: { type: 'category' as const, data: xData, axisLabel: { color: colors.text } },
-            yAxis: { type: 'value' as const, axisLabel: { color: colors.text }, splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } } },
-            series: [{
-                type: 'bar' as const,
-                data: yData.map((val, idx) => ({ value: val, itemStyle: { color: barColors[idx] } })),
-                label: { show: true, position: 'top' as const, formatter: (p: any) => p.dataIndex === 0 ? 'Optimal' : `${percentages[p.dataIndex].toFixed(1)}%`, color: colors.text }
-            }]
-        };
-    }, [actualResult, modelResults, selectedModels, colors]);
+        const dates = Object.keys(ganttData?.optimal ?
+            ganttData.optimal.reduce((acc: any, op: any) => ({ ...acc, [op.datetime.substring(0, 10)]: 1 }), {}) :
+            {}
+        ).sort();
 
-    // 2. Daily Net Revenue Comparison
-    const dailyRevenueOption = useMemo(() => {
-        if (!actualResult?.results && selectedModels.length === 0) return {};
+        // Helper to get Daily Net and Cumulative
+        const getSeriesData = (ops: any[], name: string, color: string, isOptimal: boolean) => {
+            const dailyNet: Record<string, number> = {};
+            const cumulative: number[] = [];
+            let sum = 0;
 
-        // Helper to aggregate daily net revenue
-        const aggregateSplit = (results: any[]) => {
-            const daily: Record<string, number> = {};
-            results.forEach(r => {
-                if (!r.time) return;
-                const date = r.time.substring(0, 10);
-                if (!daily[date]) daily[date] = 0;
-
-                // Calculate Net: (SpotRevenue + BalRevenue) - ChargeCost
-                const rev = ((r.power_spot || 0) * (r.price_spot || 0) + (r.power_bal || 0) * (r.price_bal || 0)) * dt;
-                const cost = (r.power_ch || 0) * (r.price_spot || 0) * dt;
-                daily[date] += (rev - cost);
+            // Map ops to days for net
+            ops.forEach(op => {
+                const d = op.datetime.substring(0, 10);
+                dailyNet[d] = (dailyNet[d] || 0) + (op.revenueRealized ?? op.revenue ?? 0);
             });
-            return daily;
+
+            // Build arrays aligned with 'dates'
+            const netData = dates.map(d => dailyNet[d] || 0);
+
+            // Build Cumulative (continuously summing sorted ops, but we need to match 'dates' points?)
+            // Actually, Cumulative Line should probably be per TimeStep (detailed) or per Day (summary)?
+            // User request usually implies "Daily Cumulative" if combined with Daily Net.
+            // Let's do Daily Cumulative (End of Day).
+
+            dates.forEach(d => {
+                sum += dailyNet[d] || 0;
+                cumulative.push(sum);
+            });
+
+            return {
+                net: {
+                    name: isOptimal ? 'Optimal (Net)' : `${name} (Net)`,
+                    type: 'bar',
+                    data: netData,
+                    itemStyle: { color: color, opacity: 0.7 },
+                    barGap: 0,
+                    yAxisIndex: 0
+                },
+                cum: {
+                    name: isOptimal ? 'Optimal (Cum)' : `${name} (Cum)`,
+                    type: 'line',
+                    yAxisIndex: 0,
+                    data: cumulative,
+                    itemStyle: { color: color },
+                    lineStyle: { color: color, width: 3, type: isOptimal ? 'solid' : 'dashed' },
+                    showSymbol: false
+                }
+            };
         };
 
-        // 1. Process Optimal
-        const optimalDailyMap = actualResult ? aggregateSplit(actualResult.results) : {};
-
-        // 2. Process Models
-        const modelDailyMaps: Record<string, Record<string, number>> = {};
-        selectedModels.forEach(model => {
-            const key = `${model.id}|${model.name}`;
-            const res = modelResults[key];
-            if (res?.optimization?.results) {
-                modelDailyMaps[key] = aggregateSplit(res.optimization.results);
-            }
-        });
-
-        // 3. Collect all unique dates
-        const allDatesSet = new Set<string>();
-        Object.keys(optimalDailyMap).forEach(d => allDatesSet.add(d));
-        Object.values(modelDailyMaps).forEach(map => Object.keys(map).forEach(d => allDatesSet.add(d)));
-        const sortedDates = Array.from(allDatesSet).sort();
-        const xAxisLabels = sortedDates.map(d => d.substring(5)); // MM-DD
-
-        // 4. Build Series
         const series: any[] = [];
 
-        // Optimal Series
-        if (actualResult) {
-            series.push({
-                name: 'Optimal',
-                type: 'bar',
-                data: sortedDates.map(d => optimalDailyMap[d] || 0),
-                itemStyle: { color: colors.actual || '#ff4d4f' },
-                barGap: 0
-            });
+        // Optimal
+        if (ganttData?.optimal) {
+            const d = getSeriesData(ganttData.optimal, 'Optimal', colors.actual || '#ff4d4f', true);
+            series.push(d.net, d.cum);
         }
 
-        // Model Series
+        // Models
         selectedModels.forEach(model => {
             const key = `${model.id}|${model.name}`;
-            const map = modelDailyMaps[key];
-            if (map) {
-                series.push({
-                    name: model.name,
-                    type: 'bar',
-                    data: sortedDates.map(d => map[d] || 0),
-                    itemStyle: { color: model.color }
-                });
+            if (ganttData?.models[key]) {
+                const d = getSeriesData(ganttData.models[key], model.name, model.color, false);
+                series.push(d.net, d.cum);
             }
         });
 
         return {
-            title: { text: 'Daily Net Revenue Comparison', textStyle: { color: colors.text, fontSize: 14 } },
-            backgroundColor: 'transparent',
             tooltip: {
                 trigger: 'axis' as const,
-                axisPointer: { type: 'shadow' as const },
-                formatter: (params: any) => {
-                    let html = `<div style="margin-bottom:4px;font-weight:bold">${params[0]?.name}</div>`;
-                    if (Array.isArray(params)) {
-                        params.forEach((p: any) => {
-                            html += `
-                                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
-                                    <span style="display:flex;align-items:center;gap:4px">
-                                        <span style="width:10px;height:10px;border-radius:2px;background-color:${p.color}"></span>
-                                        ${p.seriesName}
-                                    </span>
-                                    <span style="font-weight:bold">¥${(p.value as number).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                </div>`;
-                        });
-                    }
+                axisPointer: { type: 'cross' as const },
+                backgroundColor: darkMode ? 'rgba(40,40,40,0.96)' : 'rgba(255,255,255,0.98)',
+                borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                borderWidth: 1,
+                padding: [12, 14],
+                textStyle: { color: darkMode ? '#e0e0e0' : '#1a1a1a', fontSize: 13 },
+                formatter: (params: any[]) => {
+                    const sep = darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+                    let html = `<div style="font-weight:600;font-size:13px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid ${sep}">${params[0].name}</div>`;
+                    params.forEach(p => {
+                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span><span style="color:${darkMode ? '#aaa' : '#666'}">${p.seriesName}</span></span><b>¥${Number(p.value).toLocaleString()}</b></div>`;
+                    });
                     return html;
                 }
             },
-            legend: { top: 0, right: 0, textStyle: { color: colors.text } },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '30', containLabel: true },
+            legend: {
+                type: 'scroll' as const,
+                orient: 'horizontal' as const,
+                left: 'center',
+                bottom: 8,
+                textStyle: { color: colors.text },
+                data: series.map((s) => s.name)
+            },
+            grid: { left: '3%', right: '3%', bottom: 56, top: 48, containLabel: true },
             xAxis: {
                 type: 'category' as const,
-                data: xAxisLabels,
-                axisLabel: { color: colors.text }
-            },
-            yAxis: {
-                type: 'value' as const,
+                data: dates.map(d => d.substring(5)), // MM-DD
                 axisLabel: { color: colors.text },
-                splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } }
+                splitArea: {
+                    show: true,
+                    areaStyle: {
+                        color: dates.map((_, i) =>
+                            i % 2 === 1
+                                ? (darkMode ? 'rgba(68,68,68,0.35)' : 'rgba(224,224,224,0.5)')
+                                : 'transparent'
+                        )
+                    }
+                }
             },
-            series: series.map(s => ({ ...s, type: 'bar' as const }))
-        };
-    }, [actualResult, modelResults, selectedModels, colors, dt]);
-
-    // 3. Cumulative Revenue
-    const cumulativeOption = useMemo(() => {
-        if (!actualResult?.results) return {};
-        const getCumulative = (results: any[]) => {
-            let sum = 0;
-            return results.map(r => {
-                sum += (r.revenue || 0);
-                return { time: r.time, val: sum };
-            });
-        };
-        const optimalCum = getCumulative(actualResult.results);
-        const times = optimalCum.map(d => d.time ? d.time.substring(5, 16).replace('T', ' ') : '');
-        const series: any[] = [{
-            name: 'Optimal',
-            type: 'line' as const,
-            data: optimalCum.map(d => d.val),
-            itemStyle: { color: colors.actual || '#ff4d4f' },
-            showSymbol: false
-        }];
-        selectedModels.forEach(model => {
-            const key = `${model.id}|${model.name}`;
-            const res = modelResults[key];
-            if (res?.optimization?.results) {
-                const modelCum = getCumulative(res.optimization.results);
-                series.push({
-                    name: `${model.name}`,
-                    type: 'line' as const,
-                    data: modelCum.map(d => d.val),
-                    itemStyle: { color: model.color },
-                    showSymbol: false,
-                    lineStyle: { type: 'dashed' as const }
+            yAxis: [
+                {
+                    type: 'value' as const,
+                    name: 'JPY',
+                    position: 'right' as const,
+                    boundaryGap: ['0%', '8%'] as [string, string],
+                    axisLabel: { color: colors.text },
+                    axisLine: { show: true, lineStyle: { color: colors.text, opacity: 0.5 } },
+                    splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } },
+                    axisTick: { show: true }
+                }
+            ],
+            series: (() => {
+                const zeroLineStyle = { type: 'solid' as const, width: 2, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)' };
+                let addedBarZero = false, addedLineZero = false;
+                return series.map((s) => {
+                    if (s.type === 'bar' && !addedBarZero) {
+                        addedBarZero = true;
+                        return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } };
+                    }
+                    if (s.type === 'line' && !addedLineZero) {
+                        addedLineZero = true;
+                        return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } };
+                    }
+                    return s;
                 });
-            }
-        });
-        return {
-            title: { text: 'Cumulative Revenue', textStyle: { color: colors.text, fontSize: 14 } },
-            backgroundColor: 'transparent',
-            tooltip: { trigger: 'axis' as const },
-            legend: { top: 0, right: 0, textStyle: { color: colors.text } },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '30', containLabel: true },
-            xAxis: { type: 'category' as const, data: times, axisLabel: { color: colors.text } },
-            yAxis: { type: 'value' as const, axisLabel: { color: colors.text }, splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } } },
-            series: series
+            })()
         };
-    }, [actualResult, modelResults, selectedModels, colors]);
+    }, [ganttData, selectedModels, colors, actualResult, darkMode]);
 
 
     // Data for Table
@@ -273,6 +248,114 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         });
         return options;
     }, [selectedModels]);
+
+    const timeCategories = useMemo(() => {
+        if (!ganttData) return [];
+        const src = ganttData.optimal?.length ? ganttData.optimal : (() => {
+            const firstKey = Object.keys(ganttData.models)[0];
+            return firstKey ? ganttData.models[firstKey] : [];
+        })();
+        return [...src]
+            .sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''))
+            .map(d => (d.datetime ? d.datetime.substring(5, 16).replace('T', ' ') : ''));
+    }, [ganttData]);
+
+    const connectGroupIdRef = useRef<string | null>(null);
+    const axisPointerCleanupsRef = useRef<(() => void)[]>([]);
+    const bindListenersTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!ganttData || timeCategories.length === 0) return;
+        const attemptConnect = () => {
+            const p = priceChartRef.current?.getInstance?.();
+            const o = opChartRef.current?.getInstance?.();
+            const s = socChartRef.current?.getInstance?.();
+            if (p && o && s) {
+                import('echarts').then((echarts) => {
+                    const groupId = echarts.connect([p, o, s]);
+                    connectGroupIdRef.current = groupId;
+
+                    const charts = [p, o, s];
+                    const len = timeCategories.length;
+                    const syncAxisPointer = (sourceChart: any, dataIndex: number) => {
+                        const idx = Math.min(Math.max(0, dataIndex), len - 1);
+                        charts.forEach((ch) => {
+                            if (ch === sourceChart) return;
+                            try {
+                                ch.dispatchAction({
+                                    type: 'updateAxisPointer',
+                                    currTrigger: 'axis',
+                                    xAxisIndex: 0,
+                                    dataIndex: idx
+                                });
+                                ch.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+                            } catch (_) {}
+                        });
+                    };
+                    const clearAxisPointer = () => {
+                        charts.forEach((ch) => {
+                            try { ch.dispatchAction({ type: 'hideTip' }); } catch (_) {}
+                        });
+                    };
+
+                    const offFns: (() => void)[] = [];
+                    const bindListeners = () => {
+                        if (!connectGroupIdRef.current) return;
+                        charts.forEach((ch) => {
+                            const zr = ch.getZr();
+                            if (!zr) {
+                                offFns.push(() => {});
+                                return;
+                            }
+                            const onMove = (e: any) => {
+                                const point = [e.offsetX, e.offsetY];
+                                try {
+                                    const result = ch.convertFromPixel(
+                                        { seriesIndex: 0, xAxisIndex: 0, yAxisIndex: 0 },
+                                        point
+                                    );
+                                    const rawIdx = result != null && Array.isArray(result) ? result[0] : null;
+                                    if (typeof rawIdx === 'number' && !Number.isNaN(rawIdx)) {
+                                        const dataIndex = Math.round(rawIdx);
+                                        if (dataIndex >= 0 && dataIndex < len) syncAxisPointer(ch, dataIndex);
+                                    }
+                                } catch (_) {}
+                            };
+                            const onOut = () => clearAxisPointer();
+                            zr.on('mousemove', onMove);
+                            zr.on('globalout', onOut);
+                            offFns.push(() => {
+                                zr.off('mousemove', onMove);
+                                zr.off('globalout', onOut);
+                            });
+                        });
+                        axisPointerCleanupsRef.current = offFns;
+                    };
+                    bindListenersTimeoutRef.current = setTimeout(bindListeners, 0);
+                });
+                return true;
+            }
+            return false;
+        };
+        let t: ReturnType<typeof setTimeout> | undefined;
+        if (!attemptConnect()) {
+            t = setTimeout(attemptConnect, 150);
+        }
+        return () => {
+            if (t) clearTimeout(t);
+            if (bindListenersTimeoutRef.current != null) {
+                clearTimeout(bindListenersTimeoutRef.current);
+                bindListenersTimeoutRef.current = null;
+            }
+            axisPointerCleanupsRef.current.forEach((fn) => fn());
+            axisPointerCleanupsRef.current = [];
+            const gid = connectGroupIdRef.current;
+            if (gid) {
+                connectGroupIdRef.current = null;
+                import('echarts').then((echarts) => { try { echarts.disconnect(gid); } catch (_) {} });
+            }
+        };
+    }, [ganttData, timeCategories.length]);
 
 
     return (
@@ -295,9 +378,16 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                 alignItems: 'center'
                             }}
                         >
-                            <Typography variant="overline" color="primary.main" fontWeight="600">Optimal Revenue</Typography>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="overline" color="primary.main" fontWeight="600">Optimal (Realized)</Typography>
+                                <Tooltip title="以區間內實際價格回算：若完全依照最優排程（事後最優）執行，可獲得的總收益。" placement="top" arrow enterDelay={300}>
+                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                    </Box>
+                                </Tooltip>
+                            </Box>
                             <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                ¥{metrics.optimalRev.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                ¥{((metrics.optimalRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </Typography>
                         </Paper>
                     </Grid>
@@ -315,10 +405,17 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                 alignItems: 'center'
                             }}
                         >
-                            <Typography variant="overline" sx={{ color: '#9c27b0', fontWeight: 600 }}>Best Strategy</Typography>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="overline" sx={{ color: '#9c27b0', fontWeight: 600 }}>Best Model (Realized)</Typography>
+                                <Tooltip title="在已選擇的預測模型中，依其建議排程並以實際價格結算後，實現收益最高的模型；下方為該模型名稱與其實現收益。" placement="top" arrow enterDelay={300}>
+                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                    </Box>
+                                </Tooltip>
+                            </Box>
                             <Typography variant="caption" sx={{ mb: 0.5, color: 'text.secondary' }}>{metrics.bestModelName}</Typography>
                             <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                ¥{metrics.bestModelRev.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                ¥{((metrics.bestModelRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </Typography>
                         </Paper>
                     </Grid>
@@ -327,11 +424,11 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                             elevation={0}
                             sx={{
                                 p: 2,
-                                bgcolor: metrics.efficiency > 90
+                                bgcolor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
                                     ? (darkMode ? 'rgba(76, 175, 80, 0.1)' : '#e8f5e9')
                                     : (darkMode ? 'rgba(255, 152, 0, 0.1)' : '#fff3e0'),
                                 border: '1px solid',
-                                borderColor: metrics.efficiency > 90
+                                borderColor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
                                     ? (darkMode ? 'rgba(76, 175, 80, 0.3)' : '#a5d6a7')
                                     : (darkMode ? 'rgba(255, 152, 0, 0.3)' : '#ffcc80'),
                                 borderRadius: 2,
@@ -340,23 +437,44 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                 alignItems: 'center'
                             }}
                         >
-                            <Typography variant="overline" sx={{ color: metrics.efficiency > 90 ? 'success.main' : 'warning.main', fontWeight: 600 }}>
-                                Efficiency
-                            </Typography>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="overline" sx={{ color: typeof metrics.efficiency === 'number' && metrics.efficiency > 90 ? 'success.main' : 'warning.main', fontWeight: 600 }}>
+                                    Strategy Efficiency
+                                </Typography>
+                                <Tooltip title="最佳模型之實現收益占最優實現收益的百分比。100% 表示該模型策略與最優結果一致；愈低表示與最優差距愈大。" placement="top" arrow enterDelay={300}>
+                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                    </Box>
+                                </Tooltip>
+                            </Box>
                             <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                {metrics.efficiency.toFixed(1)}%
+                                {typeof metrics.efficiency === 'number' && Number.isFinite(metrics.efficiency) ? `${metrics.efficiency.toFixed(1)}%` : '—'}
                             </Typography>
                         </Paper>
                     </Grid>
                 </Grid>
             )}
 
+            {/* Price vs Operation Chart */}
+            <Box sx={{ mt: 1 }}>
+                <PriceOperationChart
+                    ref={priceChartRef}
+                    ganttData={ganttData ?? undefined}
+                    selectedModels={selectedModels}
+                    colors={colors}
+                    timeCategories={timeCategories}
+                    height={320}
+                    title="Price & Operation Analysis"
+                    groupId="revenue-time-group"
+                />
+            </Box>
+
             {/* Gantt Chart Section */}
-            <Box>
+            <Box sx={{ mt: 2 }}>
                 {ganttData ? (
-                    <Box sx={{ mt: 1 }}>
-                        <Typography variant="h6" gutterBottom>Operating Schedule</Typography>
-                        <RevenueGanttChart data={ganttData} viewOptions={viewOptions} />
+                    <Box>
+                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>Operating Schedule</Typography>
+                        <RevenueGanttChart data={ganttData} selectedModels={selectedModels} timeCategories={timeCategories} colors={colors} opChartRef={opChartRef} socChartRef={socChartRef} />
                     </Box>
                 ) : (
                     <Box sx={{ p: 4, textAlign: 'center', border: `1px dashed ${colors.border}`, borderRadius: 2 }}>
@@ -365,23 +483,21 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                 )}
             </Box>
 
-            <Divider />
+            <Divider sx={{ my: 2 }} />
 
-            {/* Analysis Charts */}
-            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, minHeight: 400 }}>
-                <Box sx={{ flex: 1, minHeight: 300 }}>
-                    {actualResult && <BaseChart option={totalRevenueOption} height={350} />}
-                </Box>
-                <Box sx={{ flex: 1, minHeight: 300 }}>
-                    {actualResult && <BaseChart option={dailyRevenueOption} height={350} />}
-                </Box>
+            {/* Daily Revenue Analysis */}
+            <Box sx={{ minHeight: 420, mt: 1 }}>
+                {actualResult && (
+                    <>
+                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                            Daily Revenue Analysis
+                        </Typography>
+                        <BaseChart option={dailyAnalysisOption as EChartsOption} height={400} />
+                    </>
+                )}
             </Box>
 
-            <Box sx={{ minHeight: 350 }}>
-                {actualResult && <BaseChart option={cumulativeOption} height={350} />}
-            </Box>
-
-            <Divider />
+            <Divider sx={{ my: 2 }} />
 
             {/* Operation Details Table */}
             {ganttData && displayedSchedule.length > 0 && (
