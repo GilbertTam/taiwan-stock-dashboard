@@ -1,7 +1,10 @@
+/**
+ * 預測分析頁 | Forecast analysis page — price prediction chart with sidebar controls.
+ */
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { downloadSpotCsv } from '@/services/api';
@@ -10,74 +13,18 @@ import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 
 // Shared Components
-import { DashboardToolbar } from '@/components/features/navigation/DashboardToolbar';
-import { PriceChartProvider } from '@/components/features/price-chart/context/PriceChartContext';
+import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
+import { PriceChartProvider } from '@/components/price-chart/context/PriceChartContext';
+import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 
 // Feature Components
-import { PricePredictionSidebar } from '@/components/features/analysis/components/PricePredictionSidebar';
-import { MainPriceChartTab } from '@/components/features/analysis/components/tabs/MainPriceChartTab';
-import { ResizableLayout } from '@/shared/components/layout/ResizableLayout';
+import { PricePredictionSidebar } from '@/components/forecast/PricePredictionSidebar';
+import { MainPriceChartTab } from '@/components/forecast/tabs/MainPriceChartTab';
+import { ResizableLayout } from '@/components/layout/ResizableLayout';
 
 // Hooks
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
-import { usePricePredictionData } from '@/components/features/analysis/hooks/usePricePredictionData';
-
-// 與首頁一致的載入轉圈
-const LoadingSpinner = () => (
-  <>
-    <Box
-      sx={{
-        position: 'relative',
-        width: 56,
-        height: 56,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          borderRadius: '50%',
-          border: '3px solid',
-          borderColor: 'var(--card-border)',
-          opacity: 0.3,
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          borderRadius: '50%',
-          border: '3px solid transparent',
-          borderTopColor: 'var(--primary)',
-          borderRightColor: 'var(--primary)',
-          animation: 'spin 0.8s linear infinite',
-        },
-        '@keyframes spin': {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
-        },
-      }}
-    />
-    <Typography sx={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>
-      載入市場資料...
-    </Typography>
-  </>
-);
-
-const LoadingOverlay = () => (
-  <Box
-    sx={{
-      position: 'fixed',
-      inset: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-      zIndex: 10,
-      backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    }}
-  >
-    <LoadingSpinner />
-  </Box>
-);
+import { usePricePredictionData } from '@/components/forecast/hooks/usePricePredictionData';
 
 function ForecastContent() {
   const searchParams = useSearchParams();

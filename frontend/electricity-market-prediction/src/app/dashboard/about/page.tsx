@@ -1,47 +1,16 @@
+/**
+ * 關於頁 | About page — data sources and frontend tools attribution.
+ */
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { Box, Typography, Link } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box, Typography, Link as MuiLink } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import { DashboardSubPageLayout } from '@/components/layout/DashboardSubPageLayout';
 
 export default function AboutPage() {
-  const router = useRouter();
-
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        backgroundColor: 'var(--background)',
-        color: 'var(--foreground)',
-        p: 3,
-        maxWidth: 800,
-        mx: 'auto',
-      }}
-    >
-      <Link
-        component="button"
-        variant="body2"
-        onClick={() => router.push('/dashboard')}
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.5,
-          color: 'var(--primary)',
-          textDecoration: 'none',
-          mb: 2,
-          '&:hover': { textDecoration: 'underline' },
-        }}
-      >
-        <ArrowBackIcon sx={{ fontSize: 18 }} />
-        返回總覽
-      </Link>
-
-      <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--foreground)', mb: 3 }}>
-        關於網站
-      </Typography>
-
+    <DashboardSubPageLayout title="關於網站">
       {/* 資料來源 */}
       <Box sx={{ mb: 4 }}>
         <Typography
@@ -109,53 +78,53 @@ export default function AboutPage() {
           <li>
             <strong>Apache ECharts</strong> — 圖表庫
             <br />
-            <Link
+            <MuiLink
               href="https://echarts.apache.org/"
               target="_blank"
               rel="noopener noreferrer"
               sx={{ color: 'var(--primary)', fontSize: '0.8125rem' }}
             >
               https://echarts.apache.org/
-            </Link>
+            </MuiLink>
           </li>
           <li>
             <strong>TradingView Lightweight Charts</strong> — 金融圖表元件
             <br />
-            <Link
+            <MuiLink
               href="https://www.tradingview.com/lightweight-charts/"
               target="_blank"
               rel="noopener noreferrer"
               sx={{ color: 'var(--primary)', fontSize: '0.8125rem' }}
             >
               https://www.tradingview.com/lightweight-charts/
-            </Link>
+            </MuiLink>
           </li>
           <li>
             <strong>MUI (Material UI)</strong> — UI 元件庫
             <br />
-            <Link
+            <MuiLink
               href="https://mui.com/"
               target="_blank"
               rel="noopener noreferrer"
               sx={{ color: 'var(--primary)', fontSize: '0.8125rem' }}
             >
               https://mui.com/
-            </Link>
+            </MuiLink>
           </li>
           <li>
             <strong>Next.js</strong> — React 框架
             <br />
-            <Link
+            <MuiLink
               href="https://nextjs.org/"
               target="_blank"
               rel="noopener noreferrer"
               sx={{ color: 'var(--primary)', fontSize: '0.8125rem' }}
             >
               https://nextjs.org/
-            </Link>
+            </MuiLink>
           </li>
         </Box>
       </Box>
-    </Box>
+    </DashboardSubPageLayout>
   );
 }
