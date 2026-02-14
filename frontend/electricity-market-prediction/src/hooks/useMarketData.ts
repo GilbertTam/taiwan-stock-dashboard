@@ -39,7 +39,7 @@ import {
     fetchOcctoArea,
     fetchBatteryData,
     fetchBidPlans
-} from '@/services/api';
+} from '@/services';
 import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
@@ -597,8 +597,8 @@ export const useMarketData = (): UseMarketDataReturn => {
                 fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')),
                 fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')),
                 fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池')),
-                fetchBidPlans({ 
-                    start_date: formattedStartDate, 
+                fetchBidPlans({
+                    start_date: formattedStartDate,
                     end_date: formattedEndDate
                     // commodity_category 和 site_id 筛选在前端进行，以支持多选和预设 spot
                 }).catch(catchWithLabel('投標計畫'))

@@ -38,8 +38,8 @@ export interface AllAreasPricesParams {
  */
 export const fetchAreas = async (): Promise<Area[]> => {
     const api = createAuthenticatedApi();
-    const response = await api.get<{ result: Area[] }>('/area');
-    return response.data.result;
+    const response = await api.get<ApiResponse<Area[]>>('/area');
+    return response.data.data;
 };
 
 /**
@@ -67,6 +67,6 @@ import { BatteryConfig, OptimizationResult } from '@/types/revenueAnalysis';
 
 export const calculateRevenue = async (config: BatteryConfig, data: any[]): Promise<OptimizationResult> => {
     const api = createAuthenticatedApi();
-    const response = await api.post<OptimizationResult>('/market-info/analyze/revenue', { config, data });
+    const response = await api.post<OptimizationResult>('/optimization', { config, data });
     return response.data;
 };

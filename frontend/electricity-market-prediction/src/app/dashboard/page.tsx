@@ -85,8 +85,8 @@ export default function Dashboard() {
   }, [areas, startDate, endDate]);
 
   const handleDownloadCsv = useCallback(async () => {
-    if (!startDate || !endDate || areas.length === 0) return;
-    const areaName = areas[0].name;
+    const areaName = highlightedArea ?? areas[0]?.name;
+    if (!startDate || !endDate || !areaName) return;
     try {
       const blob = await downloadSpotCsv({
         start_date: format(startDate, 'yyyyMMdd'),
@@ -104,7 +104,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error('Failed to download CSV', e);
     }
-  }, [startDate, endDate, areas]);
+  }, [startDate, endDate, areas, highlightedArea]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -300,7 +300,7 @@ export default function Dashboard() {
           onDateRangePreset={handleDateRangePreset}
           onDateMenuClose={onDateMenuClose}
           onRefresh={handleRefresh}
-          onDownloadCsv={handleDownloadCsv}
+          downloadActions={[{ label: '下載目前檢視區域 CSV', onClick: handleDownloadCsv }]}
           currentTab="home"
         />
       </Box>

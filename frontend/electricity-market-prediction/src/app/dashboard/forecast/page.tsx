@@ -113,7 +113,7 @@ function ForecastContent() {
               onDateRangePreset={handleDateRangePreset}
               onDateMenuClose={onDateMenuClose}
               onRefresh={handleRefresh}
-              onDownloadCsv={handleDownloadCsv}
+              downloadActions={[{ label: '下載價差 CSV', onClick: handleDownloadCsv }]}
               currentTab="price"
             />
           </Box>

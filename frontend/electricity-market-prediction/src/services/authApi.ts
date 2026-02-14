@@ -16,6 +16,15 @@ import { AuthTokens, LoginCredentials } from '@/types';
  */
 export const login = async (credentials: LoginCredentials): Promise<AuthTokens> => {
     const api = createApiInstance();
-    const response = await api.post<AuthTokens>('/auth/token', credentials);
+    const formData = new URLSearchParams();
+    formData.append('username', credentials.username);
+    formData.append('password', credentials.password);
+
+    // Auth token endpoint expects x-www-form-urlencoded
+    const response = await api.post<AuthTokens>('/auth/token', formData, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
     return response.data;
 };

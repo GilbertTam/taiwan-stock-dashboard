@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Alert, Snackbar } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -99,7 +99,87 @@ function SiteRevenueContent() {
   }, [chartData, selectedModels.length, ganttData, isSimulating]);
 
   // Handlers
-  const handleDownloadCsv = async () => { /* reuse existing if needed or omit */ };
+  const handleDownloadRevenueCsv = useCallback(() => {
+    if (!ganttData) return;
+    const escape = (v: string | number | null | undefined): string => {
+      const s = v === null || v === undefined ? '' : String(v);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const rows: string[] = [];
+
+    // Summary section
+    rows.push('案場收益報表');
+    rows.push('');
+    if (startDate && endDate) {
+      rows.push(`日期範圍,${format(startDate, 'yyyy-MM-dd')},${format(endDate, 'yyyy-MM-dd')}`);
+    }
+    rows.push(`區域,${escape(selectedArea)}`);
+    rows.push(`儲能容量(MWh),${escape(config.E_cap)}`);
+    rows.push(`放電上限(MW),${escape(config.P_max_dis)}`);
+    rows.push(`充電上限(MW),${escape(config.P_max_ch)}`);
+    rows.push(`時間步長(h),${escape(config.dt)}`);
+    rows.push('');
+
+    const sumRevenue = (ops: { revenueRealized?: number; revenue?: number }[]) =>
+      ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
+
+    const optimalRev = ganttData.optimal?.length ? sumRevenue(ganttData.optimal) : 0;
+    rows.push('摘要');
+    rows.push('類型,總收益(預測/最適),實現收益');
+    rows.push(`Optimal,${escape(optimalRev)},${escape(optimalRev)}`);
+
+    selectedModels.forEach((m) => {
+      const key = `${m.id}|${m.name}`;
+      const ops = ganttData.models?.[key];
+      if (ops?.length) {
+        const rev = sumRevenue(ops);
+        const realized = modelResults[key]?.realizedRevenue ?? rev;
+        rows.push(`${escape(m.name)},${escape(rev)},${escape(realized)}`);
+      }
+    });
+
+    rows.push('');
+    rows.push('明細');
+    const detailHeaders = '排程類型,日期時間,動作,功率(MW),SoC,價格,收益,實際價格,預測價格,實現收益';
+    rows.push(detailHeaders);
+
+    const writeOps = (ops: typeof ganttData.optimal, type: string) => {
+      if (!ops) return;
+      ops.forEach((op) => {
+        rows.push([
+          escape(type),
+          escape(op.datetime),
+          escape(op.action),
+          escape(op.power),
+          escape(op.soc),
+          escape(op.price),
+          escape(op.revenue),
+          escape(op.priceActual),
+          escape(op.pricePredicted),
+          escape(op.revenueRealized),
+        ].join(','));
+      });
+    };
+
+    writeOps(ganttData.optimal, 'Optimal');
+    selectedModels.forEach((m) => {
+      const key = `${m.id}|${m.name}`;
+      writeOps(ganttData.models?.[key], m.name);
+    });
+
+    const csv = rows.join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `revenue_report_${selectedArea || 'site'}_${startDate ? format(startDate, 'yyyyMMdd') : ''}_${endDate ? format(endDate, 'yyyyMMdd') : ''}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, [ganttData, modelResults, config, selectedArea, startDate, endDate, selectedModels]);
+
   const handleRefresh = () => { refreshData ? refreshData() : window.location.reload(); };
 
   const handleModelToggle = (modelId: string | number, modelName: string) => {
@@ -353,7 +433,7 @@ function SiteRevenueContent() {
               onDateRangePreset={handleDateRangePreset}
               onDateMenuClose={onDateMenuClose}
               onRefresh={handleRefresh}
-              onDownloadCsv={handleDownloadCsv}
+              downloadActions={ganttData ? [{ label: '下載收益報表 CSV', onClick: handleDownloadRevenueCsv }] : []}
               currentTab="site-revenue"
             />
           </Box>

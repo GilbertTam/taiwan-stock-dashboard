@@ -3,9 +3,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthTokens, LoginCredentials } from '@/types';
-import axios from 'axios';
 import Cookies from 'js-cookie';
-import { getApiBaseUrl } from '@/utils/apiConfig';
+import { login as loginApi } from '@/services/authApi';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -18,8 +17,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
-  login: async () => {},
-  logout: () => {},
+  login: async () => { },
+  logout: () => { },
   getAccessToken: () => null,
 });
 
@@ -34,7 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<string | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const router = useRouter();
-  
+
   // 初始化時檢查本地存儲中是否有token
   useEffect(() => {
     const storedTokens = localStorage.getItem('auth_tokens');
@@ -51,24 +50,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     }
   }, []);
-  
+
   const login = async (credentials: LoginCredentials) => {
     try {
-      const API_BASE_URL = getApiBaseUrl();
-      const response = await axios.post<AuthTokens>(`${API_BASE_URL}/auth/token`, credentials);
-      
-      const authTokens = response.data;
+      const authTokens = await loginApi(credentials);
+
       setTokens(authTokens);
       setUser(authTokens.username);
       setIsAuthenticated(true);
-      
+
       // 保存到本地存儲
       localStorage.setItem('auth_tokens', JSON.stringify(authTokens));
-      
+
       // 同時保存到 cookie，以便 middleware 可以訪問
-      Cookies.set('auth_tokens', JSON.stringify(authTokens), { 
+      Cookies.set('auth_tokens', JSON.stringify(authTokens), {
         expires: 7, // 7天過期
-        path: '/' 
+        path: '/'
       });
 
 
@@ -81,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw error;
     }
   };
-  
+
   const logout = () => {
     setTokens(null);
     setUser(null);
@@ -90,11 +87,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     Cookies.remove('auth_tokens', { path: '/' });
     router.push('/login');
   };
-  
+
   const getAccessToken = () => {
     return tokens?.access_token || null;
   };
-  
+
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, login, logout, getAccessToken }}>
       {children}

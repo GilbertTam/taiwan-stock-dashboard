@@ -49,5 +49,6 @@ export {
     fetchOcctoEvents,
     fetchBatteryData,
     fetchTdgc,
+    fetchBidPlans,
 } from './gridOperationsApi';
-export type { DateRangeParams, AreaDateRangeParams, InterconnectionParams, BatteryDataParams } from './gridOperationsApi';
+export type { DateRangeParams, AreaDateRangeParams, InterconnectionParams, BatteryDataParams, BidPlanParams } from './gridOperationsApi';

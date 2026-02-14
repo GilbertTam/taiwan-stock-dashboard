@@ -72,8 +72,8 @@ export interface SpotCsvParams {
  */
 export const fetchPredictionModels = async (): Promise<PredictionModel[]> => {
     const api = createAuthenticatedApi();
-    const response = await api.get<ApiResponse<PredictionModel[]>>('/custom-predict/available-models');
-    return response.data.data;
+    const response = await api.get<PredictionModel[]>('/custom-spot-market-predict/available-models');
+    return response.data;
 };
 
 /**
@@ -81,7 +81,7 @@ export const fetchPredictionModels = async (): Promise<PredictionModel[]> => {
  */
 export const fetchPredictions = async (params: PredictionsParams): Promise<PricePrediction[]> => {
     const api = createAuthenticatedApi();
-    const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-predict/predictions', { params });
+    const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-spot-market-predict/predictions', { params });
     return response.data.data;
 };
 
@@ -90,17 +90,15 @@ export const fetchPredictions = async (params: PredictionsParams): Promise<Price
  */
 export const fetchSpecificPredictions = async (params: SpecificPredictionsParams): Promise<PricePrediction[]> => {
     const api = createAuthenticatedApi();
-    const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-predict/specific-calculating-date-predictions', { params });
+    const response = await api.get<ApiResponse<PricePrediction[]>>('/custom-spot-market-predict/specific-calculating-date-predictions', { params });
     return response.data.data;
 };
 
-/**
- * Fetch available prediction calculation dates.
- */
+
 export const fetchAvailableCalculatingDates = async (params: CalculatingDatesParams): Promise<CalculatingDate[]> => {
     const api = createAuthenticatedApi();
-    const response = await api.get<ApiResponse<CalculatingDate[]>>('/custom-predict/available-calculating-dates', { params });
-    return response.data.data;
+    const response = await api.get<CalculatingDate[]>('/custom-spot-market-predict/available-dates', { params });
+    return response.data;
 };
 
 /**
@@ -108,7 +106,7 @@ export const fetchAvailableCalculatingDates = async (params: CalculatingDatesPar
  */
 export const downloadSpotCsv = async (params: SpotCsvParams): Promise<Blob> => {
     const api = createAuthenticatedApi();
-    const response = await api.get('/custom-predict/spot-csv-download', {
+    const response = await api.get('/custom-spot-market-predict/spot-csv-download', {
         params,
         responseType: 'blob',
     });

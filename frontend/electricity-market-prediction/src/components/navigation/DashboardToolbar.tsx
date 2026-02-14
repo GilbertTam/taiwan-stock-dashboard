@@ -10,7 +10,8 @@ import {
   TextField,
   InputAdornment,
   Popover,
-  Typography,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -26,6 +27,11 @@ import UserMenu from '@/components/navigation/UserMenu';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
+export interface DownloadAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface SimpleToolbarProps {
   startDate: Date | null;
   endDate: Date | null;
@@ -34,7 +40,8 @@ interface SimpleToolbarProps {
   onDateRangePreset: (preset: string | null) => void;
   onDateMenuClose?: () => void;
   onRefresh: () => void;
-  onDownloadCsv: () => void;
+  /** Page-specific download options (e.g. CSV, report). Rendered as single button or dropdown. */
+  downloadActions: DownloadAction[];
   /** Current tab key for highlight (price | market-info). Only relevant on forecast page. */
   currentTab?: string;
 }
@@ -53,12 +60,13 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   onDateRangePreset,
   onDateMenuClose,
   onRefresh,
-  onDownloadCsv,
+  downloadActions = [],
   currentTab = 'price',
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
+  const [downloadAnchorEl, setDownloadAnchorEl] = useState<HTMLElement | null>(null);
 
   const handleDateClick = (event: React.MouseEvent<HTMLElement>) => {
     setDateAnchorEl(event.currentTarget);
@@ -215,20 +223,56 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="下載 CSV">
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            startIcon={<DownloadIcon />}
-            onClick={onDownloadCsv}
-            sx={{
-              textTransform: 'none',
-            }}
-          >
-            下載 CSV
-          </Button>
-        </Tooltip>
+        {downloadActions.length > 0 && (
+          <>
+            {downloadActions.length === 1 ? (
+              <Tooltip title={downloadActions[0].label}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={downloadActions[0].onClick}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {downloadActions[0].label}
+                </Button>
+              </Tooltip>
+            ) : (
+              <>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={(e) => setDownloadAnchorEl(e.currentTarget)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  下載
+                </Button>
+                <Menu
+                  anchorEl={downloadAnchorEl}
+                  open={Boolean(downloadAnchorEl)}
+                  onClose={() => setDownloadAnchorEl(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  {downloadActions.map((action, idx) => (
+                    <MenuItem
+                      key={idx}
+                      onClick={() => {
+                        action.onClick();
+                        setDownloadAnchorEl(null);
+                      }}
+                    >
+                      {action.label}
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </>
+            )}
+          </>
+        )}
 
         <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, pl: 1, borderLeft: '1px solid var(--card-border)' }}>
           <UserMenu showLabel size="small" />
