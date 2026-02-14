@@ -184,27 +184,27 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                         })()}
                                     </TableCell>
                                     <TableCell align="center">
-                                        {timeCode}
+                                        {Number.isFinite(timeCode) ? timeCode : '-'}
                                     </TableCell>
                                     <TableCell align="center">
                                         <Chip
-                                            label={row.action}
+                                            label={row.action || '-'}
                                             color={getActionColor(row.action) as any}
                                             size="small"
                                             variant="outlined"
                                         />
                                     </TableCell>
                                     <TableCell align="right">
-                                        {row.price.toFixed(2)}
+                                        {Number.isFinite(row.price) ? row.price.toFixed(2) : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {row.power.toFixed(2)}
+                                        {Number.isFinite(row.power) ? row.power.toFixed(2) : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {(row.soc * 100).toFixed(1)}%
+                                        {Number.isFinite(row.soc) ? (row.soc * 100).toFixed(1) + '%' : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {row.revenue?.toLocaleString(undefined, { maximumFractionDigits: 0 }) ?? '-'}
+                                        {Number.isFinite(row.revenue) ? row.revenue!.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '-'}
                                     </TableCell>
                                 </TableRow>
                             );

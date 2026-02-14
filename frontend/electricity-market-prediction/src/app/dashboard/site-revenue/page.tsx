@@ -179,20 +179,25 @@ function SiteRevenueContent() {
       // 3. Prepare Gantt Data
       const transformToGantt = (optimization: OptimizationResult): GanttOperation[] => {
         return optimization.results.map((r: any, idx: number) => {
-          const time = validData[idx]?.time || new Date().toISOString();
-          const timeCode = getJepxTimeCode(time);
+          // Fix 6: Use dateTime (YYYY-MM-DD HH:mm) instead of time (HH:mm) for accurate parsing
+          const dateTime = validData[idx]?.dateTime || new Date().toISOString();
+          const timeCode = getJepxTimeCode(dateTime);
+
           let action: GanttOperation['action'] = 'Idle';
           if (r.action === 'Charge') action = 'Charge';
           if (r.action === 'Spot') action = 'Spot';
           if (r.action === 'Balance') action = 'Balance';
 
+          // Fix 7: Clamp SoC between 0 and 1 (backend might return > 1 due to float precision)
+          const soc = Math.min(1, Math.max(0, r.soc_pct));
+
           return {
             timeStep: r.time_step,
             timeCode: timeCode,
-            datetime: time,
+            datetime: dateTime,
             action: action,
             power: action === 'Charge' ? r.power_ch : (r.power_spot + r.power_bal),
-            soc: r.soc_pct,
+            soc: soc,
             price: r.price_spot,
             revenue: r.revenue
           };
@@ -203,8 +208,9 @@ function SiteRevenueContent() {
         optimal: optResult ? transformToGantt(optResult) : [],
         models: {},
         dateRange: {
-          start: validData[0]?.time || new Date().toISOString(),
-          end: validData[validData.length - 1]?.time || new Date().toISOString()
+          // Fix 8: Use dateTime to ensure valid date parsing in Gantt chart
+          start: validData[0]?.dateTime || new Date().toISOString(),
+          end: validData[validData.length - 1]?.dateTime || new Date().toISOString()
         }
       };
 

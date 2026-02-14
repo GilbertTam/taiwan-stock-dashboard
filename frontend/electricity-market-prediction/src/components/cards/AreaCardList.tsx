@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { Box, Typography, Skeleton, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Skeleton, Tooltip } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import type { Area } from '@/types';
 import { ChartDataPoint } from '@/utils/chartUtils';
 
@@ -43,7 +41,6 @@ export function AreaInfoCard({
     spreadChange,
     todaySpread,
 }: AreaInfoCardProps) {
-    const router = useRouter();
     const color = AREA_COLORS[colorIndex % AREA_COLORS.length];
 
     // Calculate metrics
@@ -61,11 +58,6 @@ export function AreaInfoCard({
     const lowPrice = validPrices.length > 0
         ? Math.min(...validPrices.map((p) => p.actualPrice!))
         : null;
-
-    const handleGoToPrediction = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        router.push(`/dashboard/forecast?area=${encodeURIComponent(area.name)}`);
-    };
 
     const hasData = validPrices.length > 0;
 
@@ -144,23 +136,6 @@ export function AreaInfoCard({
                     )}
                 </Box>
             </Box>
-
-            {/* 前往預測分析 - compact icon only */}
-            <Tooltip title="前往預測分析" placement="left" arrow>
-                <IconButton
-                    size="small"
-                    onClick={handleGoToPrediction}
-                    sx={{
-                        alignSelf: 'center',
-                        mr: 0.5,
-                        color: 'var(--muted)',
-                        '&:hover': { color, backgroundColor: `${color}20` },
-                        '& .MuiSvgIcon-root': { fontSize: 14 },
-                    }}
-                >
-                    <OpenInNewIcon fontSize="inherit" />
-                </IconButton>
-            </Tooltip>
         </Box>
     );
 }

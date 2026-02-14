@@ -316,7 +316,7 @@ export const useChartSeries = ({
         // Imbalance Rates (Main Axis)
         if (imbalanceSurplusData && imbalanceSurplusData.length > 0) {
             updateOrAdd('imbalance_surplus', LineSeries, imbalanceSurplusData, {
-                color: '#4caf50', // Green
+                color: colors.imbalanceSurplus,
                 priceScaleId: 'right',
                 lineWidth: 2,
                 // Use title on the right price scale to show the line name;
@@ -326,7 +326,7 @@ export const useChartSeries = ({
         }
         if (imbalanceDeficitData && imbalanceDeficitData.length > 0) {
             updateOrAdd('imbalance_deficit', LineSeries, imbalanceDeficitData, {
-                color: '#e65100', // Deep orange（與現貨紅 #ef5350 區隔）
+                color: colors.imbalanceDeficit,
                 priceScaleId: 'right',
                 lineWidth: 2,
                 title: showRightAxisLabels ? 'Deficit Rate' : '',

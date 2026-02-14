@@ -11,7 +11,8 @@ import { Box, Typography, Button, ButtonGroup } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { format } from 'date-fns';
 import { GanttChartData, ViewOptions, DEFAULT_VIEW_OPTIONS } from '@/types/revenueAnalysis';
-import { OperationGanttChart, GanttRowData } from './OperationGanttChart';
+import { ChargeDischargeChart } from './ChargeDischargeChart';
+import { GanttRowData } from './OperationGanttChart';
 import { SocChart } from './SocChart';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
@@ -94,8 +95,7 @@ export const RevenueGanttChart: React.FC<RevenueGanttChartProps> = ({
             {/* Operation Chart */}
             {viewOptions.showOperation && (
                 <Box>
-                    <Typography variant="subtitle2" gutterBottom>Operation Schedule</Typography>
-                    <OperationGanttChart
+                    <ChargeDischargeChart
                         rows={rows}
                         slotWidth={slotWidth}
                         periodCount={48}

@@ -128,6 +128,8 @@ export interface ChartColors {
         neutral: string;
     };
     imbalance: string;
+    imbalanceSurplus: string;
+    imbalanceDeficit: string;
     interconnection: string;
     intraday: string;
     occtoArea: string;
@@ -165,6 +167,8 @@ export const useChartColors = (): ChartColors => {
             neutral: darkMode ? '#a6a6a6' : '#8c8c8c',
         },
         imbalance: darkMode ? '#8884d8' : '#8884d8',
+        imbalanceSurplus: '#4caf50',
+        imbalanceDeficit: '#e65100',
         interconnection: darkMode ? '#ff7300' : '#ff7300',
         intraday: darkMode ? '#82ca9d' : '#82ca9d',
         occtoArea: darkMode ? '#ffc658' : '#ffc658',

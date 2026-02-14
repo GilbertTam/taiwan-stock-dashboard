@@ -76,93 +76,120 @@ export const SocChart: React.FC<SocChartProps> = ({
     };
 
     return (
-        <Box sx={{ display: 'flex', overflow: 'hidden', border: `1px solid ${colors.border}`, borderRadius: 1, mt: 1 }}>
-            {/* Left Panel: Y Axis Labels */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', border: `1px solid ${colors.border}`, borderRadius: 1, mt: 1, overflow: 'hidden' }}>
+            {/* Header with Title and Legend */}
             <Box sx={{
-                width: leftPanelWidth,
-                flexShrink: 0,
-                borderRight: `1px solid ${colors.border}`,
-                bgcolor: darkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                p: 1.5,
+                borderBottom: `1px solid ${colors.border}`,
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'space-between',
-                p: 1
+                bgcolor: darkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
             }}>
-                <Typography variant="subtitle2">SoC (%)</Typography>
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', py: 2 }}>
-                    <Typography variant="caption">100%</Typography>
-                    <Typography variant="caption">50%</Typography>
-                    <Typography variant="caption">0%</Typography>
+                <Typography variant="subtitle2" fontWeight="bold">Battery State of Charge (SoC)</Typography>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    {rows.map(row => (
+                        <Box key={row.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: row.color }} />
+                            <Typography variant="caption">{row.name}</Typography>
+                        </Box>
+                    ))}
                 </Box>
             </Box>
 
-            {/* Scrollable Chart Area */}
-            <Box sx={{ flex: 1, overflowX: 'auto', position: 'relative' }}>
-                <Box sx={{ width: chartWidth, minWidth: '100%' }}>
-                    <svg width={chartWidth} height={chartHeight + headerHeight}>
-                        {/* Grid Lines */}
-                        <line x1={0} y1={0} x2={chartWidth} y2={0} stroke={colors.grid} />
-                        <line x1={0} y1={chartHeight / 2} x2={chartWidth} y2={chartHeight / 2} stroke={colors.grid} strokeDasharray="4 4" />
-                        <line x1={0} y1={chartHeight} x2={chartWidth} y2={chartHeight} stroke={colors.grid} />
+            <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                {/* Left Panel: Y Axis Labels */}
+                <Box sx={{
+                    width: leftPanelWidth,
+                    flexShrink: 0,
+                    borderRight: `1px solid ${colors.border}`,
+                    bgcolor: darkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    p: 1
+                }}>
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', py: 2 }}>
+                        <Typography variant="caption">100%</Typography>
+                        <Typography variant="caption">50%</Typography>
+                        <Typography variant="caption">0%</Typography>
+                    </Box>
+                </Box>
 
-                        {/* SoC Lines */}
-                        {rows.map((row) => (
-                            <path
-                                key={row.id}
-                                d={getSocPath(row.data)}
-                                fill="none"
-                                stroke={row.color}
-                                strokeWidth={2}
-                                opacity={0.8}
-                            />
-                        ))}
+                {/* Scrollable Chart Area */}
+                <Box sx={{ flex: 1, overflowX: 'auto', position: 'relative' }}>
+                    <Box sx={{ width: chartWidth, minWidth: '100%' }}>
+                        <svg width={chartWidth} height={chartHeight + headerHeight}>
+                            {/* Grid Lines */}
+                            <line x1={0} y1={0} x2={chartWidth} y2={0} stroke={colors.grid} />
+                            <line x1={0} y1={chartHeight / 2} x2={chartWidth} y2={chartHeight / 2} stroke={colors.grid} strokeDasharray="4 4" />
+                            <line x1={0} y1={chartHeight} x2={chartWidth} y2={chartHeight} stroke={colors.grid} />
 
-                        {/* Hover Overlay area for tooltips */}
-                        {Array.from({ length: maxSlots }).map((_, idx) => {
-                            const isMajorHour = idx % 6 === 0;
-                            return (
-                                <g key={idx}>
-                                    <Tooltip
-                                        title={
-                                            <Box sx={{ p: 0.5 }}>
-                                                <Typography variant="subtitle2">Time: {getTimeLabel(idx)}</Typography>
-                                                {rows.map(row => {
-                                                    const val = row.data[idx]?.soc;
-                                                    return val !== undefined ? (
-                                                        <Box key={row.id} display="flex" gap={1}>
-                                                            <Box width={10} height={10} bgcolor={row.color} />
-                                                            <Typography variant="caption">{row.name}: {(val * 100).toFixed(1)}%</Typography>
-                                                        </Box>
-                                                    ) : null;
-                                                })}
-                                            </Box>
-                                        }
-                                        arrow
-                                    >
-                                        <rect
-                                            x={idx * slotWidth}
-                                            y={0}
-                                            width={slotWidth}
-                                            height={chartHeight}
-                                            fill="transparent"
-                                        />
-                                    </Tooltip>
+                            {/* SoC Lines */}
+                            {rows.map((row) => (
+                                <path
+                                    key={row.id}
+                                    d={getSocPath(row.data)}
+                                    fill="none"
+                                    stroke={row.color}
+                                    strokeWidth={2}
+                                    opacity={0.8}
+                                />
+                            ))}
 
-                                    {/* Axis Labels */}
-                                    {isMajorHour && (
-                                        <text
-                                            x={idx * slotWidth}
-                                            y={chartHeight + 15}
-                                            fontSize="10"
-                                            fill={colors.textSecondary}
+                            {/* Hover Overlay area for tooltips */}
+                            {Array.from({ length: maxSlots }).map((_, idx) => {
+                                const isMajorHour = idx % 6 === 0;
+                                return (
+                                    <g key={idx}>
+                                        <Tooltip
+                                            title={
+                                                <Box sx={{ p: 0.5 }}>
+                                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>{getTimeLabel(idx)}</Typography>
+                                                    {rows.map(row => {
+                                                        const val = row.data[idx]?.soc;
+                                                        return val !== undefined ? (
+                                                            <Box key={row.id} display="flex" justifyContent="space-between" gap={2} sx={{ mb: 0.5 }}>
+                                                                <Box display="flex" alignItems="center" gap={1}>
+                                                                    <Box width={10} height={10} bgcolor={row.color} borderRadius="50%" />
+                                                                    <Typography variant="body2">{row.name}</Typography>
+                                                                </Box>
+                                                                <Typography variant="body2" fontWeight="bold">
+                                                                    {(val * 100).toFixed(1)}%
+                                                                </Typography>
+                                                            </Box>
+                                                        ) : null;
+                                                    })}
+                                                </Box>
+                                            }
+                                            arrow
+                                            placement="top"
                                         >
-                                            {getTimeLabel(idx)}
-                                        </text>
-                                    )}
-                                </g>
-                            );
-                        })}
-                    </svg>
+                                            <rect
+                                                x={idx * slotWidth}
+                                                y={0}
+                                                width={slotWidth}
+                                                height={chartHeight}
+                                                fill="transparent"
+                                            />
+                                        </Tooltip>
+
+                                        {/* Axis Labels */}
+                                        {isMajorHour && (
+                                            <text
+                                                x={idx * slotWidth}
+                                                y={chartHeight + 15}
+                                                fontSize="10"
+                                                fill={colors.textSecondary}
+                                            >
+                                                {getTimeLabel(idx)}
+                                            </text>
+                                        )}
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                    </Box>
                 </Box>
             </Box>
         </Box>

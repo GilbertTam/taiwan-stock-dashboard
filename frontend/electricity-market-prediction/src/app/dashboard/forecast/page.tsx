@@ -5,7 +5,6 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { Box } from '@mui/material';
-import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { downloadSpotCsv } from '@/services/api';
 import { format } from 'date-fns';
@@ -27,7 +26,6 @@ import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { usePricePredictionData } from '@/components/forecast/hooks/usePricePredictionData';
 
 function ForecastContent() {
-  const searchParams = useSearchParams();
   const { darkMode } = useTheme();
   const colors = useChartColors();
 
@@ -45,17 +43,7 @@ function ForecastContent() {
     clearPreset: () => handleDateRangePreset(null),
   });
 
-  const areaFromUrl = searchParams.get('area') || '';
-  const panelFromUrl = searchParams.get('panel') || '';
-  const defaultPanelMarketInfo = panelFromUrl === 'market-info';
-
-  // Sync Area URL param
-  useEffect(() => {
-    if (!areaFromUrl || areas.length === 0) return;
-    if (areas.some((a) => a.name === areaFromUrl)) {
-      handleAreaChange({ target: { value: areaFromUrl } } as any);
-    }
-  }, [areaFromUrl, areas, handleAreaChange]);
+  const defaultPanelMarketInfo = false; // panel param removed, defaulting to standard view logic if needed, or just relying on internal state.
 
   // Data Preparation
   const { chartData, weatherChartData, marketInfoWeatherChartData } = usePricePredictionData({
