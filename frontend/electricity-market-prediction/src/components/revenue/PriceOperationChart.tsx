@@ -226,6 +226,7 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                     z: 0,
                     animation: false,
                     showInLegend: false,
+                    tooltip: { show: false },
                     markArea: { silent: true, data: markAreaData, itemStyle }
                 };
                 return [dayBgSeries, ...priceSeries];

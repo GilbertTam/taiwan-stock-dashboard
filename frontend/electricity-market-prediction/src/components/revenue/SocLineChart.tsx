@@ -93,7 +93,8 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
                 top: 0,
                 left: 'center',
                 orient: 'horizontal',
-                textStyle: { color: darkMode ? '#fff' : '#000' }
+                textStyle: { color: darkMode ? '#fff' : '#000' },
+                data: series.map((s) => s.name)
             },
             grid: {
                 left: '3%',
@@ -129,6 +130,7 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
                     z: 0,
                     animation: false,
                     showInLegend: false,
+                    tooltip: { show: false },
                     markArea: { silent: true, data: markAreaData, itemStyle }
                 };
                 const lineSeries = series.map(s => ({

@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { Box, Alert, Snackbar } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -78,13 +78,25 @@ function SiteRevenueContent() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // Clear results when core data changes
+  // Clear results when core data changes (date/area/model); allow auto re-run after
+  const initialSimulationRun = useRef(false);
   useEffect(() => {
     setActualResult(null);
     setModelResults({});
     setGanttData(null);
     setError(null);
+    initialSimulationRun.current = false;
   }, [chartData.length, selectedModels.length]);
+
+  // Auto-run simulation when page has valid data (including after date/area change)
+  useEffect(() => {
+    if (initialSimulationRun.current) return;
+    const validData = chartData.filter(d => d.actualPrice !== null || (d.modelPredictions?.length ?? 0) > 0);
+    if (validData.length > 0 && selectedModels.length > 0 && !ganttData && !isSimulating) {
+      initialSimulationRun.current = true;
+      handleCalculate();
+    }
+  }, [chartData, selectedModels.length, ganttData, isSimulating]);
 
   // Handlers
   const handleDownloadCsv = async () => { /* reuse existing if needed or omit */ };

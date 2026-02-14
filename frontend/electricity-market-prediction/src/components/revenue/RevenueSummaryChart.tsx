@@ -288,7 +288,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                     xAxisIndex: 0,
                                     dataIndex: idx
                                 });
-                                ch.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: idx });
+                                ch.dispatchAction({ type: 'showTip', dataIndex: idx });
                             } catch (_) {}
                         });
                     };
@@ -311,7 +311,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                 const point = [e.offsetX, e.offsetY];
                                 try {
                                     const result = ch.convertFromPixel(
-                                        { seriesIndex: 0, xAxisIndex: 0, yAxisIndex: 0 },
+                                        { gridIndex: 0 },
                                         point
                                     );
                                     const rawIdx = result != null && Array.isArray(result) ? result[0] : null;

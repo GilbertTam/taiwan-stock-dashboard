@@ -37,7 +37,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [order, setOrder] = useState<Order>('asc');
-    const [orderBy, setOrderBy] = useState<OrderBy>('timeStep');
+    const [orderBy, setOrderBy] = useState<OrderBy>('datetime');
 
     const handleRequestSort = (property: OrderBy) => {
         const isAsc = orderBy === property && order === 'asc';
@@ -64,25 +64,15 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
         }
     };
 
-    // Sorting logic
+    // Sorting: primary by datetime, secondary by timeCode
     const sortedData = React.useMemo(() => {
         return [...data].sort((a, b) => {
-            let aValue: any = a[orderBy as keyof GanttOperation];
-            let bValue: any = b[orderBy as keyof GanttOperation];
-
-            // Special handling for timeCode derived from timeStep if needed
-            if (orderBy === 'timeCode') {
-                aValue = a.timeCode ?? (a.timeStep % 48) + 1;
-                bValue = b.timeCode ?? (b.timeStep % 48) + 1;
-            }
-
-            if (bValue < aValue) {
-                return order === 'asc' ? 1 : -1;
-            }
-            if (bValue > aValue) {
-                return order === 'asc' ? -1 : 1;
-            }
-            return 0;
+            const dtCmp = (a.datetime || '').localeCompare(b.datetime || '');
+            if (dtCmp !== 0) return order === 'asc' ? dtCmp : -dtCmp;
+            const tcA = a.timeCode ?? (a.timeStep != null ? (a.timeStep % 48) + 1 : 0);
+            const tcB = b.timeCode ?? (b.timeStep != null ? (b.timeStep % 48) + 1 : 0);
+            const tcCmp = tcA - tcB;
+            return order === 'asc' ? tcCmp : -tcCmp;
         });
     }, [data, order, orderBy]);
 
