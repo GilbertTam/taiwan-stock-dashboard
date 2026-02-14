@@ -8,7 +8,7 @@ import {
   TickerMarquee,
   WaveBarBackground,
   LoginFormCard,
-} from '@/components/features/auth/login';
+} from '@/components/auth';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
