@@ -1,3 +1,6 @@
+/**
+ * 總覽頁（Dashboard 首頁）| Dashboard home page — overview of all-area prices, area cards, and outages.
+ */
 'use client';
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
@@ -5,14 +8,15 @@ import { useRouter } from 'next/navigation';
 import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
 import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
 import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
-import { AllAreasPriceChart } from '@/components/features/dashboard/charts/AllAreasPriceChart';
-import { AreaCardList } from '@/components/features/dashboard/cards/AreaCardList';
-import { DashboardToolbar } from '@/components/features/navigation/DashboardToolbar';
-import { QuickAccessCards } from '@/components/features/dashboard/cards/QuickAccessCards';
-import { KeyMetricsCards } from '@/components/features/dashboard/cards/KeyMetricsCards';
-import { PriceTrendPreview } from '@/components/features/dashboard/charts/PriceTrendPreview';
-import { AreaPricePreviewGrid } from '@/components/features/dashboard/cards/AreaPricePreviewGrid';
-import { LoginOverlay } from '@/components/features/dashboard/overlay/LoginOverlay';
+import { AllAreasPriceChart } from '@/components/dashboard/charts/AllAreasPriceChart';
+import { AreaCardList } from '@/components/cards/AreaCardList';
+import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
+import { QuickAccessCards } from '@/components/cards/QuickAccessCards';
+import { KeyMetricsCards } from '@/components/cards/KeyMetricsCards';
+import { PriceTrendPreview } from '@/components/dashboard/charts/PriceTrendPreview';
+import { AreaPricePreviewGrid } from '@/components/cards/AreaPricePreviewGrid';
+import { LoginOverlay } from '@/components/overlay/LoginOverlay';
+import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
@@ -20,64 +24,6 @@ import type { Area, HjksOutage } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-
-// Custom Loader - designed spinner + label (no height:100% so wrapper controls centering)
-const LoadingSpinner = () => (
-  <>
-    <Box
-      sx={{
-        position: 'relative',
-        width: 56,
-        height: 56,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          borderRadius: '50%',
-          border: '3px solid',
-          borderColor: 'var(--card-border)',
-          opacity: 0.3,
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          borderRadius: '50%',
-          border: '3px solid transparent',
-          borderTopColor: 'var(--primary)',
-          borderRightColor: 'var(--primary)',
-          animation: 'spin 0.8s linear infinite',
-        },
-        '@keyframes spin': {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
-        },
-      }}
-    />
-    <Typography sx={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>
-      載入市場資料...
-    </Typography>
-  </>
-);
-
-// Full-viewport centering so spinner is in the middle from first frame (no jump)
-const LoadingComponent = () => (
-  <Box
-    sx={{
-      position: 'fixed',
-      inset: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-      zIndex: 10,
-      backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    }}
-  >
-    <LoadingSpinner />
-  </Box>
-);
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
@@ -319,7 +265,7 @@ export default function Dashboard() {
 
   // Return null while redirecting (avoid flash)
   if (!isAuthenticated) {
-    return <LoadingComponent />;
+    return <LoadingOverlay />;
   }
 
   return (
@@ -361,9 +307,9 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        <Suspense fallback={<LoadingComponent />}>
+        <Suspense fallback={<LoadingOverlay />}>
           {allAreasLoading ? (
-            <LoadingComponent />
+            <LoadingOverlay />
           ) : (
             <>
               {/* Left: Chart */}

@@ -1,6 +1,6 @@
 'use client';
 
-import DashboardLayout from '@/shared/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { MarketDataProvider } from '@/context/MarketDataContext';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
