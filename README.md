@@ -19,6 +19,10 @@
 - 🔐 **JWT 登入** — 使用者認證與 Token 授權
 - 📥 **CSV 匯出** — 下載現貨價格與預測資料
 
+![Revenue](./docs/revenue.png)
+
+![Forecast](./docs/forecast.png)
+
 ---
 
 ## 🛠️ 技術架構
