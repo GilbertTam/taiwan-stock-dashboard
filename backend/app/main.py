@@ -16,10 +16,31 @@ def create_application() -> FastAPI:
     
     application = FastAPI(
         title=settings.PROJECT_NAME,
-        openapi_url=f"{settings.API_V1_STR}/openapi.json",
-        docs_url=f"{settings.API_V1_STR}/docs",
-        redoc_url=f"{settings.API_V1_STR}/redoc",
+        openapi_url=None,  # Disable default openapi.json
+        docs_url=None,     # Disable default /docs
+        redoc_url=None,    # Disable default /redoc
     )
+
+    # ... CORS setup ...
+
+    # Protected Documentation Routes
+    from fastapi import Depends
+    from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+    from fastapi.openapi.utils import get_openapi
+    from app.api.v1.auth import get_current_active_user
+
+    @application.get(f"{settings.API_V1_STR}/docs", include_in_schema=False)
+    async def get_documentation(current_user = Depends(get_current_active_user)):
+        return get_swagger_ui_html(openapi_url=f"{settings.API_V1_STR}/openapi.json", title=f"{settings.PROJECT_NAME} - Swagger UI")
+
+    @application.get(f"{settings.API_V1_STR}/redoc", include_in_schema=False)
+    async def get_redoc_documentation(current_user = Depends(get_current_active_user)):
+        return get_redoc_html(openapi_url=f"{settings.API_V1_STR}/openapi.json", title=f"{settings.PROJECT_NAME} - ReDoc")
+
+    @application.get(f"{settings.API_V1_STR}/openapi.json", include_in_schema=False)
+    async def get_open_api_endpoint(current_user = Depends(get_current_active_user)):
+        return get_openapi(title=settings.PROJECT_NAME, version="1.0.0", routes=application.routes)
+
 
     # Set all CORS enabled origins
     if settings.BACKEND_CORS_ORIGINS:
@@ -34,7 +55,7 @@ def create_application() -> FastAPI:
         # Default to allow all for dev if not specified
         application.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:6873"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],

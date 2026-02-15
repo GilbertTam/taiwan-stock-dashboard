@@ -15,19 +15,43 @@ from app.models.user import User
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token", auto_error=False)
+
+from fastapi import Cookie, Response
 
 async def get_current_user(
-    db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)
+    db: AsyncSession = Depends(get_db), 
+    token: str = Depends(oauth2_scheme),
+    access_token: str | None = Cookie(default=None) # Read from cookie
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # Try Bearer token first (OAuth2PasswordBearer usually raises if missing, so this might need adjustment)
+    # The OAuth2PasswordBearer(auto_error=True) raises 401 if missing.
+    # To support cookie fallback, we need auto_error=False or handle it manually.
+    # But for now, let's see. If the frontend sends Bearer, oauth2_scheme passes.
+    # If Swagger (browser) sends no header, oauth2_scheme raises 401.
+    # We need to change oauth2_scheme to auto_error=False.
+    
+    token_to_use = token
+    if not token_to_use and access_token:
+         # Cookie format might be "Bearer <token>" or just "<token>"
+         # My login logic sets "Bearer <token>"
+         if access_token.startswith("Bearer "):
+             token_to_use = access_token.split(" ")[1]
+         else:
+             token_to_use = access_token
+             
+    if not token_to_use:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token_to_use, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         username: str = payload.get("sub")
         if username is None:
@@ -51,6 +75,7 @@ async def get_current_active_user(
 
 @router.post("/token", response_model=user_schema.Token)
 async def login_access_token(
+    response: Response,
     db: AsyncSession = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
@@ -67,10 +92,23 @@ async def login_access_token(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = security.create_access_token(
+        user.username, ends_delta=access_token_expires
+    )
+    
+    # Set HttpOnly cookie for Swagger UI
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token}",
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="lax",
+        secure=False, # Set to True in production with HTTPS
+    )
+
     return {
-        "access_token": security.create_access_token(
-            user.username, ends_delta=access_token_expires
-        ),
+        "access_token": token,
         "token_type": "bearer",
     }
 
