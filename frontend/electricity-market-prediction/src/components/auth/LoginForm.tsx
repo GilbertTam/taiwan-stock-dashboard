@@ -51,24 +51,24 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       <Box sx={{ textAlign: 'center', mb: 3, mt: 1 }}>
         <Box
           sx={{
-            width: 52,
-            height: 52,
+            width: 56,
+            height: 56,
             mx: 'auto',
             mb: 1.5,
             borderRadius: 1.5,
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 32px rgba(59, 130, 246, 0.3)',
+            boxShadow: '0 8px 24px rgba(0, 255, 157, 0.25)',
           }}
         >
-          <BoltIcon sx={{ fontSize: 28, color: '#fff' }} />
+          <BoltIcon sx={{ fontSize: 30, color: 'var(--primary-foreground)' }} />
         </Box>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 18 }}>
           日本電力市場儀表板
         </Typography>
-        <Typography sx={{ color: 'var(--muted)', fontSize: 12 }}>
+        <Typography sx={{ color: 'var(--text-secondary)', fontSize: 12 }}>
           HD Japan Electricity Market
         </Typography>
       </Box>
@@ -78,10 +78,10 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           severity="error"
           sx={{
             mb: 2,
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#f87171',
-            '& .MuiAlert-icon': { color: '#f87171' },
+            backgroundColor: 'color-mix(in srgb, var(--error) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--error) 40%, transparent)',
+            color: 'var(--error)',
+            '& .MuiAlert-icon': { color: 'var(--error)' },
           }}
         >
           {error}
@@ -89,7 +89,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       )}
 
       <Box sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 11, color: 'var(--muted)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
+        <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
           帳號
         </Typography>
         <TextField
@@ -106,7 +106,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
                 <PersonOutlineIcon
                   sx={{
                     fontSize: 18,
-                    color: focused === 'username' ? 'var(--primary)' : 'var(--muted)',
+                    color: focused === 'username' ? 'var(--primary)' : 'var(--text-secondary)',
                     transition: 'color 0.2s',
                   }}
                 />
@@ -115,11 +115,11 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(4px)',
+              backgroundColor: 'var(--hover-bg)',
+              borderRadius: 1,
               '& fieldset': { borderColor: 'var(--card-border)' },
               '&:hover fieldset': { borderColor: 'var(--primary)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
+              '&.Mui-focused fieldset': { borderColor: 'var(--primary)', borderWidth: '1px' },
             },
             '& .MuiInputBase-input': { color: 'var(--foreground)' },
           }}
@@ -127,7 +127,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       </Box>
 
       <Box sx={{ mb: 3 }}>
-        <Typography sx={{ fontSize: 11, color: 'var(--muted)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
+        <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
           密碼
         </Typography>
         <TextField
@@ -145,7 +145,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
                 <LockOutlinedIcon
                   sx={{
                     fontSize: 18,
-                    color: focused === 'password' ? 'var(--primary)' : 'var(--muted)',
+                    color: focused === 'password' ? 'var(--primary)' : 'var(--text-secondary)',
                     transition: 'color 0.2s',
                   }}
                 />
@@ -157,7 +157,8 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   edge="end"
                   size="small"
-                  sx={{ color: 'var(--muted)' }}
+                  sx={{ color: 'var(--text-secondary)' }}
+                  aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
                 >
                   {showPassword ? (
                     <VisibilityOffIcon sx={{ fontSize: 18 }} />
@@ -170,11 +171,11 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(4px)',
+              backgroundColor: 'var(--hover-bg)',
+              borderRadius: 1,
               '& fieldset': { borderColor: 'var(--card-border)' },
               '&:hover fieldset': { borderColor: 'var(--primary)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
+              '&.Mui-focused fieldset': { borderColor: 'var(--primary)', borderWidth: '1px' },
             },
             '& .MuiInputBase-input': { color: 'var(--foreground)' },
           }}
@@ -192,19 +193,19 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           fontWeight: 600,
           textTransform: 'none',
           backgroundColor: 'var(--primary)',
-          color: '#fff',
-          '&:hover': { backgroundColor: 'var(--primary)', filter: 'brightness(1.1)' },
+          color: 'var(--primary-foreground)',
+          '&:hover': { backgroundColor: 'var(--primary)', filter: 'brightness(1.08)' },
           '&.Mui-disabled': {
-            backgroundColor: 'rgba(59, 130, 246, 0.3)',
-            color: 'rgba(255,255,255,0.5)',
+            backgroundColor: 'var(--hover-bg)',
+            color: 'var(--text-secondary)',
           },
         }}
       >
-        {isLoading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : '登入'}
+        {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : '登入'}
       </Button>
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 10, color: 'var(--muted)' }}>© 2026 HD Research</Typography>
+        <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>© 2026 HD Research</Typography>
       </Box>
     </Box>
   );

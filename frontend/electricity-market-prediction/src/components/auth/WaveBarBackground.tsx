@@ -27,11 +27,12 @@ export function WaveBarBackground() {
             width: 8,
             height: '22%',
             backgroundColor:
-              i % 3 === 0 ? '#22c55e' : i % 3 === 1 ? '#3b82f6' : '#8b5cf6',
+              i % 3 === 0 ? 'var(--primary)' : i % 3 === 1 ? 'var(--secondary)' : 'var(--accent)',
             borderRadius: '3px 3px 0 0',
             transformOrigin: 'bottom',
             animation: 'wave 6s ease-in-out infinite',
             animationDelay: `${i * 0.06}s`,
+            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
           }}
         />
       ))}

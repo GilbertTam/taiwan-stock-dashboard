@@ -12,6 +12,7 @@ export type { UseMarketDataReturn } from './useMarketData';
 export { useDebounce } from './useDebounce';
 export { useBufferedDateRange } from './useBufferedDateRange';
 export { useUserPreferences } from './useUserPreferences';
+export { useInView } from './useInView';
 
 // Extracted modular hooks
 export { useDateRange } from './useDateRange';

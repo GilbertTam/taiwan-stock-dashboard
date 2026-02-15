@@ -6,13 +6,17 @@
  */
 
 import { ReactNode } from 'react';
-import { Box, Typography } from '@mui/material';
+import Link from 'next/link';
+import { Box, Typography, Button } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 interface DashboardSubPageLayoutProps {
     /** 頁面標題 | Page title */
     title: string;
     /** 標題旁的圖示 | Optional icon next to the title */
     icon?: ReactNode;
+    /** 返回連結（例如 /dashboard）| Optional back link for navigation */
+    backHref?: string;
     /** 子內容 | Child content */
     children: ReactNode;
 }
@@ -22,11 +26,11 @@ interface DashboardSubPageLayoutProps {
  * Shared layout component for dashboard sub-pages.
  *
  * @example
- * <DashboardSubPageLayout title="設定" icon={<SettingsIcon />}>
+ * <DashboardSubPageLayout title="設定" icon={<SettingsIcon />} backHref="/dashboard">
  *   <p>Content here</p>
  * </DashboardSubPageLayout>
  */
-export function DashboardSubPageLayout({ title, icon, children }: DashboardSubPageLayoutProps) {
+export function DashboardSubPageLayout({ title, icon, backHref, children }: DashboardSubPageLayoutProps) {
     return (
         <Box
             sx={{
@@ -36,6 +40,26 @@ export function DashboardSubPageLayout({ title, icon, children }: DashboardSubPa
                 px: 3,
             }}
         >
+            {backHref && (
+                <Box sx={{ mb: 2 }}>
+                    <Button
+                        component={Link}
+                        href={backHref}
+                        size="small"
+                        startIcon={<ArrowBackIcon sx={{ fontSize: 18 }} />}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            color: 'var(--primary)',
+                            '&:hover': {
+                                backgroundColor: 'var(--hover-bg)',
+                            },
+                        }}
+                    >
+                        返回總覽
+                    </Button>
+                </Box>
+            )}
             <Typography
                 variant="h5"
                 sx={{

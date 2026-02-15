@@ -19,13 +19,14 @@ export function FlowingWaterTop() {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(90deg, #22c55e, #3b82f6, #8b5cf6, #22c55e)',
+          background: 'linear-gradient(90deg, var(--primary), var(--secondary), var(--accent), var(--primary))',
           backgroundSize: '200% 100%',
           animation: 'flowGradient 3s linear infinite',
           '@keyframes flowGradient': {
             '0%': { backgroundPosition: '0% 0%' },
             '100%': { backgroundPosition: '200% 0%' },
           },
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }}
       />
       <Box

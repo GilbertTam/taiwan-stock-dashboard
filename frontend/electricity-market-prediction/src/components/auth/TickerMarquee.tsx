@@ -39,11 +39,11 @@ function TickerItem({ area, price, change }: TickerItemProps) {
         whiteSpace: 'nowrap',
       }}
     >
-      <Typography sx={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{area}</Typography>
-      <Typography sx={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: 'monospace' }}>
+      <Typography sx={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{area}</Typography>
+      <Typography sx={{ fontSize: 13, color: 'var(--foreground)', fontWeight: 700, fontFamily: 'monospace' }}>
         ¥{price.toFixed(2)}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', color: isUp ? '#4ade80' : '#f87171' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', color: isUp ? 'var(--success)' : 'var(--error)' }}>
         {isUp ? <TrendingUpIcon sx={{ fontSize: 14 }} /> : <TrendingDownIcon sx={{ fontSize: 14 }} />}
         <Typography sx={{ fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }}>
           {isUp ? '+' : ''}

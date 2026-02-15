@@ -9,6 +9,7 @@
   /* Text Colors */
   --text-primary: #ffffff;
   --text-secondary: #888888;
+  --muted: #888888;
 
   /* UI Components */
   --card-bg: rgba(20, 20, 20, 0.6);
@@ -69,6 +70,7 @@
   /* Text Colors */
   --text-primary: #1a1a1a;
   --text-secondary: #666666;
+  --muted: #666666;
 
   /* UI Components */
   --card-bg: rgba(255, 255, 255, 0.8);

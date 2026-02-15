@@ -25,7 +25,7 @@ export function SloshingWaterSurface() {
           right: 0,
           height: '100%',
           background:
-            'linear-gradient(180deg, rgba(59, 130, 246, 0.12), rgba(34, 197, 94, 0.06), rgba(59, 130, 246, 0.03))',
+            'linear-gradient(180deg, color-mix(in srgb, var(--secondary) 12%, transparent), color-mix(in srgb, var(--primary) 6%, transparent), color-mix(in srgb, var(--secondary) 3%, transparent))',
         }}
       />
 
@@ -45,13 +45,14 @@ export function SloshingWaterSurface() {
             '0%, 100%': { transform: 'translateX(0)' },
             '50%': { transform: 'translateX(-25%)' },
           },
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }}
       >
         <defs>
           <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(34, 197, 94, 0.25)" />
-            <stop offset="50%" stopColor="rgba(59, 130, 246, 0.25)" />
-            <stop offset="100%" stopColor="rgba(34, 197, 94, 0.25)" />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
+            <stop offset="50%" stopColor="var(--secondary)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.25" />
           </linearGradient>
         </defs>
         <path
@@ -76,11 +77,13 @@ export function SloshingWaterSurface() {
             '0%, 100%': { transform: 'translateX(-25%)' },
             '50%': { transform: 'translateX(0)' },
           },
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }}
       >
         <path
           d="M0,15 Q20,8 40,15 T80,15 T120,15 T160,15 T200,15 T240,15 T280,15 T320,15 T360,15 T400,15 L400,30 L0,30 Z"
-          fill="rgba(59, 130, 246, 0.15)"
+          fill="var(--secondary)"
+          fillOpacity={0.15}
         />
       </Box>
 
@@ -101,6 +104,7 @@ export function SloshingWaterSurface() {
               '0%, 100%': { opacity: 0.3, transform: 'scale(0.8)' },
               '50%': { opacity: 1, transform: 'scale(1.2)' },
             },
+            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
           }}
         />
       ))}
@@ -120,6 +124,7 @@ export function SloshingWaterSurface() {
             '0%, 100%': { opacity: 0.4 },
             '50%': { opacity: 0.8 },
           },
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }}
       />
     </Box>

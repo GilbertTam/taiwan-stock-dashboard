@@ -21,6 +21,7 @@ const API_BASE_URL = getApiBaseUrl();
 export const createApiInstance = (token?: string): AxiosInstance => {
     const instance = axios.create({
         baseURL: API_BASE_URL,
+        withCredentials: true,
     });
 
     if (token) {

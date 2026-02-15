@@ -1,8 +1,8 @@
 'use client';
 
 import { Box } from '@mui/material';
-import { FlowingWaterTop } from './FlowingWaterTop';
-import { SloshingWaterSurface } from './SloshingWaterSurface';
+import { CircuitFlowBar } from './CircuitFlowBar';
+import { CircuitCardTraces } from './CircuitCardTraces';
 import { LoginForm } from './LoginForm';
 import type { LoginCredentials } from '@/types';
 
@@ -16,32 +16,24 @@ export function LoginFormCard({ onSubmit }: LoginFormCardProps) {
       sx={{
         position: 'relative',
         width: '100%',
-        maxWidth: 360,
+        maxWidth: 380,
         p: 3,
         backgroundColor: 'var(--card-bg)',
-        borderRadius: 2,
-        border: '2px solid var(--card-border)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(16px)',
+        borderRadius: 1.5,
+        border: '1px solid var(--card-border)',
+        boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.4)',
         overflow: 'hidden',
         zIndex: 1,
-        // Battery terminal
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: -10,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 60,
-          height: 12,
-          backgroundColor: 'var(--card-bg)',
-          border: '2px solid var(--card-border)',
-          borderBottom: 'none',
-          borderRadius: '6px 6px 0 0',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+        '&:focus-within': {
+          borderColor: 'var(--primary)',
+          boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--primary)',
         },
       }}
     >
-      <FlowingWaterTop />
-      <SloshingWaterSurface />
+      <CircuitFlowBar />
+      <CircuitCardTraces />
       <LoginForm onSubmit={onSubmit} />
     </Box>
   );

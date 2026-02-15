@@ -33,15 +33,17 @@ export interface DownloadAction {
 }
 
 interface SimpleToolbarProps {
-  startDate: Date | null;
-  endDate: Date | null;
-  dateRangePreset: string | null;
-  onDateRangeChange: (ranges: any) => void;
-  onDateRangePreset: (preset: string | null) => void;
+  /** When 'minimal', only nav items and UserMenu are shown (for settings/about pages). */
+  variant?: 'full' | 'minimal';
+  startDate?: Date | null;
+  endDate?: Date | null;
+  dateRangePreset?: string | null;
+  onDateRangeChange?: (ranges: any) => void;
+  onDateRangePreset?: (preset: string | null) => void;
   onDateMenuClose?: () => void;
-  onRefresh: () => void;
+  onRefresh?: () => void;
   /** Page-specific download options (e.g. CSV, report). Rendered as single button or dropdown. */
-  downloadActions: DownloadAction[];
+  downloadActions?: DownloadAction[];
   /** Current tab key for highlight (price | market-info). Only relevant on forecast page. */
   currentTab?: string;
 }
@@ -53,9 +55,10 @@ const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.Element
 ];
 
 export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
-  startDate,
-  endDate,
-  dateRangePreset,
+  variant = 'full',
+  startDate = null,
+  endDate = null,
+  dateRangePreset = null,
   onDateRangeChange,
   onDateRangePreset,
   onDateMenuClose,
@@ -67,6 +70,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   const pathname = usePathname();
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
   const [downloadAnchorEl, setDownloadAnchorEl] = useState<HTMLElement | null>(null);
+  const isMinimal = variant === 'minimal';
 
   const handleDateClick = (event: React.MouseEvent<HTMLElement>) => {
     setDateAnchorEl(event.currentTarget);
@@ -83,7 +87,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   const idDateData = openDateData ? 'date-range-popover' : undefined;
 
   return (
-    <>
+    <Box component="span" sx={{ display: 'contents' }}>
       <Paper
         sx={{
           p: 1.5,
@@ -125,10 +129,12 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
           );
         })}
 
-        <Box sx={{ width: 16, flexShrink: 0, borderLeft: '1px solid var(--card-border)', alignSelf: 'stretch', mx: 0.5 }} />
+        {!isMinimal && (
+          <Box component="span" sx={{ display: 'contents' }}>
+            <Box sx={{ width: 16, flexShrink: 0, borderLeft: '1px solid var(--card-border)', alignSelf: 'stretch', mx: 0.5 }} />
 
-        {/* Time Selection */}
-        <TextField
+            {/* Time Selection */}
+            <TextField
           size="small"
           value={`${startDate ? format(startDate, 'yyyy/MM/dd') : ''} - ${endDate ? format(endDate, 'yyyy/MM/dd') : ''}`}
           onClick={handleDateClick}
@@ -165,7 +171,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
                 // Let's use 20% of the range or 1 day, whichever is larger?
                 // Actually, "control forward/backward few days" - let's do 1 day for now as requested by "few days".
                 const ONE_DAY = 24 * 60 * 60 * 1000;
-                onDateRangeChange({
+                onDateRangeChange?.({
                   selection: {
                     startDate: new Date(startDate.getTime() - ONE_DAY),
                     endDate: new Date(endDate.getTime() - ONE_DAY),
@@ -185,7 +191,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
             onClick={() => {
               if (startDate && endDate) {
                 const ONE_DAY = 24 * 60 * 60 * 1000;
-                onDateRangeChange({
+                onDateRangeChange?.({
                   selection: {
                     startDate: new Date(startDate.getTime() + ONE_DAY),
                     endDate: new Date(endDate.getTime() + ONE_DAY),
@@ -202,7 +208,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
         {/* Quick Time Range Switcher */}
         <TimeRangeSwitcher
           dateRangePreset={dateRangePreset}
-          onDateRangePreset={onDateRangePreset}
+          onDateRangePreset={onDateRangePreset ?? (() => {})}
         />
 
         <Box sx={{ flex: 1 }} />
@@ -211,7 +217,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
         <Tooltip title="刷新數據">
           <IconButton
             size="small"
-            onClick={onRefresh}
+            onClick={() => onRefresh?.()}
             sx={{
               border: '1px solid var(--card-border)',
               '&:hover': {
@@ -224,7 +230,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
         </Tooltip>
 
         {downloadActions.length > 0 && (
-          <>
+          <Box component="span" sx={{ display: 'contents' }}>
             {downloadActions.length === 1 ? (
               <Tooltip title={downloadActions[0].label}>
                 <Button
@@ -239,7 +245,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
                 </Button>
               </Tooltip>
             ) : (
-              <>
+              <Box component="span" sx={{ display: 'contents' }}>
                 <Button
                   variant="contained"
                   color="primary"
@@ -269,93 +275,97 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
                     </MenuItem>
                   ))}
                 </Menu>
-              </>
+              </Box>
             )}
-          </>
+          </Box>
+        )}
+          </Box>
         )}
 
+        {isMinimal && <Box sx={{ flex: 1 }} />}
         <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, pl: 1, borderLeft: '1px solid var(--card-border)' }}>
           <UserMenu showLabel size="small" />
         </Box>
       </Paper>
 
-      {/* Date Picker Popover */}
-      <Popover
-        id={idDateData}
-        open={openDateData}
-        anchorEl={dateAnchorEl}
-        onClose={handleDateClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        PaperProps={{
-          sx: {
-            mt: 1,
-            p: 0,
-            backgroundColor: 'var(--card-bg)',
-            backgroundImage: 'none',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-            border: '1px solid var(--card-border)',
-            borderRadius: 2,
-            overflow: 'hidden'
-          }
-        }}
-      >
-        <Box
-          className="hdjp-date-range"
-          sx={{
-            p: 0,
-            backgroundColor: 'var(--card-bg)',
-            '& .rdrDateRangeWrapper': {
-              backgroundColor: 'var(--card-bg) !important',
-            },
-            '& .rdrDateRangePickerWrapper': {
-              backgroundColor: 'var(--card-bg) !important',
-            },
-            '& .rdrCalendarWrapper': {
-              backgroundColor: 'var(--card-bg) !important',
-            },
+      {!isMinimal && (
+        <Popover
+          id={idDateData}
+          open={openDateData}
+          anchorEl={dateAnchorEl}
+          onClose={handleDateClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              p: 0,
+              backgroundColor: 'var(--card-bg)',
+              backgroundImage: 'none',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--card-border)',
+              borderRadius: 2,
+              overflow: 'hidden'
+            }
           }}
         >
-          <DateRange
-            editableDateInputs={true}
-            onChange={(ranges) => {
-              const { startDate: newStartDate, endDate: newEndDate } = ranges.selection;
-
-              onDateRangeChange(ranges);
-
-              // 只有選完區間（起訖不同日）才自動關閉，避免只點開始日就關閉
-              if (
-                newStartDate &&
-                newEndDate &&
-                newStartDate.getTime() !== newEndDate.getTime()
-              ) {
-                handleDateClose();
-              }
+          <Box
+            className="hdjp-date-range"
+            sx={{
+              p: 0,
+              backgroundColor: 'var(--card-bg)',
+              '& .rdrDateRangeWrapper': {
+                backgroundColor: 'var(--card-bg) !important',
+              },
+              '& .rdrDateRangePickerWrapper': {
+                backgroundColor: 'var(--card-bg) !important',
+              },
+              '& .rdrCalendarWrapper': {
+                backgroundColor: 'var(--card-bg) !important',
+              },
             }}
-            moveRangeOnFirstSelection={false}
-            ranges={[
-              {
-                startDate: startDate || new Date(),
-                endDate: endDate || new Date(),
-                key: 'selection'
-              }
-            ]}
-            locale={zhTW}
-            months={2}
-            direction="horizontal"
-            showDateDisplay={false}
-            showMonthAndYearPickers={true}
-            rangeColors={['#00cc7a']}
-          />
-        </Box>
-      </Popover>
-    </>
+          >
+            <DateRange
+              editableDateInputs={true}
+              onChange={(ranges) => {
+                const { startDate: newStartDate, endDate: newEndDate } = ranges.selection;
+
+                onDateRangeChange?.(ranges);
+
+                // 只有選完區間（起訖不同日）才自動關閉，避免只點開始日就關閉
+                if (
+                  newStartDate &&
+                  newEndDate &&
+                  newStartDate.getTime() !== newEndDate.getTime()
+                ) {
+                  handleDateClose();
+                }
+              }}
+              moveRangeOnFirstSelection={false}
+              ranges={[
+                {
+                  startDate: startDate || new Date(),
+                  endDate: endDate || new Date(),
+                  key: 'selection'
+                }
+              ]}
+              locale={zhTW}
+              months={2}
+              direction="horizontal"
+              showDateDisplay={false}
+              showMonthAndYearPickers={true}
+              rangeColors={['#00cc7a']}
+            />
+          </Box>
+        </Popover>
+      )}
+    </Box>
   );
 };

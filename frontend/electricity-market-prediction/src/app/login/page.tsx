@@ -2,17 +2,18 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box } from '@mui/material';
+import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { useAuth } from '@/context/AuthContext';
 import {
-  TickerMarquee,
-  WaveBarBackground,
+  CircuitBoardWithRegions,
   LoginFormCard,
 } from '@/components/auth';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const theme = useTheme();
+  const isCompact = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -31,42 +32,33 @@ export default function LoginPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Top ticker */}
-      <Box
-        sx={{
-          borderBottom: '1px solid var(--card-border)',
-          backgroundColor: 'var(--card-bg)',
-          flexShrink: 0,
-        }}
-      >
-        <TickerMarquee direction="left" speed={40} />
-      </Box>
-
-      {/* Main content */}
+      {/* Main content: desktop = circuit + form overlay; mobile = form on top + region strip below */}
       <Box
         sx={{
           flex: 1,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flexDirection: isCompact ? 'column' : undefined,
+          alignItems: isCompact ? 'stretch' : 'center',
+          justifyContent: isCompact ? 'flex-start' : 'center',
           position: 'relative',
           overflow: 'hidden',
-          px: 2,
+          px: { xs: 1.5, sm: 2, md: 2, lg: 3 },
+          py: isCompact ? { xs: 1.5, sm: 2 } : 0,
         }}
       >
-        <WaveBarBackground />
-        <LoginFormCard onSubmit={login} />
-      </Box>
-
-      {/* Bottom ticker */}
-      <Box
-        sx={{
-          borderTop: '1px solid var(--card-border)',
-          backgroundColor: 'var(--card-bg)',
-          flexShrink: 0,
-        }}
-      >
-        <TickerMarquee direction="right" speed={35} />
+        {isCompact ? (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 0 }}>
+              <LoginFormCard onSubmit={login} />
+            </Box>
+            <CircuitBoardWithRegions />
+          </>
+        ) : (
+          <>
+            <CircuitBoardWithRegions />
+            <LoginFormCard onSubmit={login} />
+          </>
+        )}
       </Box>
     </Box>
   );

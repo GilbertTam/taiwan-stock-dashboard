@@ -128,6 +128,23 @@ const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
           </ListItemIcon>
           個人設定
         </MenuItem>
+        <MenuItem onClick={() => window.open('/api/docs', '_blank')} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+          <ListItemIcon>
+            <Box component="span" sx={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--foreground)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20 }}>
+              {/* Using a text icon or a custom SVG if needed, but for now reuse Info or similar, maybe specific icon? */}
+              {/* Let's use a generic 'Code' or 'Description' icon, or just text 'API' if possible. 
+                  Material UI has 'Code' icon. 
+                  But for now, let's use 'Description' or 'Article'. 
+                  Wait, I need to import it. 
+                  Let's use 'ArticleIcon' or just reuse 'InfoOutlinedIcon' isn't great.
+                  Actually, let's stick to consistent style. 
+                  I'll use 'DescriptionIcon' but need to import it.
+              */}
+              API
+            </Box>
+          </ListItemIcon>
+          API 文件
+        </MenuItem>
         <MenuItem onClick={() => handleNavigate('/dashboard/about')} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
           <ListItemIcon>
             <InfoOutlinedIcon fontSize="small" sx={{ color: 'var(--foreground)' }} />
