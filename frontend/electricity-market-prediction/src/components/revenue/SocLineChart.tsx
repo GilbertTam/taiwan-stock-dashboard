@@ -4,7 +4,7 @@ import React, { useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { GanttChartData } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { createMarkAreaForCategoryAxis } from '@/utils/echartsHelpers';
 
 export interface SocLineChartRef { getInstance: () => any }
@@ -42,21 +42,22 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
             result.push({
                 name: 'Optimal',
                 color: colors.actual || '#2196f3',
-                data: sorted.map(op => (op.soc ?? 0) * 100)
+                data: sorted.map(op => op.soc == null ? (null as any) : op.soc * 100)
             });
         }
 
         selectedModels.forEach(model => {
             const key = `${model.id}|${model.name}`;
             const ops = data.models[key];
-            if (ops && ops.length > 0) {
-                const sorted = [...ops].sort(sortByDatetime);
-                result.push({
-                    name: model.name,
-                    color: model.color,
-                    data: sorted.map(op => (op.soc ?? 0) * 100)
-                });
-            }
+            if (!ops || ops.length === 0) return;
+            const hasAnyPrediction = ops.some(op => op.pricePredicted != null);
+            if (!hasAnyPrediction) return;
+            const sorted = [...ops].sort(sortByDatetime);
+            result.push({
+                name: model.name,
+                color: model.color,
+                data: sorted.map(op => op.soc == null ? (null as any) : op.soc * 100)
+            });
         });
 
         return { series: result };
@@ -149,8 +150,18 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
 
     if (series.length === 0) {
         return (
-            <Box sx={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-                No SoC data
+            <Box
+                sx={{
+                    height,
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'text.secondary'
+                }}
+                aria-label="Battery State of Charge empty"
+            >
+                <Typography variant="body2">No data to display</Typography>
             </Box>
         );
     }

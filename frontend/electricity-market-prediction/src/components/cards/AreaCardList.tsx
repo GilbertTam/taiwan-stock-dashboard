@@ -161,14 +161,16 @@ export function AreaCardList({
         <Box
             sx={{
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center', // Added to center cards horizontally
+                flexDirection: 'row',
                 gap: 0.75,
-                height: '100%',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                pr: 0.5,
+                width: '100%',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                pb: 0.5,
                 '&::-webkit-scrollbar': {
-                    width: 4,
+                    height: 4,
                 },
                 '&::-webkit-scrollbar-track': {
                     backgroundColor: 'transparent',
@@ -176,6 +178,10 @@ export function AreaCardList({
                 '&::-webkit-scrollbar-thumb': {
                     backgroundColor: 'rgba(255,255,255,0.2)',
                     borderRadius: 2,
+                },
+                '& > *': {
+                    flexShrink: 0,
+                    width: 140, // Fixed width for each card so they scrolling nicely
                 },
             }}
         >

@@ -174,36 +174,37 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                         })()}
                                     </TableCell>
                                     <TableCell align="center">
-                                        {Number.isFinite(timeCode) ? timeCode : '-'}
+                                        {timeCode != null && Number.isFinite(timeCode) ? timeCode : '-'}
                                     </TableCell>
                                     <TableCell align="center">
-                                        <Chip
-                                            label={row.action || '-'}
-                                            color={getActionColor(row.action) as any}
-                                            size="small"
-                                            variant="outlined"
-                                        />
+                                        {row.pricePredicted == null ? '-' : row.action ? (
+                                            <Chip
+                                                label={row.action}
+                                                color={getActionColor(row.action) as any}
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        ) : (
+                                            '-'
+                                        )}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {Number.isFinite(row.power) ? row.power.toFixed(2) : '-'}
+                                        {row.pricePredicted == null ? '-' : (row.power != null && Number.isFinite(row.power) ? row.power.toFixed(2) : '-')}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {/* Show Actual Price, fallback to price if not present */}
-                                        {Number.isFinite(row.priceActual)
-                                            ? row.priceActual!.toFixed(2)
-                                            : (Number.isFinite(row.price) ? row.price.toFixed(2) : '-')}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {/* Predicted Price */}
-                                        {Number.isFinite(row.pricePredicted)
-                                            ? row.pricePredicted!.toFixed(2)
+                                        {row.priceActual != null && Number.isFinite(row.priceActual)
+                                            ? row.priceActual.toFixed(2)
                                             : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {/* Revenue Realized */}
-                                        {Number.isFinite(row.revenueRealized)
-                                            ? row.revenueRealized!.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                                            : (Number.isFinite(row.revenue) ? row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '-')}
+                                        {row.pricePredicted != null && Number.isFinite(row.pricePredicted)
+                                            ? row.pricePredicted.toFixed(2)
+                                            : '-'}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        {row.pricePredicted == null ? '-' : (row.revenueRealized != null && Number.isFinite(row.revenueRealized)
+                                            ? row.revenueRealized.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                            : '-')}
                                     </TableCell>
                                 </TableRow>
                             );

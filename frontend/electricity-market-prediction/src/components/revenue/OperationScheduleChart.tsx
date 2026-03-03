@@ -4,7 +4,7 @@ import React, { useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { GanttChartData, GanttOperation } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
-import { Box } from '@mui/material';
+import { Box, Tooltip } from '@mui/material';
 import { createMarkAreaForCategoryAxis } from '@/utils/echartsHelpers';
 
 export interface OperationScheduleChartRef { getInstance: () => any }
@@ -34,7 +34,8 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
         const names: string[] = [];
         const heatData: [number, number, number][] = [];
 
-        const getActionCode = (action: string) => {
+        const getActionCode = (action: string | null) => {
+            if (!action) return 0;
             switch (action) {
                 case 'Charge': return 1;
                 case 'Spot': return 2;
@@ -51,7 +52,9 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
             names.push('Optimal');
             const sorted = [...data.optimal].sort(sortByDatetime);
             sorted.forEach((op, t) => {
-                heatData.push([t, rowIdx, getActionCode(op.action)]);
+                if (op.action != null) {
+                    heatData.push([t, rowIdx, getActionCode(op.action)]);
+                }
             });
             rowIdx++;
         }
@@ -59,14 +62,19 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
         selectedModels.forEach((model) => {
             const key = `${model.id}|${model.name}`;
             const ops = data.models?.[key];
-            if (ops && ops.length > 0) {
-                names.push(model.name);
-                const sorted = [...ops].sort(sortByDatetime);
-                sorted.forEach((op, t) => {
+            if (!ops || ops.length === 0) return;
+            const hasAnyPrediction = ops.some(op => op.pricePredicted != null);
+            if (!hasAnyPrediction) return;
+            names.push(model.name);
+            const sorted = [...ops].sort(sortByDatetime);
+            sorted.forEach((op, t) => {
+                if (op.pricePredicted == null) {
+                    heatData.push([t, rowIdx, 4]); // 4 represents missing prediction
+                } else if (op.action != null) {
                     heatData.push([t, rowIdx, getActionCode(op.action)]);
-                });
-                rowIdx++;
-            }
+                }
+            });
+            rowIdx++;
         });
 
         return { rowNames: names, heatmapData: heatData };
@@ -103,7 +111,7 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
                         const rowIdx = d[1];
                         const rowName = rowNames[rowIdx] ?? '';
                         const actionCode = d[2];
-                        const action = actionCode === 1 ? 'Charge' : actionCode === 2 ? 'Spot' : actionCode === 3 ? 'Balance' : 'Idle';
+                        const action = actionCode === 1 ? 'Charge' : actionCode === 2 ? 'Spot' : actionCode === 3 ? 'Balance' : actionCode === 4 ? '-' : 'Idle';
                         html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">${rowName}</span><b>${action}</b></div>`;
                     });
                     return html;
@@ -140,7 +148,8 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
                     { min: 0, max: 0.5, color: darkMode ? 'rgba(128,128,128,0.2)' : 'rgba(128,128,128,0.15)' },
                     { min: 0.5, max: 1.5, color: darkMode ? 'rgba(46, 125, 50, 0.75)' : 'rgba(46, 125, 50, 0.6)' },
                     { min: 1.5, max: 2.5, color: darkMode ? 'rgba(198, 40, 40, 0.75)' : 'rgba(198, 40, 40, 0.6)' },
-                    { min: 2.5, max: 4, color: darkMode ? 'rgba(230, 81, 0, 0.75)' : 'rgba(230, 81, 0, 0.6)' }
+                    { min: 2.5, max: 3.5, color: darkMode ? 'rgba(230, 81, 0, 0.75)' : 'rgba(230, 81, 0, 0.6)' },
+                    { min: 3.5, max: 4.5, color: darkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)' } // Code 4 for Missing Data
                 ]
             },
             series: (() => {
@@ -170,9 +179,22 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
 
     if (rowNames.length === 0) {
         return (
-            <Box sx={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-                No schedule data
-            </Box>
+            <Tooltip title="-">
+                <Box
+                    sx={{
+                        height,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'text.secondary',
+                        bgcolor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                        border: `1px dashed ${darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}`,
+                        borderRadius: 1
+                    }}
+                >
+                    No schedule data
+                </Box>
+            </Tooltip>
         );
     }
 

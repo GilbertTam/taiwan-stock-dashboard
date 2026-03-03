@@ -49,7 +49,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         const modelKeys = Object.keys(ganttData.models || {});
         if (!hasOptimal && modelKeys.length === 0) return null;
 
-        const sumRevenue = (ops: { revenueRealized?: number; revenue?: number }[]) =>
+        const sumRevenue = (ops: { revenueRealized?: number | null; revenue?: number | null }[]) =>
             ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
 
         const optimalRev = hasOptimal
@@ -96,11 +96,35 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             {}
         ).sort();
 
-        // Helper to get Daily Net and Cumulative
-        const getSeriesData = (ops: any[], name: string, color: string, isOptimal: boolean) => {
+        // Helper to get Daily Net and Cumulative. When useZeroForPredicted (model has no prediction data), show predicted revenue as 0.
+        const getSeriesData = (ops: any[], name: string, color: string, isOptimal: boolean, useZeroForPredicted = false) => {
             const dailyNet: Record<string, number> = {};
             const cumulative: number[] = [];
             let sum = 0;
+
+            if (useZeroForPredicted) {
+                const netData = dates.map(() => 0);
+                const cumData = dates.map(() => 0);
+                return {
+                    net: {
+                        name: `${name} (Net)`,
+                        type: 'bar',
+                        data: netData,
+                        itemStyle: { color: color, opacity: 0.7 },
+                        barGap: 0,
+                        yAxisIndex: 0
+                    },
+                    cum: {
+                        name: `${name} (Cum)`,
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: cumData,
+                        itemStyle: { color: color },
+                        lineStyle: { color: color, width: 3, type: 'dashed' as const },
+                        showSymbol: false
+                    }
+                };
+            }
 
             // Map ops to days for net
             ops.forEach(op => {
@@ -143,6 +167,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         };
 
         const series: any[] = [];
+        const noDataSeriesNames = new Set<string>();
 
         // Optimal
         if (ganttData?.optimal) {
@@ -153,9 +178,15 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         // Models
         selectedModels.forEach(model => {
             const key = `${model.id}|${model.name}`;
-            if (ganttData?.models[key]) {
-                const d = getSeriesData(ganttData.models[key], model.name, model.color, false);
+            const ops = ganttData?.models?.[key];
+            if (ops && ops.length > 0) {
+                const hasNoPrediction = ops.every((op: any) => op.pricePredicted == null);
+                const d = getSeriesData(ops, model.name, model.color, false, hasNoPrediction);
                 series.push(d.net, d.cum);
+                if (hasNoPrediction) {
+                    noDataSeriesNames.add(`${model.name} (Net)`);
+                    noDataSeriesNames.add(`${model.name} (Cum)`);
+                }
             }
         });
 
@@ -172,7 +203,9 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     const sep = darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
                     let html = `<div style="font-weight:600;font-size:13px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid ${sep}">${params[0].name}</div>`;
                     params.forEach(p => {
-                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span><span style="color:${darkMode ? '#aaa' : '#666'}">${p.seriesName}</span></span><b>¥${Number(p.value).toLocaleString()}</b></div>`;
+                        const isNoDataZero = noDataSeriesNames.has(p.seriesName) && Number(p.value) === 0;
+                        const valueStr = isNoDataZero ? '-' : `¥${Number(p.value).toLocaleString()}`;
+                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span><span style="color:${darkMode ? '#aaa' : '#666'}">${p.seriesName}</span></span><b>${valueStr}</b></div>`;
                     });
                     return html;
                 }
@@ -243,11 +276,22 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
 
     const availableSchedules = useMemo(() => {
         const options = [{ id: 'optimal', name: 'Optimal Plan' }];
+        if (!ganttData?.models) return options;
         selectedModels.forEach(m => {
-            options.push({ id: `${m.id}|${m.name}`, name: `Predicted: ${m.name}` });
+            const key = `${m.id}|${m.name}`;
+            const ops = ganttData.models[key];
+            const hasAnyPrediction = ops?.length && ops.some((op: { pricePredicted?: number | null }) => op.pricePredicted != null);
+            if (hasAnyPrediction) options.push({ id: key, name: `Predicted: ${m.name}` });
         });
         return options;
-    }, [selectedModels]);
+    }, [selectedModels, ganttData]);
+
+    // When selected schedule is a no-data model, switch to optimal so dropdown and table stay in sync
+    useEffect(() => {
+        if (!ganttData || selectedScheduleId === 'optimal') return;
+        const validIds = new Set(availableSchedules.map(o => o.id));
+        if (!validIds.has(selectedScheduleId)) setSelectedScheduleId('optimal');
+    }, [ganttData, selectedScheduleId, availableSchedules]);
 
     const timeCategories = useMemo(() => {
         if (!ganttData) return [];
@@ -289,12 +333,12 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                     dataIndex: idx
                                 });
                                 ch.dispatchAction({ type: 'showTip', dataIndex: idx });
-                            } catch (_) {}
+                            } catch (_) { }
                         });
                     };
                     const clearAxisPointer = () => {
                         charts.forEach((ch) => {
-                            try { ch.dispatchAction({ type: 'hideTip' }); } catch (_) {}
+                            try { ch.dispatchAction({ type: 'hideTip' }); } catch (_) { }
                         });
                     };
 
@@ -304,7 +348,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         charts.forEach((ch) => {
                             const zr = ch.getZr();
                             if (!zr) {
-                                offFns.push(() => {});
+                                offFns.push(() => { });
                                 return;
                             }
                             const onMove = (e: any) => {
@@ -319,7 +363,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                         const dataIndex = Math.round(rawIdx);
                                         if (dataIndex >= 0 && dataIndex < len) syncAxisPointer(ch, dataIndex);
                                     }
-                                } catch (_) {}
+                                } catch (_) { }
                             };
                             const onOut = () => clearAxisPointer();
                             zr.on('mousemove', onMove);
@@ -352,7 +396,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             const gid = connectGroupIdRef.current;
             if (gid) {
                 connectGroupIdRef.current = null;
-                import('echarts').then((echarts) => { try { echarts.disconnect(gid); } catch (_) {} });
+                import('echarts').then((echarts) => { try { echarts.disconnect(gid); } catch (_) { } });
             }
         };
     }, [ganttData, timeCategories.length]);

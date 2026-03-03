@@ -203,7 +203,7 @@ export const prepareChartData = (
                 point.modelPredictions.push({
                     modelId,
                     modelName,
-                    predictedPrice: toNum(prediction.price_50) ?? 0,
+                    predictedPrice: toNum(prediction.price_50), // Changed from ?? 0 to keep nulls detectable
                     predictedPrice5: toNum(prediction.price_5) ?? undefined,
                     predictedPrice95: toNum(prediction.price_95) ?? undefined
                 });

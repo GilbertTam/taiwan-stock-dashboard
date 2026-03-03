@@ -9,6 +9,7 @@ import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
 import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
 import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
 import { AllAreasPriceChart } from '@/components/dashboard/charts/AllAreasPriceChart';
+import { RegionalPriceHeatmap } from '@/components/dashboard/charts/RegionalPriceHeatmap';
 import { AreaCardList } from '@/components/cards/AreaCardList';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { QuickAccessCards } from '@/components/cards/QuickAccessCards';
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const [allAreasLoading, setAllAreasLoading] = useState(true);
   const [dataDate, setDataDate] = useState<string | null>(null);
   const [highlightedArea, setHighlightedArea] = useState<string | null>(null);
+  const [hoveredTimestamp, setHoveredTimestamp] = useState<number | null>(null);
   const [outages, setOutages] = useState<HjksOutage[]>([]);
   const [outagesLoading, setOutagesLoading] = useState(true);
 
@@ -306,55 +308,23 @@ export default function Dashboard() {
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
         <Suspense fallback={<LoadingOverlay />}>
           {allAreasLoading ? (
             <LoadingOverlay />
           ) : (
-            <>
-              {/* Left: Chart */}
-              <Box
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                  p: 1.5,
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <AllAreasPriceChart
-                  areas={areas}
-                  allAreasChartData={allAreasChartData}
-                  loading={allAreasLoading}
-                  highlightedArea={highlightedArea}
-                  outages={outages}
-                />
-              </Box>
-
-              {/* Right: Area Cards */}
-              <Box
-                sx={{
-                  width: 260,
-                  flexShrink: 0,
-                  p: 1.5,
-                  pt: 1,
-                  borderLeft: '1px solid var(--card-border)',
-                  backgroundColor: 'var(--card-bg)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, px: 0.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 12 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+              <Box sx={{ p: 1.5, pb: 0, flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, px: 0.5, gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 13 }}>
                     區域一覽
                   </Typography>
                   <Tooltip
                     title="價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較"
                     arrow
-                    placement="left"
+                    placement="right"
                   >
-                    <InfoOutlinedIcon sx={{ fontSize: 14, color: 'var(--muted)', cursor: 'help' }} />
+                    <InfoOutlinedIcon sx={{ fontSize: 15, color: 'var(--muted)', cursor: 'help' }} />
                   </Tooltip>
                 </Box>
                 <AreaCardList
@@ -366,7 +336,47 @@ export default function Dashboard() {
                   dailySpreadStats={dailySpreadStats}
                 />
               </Box>
-            </>
+
+              <Box sx={{ display: 'flex', flex: 1, minHeight: 450, flexShrink: 0 }}>
+                {/* Main Dynamic Chart */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    p: 1.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <AllAreasPriceChart
+                    areas={areas}
+                    allAreasChartData={allAreasChartData}
+                    loading={allAreasLoading}
+                    highlightedArea={highlightedArea}
+                    onHoverData={(data) => {
+                      if (data && data.length > 0) {
+                        setHoveredTimestamp(data[0].timestamp);
+                      } else {
+                        setHoveredTimestamp(null);
+                      }
+                    }}
+                    outages={outages}
+                  />
+                </Box>
+
+              </Box>
+
+              {/* Bottom: Regional Price Heatmap */}
+              <Box sx={{ p: 1.5, pt: 2, borderTop: '1px solid var(--card-border)', flexShrink: 0 }}>
+                <RegionalPriceHeatmap
+                  areas={areas}
+                  allAreasChartData={allAreasChartData}
+                  loading={allAreasLoading}
+                  highlightedArea={highlightedArea}
+                  hoveredTimestamp={hoveredTimestamp}
+                />
+              </Box>
+            </Box>
           )}
         </Suspense>
       </Box>

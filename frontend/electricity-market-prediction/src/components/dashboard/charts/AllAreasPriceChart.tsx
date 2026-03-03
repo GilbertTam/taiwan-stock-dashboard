@@ -2,7 +2,9 @@
 'use client';
 
 import React, { useEffect, useLayoutEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, IconButton, Tooltip } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
     createChart,
     LineSeries,
@@ -41,7 +43,7 @@ interface AllAreasPriceChartProps {
     allAreasChartData: Record<string, ChartDataPoint[]>; // 所有區域的圖表數據，key 為區域名稱
     loading?: boolean; // 是否正在載入
     highlightedArea?: string | null; // 當前高亮的區域（滑鼠懸停特定卡片時）
-    onHoverData?: (data: { areaName: string; price: number; time: string }[] | null) => void; // 回調：當滑鼠在圖表上移動時傳回數據
+    onHoverData?: (data: { areaName: string; price: number; time: string; timestamp: number }[] | null) => void; // 回調：當滑鼠在圖表上移動時傳回數據
     outages?: HjksOutage[]; // 停機事件列表
 }
 
@@ -85,6 +87,7 @@ export function AllAreasPriceChart({
 
     const [chartInitialized, setChartInitialized] = useState(false);
     const [hoveredOutage, setHoveredOutage] = useState<{ outages: HjksOutage[]; position: { x: number; y: number } } | null>(null);
+    const [showLabels, setShowLabels] = useState(false);
 
     // 用於淡化非高亮區域的透明度動畫
     const dimOpacityRef = useRef(1);
@@ -226,7 +229,7 @@ export function AllAreasPriceChart({
                 const series = chart.addSeries(LineSeries, {
                     color: AREA_COLORS[idx % AREA_COLORS.length],
                     lineWidth: 2,
-                    title: area.name_ch,
+                    title: showLabels ? area.name_ch : '', // 控制顯示/隱藏文字標籤
                     priceLineVisible: false, // 不顯示最新價格線
                     lastValueVisible: true,  // 顯示最新數值標籤
                 });
@@ -257,7 +260,7 @@ export function AllAreasPriceChart({
                 const setHover = setHoveredOutageRef.current;
                 const pos = lastMousePositionRef.current;
 
-                const callOnHoverData = (data: { areaName: string; price: number; time: string }[] | null) => {
+                const callOnHoverData = (data: { areaName: string; price: number; time: string; timestamp: number }[] | null) => {
                     const fn = onHoverDataRef.current;
                     if (typeof fn === 'function') fn(data);
                 };
@@ -269,7 +272,7 @@ export function AllAreasPriceChart({
                 }
                 const timeSec = param.time as number;
                 const timestamp = fromChartTime(timeSec, TIMEZONE);
-                const hoverResults: { areaName: string; price: number; time: string }[] = [];
+                const hoverResults: { areaName: string; price: number; time: string; timestamp: number }[] = [];
 
                 // 收集當前時間點所有區域的價格
                 areasRef.current.forEach((area) => {
@@ -284,6 +287,7 @@ export function AllAreasPriceChart({
                             areaName: area.name_ch,
                             price: closest.actualPrice,
                             time: format(new Date(closest.timestamp), 'HH:mm'),
+                            timestamp: closest.timestamp,
                         });
                     }
                 });
@@ -348,6 +352,17 @@ export function AllAreasPriceChart({
             timeScale: { borderColor: c.grid },
         });
     }, [colors, chartInitialized]);
+
+    // 當標籤顯示設定變更時更新圖表系列
+    useEffect(() => {
+        if (!chartInitialized) return;
+        areas.forEach((area) => {
+            const series = seriesMapRef.current.get(area.name);
+            if (series) {
+                series.applyOptions({ title: showLabels ? area.name_ch : '' });
+            }
+        });
+    }, [showLabels, chartInitialized, areas]);
 
     // 當數據變更時更新停機標記
     useEffect(() => {
@@ -514,15 +529,37 @@ export function AllAreasPriceChart({
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-            {/* 停機事件指示條 (顯示總數與橫向捲動列表) */}
-            <OutageIndicatorBar
-                outages={outages}
-                outagePoints={outagePoints}
-                highlightedArea={highlightedArea}
-                areas={areas}
-                onHover={handleOutageBarHover}
-                onLeave={handleOutageBarLeave}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                {/* 停機事件指示條 (顯示總數與橫向捲動列表) */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <OutageIndicatorBar
+                        outages={outages}
+                        outagePoints={outagePoints}
+                        highlightedArea={highlightedArea}
+                        areas={areas}
+                        onHover={handleOutageBarHover}
+                        onLeave={handleOutageBarLeave}
+                    />
+                </Box>
+                {/* 標籤顯示切換按鈕 */}
+                <Box sx={{ flexShrink: 0, ml: 2 }}>
+                    <Tooltip title={showLabels ? '隱藏文字標籤' : '顯示文字標籤'} placement="left" arrow>
+                        <IconButton
+                            size="small"
+                            onClick={() => setShowLabels(!showLabels)}
+                            sx={{
+                                color: showLabels ? 'var(--primary)' : 'var(--muted)',
+                                backgroundColor: showLabels ? 'var(--primary-light)' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor: showLabels ? 'var(--primary-main)' : 'rgba(255,255,255,0.05)',
+                                },
+                            }}
+                        >
+                            {showLabels ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            </Box>
 
             {/* 圖表容器 - 追蹤滑鼠位置用於 Tooltip 定位 */}
             <Box

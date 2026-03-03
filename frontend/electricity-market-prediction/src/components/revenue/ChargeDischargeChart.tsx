@@ -49,7 +49,7 @@ export const ChargeDischargeChart: React.FC<ChargeDischargeChartProps> = ({
         bg: darkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
     };
 
-    const getActionColor = (action: string) => {
+    const getActionColor = (action: string | null) => {
         switch (action) {
             case 'Charge': return '#4caf50'; // Green
             case 'Spot': return '#f44336';   // Red
@@ -166,19 +166,28 @@ export const ChargeDischargeChart: React.FC<ChargeDischargeChartProps> = ({
                                         {row.data.map((op, colIdx) => {
                                             const x = colIdx * slotWidth;
                                             const color = getActionColor(op.action);
-                                            if (color === 'transparent') return null;
-
                                             return (
                                                 <g key={`${row.id}-${colIdx}`}>
-                                                    <title>{`${row.name}\nTime: ${getTimeLabel(colIdx)}\nAction: ${op.action}\nPower: ${op.power.toFixed(2)} kW\nPrice (Actual): ${(op.priceActual ?? op.price).toFixed(2)} JPY\nPrice (Pred): ${(op.pricePredicted ?? op.price).toFixed(2)} JPY\nRev (Realized): ${(op.revenueRealized ?? op.revenue).toLocaleString()} JPY`}</title>
-                                                    <rect
-                                                        x={x + 1}
-                                                        y={4}
-                                                        width={slotWidth - 2}
-                                                        height={rowHeight - 8}
-                                                        fill={color}
-                                                        rx={2}
-                                                    />
+                                                    <title>{`${row.name}\nTime: ${getTimeLabel(colIdx)}\nAction: ${op.action || '-'}\nPower: ${op.power != null ? Number(op.power).toFixed(2) : '-'} kW\nPrice (Actual): ${op.priceActual != null && Number.isFinite(op.priceActual) ? op.priceActual.toFixed(2) : '-'} JPY\nPrice (Pred): ${op.pricePredicted != null && Number.isFinite(op.pricePredicted) ? op.pricePredicted.toFixed(2) : '-'} JPY\nRev (Realized): ${op.revenueRealized != null && Number.isFinite(op.revenueRealized) ? op.revenueRealized.toLocaleString() : '-'} JPY`}</title>
+                                                    {op.pricePredicted == null && row.name !== 'Optimal' && (
+                                                        <rect
+                                                            x={x}
+                                                            y={0}
+                                                            width={slotWidth}
+                                                            height={rowHeight}
+                                                            fill={darkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)'}
+                                                        />
+                                                    )}
+                                                    {color !== 'transparent' && (
+                                                        <rect
+                                                            x={x + 1}
+                                                            y={4}
+                                                            width={slotWidth - 2}
+                                                            height={rowHeight - 8}
+                                                            fill={color}
+                                                            rx={2}
+                                                        />
+                                                    )}
                                                 </g>
                                             );
                                         })}

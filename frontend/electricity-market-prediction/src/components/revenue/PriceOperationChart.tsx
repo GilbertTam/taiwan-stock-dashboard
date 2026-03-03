@@ -99,14 +99,16 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
         selectedModels.forEach(model => {
             const key = `${model.id}|${model.name}`;
             const ops = ganttData.models[key];
-            if (ops && ops.length > 0) {
-                result.schedules.push({
-                    id: key,
-                    name: model.name,
-                    color: model.color,
-                    data: [...ops].sort(sortByDatetime)
-                });
-            }
+            if (!ops || ops.length === 0) return;
+            // Only show Pred series when model has at least one non-null pricePredicted (avoid showing actual as pred when model is empty)
+            const hasAnyPrediction = ops.some(op => op.pricePredicted != null);
+            if (!hasAnyPrediction) return;
+            result.schedules.push({
+                id: key,
+                name: model.name,
+                color: model.color,
+                data: [...ops].sort(sortByDatetime)
+            });
         });
 
         return result;
@@ -135,7 +137,7 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
 
         schedules.forEach((s, idx) => {
             if (s.id === 'optimal') return;
-            const predData = s.data.map(d => d.pricePredicted ?? d.price);
+            const predData = s.data.map(d => (d.pricePredicted != null ? d.pricePredicted : null));
             const seriesName = `Pred: ${s.name}`;
             legendData.push(seriesName);
             priceSeries.push({
@@ -174,8 +176,8 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                     schedules.forEach(s => {
                         if (s.id === 'optimal') return;
                         const d = s.data[idx];
-                        const pred = d?.pricePredicted != null ? d.pricePredicted.toFixed(2) : (d?.price != null ? d.price.toFixed(2) : '-');
-                        html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">Pred ${s.name}</span><b>${pred} JPY</b></div>`;
+                        const pred = d?.pricePredicted != null ? d.pricePredicted.toFixed(2) : '-';
+                        html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">Pred ${s.name}</span><b>${pred} ${pred === '-' ? '' : 'JPY'}</b></div>`;
                     });
                     return html;
                 }

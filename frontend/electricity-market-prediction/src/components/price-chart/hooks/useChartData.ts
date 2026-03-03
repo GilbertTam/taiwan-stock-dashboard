@@ -309,7 +309,7 @@ export const useChartData = ({
         const filteredBidPlans = selectedBidPlanCategories.size > 0
             ? bidPlansData.filter(item => selectedBidPlanCategories.has(item.commodity_category))
             : bidPlansData;
-        
+
         if (filteredBidPlans && filteredBidPlans.length > 0) {
             // 按 commodity_category 分组处理
             const byCategory: Record<string, BidPlanData[]> = {};
@@ -323,7 +323,7 @@ export const useChartData = ({
             Object.keys(byCategory).forEach(category => {
                 const categoryData = byCategory[category];
                 const byTs: Record<number, { buyPrice: number[]; buyVolume: number[]; sellPrice: number[]; sellVolume: number[] }> = {};
-                
+
                 categoryData.forEach(item => {
                     const ts = parseToTimestamp(item.event_time);
                     if (!ts) return;
@@ -336,7 +336,7 @@ export const useChartData = ({
 
                 // 根据 category 设置不同的字段名
                 const prefix = category === 'spot' ? 'bid_spot' : category === 'intraday' ? 'bid_intraday' : `bid_${category}`;
-                
+
                 Object.keys(byTs).forEach(tsStr => {
                     const ts = Number(tsStr);
                     const point = ensurePoint(ts);
@@ -463,7 +463,7 @@ export const useChartData = ({
 
             point.modelPredictions.forEach(mp => {
                 const modelKey = `${mp.modelId}|${mp.modelName}`;
-                modelDifferences[modelKey] = point.actualPrice !== null ? mp.predictedPrice - point.actualPrice : null;
+                modelDifferences[modelKey] = (point.actualPrice !== null && mp.predictedPrice != null) ? mp.predictedPrice - point.actualPrice : null;
                 modelAreaTops[modelKey] = mp.predictedPrice95 ?? mp.predictedPrice ?? null;
                 modelAreaBottoms[modelKey] = mp.predictedPrice5 ?? mp.predictedPrice ?? null;
             });
@@ -520,9 +520,9 @@ export const useChartData = ({
         processedChartData.forEach(p => {
             if (typeof p.actualPrice === 'number') allPrices.push(p.actualPrice);
             p.modelPredictions.forEach(mp => {
-                allPrices.push(mp.predictedPrice);
-                if (mp.predictedPrice5) allPrices.push(mp.predictedPrice5);
-                if (mp.predictedPrice95) allPrices.push(mp.predictedPrice95);
+                if (mp.predictedPrice != null && !isNaN(mp.predictedPrice)) allPrices.push(mp.predictedPrice);
+                if (mp.predictedPrice5 != null && !isNaN(mp.predictedPrice5)) allPrices.push(mp.predictedPrice5);
+                if (mp.predictedPrice95 != null && !isNaN(mp.predictedPrice95)) allPrices.push(mp.predictedPrice95);
             });
             // Intraday (exclude volume-like outliers > 1000)
             const check = (v?: number | null) => {

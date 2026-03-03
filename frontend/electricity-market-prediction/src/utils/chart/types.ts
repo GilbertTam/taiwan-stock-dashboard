@@ -2,7 +2,7 @@
 export interface ModelPrediction {
     modelId: string | number;
     modelName: string;
-    predictedPrice: number;
+    predictedPrice: number | null;
     predictedPrice5?: number; // P5
     predictedPrice95?: number; // P95
 }
@@ -14,7 +14,7 @@ export interface ChartDataPoint {
     modelPredictions: {
         modelId: string | number;
         modelName: string;
-        predictedPrice: number;
+        predictedPrice: number | null;
         predictedPrice5?: number; // P5
         predictedPrice95?: number; // P95
     }[];

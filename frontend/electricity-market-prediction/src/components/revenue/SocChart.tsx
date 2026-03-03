@@ -53,13 +53,19 @@ export const SocChart: React.FC<SocChartProps> = ({
     // Helper to generate path for a row
     const getSocPath = (data: any[]) => {
         if (!data || data.length === 0) return '';
-        const points = data.map((op, idx) => {
-            const x = idx * slotWidth + (slotWidth / 2);
+        const validPoints = data
+            .map((op, idx) => ({ op, idx }))
+            .filter(item => item.op.soc != null);
+
+        if (validPoints.length === 0) return '';
+
+        const pathPoints = validPoints.map(item => {
+            const x = item.idx * slotWidth + (slotWidth / 2);
             // Invert Y: 100% -> 0, 0% -> height
-            const y = chartHeight - (op.soc * chartHeight);
+            const y = chartHeight - (item.op.soc * chartHeight);
             return `${x},${y}`;
         });
-        return `M ${points.join(' L ')}`;
+        return `M ${pathPoints.join(' L ')}`;
     };
 
     // Helper to get time label
@@ -148,14 +154,14 @@ export const SocChart: React.FC<SocChartProps> = ({
                                                     <Typography variant="subtitle2" sx={{ mb: 1 }}>{getTimeLabel(idx)}</Typography>
                                                     {rows.map(row => {
                                                         const val = row.data[idx]?.soc;
-                                                        return val !== undefined ? (
+                                                        return val != null ? (
                                                             <Box key={row.id} display="flex" justifyContent="space-between" gap={2} sx={{ mb: 0.5 }}>
                                                                 <Box display="flex" alignItems="center" gap={1}>
                                                                     <Box width={10} height={10} bgcolor={row.color} borderRadius="50%" />
                                                                     <Typography variant="body2">{row.name}</Typography>
                                                                 </Box>
                                                                 <Typography variant="body2" fontWeight="bold">
-                                                                    {(val * 100).toFixed(1)}%
+                                                                    {(Number(val) * 100).toFixed(1)}%
                                                                 </Typography>
                                                             </Box>
                                                         ) : null;

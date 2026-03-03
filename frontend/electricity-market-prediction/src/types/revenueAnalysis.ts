@@ -61,15 +61,15 @@ export interface GanttOperation {
     timeStep: number;
     timeCode: number; // 1-48
     datetime: string;
-    action: 'Charge' | 'Spot' | 'Balance' | 'Idle';
-    power: number;
-    soc: number;
-    price: number;
-    revenue: number;
+    action: 'Charge' | 'Spot' | 'Balance' | 'Idle' | null;
+    power: number | null;
+    soc: number | null;
+    price: number | null;
+    revenue: number | null;
     // New fields for Actual vs Predicted
     priceActual?: number | null;
-    pricePredicted?: number;
-    revenueRealized?: number;
+    pricePredicted?: number | null;
+    revenueRealized?: number | null;
 }
 
 export interface GanttChartData {

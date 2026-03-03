@@ -121,7 +121,7 @@ function SiteRevenueContent() {
     rows.push(`時間步長(h),${escape(config.dt)}`);
     rows.push('');
 
-    const sumRevenue = (ops: { revenueRealized?: number; revenue?: number }[]) =>
+    const sumRevenue = (ops: { revenueRealized?: number | null; revenue?: number | null }[]) =>
       ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
 
     const optimalRev = ganttData.optimal?.length ? sumRevenue(ganttData.optimal) : 0;
@@ -227,8 +227,8 @@ function SiteRevenueContent() {
             price = d.actualPrice ?? 0;
           } else if (modelKey) {
             const pred = d.modelPredictions.find((p: any) => `${p.modelId}|${p.modelName}` === modelKey);
-            // If prediction missing, fallback to actual or 0 (but usually we filter for valid points)
-            price = pred?.predictedPrice ?? d.actualPrice ?? 0;
+            // If prediction missing, DO NOT fallback to actual prices! Use 0 to prevent "ghost" actual optimizations.
+            price = pred?.predictedPrice ?? 0;
           }
           return {
             Spot_Price: price,
@@ -338,14 +338,12 @@ function SiteRevenueContent() {
 
           // Determine prices and realized revenue
           let priceActual = validData[idx]?.actualPrice ?? null;
-          let pricePredicted = (r as any)._predictedPrice ?? r.price_spot; // Default to spot if not set
+          // For optimal runs, pricePredicted should be null so it shows "-" in the table instead of the actual price itself
+          let pricePredicted = isOptimal ? null : ((r as any)._predictedPrice ?? null);
           let revenueRealized = (r as any)._realizedRevenue ?? r.revenue;
 
           if (isOptimal) {
-            // For Optimal, Predicted = Actual
-            pricePredicted = priceActual;
             // Recalculate for Optimal (since we built it from combined daily results)
-
             const calcPrice = priceActual || 0;
             const p_spot_kW = r.power_spot * 1000;
             const p_ch_kW = r.power_ch * 1000;
@@ -355,20 +353,22 @@ function SiteRevenueContent() {
             revenueRealized = rev - cost - deg_cost;
           }
 
+          const isMissingPrediction = !isOptimal && (pricePredicted == null);
+
           return {
             timeStep: r.time_step,
             timeCode: timeCode,
             datetime: dateTime,
-            action: action,
-            power: action === 'Charge' ? r.power_ch : (r.power_spot + r.power_bal),
-            soc: soc,
-            price: r.price_spot, // Keep original "price used for decision" or just spot
-            revenue: r.revenue,  // Keep original "projected revenue"
+            action: isMissingPrediction ? null : action,
+            power: isMissingPrediction ? null : (action === 'Charge' ? r.power_ch : (r.power_spot + r.power_bal)),
+            soc: isMissingPrediction ? null : soc,
+            price: isMissingPrediction ? null : r.price_spot,
+            revenue: isMissingPrediction ? null : r.revenue,
 
             // New fields
-            priceActual: priceActual,
+            priceActual: isMissingPrediction ? null : priceActual,
             pricePredicted: pricePredicted,
-            revenueRealized: revenueRealized
+            revenueRealized: isMissingPrediction ? null : revenueRealized
           };
         });
       };
