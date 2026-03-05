@@ -43,7 +43,7 @@ services:
     command: bash docker-entrypoint.sh
     environment:
       - DEBUG=${DEBUG}
-      - SECRET_KEY=${SECRET_KEY}
+      - SECRET_KEY=${SECRET_KEY:-secret-key}
       - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST}
       - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT}
       - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
@@ -68,7 +68,8 @@ services:
       - ES_INDEX_OCCTO_INTER=${ES_INDEX_OCCTO_INTER:-occto_inter}
       - ES_INDEX_OCCTO_EVENT=${ES_INDEX_OCCTO_EVENT:-occto_event}
       - ES_INDEX_TDGC=${ES_INDEX_TDGC:-tdgc}
-      - ES_INDEX_WEATHER_ACTUAL=${ES_INDEX_WEATHER_ACTUAL:-weather_actual}
+      - ES_INDEX_WEATHER_ACTUAL_HOURLY=${ES_INDEX_WEATHER_ACTUAL_HOURLY:-weather_actual_hourly}
+      - ES_INDEX_WEATHER_ACTUAL_DAILY=${ES_INDEX_WEATHER_ACTUAL_DAILY:-weather_actual_daily}
       - ES_INDEX_WEATHER_FORECAST=${ES_INDEX_WEATHER_FORECAST:-weather_forecast}
 
   backend-nginx:
