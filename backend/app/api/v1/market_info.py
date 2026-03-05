@@ -168,6 +168,18 @@ async def weather_actual(
     data = es.get_weather_actual(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
+@router.get("/weather-actual-daily", response_model=APIResponse)
+async def weather_actual_daily(
+    start_date: str,
+    end_date: str,
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    validate_dates(start_date, end_date)
+    es = ESService()
+    data = es.get_weather_actual_daily(start_date, end_date, area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
 @router.get("/weather-forecast", response_model=APIResponse)
 async def weather_forecast(
     start_date: str,
@@ -178,6 +190,26 @@ async def weather_forecast(
     validate_dates(start_date, end_date)
     es = ESService()
     data = es.get_weather_forecast(start_date, end_date, area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/weather-models", response_model=APIResponse)
+async def weather_models(
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    es = ESService()
+    hourly_models = es.get_weather_models(area_name)
+    daily_models = es.get_weather_models_daily(area_name)
+    # Merge and deduplicate
+    model_set: dict = {}
+    for m in hourly_models:
+        model_set[m['model']] = {'model': m['model'], 'hourly_count': m['doc_count'], 'daily_count': 0}
+    for m in daily_models:
+        if m['model'] in model_set:
+            model_set[m['model']]['daily_count'] = m['doc_count']
+        else:
+            model_set[m['model']] = {'model': m['model'], 'hourly_count': 0, 'daily_count': m['doc_count']}
+    data = sorted(model_set.values(), key=lambda x: x['hourly_count'] + x['daily_count'], reverse=True)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/bid-plans", response_model=APIResponse)
