@@ -8,6 +8,7 @@ import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 import { createTimeAxis, createValueAxis, createGrid } from '@/utils/echartsHelpers';
 import { BaseChart } from '@/components/charts/BaseChart';
+import { buildLegendLabel, WEATHER_FIELD_DISPLAY } from '@/constants/weatherCategories';
 
 interface ExtendedWeatherData {
   weather_datetime: string;
@@ -255,10 +256,14 @@ const WeatherChartSection = ({
         animation: false,
       };
     };
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+
     return {
-      temperature: build(errorTimeSeries.temperature, '氣溫', '°C', colors.tempActual),
-      rainfall: build(errorTimeSeries.rainfall, '降雨', 'mm', colors.rainActual),
-      wind_speed: build(errorTimeSeries.wind_speed, '風速', 'm/s', colors.windActual),
+      temperature: build(errorTimeSeries.temperature, tName, '°C', colors.tempActual),
+      rainfall: build(errorTimeSeries.rainfall, rName, 'mm', colors.rainActual),
+      wind_speed: build(errorTimeSeries.wind_speed, wName, 'm/s', colors.windActual),
     };
   }, [errorTimeSeries, colors]);
 
@@ -300,10 +305,14 @@ const WeatherChartSection = ({
         animation: false,
       };
     };
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+
     return {
-      temperature: build(scatterData.temperature, '氣溫', '°C', colors.tempActual),
-      rainfall: build(scatterData.rainfall, '降雨', 'mm', colors.rainActual),
-      wind_speed: build(scatterData.wind_speed, '風速', 'm/s', colors.windActual),
+      temperature: build(scatterData.temperature, tName, '°C', colors.tempActual),
+      rainfall: build(scatterData.rainfall, rName, 'mm', colors.rainActual),
+      wind_speed: build(scatterData.wind_speed, wName, 'm/s', colors.windActual),
     };
   }, [scatterData, colors]);
 
@@ -323,10 +332,14 @@ const WeatherChartSection = ({
         animation: false,
       };
     };
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+
     return {
-      temperature: build(histogramData.temperature.binLabels, histogramData.temperature.counts, '氣溫'),
-      rainfall: build(histogramData.rainfall.binLabels, histogramData.rainfall.counts, '降雨'),
-      wind_speed: build(histogramData.wind_speed.binLabels, histogramData.wind_speed.counts, '風速'),
+      temperature: build(histogramData.temperature.binLabels, histogramData.temperature.counts, tName),
+      rainfall: build(histogramData.rainfall.binLabels, histogramData.rainfall.counts, rName),
+      wind_speed: build(histogramData.wind_speed.binLabels, histogramData.wind_speed.counts, wName),
     };
   }, [histogramData, colors]);
 
@@ -365,7 +378,7 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              氣溫 (°C)
+              {(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')} (°C)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.tempActual }}>
               實際：平均 {formatNum(summary.temperature.actual.avg)}，最高 {formatNum(summary.temperature.actual.max)}，最低 {formatNum(summary.temperature.actual.min)}
@@ -388,7 +401,7 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              降雨 (mm)
+              {(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')} (mm)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.rainActual }}>
               實際累積：{formatNum(summary.rainfall.actual, 2)}
@@ -411,7 +424,7 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              風速 (m/s)
+              {(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')} (m/s)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.windActual }}>
               實際：平均 {formatNum(summary.wind_speed.actual.avg)}，最大 {formatNum(summary.wind_speed.actual.max)}
@@ -465,7 +478,7 @@ const WeatherChartSection = ({
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>氣溫誤差 (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')}誤差 (°C)</Typography>
             {errorTimeSeries.temperature.length > 0 ? (
               <BaseChart option={errorTimeOptions.temperature} height={CHART_HEIGHT} />
             ) : (
@@ -477,7 +490,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>降雨誤差 (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')}誤差 (mm)</Typography>
             {errorTimeSeries.rainfall.length > 0 ? (
               <BaseChart option={errorTimeOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
@@ -489,7 +502,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>風速誤差 (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')}誤差 (m/s)</Typography>
             {errorTimeSeries.wind_speed.length > 0 ? (
               <BaseChart option={errorTimeOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (
@@ -508,7 +521,7 @@ const WeatherChartSection = ({
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>氣溫 (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')} (°C)</Typography>
             {scatterData.temperature.length > 0 ? (
               <BaseChart option={scatterOptions.temperature} height={CHART_HEIGHT} />
             ) : (
@@ -520,7 +533,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>降雨 (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')} (mm)</Typography>
             {scatterData.rainfall.length > 0 ? (
               <BaseChart option={scatterOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
@@ -532,7 +545,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>風速 (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')} (m/s)</Typography>
             {scatterData.wind_speed.length > 0 ? (
               <BaseChart option={scatterOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (
@@ -551,7 +564,7 @@ const WeatherChartSection = ({
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>氣溫誤差 (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')}誤差 (°C)</Typography>
             {histogramData.temperature.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.temperature} height={CHART_HEIGHT} />
             ) : (
@@ -563,7 +576,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>降雨誤差 (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')}誤差 (mm)</Typography>
             {histogramData.rainfall.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
@@ -575,7 +588,7 @@ const WeatherChartSection = ({
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>風速誤差 (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')}誤差 (m/s)</Typography>
             {histogramData.wind_speed.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (

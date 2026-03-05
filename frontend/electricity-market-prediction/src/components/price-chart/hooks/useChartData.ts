@@ -370,14 +370,12 @@ export const useChartData = ({
         }
 
         // G. Weather Actual Data
-        // NOTE: 後端 Weather 的 weather_datetime 為 UTC（例如 "2026-01-31T00:00:00+00:00"），parseToTimestamp 會解析為 UTC timestamp。
-        // 價格與圖表採用 JST（Asia/Tokyo, UTC+9），"2026-01-31 00:00" 表示 JST 午夜 = 前日 15:00 UTC。
-        // 為了讓 Weather 的「UTC 00:00」對齊到圖表上的「JST 00:00」同一時段，將 UTC timestamp 減去 9 小時，
-        // 使 UTC 00:00 → 對應 JST 00:00 的時刻（前日 15:00 UTC）。
-        const WEATHER_TIME_OFFSET_MS = -9 * 60 * 60 * 1000; // 減去 9 小時，將 UTC 對齊到 JST 同一鐘面時刻
+        // NOTE: 新版 Weather 的 datetime 已經是 UTC+9（例如 "2026-03-01T09:00:00+09:00"）。
+        // parseToTimestamp 會將此轉換為 UTC epoch，圖表軸也以 JST 顯示，因此不需要額外偏移。
+        const WEATHER_TIME_OFFSET_MS = 0;
         if (showWeatherActual && weatherActual && Array.isArray(weatherActual)) {
             weatherActual.forEach((item) => {
-                const tsRaw = parseToTimestamp(item.weather_datetime);
+                const tsRaw = parseToTimestamp(item.datetime);
                 const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
 
                 if (ts) {
@@ -389,19 +387,19 @@ export const useChartData = ({
                     if (!point.weather_data_actual) {
                         point.weather_data_actual = {};
                     }
-                    point.weather_data_actual.temperature = item.temperature;
-                    point.weather_data_actual.rainfall = item.rainfall;
+                    point.weather_data_actual.temperature = item.temperature_2m;
+                    point.weather_data_actual.rainfall = item.precipitation;
                     point.weather_data_actual.snowfall = item.snowfall;
-                    point.weather_data_actual.wind_speed = item.wind_speed;
-                    point.weather_data_actual.relative_humidity = item.relative_humidity;
-                    point.weather_data_actual.clouds_all = item.clouds_all;
+                    point.weather_data_actual.wind_speed = item.wind_speed_10m;
+                    point.weather_data_actual.relative_humidity = item.relative_humidity_2m;
+                    point.weather_data_actual.clouds_all = item.cloud_cover;
                     // Also store in weather_data for backward compatibility
-                    point.weather_data.temperature = item.temperature;
-                    point.weather_data.rainfall = item.rainfall;
+                    point.weather_data.temperature = item.temperature_2m;
+                    point.weather_data.rainfall = item.precipitation;
                     point.weather_data.snowfall = item.snowfall;
-                    point.weather_data.wind_speed = item.wind_speed;
-                    point.weather_data.relative_humidity = item.relative_humidity;
-                    point.weather_data.clouds_all = item.clouds_all;
+                    point.weather_data.wind_speed = item.wind_speed_10m;
+                    point.weather_data.relative_humidity = item.relative_humidity_2m;
+                    point.weather_data.clouds_all = item.cloud_cover;
                 }
             });
         }
@@ -410,7 +408,7 @@ export const useChartData = ({
         // 使用相同的時區對齊邏輯
         if (showWeatherForecast && weatherForecast && Array.isArray(weatherForecast)) {
             weatherForecast.forEach((item) => {
-                const tsRaw = parseToTimestamp(item.weather_datetime);
+                const tsRaw = parseToTimestamp(item.datetime);
                 const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
 
                 if (ts) {
@@ -422,19 +420,19 @@ export const useChartData = ({
                     if (!point.weather_data_forecast) {
                         point.weather_data_forecast = {};
                     }
-                    point.weather_data_forecast.temperature = item.temperature;
-                    point.weather_data_forecast.rainfall = item.rainfall;
+                    point.weather_data_forecast.temperature = item.temperature_2m;
+                    point.weather_data_forecast.rainfall = item.precipitation;
                     point.weather_data_forecast.snowfall = item.snowfall;
-                    point.weather_data_forecast.wind_speed = item.wind_speed;
-                    point.weather_data_forecast.relative_humidity = item.relative_humidity;
-                    point.weather_data_forecast.clouds_all = item.clouds_all;
+                    point.weather_data_forecast.wind_speed = item.wind_speed_10m;
+                    point.weather_data_forecast.relative_humidity = item.relative_humidity_2m;
+                    point.weather_data_forecast.clouds_all = item.cloud_cover;
                     // Forecast overwrites weather_data if both exist (for backward compatibility)
-                    point.weather_data.temperature = item.temperature;
-                    point.weather_data.rainfall = item.rainfall;
+                    point.weather_data.temperature = item.temperature_2m;
+                    point.weather_data.rainfall = item.precipitation;
                     point.weather_data.snowfall = item.snowfall;
-                    point.weather_data.wind_speed = item.wind_speed;
-                    point.weather_data.relative_humidity = item.relative_humidity;
-                    point.weather_data.clouds_all = item.clouds_all;
+                    point.weather_data.wind_speed = item.wind_speed_10m;
+                    point.weather_data.relative_humidity = item.relative_humidity_2m;
+                    point.weather_data.clouds_all = item.cloud_cover;
                 }
             });
         }

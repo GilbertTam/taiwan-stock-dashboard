@@ -18,6 +18,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import { DateRange } from 'react-date-range';
 import { zhTW } from 'date-fns/locale';
 import { format } from 'date-fns';
@@ -52,9 +53,10 @@ const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.Element
   { key: 'home', label: '總覽', path: '/dashboard', Icon: DashboardIcon },
   { key: 'price', label: '預測分析', path: '/dashboard/forecast', Icon: TrendingUpIcon },
   { key: 'site-revenue', label: '案場收益', path: '/dashboard/site-revenue', Icon: TrendingUpIcon },
+  { key: 'weather', label: '天氣分析', path: '/dashboard/weather', Icon: WbSunnyIcon },
 ];
 
-export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
+export const DashboardToolbar: React.FC<SimpleToolbarProps & { isLoading?: boolean }> = ({
   variant = 'full',
   startDate = null,
   endDate = null,
@@ -65,6 +67,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   onRefresh,
   downloadActions = [],
   currentTab = 'price',
+  isLoading = false,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -104,6 +107,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
         {NAV_ITEMS.map(({ key, label, path, Icon }) => {
           const isActive = pathname === path ||
             (key === 'price' && pathname.startsWith('/dashboard/forecast')) ||
+            (key === 'weather' && pathname.startsWith('/dashboard/weather')) ||
             (key === 'site-revenue' && pathname.startsWith('/dashboard/site-revenue'));
           return (
             <Button
@@ -135,150 +139,156 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
 
             {/* Time Selection */}
             <TextField
-          size="small"
-          value={`${startDate ? format(startDate, 'yyyy/MM/dd') : ''} - ${endDate ? format(endDate, 'yyyy/MM/dd') : ''}`}
-          onClick={handleDateClick}
-          InputProps={{
-            readOnly: true,
-            startAdornment: (
-              <InputAdornment position="start">
-                <CalendarTodayIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            width: 250,
-            cursor: 'pointer',
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: 'var(--hover-bg)',
-            },
-          }}
-        />
+              size="small"
+              value={`${startDate ? format(startDate, 'yyyy/MM/dd') : ''} - ${endDate ? format(endDate, 'yyyy/MM/dd') : ''}`}
+              onClick={handleDateClick}
+              InputProps={{
+                readOnly: true,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarTodayIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: 250,
+                cursor: 'pointer',
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'var(--hover-bg)',
+                },
+              }}
+            />
 
-        {/* Navigation Buttons */}
-        <Tooltip title="上一段區間">
-          <IconButton
-            size="small"
-            onClick={() => {
-              if (startDate && endDate) {
-                const diff = endDate.getTime() - startDate.getTime();
-                // Shift back by the current range duration (or 1 day if preferred, but range makes sense for "previous view")
-                // User asked for "Forward/Backward X days". Let's stick to 1 day shift for granular control as per common dashboard UX, 
-                // OR shift by the range length.
-                // Let's implement shifting by 1 day as a safe default for "scrolling".
-                const shiftMs = 24 * 60 * 60 * 1000;
-                // Wait, if I'm looking at a week, moving 1 day is slow.
-                // Let's use 20% of the range or 1 day, whichever is larger?
-                // Actually, "control forward/backward few days" - let's do 1 day for now as requested by "few days".
-                const ONE_DAY = 24 * 60 * 60 * 1000;
-                onDateRangeChange?.({
-                  selection: {
-                    startDate: new Date(startDate.getTime() - ONE_DAY),
-                    endDate: new Date(endDate.getTime() - ONE_DAY),
+            {/* Navigation Buttons */}
+            <Tooltip title="上一段區間">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  if (startDate && endDate) {
+                    const diff = endDate.getTime() - startDate.getTime();
+                    // Shift back by the current range duration (or 1 day if preferred, but range makes sense for "previous view")
+                    // User asked for "Forward/Backward X days". Let's stick to 1 day shift for granular control as per common dashboard UX, 
+                    // OR shift by the range length.
+                    // Let's implement shifting by 1 day as a safe default for "scrolling".
+                    const shiftMs = 24 * 60 * 60 * 1000;
+                    // Wait, if I'm looking at a week, moving 1 day is slow.
+                    // Let's use 20% of the range or 1 day, whichever is larger?
+                    // Actually, "control forward/backward few days" - let's do 1 day for now as requested by "few days".
+                    const ONE_DAY = 24 * 60 * 60 * 1000;
+                    onDateRangeChange?.({
+                      selection: {
+                        startDate: new Date(startDate.getTime() - ONE_DAY),
+                        endDate: new Date(endDate.getTime() - ONE_DAY),
+                      }
+                    });
                   }
-                });
-              }
-            }}
-            sx={{ border: '1px solid var(--card-border)', mr: 1 }}
-          >
-            <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'<'}</Box>
-          </IconButton>
-        </Tooltip>
+                }}
+                sx={{ border: '1px solid var(--card-border)', mr: 1 }}
+              >
+                <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'<'}</Box>
+              </IconButton>
+            </Tooltip>
 
-        <Tooltip title="下一段區間">
-          <IconButton
-            size="small"
-            onClick={() => {
-              if (startDate && endDate) {
-                const ONE_DAY = 24 * 60 * 60 * 1000;
-                onDateRangeChange?.({
-                  selection: {
-                    startDate: new Date(startDate.getTime() + ONE_DAY),
-                    endDate: new Date(endDate.getTime() + ONE_DAY),
+            <Tooltip title="下一段區間">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  if (startDate && endDate) {
+                    const ONE_DAY = 24 * 60 * 60 * 1000;
+                    onDateRangeChange?.({
+                      selection: {
+                        startDate: new Date(startDate.getTime() + ONE_DAY),
+                        endDate: new Date(endDate.getTime() + ONE_DAY),
+                      }
+                    });
                   }
-                });
-              }
-            }}
-            sx={{ border: '1px solid var(--card-border)', mr: 1 }}
-          >
-            <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'>'}</Box>
-          </IconButton>
-        </Tooltip>
+                }}
+                sx={{ border: '1px solid var(--card-border)', mr: 1 }}
+              >
+                <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'>'}</Box>
+              </IconButton>
+            </Tooltip>
 
-        {/* Quick Time Range Switcher */}
-        <TimeRangeSwitcher
-          dateRangePreset={dateRangePreset}
-          onDateRangePreset={onDateRangePreset ?? (() => {})}
-        />
+            {/* Quick Time Range Switcher */}
+            <TimeRangeSwitcher
+              dateRangePreset={dateRangePreset}
+              onDateRangePreset={onDateRangePreset ?? (() => { })}
+            />
 
-        <Box sx={{ flex: 1 }} />
+            <Box sx={{ flex: 1 }} />
 
-        {/* Action Buttons */}
-        <Tooltip title="刷新數據">
-          <IconButton
-            size="small"
-            onClick={() => onRefresh?.()}
-            sx={{
-              border: '1px solid var(--card-border)',
-              '&:hover': {
-                backgroundColor: 'var(--hover-bg)',
-              },
-            }}
-          >
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        {downloadActions.length > 0 && (
-          <Box component="span" sx={{ display: 'contents' }}>
-            {downloadActions.length === 1 ? (
-              <Tooltip title={downloadActions[0].label}>
-                <Button
-                  variant="contained"
-                  color="primary"
+            {/* Action Buttons */}
+            <Tooltip title="刷新數據">
+              <span>
+                <IconButton
                   size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={downloadActions[0].onClick}
-                  sx={{ textTransform: 'none' }}
+                  onClick={() => onRefresh?.()}
+                  disabled={isLoading}
+                  sx={{
+                    border: '1px solid var(--card-border)',
+                    '&:hover': {
+                      backgroundColor: 'var(--hover-bg)',
+                    },
+                  }}
                 >
-                  {downloadActions[0].label}
-                </Button>
-              </Tooltip>
-            ) : (
+                  <RefreshIcon
+                    fontSize="small"
+                    sx={{ color: isLoading ? 'text.disabled' : 'text.secondary' }}
+                  />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            {downloadActions.length > 0 && (
               <Box component="span" sx={{ display: 'contents' }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={(e) => setDownloadAnchorEl(e.currentTarget)}
-                  sx={{ textTransform: 'none' }}
-                >
-                  下載
-                </Button>
-                <Menu
-                  anchorEl={downloadAnchorEl}
-                  open={Boolean(downloadAnchorEl)}
-                  onClose={() => setDownloadAnchorEl(null)}
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                >
-                  {downloadActions.map((action, idx) => (
-                    <MenuItem
-                      key={idx}
-                      onClick={() => {
-                        action.onClick();
-                        setDownloadAnchorEl(null);
-                      }}
+                {downloadActions.length === 1 ? (
+                  <Tooltip title={downloadActions[0].label}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={downloadActions[0].onClick}
+                      sx={{ textTransform: 'none' }}
                     >
-                      {action.label}
-                    </MenuItem>
-                  ))}
-                </Menu>
+                      {downloadActions[0].label}
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Box component="span" sx={{ display: 'contents' }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={(e) => setDownloadAnchorEl(e.currentTarget)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      下載
+                    </Button>
+                    <Menu
+                      anchorEl={downloadAnchorEl}
+                      open={Boolean(downloadAnchorEl)}
+                      onClose={() => setDownloadAnchorEl(null)}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    >
+                      {downloadActions.map((action, idx) => (
+                        <MenuItem
+                          key={idx}
+                          onClick={() => {
+                            action.onClick();
+                            setDownloadAnchorEl(null);
+                          }}
+                        >
+                          {action.label}
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </Box>
+                )}
               </Box>
             )}
-          </Box>
-        )}
           </Box>
         )}
 

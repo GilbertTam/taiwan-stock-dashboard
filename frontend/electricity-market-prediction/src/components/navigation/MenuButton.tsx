@@ -18,6 +18,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import InfoIcon from '@mui/icons-material/Info';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
@@ -125,6 +126,15 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
                 <InfoIcon />
               </ListItemIcon>
               <ListItemText primary="市場資訊" />
+            </ListItemButton>
+          </ListItem>
+
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => handleNavigate('/dashboard/weather')}>
+              <ListItemIcon>
+                <WbSunnyIcon />
+              </ListItemIcon>
+              <ListItemText primary="天氣分析" />
             </ListItemButton>
           </ListItem>
 

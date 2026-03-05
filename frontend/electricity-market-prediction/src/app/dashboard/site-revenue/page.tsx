@@ -46,8 +46,13 @@ function SiteRevenueContent() {
     weatherActual, weatherForecast, imbalanceData, intradayData,
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading: isDataLoading,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
-    handleDateRangePreset, setStartDate, setEndDate, refreshData,
+    handleDateRangePreset, setStartDate, setEndDate, refreshData, setActiveScopes,
   } = useMarketDataContext();
+
+  // Ensure all scopes are active for SiteRevenuePage
+  useEffect(() => {
+    setActiveScopes(new Set(['price', 'weather', 'grid', 'batteryBid']));
+  }, [setActiveScopes]);
 
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate, endDate, setStartDate, setEndDate,
@@ -435,6 +440,7 @@ function SiteRevenueContent() {
               onRefresh={handleRefresh}
               downloadActions={ganttData ? [{ label: '下載收益報表 CSV', onClick: handleDownloadRevenueCsv }] : []}
               currentTab="site-revenue"
+              isLoading={isDataLoading || isSimulating}
             />
           </Box>
 

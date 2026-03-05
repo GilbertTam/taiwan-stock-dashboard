@@ -35,8 +35,13 @@ function ForecastContent() {
     weatherActual, weatherForecast, imbalanceData, intradayData,
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
-    handleDateRangePreset, setStartDate, setEndDate, refreshData,
+    handleDateRangePreset, setStartDate, setEndDate, refreshData, setActiveScopes,
   } = useMarketDataContext();
+
+  // Ensure all scopes are active for ForecastPage
+  useEffect(() => {
+    setActiveScopes(new Set(['price', 'weather', 'grid', 'batteryBid']));
+  }, [setActiveScopes]);
 
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate, endDate, setStartDate, setEndDate,
@@ -115,6 +120,7 @@ function ForecastContent() {
               onRefresh={handleRefresh}
               downloadActions={[{ label: '下載價差 CSV', onClick: handleDownloadCsv }]}
               currentTab="price"
+              isLoading={isLoading}
             />
           </Box>
 

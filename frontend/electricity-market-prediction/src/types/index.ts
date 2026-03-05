@@ -37,4 +37,4 @@ export type {
 } from './gridOperations';
 
 // External data types
-export type { Earthquake, WeatherData } from './external';
+export type { Earthquake, WeatherData, WeatherHourlyData, WeatherDailyData } from './external';

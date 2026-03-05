@@ -50,12 +50,12 @@ export const BATTERY_FIELDS = [
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [
-    { value: 'temperature', label: 'Temp', unit: '°C', color: '#ff9800' },
-    { value: 'rainfall', label: 'Rain', unit: 'mm', color: '#2196f3' },
-    { value: 'snowfall', label: 'Snow', unit: 'mm', color: '#90caf9' },
-    { value: 'wind_speed', label: 'Wind', unit: 'm/s', color: '#4caf50' },
-    { value: 'relative_humidity', label: 'Humid', unit: '%', color: '#9c27b0' },
-    { value: 'clouds_all', label: 'Clouds', unit: '%', color: '#607d8b' },
+    { value: 'temperature', label: '溫度', unit: '°C', color: '#ff9800' },
+    { value: 'rainfall', label: '降雨', unit: 'mm', color: '#2196f3' },
+    { value: 'snowfall', label: '降雪', unit: 'cm', color: '#90caf9' },
+    { value: 'wind_speed', label: '風速', unit: 'm/s', color: '#4caf50' },
+    { value: 'relative_humidity', label: '濕度', unit: '%', color: '#9c27b0' },
+    { value: 'clouds_all', label: '雲量', unit: '%', color: '#607d8b' },
 ];
 
 /** 投標計畫 (bid_plans) 基礎欄位定義 */
@@ -81,9 +81,9 @@ export const BID_PLAN_INTRADAY_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
     label: `日內-${f.label}`,
     category: 'intraday' as const,
     // 使用稍微不同的颜色以区分
-    color: f.key === 'bid_buy_price' ? '#ffc107' : 
-           f.key === 'bid_buy_volume' ? '#009688' :
-           f.key === 'bid_sell_price' ? '#ff9800' : '#9c27b0',
+    color: f.key === 'bid_buy_price' ? '#ffc107' :
+        f.key === 'bid_buy_volume' ? '#009688' :
+            f.key === 'bid_sell_price' ? '#ff9800' : '#9c27b0',
 }));
 
 /** 投標計畫 (bid_plans) 可選欄位 - 向後兼容，默認使用 spot */

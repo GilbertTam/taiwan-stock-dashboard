@@ -29,12 +29,13 @@ export const usePricePredictionData = ({
         };
 
         const processItem = (item: any, isForecast: boolean) => {
-            if (!item.weather_datetime) return;
-            const key = getNormalizedKey(item.weather_datetime);
+            const dt = item.datetime || item.weather_datetime;
+            if (!dt) return;
+            const key = getNormalizedKey(dt);
             if (!dataMap.has(key)) {
                 dataMap.set(key, {
                     time: key,
-                    originalTime: item.weather_datetime,
+                    originalTime: dt,
                     temperature: null,
                     rainfall: null,
                     snowfall: null,
@@ -45,12 +46,21 @@ export const usePricePredictionData = ({
                 });
             }
             const data = dataMap.get(key);
-            if (item.temperature !== null) data.temperature = item.temperature;
-            if (item.rainfall !== null) data.rainfall = item.rainfall;
-            if (item.snowfall !== null) data.snowfall = item.snowfall;
-            if (item.wind_speed !== null) data.windSpeed = item.wind_speed;
-            if (item.relative_humidity !== null) data.humidity = item.relative_humidity;
-            if (item.clouds_all !== null) data.cloudCover = item.clouds_all;
+
+            // Map either new or old fields to be safe during transition
+            const temp = item.temperature_2m ?? item.temperature;
+            const rain = item.precipitation ?? item.rainfall;
+            const snow = item.snowfall;
+            const wind = item.wind_speed_10m ?? item.wind_speed;
+            const humid = item.relative_humidity_2m ?? item.relative_humidity;
+            const clouds = item.cloud_cover ?? item.clouds_all;
+
+            if (temp !== null && temp !== undefined) data.temperature = temp;
+            if (rain !== null && rain !== undefined) data.rainfall = rain;
+            if (snow !== null && snow !== undefined) data.snowfall = snow;
+            if (wind !== null && wind !== undefined) data.windSpeed = wind;
+            if (humid !== null && humid !== undefined) data.humidity = humid;
+            if (clouds !== null && clouds !== undefined) data.cloudCover = clouds;
         };
 
         weatherActual.forEach(item => processItem(item, false));
@@ -67,18 +77,20 @@ export const usePricePredictionData = ({
         };
 
         const processInfoItem = (item: any, type: 'actual' | 'forecast') => {
-            const key = getNormalizedKey(item.weather_datetime);
+            const dt = item.datetime || item.weather_datetime;
+            if (!dt) return;
+            const key = getNormalizedKey(dt);
             if (!dataMap.has(key)) {
                 dataMap.set(key, {
-                    weather_datetime: item.weather_datetime,
+                    weather_datetime: dt,
                     temperature_actual: null, rainfall_actual: null, wind_speed_actual: null,
                     temperature_forecast: null, rainfall_forecast: null, wind_speed_forecast: null,
                 });
             }
             const existing = dataMap.get(key);
-            existing[`temperature_${type}`] = item.temperature;
-            existing[`rainfall_${type}`] = item.rainfall;
-            existing[`wind_speed_${type}`] = item.wind_speed;
+            existing[`temperature_${type}`] = item.temperature_2m ?? item.temperature;
+            existing[`rainfall_${type}`] = item.precipitation ?? item.rainfall;
+            existing[`wind_speed_${type}`] = item.wind_speed_10m ?? item.wind_speed;
         };
 
         weatherActual.forEach(item => processInfoItem(item, 'actual'));

@@ -138,32 +138,38 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     } catch { }
 
     const toggleOcctoField = (field: string) => {
-        setSelectedOcctoFields((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(field)) newSet.delete(field);
-            else newSet.add(field);
-            if (newSet.size === 0) newSet.add('area_demand');
-            return newSet;
+        startTransition(() => {
+            setSelectedOcctoFields((prev) => {
+                const newSet = new Set(prev);
+                if (newSet.has(field)) newSet.delete(field);
+                else newSet.add(field);
+                if (newSet.size === 0) newSet.add('area_demand');
+                return newSet;
+            });
         });
     };
 
     const toggleWeatherFieldActual = (field: string) => {
-        setSelectedWeatherFieldsActual((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(field)) newSet.delete(field);
-            else newSet.add(field);
-            if (newSet.size === 0) newSet.add('temperature');
-            return newSet;
+        startTransition(() => {
+            setSelectedWeatherFieldsActual((prev) => {
+                const newSet = new Set(prev);
+                if (newSet.has(field)) newSet.delete(field);
+                else newSet.add(field);
+                if (newSet.size === 0) newSet.add('temperature');
+                return newSet;
+            });
         });
     };
 
     const toggleWeatherFieldForecast = (field: string) => {
-        setSelectedWeatherFieldsForecast((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(field)) newSet.delete(field);
-            else newSet.add(field);
-            if (newSet.size === 0) newSet.add('temperature');
-            return newSet;
+        startTransition(() => {
+            setSelectedWeatherFieldsForecast((prev) => {
+                const newSet = new Set(prev);
+                if (newSet.has(field)) newSet.delete(field);
+                else newSet.add(field);
+                if (newSet.size === 0) newSet.add('temperature');
+                return newSet;
+            });
         });
     };
 
@@ -588,8 +594,10 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                     size="small"
                                                     sx={{ p: 0.5, color: SOURCE_COLORS.weatherActual, '&.Mui-checked': { color: SOURCE_COLORS.weatherActual } }}
                                                     onChange={(e) => {
-                                                        setShowWeatherActual(e.target.checked);
-                                                        setShowWeather(e.target.checked || showWeatherForecast);
+                                                        startTransition(() => {
+                                                            setShowWeatherActual(e.target.checked);
+                                                            setShowWeather(e.target.checked || showWeatherForecast);
+                                                        });
                                                     }}
                                                 />
                                                 <Typography variant="caption" fontWeight="bold">實際觀測</Typography>
@@ -599,20 +607,21 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 {weatherFields.map((field) => {
                                                     const isSelected = selectedWeatherFieldsActual.has(field.value);
                                                     return (
-                                                        <Box
-                                                            key={`actual-${field.value}`}
-                                                            onClick={() => toggleWeatherFieldActual(field.value)}
-                                                            sx={{
-                                                                px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
-                                                                fontSize: '0.65rem',
-                                                                bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
-                                                                color: isSelected ? field.color : 'text.secondary',
-                                                                border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
-                                                                '&:hover': { bgcolor: alpha(field.color, 0.25) }
-                                                            }}
-                                                        >
-                                                            {field.label}
-                                                        </Box>
+                                                        <Tooltip key={`actual-${field.value}`} title={`${field.label} (${field.unit})`} arrow placement="top">
+                                                            <Box
+                                                                onClick={() => toggleWeatherFieldActual(field.value)}
+                                                                sx={{
+                                                                    px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
+                                                                    fontSize: '0.65rem',
+                                                                    bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
+                                                                    color: isSelected ? field.color : 'text.secondary',
+                                                                    border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
+                                                                    '&:hover': { bgcolor: alpha(field.color, 0.25) }
+                                                                }}
+                                                            >
+                                                                {field.label}
+                                                            </Box>
+                                                        </Tooltip>
                                                     )
                                                 })}
                                             </Box>
@@ -626,8 +635,10 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                     size="small"
                                                     sx={{ p: 0.5, color: SOURCE_COLORS.weatherForecast, '&.Mui-checked': { color: SOURCE_COLORS.weatherForecast } }}
                                                     onChange={(e) => {
-                                                        setShowWeatherForecast(e.target.checked);
-                                                        setShowWeather(e.target.checked || showWeatherActual);
+                                                        startTransition(() => {
+                                                            setShowWeatherForecast(e.target.checked);
+                                                            setShowWeather(e.target.checked || showWeatherActual);
+                                                        });
                                                     }}
                                                 />
                                                 <Typography variant="caption" fontWeight="bold">預報</Typography>
@@ -637,20 +648,21 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 {weatherFields.map((field) => {
                                                     const isSelected = selectedWeatherFieldsForecast.has(field.value);
                                                     return (
-                                                        <Box
-                                                            key={`forecast-${field.value}`}
-                                                            onClick={() => toggleWeatherFieldForecast(field.value)}
-                                                            sx={{
-                                                                px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
-                                                                fontSize: '0.65rem',
-                                                                bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
-                                                                color: isSelected ? field.color : 'text.secondary',
-                                                                border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
-                                                                '&:hover': { bgcolor: alpha(field.color, 0.25) }
-                                                            }}
-                                                        >
-                                                            {field.label}
-                                                        </Box>
+                                                        <Tooltip key={`forecast-${field.value}`} title={`${field.label} (${field.unit})`} arrow placement="top">
+                                                            <Box
+                                                                onClick={() => toggleWeatherFieldForecast(field.value)}
+                                                                sx={{
+                                                                    px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
+                                                                    fontSize: '0.65rem',
+                                                                    bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
+                                                                    color: isSelected ? field.color : 'text.secondary',
+                                                                    border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
+                                                                    '&:hover': { bgcolor: alpha(field.color, 0.25) }
+                                                                }}
+                                                            >
+                                                                {field.label}
+                                                            </Box>
+                                                        </Tooltip>
                                                     )
                                                 })}
                                             </Box>

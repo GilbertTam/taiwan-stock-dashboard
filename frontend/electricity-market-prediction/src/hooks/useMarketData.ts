@@ -38,13 +38,19 @@ import {
     fetchInterconnectionFlows,
     fetchOcctoArea,
     fetchBatteryData,
-    fetchBidPlans
+    fetchBidPlans,
+    fetchWeatherActualDaily
 } from '@/services';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, WeatherDailyData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
 import { useUserPreferences } from './useUserPreferences';
+
+/**
+ * Scopes for data fetching to prevent unnecessary API calls
+ */
+export type DataScope = 'price' | 'weather' | 'grid' | 'batteryBid';
 
 /**
  * Selected model configuration with display settings
@@ -73,6 +79,7 @@ export interface UseMarketDataReturn {
     actualPrices: AreaPrice[];
     predictionsByModel: { [key: string]: PricePrediction[] };
     weatherActual: WeatherData[];
+    weatherActualDaily: WeatherDailyData[];
     weatherForecast: WeatherData[];
     imbalanceData: ImbalanceData[];
     intradayData: IntradayData[];
@@ -107,6 +114,10 @@ export interface UseMarketDataReturn {
     handleMoveMonthBackward: () => void;
     handleMoveMonthForward: () => void;
     refreshData: () => void;
+
+    // Data Scopes
+    activeScopes: Set<DataScope>;
+    setActiveScopes: React.Dispatch<React.SetStateAction<Set<DataScope>>>;
 
     // Chart highlight/focus
     highlightedModelId: string | null;
@@ -245,6 +256,35 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Actual observed weather data */
     const [weatherActual, setWeatherActual] = useState<WeatherData[]>([]);
+
+    /**
+     * Active data scopes to determine which APIs to call
+     */
+    const [activeScopes, setActiveScopes] = useState<Set<DataScope>>(
+        new Set(['price', 'weather', 'grid', 'batteryBid'])
+    );
+
+    /**
+     * Cache for actual data bundle to avoid redundant fetches on navigation
+     */
+    const actualDataCacheRef = useRef<Record<string, {
+        scopes: Set<DataScope>;
+        data: {
+            actualPrices: AreaPrice[];
+            weatherActual: WeatherData[];
+            weatherActualDaily: WeatherDailyData[];
+            weatherForecast: WeatherData[];
+            imbalanceData: ImbalanceData[];
+            intradayData: IntradayData[];
+            interconnectionData: InterconnectionFlow[];
+            occtoAreaData: OcctoAreaData[];
+            batteryData: BatteryData[];
+            bidPlansData: BidPlanData[];
+        }
+    }>>({});
+
+    /** Actual observed daily weather data */
+    const [weatherActualDaily, setWeatherActualDaily] = useState<WeatherDailyData[]>([]);
 
     /** Weather forecast data */
     const [weatherForecast, setWeatherForecast] = useState<WeatherData[]>([]);
@@ -571,13 +611,40 @@ export const useMarketData = (): UseMarketDataReturn => {
         if (!selectedArea || !startDate || !endDate) return;
         if (!isValid(startDate) || !isValid(endDate)) return;
 
+        const formattedStartDate = format(startDate, 'yyyyMMdd');
+        const formattedEndDate = format(endDate, 'yyyyMMdd');
+        const cacheKey = `${selectedArea}_${formattedStartDate}_${formattedEndDate}`;
+
+        const existingCache = actualDataCacheRef.current[cacheKey];
+        const scopesToFetch = new Set(Array.from(activeScopes).filter(scope => !existingCache?.scopes.has(scope)));
+
+        // 1. Full Cache Hit
+        if (scopesToFetch.size === 0 && existingCache) {
+            if (activeScopes.has('price')) setActualPrices(existingCache.data.actualPrices);
+            if (activeScopes.has('weather')) {
+                setWeatherActual(existingCache.data.weatherActual);
+                setWeatherActualDaily(existingCache.data.weatherActualDaily);
+                setWeatherForecast(existingCache.data.weatherForecast);
+            }
+            if (activeScopes.has('grid')) {
+                setImbalanceData(existingCache.data.imbalanceData);
+                setIntradayData(existingCache.data.intradayData);
+                setInterconnectionData(existingCache.data.interconnectionData);
+                setOcctoAreaData(existingCache.data.occtoAreaData);
+            }
+            if (activeScopes.has('batteryBid')) {
+                setBatteryData(existingCache.data.batteryData);
+                setBidPlansData(existingCache.data.bidPlansData);
+            }
+            return; // Everything we need is already cached
+        }
+
+        // 2. Cache Miss or Partial Hit: Fetch missing scopes
         const requestId = ++latestActualDataRequestId.current;
         setIsLoading(true);
         setError(null);
         setDataFetchWarnings([]);
 
-        const formattedStartDate = format(startDate, 'yyyyMMdd');
-        const formattedEndDate = format(endDate, 'yyyyMMdd');
         const failedLabels: string[] = [];
 
         const catchWithLabel = (label: string) => (e: unknown) => {
@@ -587,36 +654,77 @@ export const useMarketData = (): UseMarketDataReturn => {
         };
 
         try {
-            // Fetch all data sources in parallel. Each .catch() prevents one failure from blocking others.
-            const [actualData, weatherActualData, weatherForecastData, imbalanceDataResult, intradayDataResult, interconnectionDataResult, occtoAreaDataResult, batteryDataResult, bidPlansDataResult] = await Promise.all([
-                fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }).catch(catchWithLabel('現貨')),
-                fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際)')),
-                fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報)')),
-                fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('不平衡')),
-                fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('日前')),
-                fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')),
-                fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')),
-                fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池')),
-                fetchBidPlans({
-                    start_date: formattedStartDate,
-                    end_date: formattedEndDate
-                    // commodity_category 和 site_id 筛选在前端进行，以支持多选和预设 spot
-                }).catch(catchWithLabel('投標計畫'))
-            ]);
+            const promises: Promise<any>[] = [];
+            const indices: string[] = [];
 
-            // Race condition guard: ignore stale responses
+            if (scopesToFetch.has('price')) {
+                promises.push(fetchActualPrices({ start_date: formattedStartDate, end_date: formattedEndDate, name: selectedArea }).catch(catchWithLabel('現貨')));
+                indices.push('price');
+            }
+            if (scopesToFetch.has('weather')) {
+                promises.push(fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際)')));
+                promises.push(fetchWeatherActualDaily({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際日)')));
+                promises.push(fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報)')));
+                indices.push('weatherActual', 'weatherActualDaily', 'weatherForecast');
+            }
+            if (scopesToFetch.has('grid')) {
+                promises.push(fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('不平衡')));
+                promises.push(fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('日前')));
+                promises.push(fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')));
+                promises.push(fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')));
+                indices.push('imbalance', 'intraday', 'interconnection', 'occtoArea');
+            }
+            if (scopesToFetch.has('batteryBid')) {
+                promises.push(fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池')));
+                promises.push(fetchBidPlans({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('投標計畫')));
+                indices.push('battery', 'bidPlans');
+            }
+
+            const results = await Promise.all(promises);
+
             if (requestId !== latestActualDataRequestId.current) return;
 
-            setActualPrices(actualData);
-            setWeatherActual(weatherActualData);
-            setWeatherForecast(weatherForecastData);
-            setImbalanceData(imbalanceDataResult);
-            setIntradayData(intradayDataResult);
-            setInterconnectionData(interconnectionDataResult);
-            setOcctoAreaData(occtoAreaDataResult);
-            setBatteryData(batteryDataResult);
-            // 注意：site_id 筛选在 PriceChartContext 中进行，这里先设置所有数据
-            setBidPlansData(bidPlansDataResult);
+            // 3. Merge newly fetched data with existing cache
+            const newData: Record<string, any> = { ...(existingCache?.data || {}) };
+            indices.forEach((key, index) => {
+                newData[key] = results[index];
+            });
+
+            // 4. Update states for active scopes
+            if (activeScopes.has('price')) setActualPrices(newData['price'] || []);
+            if (activeScopes.has('weather')) {
+                setWeatherActual(newData['weatherActual'] || []);
+                setWeatherActualDaily(newData['weatherActualDaily'] || []);
+                setWeatherForecast(newData['weatherForecast'] || []);
+            }
+            if (activeScopes.has('grid')) {
+                setImbalanceData(newData['imbalance'] || []);
+                setIntradayData(newData['intraday'] || []);
+                setInterconnectionData(newData['interconnection'] || []);
+                setOcctoAreaData(newData['occtoArea'] || []);
+            }
+            if (activeScopes.has('batteryBid')) {
+                setBatteryData(newData['battery'] || []);
+                setBidPlansData(newData['bidPlans'] || []);
+            }
+
+            // 5. Update Cache
+            const newScopes = new Set([...(existingCache?.scopes || []), ...scopesToFetch]);
+            actualDataCacheRef.current[cacheKey] = {
+                scopes: newScopes,
+                data: {
+                    actualPrices: newData['price'] || [],
+                    weatherActual: newData['weatherActual'] || [],
+                    weatherActualDaily: newData['weatherActualDaily'] || [],
+                    weatherForecast: newData['weatherForecast'] || [],
+                    imbalanceData: newData['imbalance'] || [],
+                    intradayData: newData['intraday'] || [],
+                    interconnectionData: newData['interconnection'] || [],
+                    occtoAreaData: newData['occtoArea'] || [],
+                    batteryData: newData['battery'] || [],
+                    bidPlansData: newData['bidPlans'] || [],
+                }
+            };
 
             if (failedLabels.length > 0) {
                 setDataFetchWarnings(failedLabels);
@@ -637,7 +745,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                 setIsLoading(false);
             }
         }
-    }, [selectedArea, startDate, endDate, logout]);
+    }, [selectedArea, startDate, endDate, activeScopes, logout]);
 
     /**
      * Fetch prediction data with caching.
@@ -772,13 +880,13 @@ export const useMarketData = (): UseMarketDataReturn => {
     }, [selectedArea, startDate, endDate]);
 
     /**
-     * Re-fetch actual data when area, date range, or selected site IDs change.
+     * Re-fetch actual data when area or date range changes.
      */
     useEffect(() => {
         if (selectedArea && startDate && endDate) {
             fetchActualData();
         }
-    }, [selectedArea, startDate, endDate, selectedSiteIds, fetchActualData]);
+    }, [selectedArea, startDate, endDate, fetchActualData]);
 
     /**
      * Re-fetch predictions when area, models, or date range changes.
@@ -905,6 +1013,8 @@ export const useMarketData = (): UseMarketDataReturn => {
         if (selectedArea && startDate && endDate) {
             // Clear entire prediction cache to force fresh API calls
             setCachedPredictionsByModel({});
+            // Clear actual data cache to force fresh API calls
+            actualDataCacheRef.current = {};
             fetchActualData();
             fetchPredictionData();
         }
@@ -927,6 +1037,7 @@ export const useMarketData = (): UseMarketDataReturn => {
         actualPrices,
         predictionsByModel,
         weatherActual,
+        weatherActualDaily,
         weatherForecast,
         imbalanceData,
         intradayData,
@@ -937,6 +1048,10 @@ export const useMarketData = (): UseMarketDataReturn => {
         selectedSiteIds,
         setSelectedSiteIds,
         availableSiteIds,
+
+        // Data Scopes
+        activeScopes,
+        setActiveScopes,
 
         // Loading/Error
         isLoading,
