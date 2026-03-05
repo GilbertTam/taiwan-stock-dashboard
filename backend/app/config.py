@@ -56,7 +56,8 @@ class Settings(BaseSettings):
     ES_INDEX_OCCTO_INTER: str = "occto_inter"
     ES_INDEX_OCCTO_EVENT: str = "occto_event"
     ES_INDEX_TDGC: str = "tdgc"
-    ES_INDEX_WEATHER_ACTUAL: str = "weather_actual"
+    ES_INDEX_WEATHER_ACTUAL_HOURLY: str = "weather_actual_hourly"
+    ES_INDEX_WEATHER_ACTUAL_DAILY: str = "weather_actual_daily"
     ES_INDEX_WEATHER_FORECAST: str = "weather_forecast"
     ES_INDEX_BATTERY_DATA: str = "battery_data"
     ES_INDEX_BID_PLANS: str = "bid_plans"
@@ -80,7 +81,8 @@ class Settings(BaseSettings):
             'occto_inter': self.ES_INDEX_OCCTO_INTER,
             'occto_event': self.ES_INDEX_OCCTO_EVENT,
             'tdgc': self.ES_INDEX_TDGC,
-            'weather_actual': self.ES_INDEX_WEATHER_ACTUAL,
+            'weather_actual': self.ES_INDEX_WEATHER_ACTUAL_HOURLY,
+            'weather_actual_daily': self.ES_INDEX_WEATHER_ACTUAL_DAILY,
             'weather_forecast': self.ES_INDEX_WEATHER_FORECAST,
             'battery_data': self.ES_INDEX_BATTERY_DATA,
             'bid_plans': self.ES_INDEX_BID_PLANS,
