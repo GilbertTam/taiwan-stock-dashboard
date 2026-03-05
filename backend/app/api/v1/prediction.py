@@ -1,6 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.services.es_service import ESService
+from app.services.es_service import es_service
 from app.schemas.prediction import PredictionResponse, CalculatingDate, AvailableModel
 from app.api.v1.auth import get_current_user
 
@@ -22,7 +22,7 @@ async def get_predictions(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_predictions(
         start_date=start_date,
         end_date=end_date,
@@ -46,7 +46,7 @@ async def get_available_dates(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_available_calculating_dates(start_date, end_date, area_name, model_name)
     return data
 
@@ -54,7 +54,7 @@ async def get_available_dates(
 async def get_available_models(
     current_user = Depends(get_current_user)
 ):
-    es = ESService()
+    es = es_service
     data = es.get_available_models()
     return data
 @router.get("/spot-csv-download")
@@ -66,7 +66,7 @@ async def download_spot_csv(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     
     # 1. Get Actual Spot Prices
     actual_data = es.get_jepx_trades(start_date, end_date, area_name)

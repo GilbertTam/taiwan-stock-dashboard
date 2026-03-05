@@ -52,6 +52,13 @@ import { useUserPreferences } from './useUserPreferences';
  */
 export type DataScope = 'price' | 'weather' | 'grid' | 'batteryBid';
 
+export type PageKey = 'dashboard' | 'forecast' | 'weather' | 'siteRevenue' | string;
+
+export interface PageNeeds {
+    scopes: Set<DataScope>;
+    wantsPredictions: boolean;
+}
+
 /**
  * Selected model configuration with display settings
  */
@@ -115,9 +122,11 @@ export interface UseMarketDataReturn {
     handleMoveMonthForward: () => void;
     refreshData: () => void;
 
-    // Data Scopes
+    // Data Scopes & Page Needs
     activeScopes: Set<DataScope>;
-    setActiveScopes: React.Dispatch<React.SetStateAction<Set<DataScope>>>;
+    predictionsEnabled: boolean;
+    registerPageNeeds: (pageKey: PageKey, scopes: Set<DataScope>, wantsPredictions: boolean) => void;
+    unregisterPageNeeds: (pageKey: PageKey) => void;
 
     // Chart highlight/focus
     highlightedModelId: string | null;
@@ -258,11 +267,59 @@ export const useMarketData = (): UseMarketDataReturn => {
     const [weatherActual, setWeatherActual] = useState<WeatherData[]>([]);
 
     /**
-     * Active data scopes to determine which APIs to call
+     * Page needs registration map
      */
-    const [activeScopes, setActiveScopes] = useState<Set<DataScope>>(
-        new Set(['price', 'weather', 'grid', 'batteryBid'])
-    );
+    const [pageNeedsMap, setPageNeedsMap] = useState<Record<PageKey, PageNeeds>>({});
+
+    /**
+     * Active data scopes to determine which APIs to call, derived from pageNeedsMap
+     */
+    const activeScopes = useMemo(() => {
+        const s = new Set<DataScope>();
+        Object.values(pageNeedsMap).forEach(({ scopes }) => {
+            scopes.forEach(v => s.add(v));
+        });
+        // Default to all scopes if no page has registered yet (fallback)
+        if (s.size === 0 && Object.keys(pageNeedsMap).length === 0) {
+            return new Set(['price', 'weather', 'grid', 'batteryBid'] as DataScope[]);
+        }
+        return s;
+    }, [pageNeedsMap]);
+
+    /**
+     * Whether prediction fetching is enabled based on active pages
+     */
+    const predictionsEnabled = useMemo(() => {
+        const pages = Object.values(pageNeedsMap);
+        // Default to true if no pages have registered yet (fallback)
+        if (pages.length === 0) return true;
+        return pages.some(p => p.wantsPredictions);
+    }, [pageNeedsMap]);
+
+    const registerPageNeeds = useCallback((pageKey: PageKey, scopes: Set<DataScope>, wantsPredictions: boolean) => {
+        setPageNeedsMap(prev => {
+            // Avoid unnecessary state updates
+            const existing = prev[pageKey];
+            if (existing && existing.wantsPredictions === wantsPredictions &&
+                existing.scopes.size === scopes.size &&
+                Array.from(existing.scopes).every(s => scopes.has(s))) {
+                return prev;
+            }
+            return {
+                ...prev,
+                [pageKey]: { scopes, wantsPredictions }
+            };
+        });
+    }, []);
+
+    const unregisterPageNeeds = useCallback((pageKey: PageKey) => {
+        setPageNeedsMap(prev => {
+            if (!prev[pageKey]) return prev;
+            const next = { ...prev };
+            delete next[pageKey];
+            return next;
+        });
+    }, []);
 
     /**
      * Cache for actual data bundle to avoid redundant fetches on navigation
@@ -754,6 +811,12 @@ export const useMarketData = (): UseMarketDataReturn => {
      * which prevents infinite re-fetch loops.
      */
     const fetchPredictionData = useCallback(async () => {
+        if (!predictionsEnabled) {
+            setPredictionsByModel({});
+            setIsFetchingPredictions(false);
+            return;
+        }
+
         if (!selectedArea || selectedModels.length === 0 || !startDate || !endDate) {
             setPredictionsByModel({});
             setIsFetchingPredictions(false);
@@ -851,7 +914,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                 setIsFetchingPredictions(false);
             }
         }
-    }, [selectedArea, selectedModels, startDate, endDate, logout]);
+    }, [predictionsEnabled, selectedArea, selectedModels, startDate, endDate, logout]);
 
     // ==========================================================================
     // Effects: Cache Cleanup & Data Refetch
@@ -889,15 +952,20 @@ export const useMarketData = (): UseMarketDataReturn => {
     }, [selectedArea, startDate, endDate, fetchActualData]);
 
     /**
-     * Re-fetch predictions when area, models, or date range changes.
+     * Re-fetch predictions when area, models, date range, or prediction enablement changes.
      */
     useEffect(() => {
+        if (!predictionsEnabled) {
+            setPredictionsByModel({});
+            return;
+        }
+
         if (selectedArea && selectedModels.length > 0 && startDate && endDate) {
             fetchPredictionData();
         } else {
             setPredictionsByModel({});
         }
-    }, [selectedArea, selectedModels, startDate, endDate, fetchPredictionData]);
+    }, [predictionsEnabled, selectedArea, selectedModels, startDate, endDate, fetchPredictionData]);
 
     // ==========================================================================
     // Event Handlers
@@ -1049,9 +1117,11 @@ export const useMarketData = (): UseMarketDataReturn => {
         setSelectedSiteIds,
         availableSiteIds,
 
-        // Data Scopes
+        // Data Scopes & Page Needs
         activeScopes,
-        setActiveScopes,
+        predictionsEnabled,
+        registerPageNeeds,
+        unregisterPageNeeds,
 
         // Loading/Error
         isLoading,

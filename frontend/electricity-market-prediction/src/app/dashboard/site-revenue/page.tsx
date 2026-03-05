@@ -46,13 +46,14 @@ function SiteRevenueContent() {
     weatherActual, weatherForecast, imbalanceData, intradayData,
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading: isDataLoading,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
-    handleDateRangePreset, setStartDate, setEndDate, refreshData, setActiveScopes,
+    handleDateRangePreset, setStartDate, setEndDate, refreshData, registerPageNeeds, unregisterPageNeeds,
   } = useMarketDataContext();
 
-  // Ensure all scopes are active for SiteRevenuePage
+  // Register scopes required for SiteRevenuePage
   useEffect(() => {
-    setActiveScopes(new Set(['price', 'weather', 'grid', 'batteryBid']));
-  }, [setActiveScopes]);
+    registerPageNeeds('siteRevenue', new Set(['price', 'weather', 'grid', 'batteryBid']), true);
+    return () => unregisterPageNeeds('siteRevenue');
+  }, [registerPageNeeds, unregisterPageNeeds]);
 
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate, endDate, setStartDate, setEndDate,

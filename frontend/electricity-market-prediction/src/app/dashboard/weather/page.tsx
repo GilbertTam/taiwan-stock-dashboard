@@ -34,17 +34,15 @@ export default function WeatherPage() {
         refreshData,
         isLoading,
         dataFetchWarnings,
-        setActiveScopes,
+        registerPageNeeds,
+        unregisterPageNeeds,
     } = useMarketDataContext();
 
-    // Set scopes specific to WeatherPage
+    // Register scopes specific to WeatherPage
     useEffect(() => {
-        setActiveScopes(new Set(['weather']));
-        return () => {
-            // Restore default scopes on unmount
-            setActiveScopes(new Set(['price', 'weather', 'grid', 'batteryBid']));
-        };
-    }, [setActiveScopes]);
+        registerPageNeeds('weather', new Set(['weather']), false);
+        return () => unregisterPageNeeds('weather');
+    }, [registerPageNeeds, unregisterPageNeeds]);
 
     const [showWarnings, setShowWarnings] = useState(false);
 

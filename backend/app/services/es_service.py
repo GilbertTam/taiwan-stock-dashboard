@@ -54,7 +54,9 @@ class ESService:
             [self.host],
             basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD) if settings.ELASTICSEARCH_USERNAME else None,
             request_timeout=60,
-            verify_certs=True
+            verify_certs=True,
+            max_retries=3,
+            retry_on_timeout=True,
         )
         
         indices = settings.ELASTICSEARCH_INDICES
@@ -471,3 +473,6 @@ class ESService:
                 "updated_at": datetime.now().isoformat()
             })
         return models
+
+# Singleton instance to be shared across API endpoints
+es_service = ESService()

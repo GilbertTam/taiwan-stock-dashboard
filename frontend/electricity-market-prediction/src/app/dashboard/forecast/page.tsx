@@ -4,7 +4,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, LinearProgress } from '@mui/material';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { downloadSpotCsv } from '@/services/api';
 import { format } from 'date-fns';
@@ -33,15 +33,16 @@ function ForecastContent() {
     areas, models, calculatingDatesByModel, selectedArea, selectedModels,
     startDate, endDate, dateRangePreset, actualPrices, predictionsByModel,
     weatherActual, weatherForecast, imbalanceData, intradayData,
-    interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading,
+    interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading, isFetchingPredictions,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
-    handleDateRangePreset, setStartDate, setEndDate, refreshData, setActiveScopes,
+    handleDateRangePreset, setStartDate, setEndDate, refreshData, registerPageNeeds, unregisterPageNeeds,
   } = useMarketDataContext();
 
-  // Ensure all scopes are active for ForecastPage
+  // Register scopes required for ForecastPage
   useEffect(() => {
-    setActiveScopes(new Set(['price', 'weather', 'grid', 'batteryBid']));
-  }, [setActiveScopes]);
+    registerPageNeeds('forecast', new Set(['price', 'weather', 'grid', 'batteryBid']), true);
+    return () => unregisterPageNeeds('forecast');
+  }, [registerPageNeeds, unregisterPageNeeds]);
 
   const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
     startDate, endDate, setStartDate, setEndDate,
@@ -120,8 +121,11 @@ function ForecastContent() {
               onRefresh={handleRefresh}
               downloadActions={[{ label: '下載價差 CSV', onClick: handleDownloadCsv }]}
               currentTab="price"
-              isLoading={isLoading}
+              isLoading={isLoading || isFetchingPredictions}
             />
+            {isFetchingPredictions && !isLoading && (
+              <LinearProgress sx={{ height: 2 }} />
+            )}
           </Box>
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

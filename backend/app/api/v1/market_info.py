@@ -1,6 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.services.es_service import ESService
+from app.services.es_service import es_service
 from app.schemas.market_info import APIResponse
 from app.api.v1.auth import get_current_user
 from app.core.logging import logger
@@ -21,7 +21,7 @@ async def spot_market_trades(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_jepx_trades(start_date, end_date, name)
     return {"result": [{"Message": "Success"}], "code": 0, "count": len(data), "data": data}
 
@@ -33,7 +33,7 @@ async def spot_market_area_prices(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     # Same as trades for now
     data = es.get_jepx_trades(start_date, end_date, name)
     return {"result": [{"Message": "Success"}], "code": 0, "count": len(data), "data": data}
@@ -46,7 +46,7 @@ async def imbalance(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_imbalance_data(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -58,7 +58,7 @@ async def hjks(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_hjks_outages(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -71,7 +71,7 @@ async def interconnection(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_interconnection_flows(start_date, end_date, line_name, interval_minutes)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -82,7 +82,7 @@ async def intraday(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_intraday_data(start_date, end_date)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -93,7 +93,7 @@ async def earthquakes(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_earthquakes(start_date, end_date)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -105,7 +105,7 @@ async def occto_area(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_occto_area_data(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -117,7 +117,7 @@ async def occto_inter(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_occto_interconnection(start_date, end_date, interval_minutes)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -128,7 +128,7 @@ async def occto_event(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_occto_events(start_date, end_date)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -140,7 +140,7 @@ async def battery_data(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_battery_data(start_date, end_date, site_id)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -152,7 +152,7 @@ async def tdgc(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_tdgc_data(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -164,7 +164,7 @@ async def weather_actual(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_weather_actual(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -176,7 +176,7 @@ async def weather_actual_daily(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_weather_actual_daily(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -188,7 +188,7 @@ async def weather_forecast(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_weather_forecast(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
@@ -197,7 +197,7 @@ async def weather_models(
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
-    es = ESService()
+    es = es_service
     hourly_models = es.get_weather_models(area_name)
     daily_models = es.get_weather_models_daily(area_name)
     # Merge and deduplicate
@@ -221,6 +221,6 @@ async def bid_plans(
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
-    es = ESService()
+    es = es_service
     data = es.get_bid_plans(start_date, end_date, site_id, commodity_category)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
