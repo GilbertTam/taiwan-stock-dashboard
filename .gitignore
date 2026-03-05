@@ -1,6 +1,9 @@
 
 # My custom ignore list
 
+.kiro
+.vscode
+
 *.csv
 
 log
