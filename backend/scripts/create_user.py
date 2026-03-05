@@ -16,15 +16,14 @@ async def create_user(username, email, password, is_superuser=False):
         result = await session.execute(select(User).where(User.username == username))
         existing_user = result.scalars().first()
         if existing_user:
-            print(f"User {username} already exists. Updating password...")
-            existing_user.hashed_password = get_password_hash(password)
+            print(f"User {username} already exists. Skipping password update.")
             existing_user.email = email
             existing_user.is_superuser = is_superuser
             existing_user.is_active = True
             session.add(existing_user)
             try:
                 await session.commit()
-                print(f"User {username} updated successfully.")
+                print(f"User {username} permissions and status confirmed.")
             except Exception as e:
                 await session.rollback()
                 print(f"Error updating user: {e}")
