@@ -41,6 +41,12 @@ The backend is integrated into the root `docker-compose.yml`.
 4. **Verify:**
    Access `http://localhost:8000/docs` to see the Swagger UI.
 
+### Note on Database and Superuser Persistence
+
+When running via Docker Compose, the backend directory is mounted as a volume (`./backend:/app`). This means `db.sqlite3` is created and stored on your host machine, ensuring database persistence across container rebuilds. 
+
+During container startup, `docker-entrypoint.sh` automatically runs `scripts/create_user.py` to ensure the default admin user exists. If you change the admin password later, this script will **not** overwrite it on subsequent restarts, preserving your login credentials.
+
 ## Environment Variables
 
 Configuration is handled via `pydantic-settings` interpreting environment variables.
