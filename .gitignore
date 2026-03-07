@@ -1,6 +1,7 @@
 
 # My custom ignore list
 
+*-examples/
 .kiro
 .vscode
 
