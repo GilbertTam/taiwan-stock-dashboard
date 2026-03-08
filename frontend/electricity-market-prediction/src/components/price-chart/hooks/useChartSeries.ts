@@ -640,7 +640,7 @@ export const useChartSeries = ({
             if (!isRightSubPanel) {
                 chart.priceScale('right').applyOptions({
                     scaleMargins: { top: 0.25, bottom: isWeatherOnly ? 0.08 : mainBottom },
-                    visible: showRightAxisLabels,
+                    visible: true,
                     borderVisible: true,
                     borderColor: colors.grid,
                 });
