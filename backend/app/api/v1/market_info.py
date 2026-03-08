@@ -212,6 +212,54 @@ async def weather_models(
     data = sorted(model_set.values(), key=lambda x: x['hourly_count'] + x['daily_count'], reverse=True)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
+@router.get("/weather-forecast-daily", response_model=APIResponse)
+async def weather_forecast_daily(
+    start_date: str,
+    end_date: str,
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    validate_dates(start_date, end_date)
+    es = es_service
+    data = es.get_weather_forecast_daily(start_date, end_date, area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/weather-actual-models", response_model=APIResponse)
+async def weather_actual_models(
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    es = es_service
+    data = es.get_weather_models(area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/weather-actual-daily-models", response_model=APIResponse)
+async def weather_actual_daily_models(
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    es = es_service
+    data = es.get_weather_models_daily(area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/weather-forecast-models", response_model=APIResponse)
+async def weather_forecast_models(
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    es = es_service
+    data = es.get_weather_models_forecast(area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/weather-forecast-daily-models", response_model=APIResponse)
+async def weather_forecast_daily_models(
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    es = es_service
+    data = es.get_weather_models_forecast_daily(area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
 @router.get("/bid-plans", response_model=APIResponse)
 async def bid_plans(
     start_date: str,
