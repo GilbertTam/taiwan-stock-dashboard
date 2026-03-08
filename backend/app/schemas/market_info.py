@@ -65,8 +65,19 @@ class Earthquake(BaseModel):
 class OcctoArea(BaseModel):
     datetime: str
     area: str
-    generation: Dict[str, float]
-    demand: float
+    area_demand: Optional[float] = 0.0
+    nuclear_power: Optional[float] = 0.0
+    thermal: Optional[float] = 0.0
+    hydropower: Optional[float] = 0.0
+    geothermal_power: Optional[float] = 0.0
+    biomass: Optional[float] = 0.0
+    solar_power_generation_actual: Optional[float] = 0.0
+    solar_power_output_control: Optional[float] = 0.0
+    wind_power_generation_actual: Optional[float] = 0.0
+    wind_power_output_control: Optional[float] = 0.0
+    pumped_storage: Optional[float] = 0.0
+    battery_storage: Optional[float] = 0.0
+    interconnection_line: Optional[float] = 0.0
     class Config:
         extra = "allow"
 
