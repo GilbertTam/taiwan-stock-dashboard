@@ -75,6 +75,7 @@ class ESService:
         self.weather_actual_index = indices['weather_actual']
         self.weather_actual_daily_index = indices.get('weather_actual_daily', 'weather_actual_daily')
         self.weather_forecast_index = indices['weather_forecast']
+        self.weather_forecast_daily_index = indices.get('weather_forecast_daily', 'weather_forecast_daily')
         self.battery_data_index = indices['battery_data']
         self.bid_plans_index = indices['bid_plans']
 
@@ -361,7 +362,7 @@ class ESService:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
         s = Search(using=self.client, index=self.weather_actual_index)
-        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
         if area_name:
             s = s.filter('term', area=area_name)
         s = s.extra(size=MAX_ES_RESULTS)
@@ -373,7 +374,7 @@ class ESService:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
         s = Search(using=self.client, index=self.weather_actual_daily_index)
-        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
         if area_name:
             s = s.filter('term', area=area_name)
         s = s.extra(size=MAX_ES_RESULTS)
@@ -386,7 +387,20 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
         s = Search(using=self.client, index=self.weather_forecast_index)
         # Try new field name first; fall back to old field name if index hasn't been migrated
-        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
+        if area_name:
+            s = s.filter('term', area=area_name)
+        s = s.extra(size=MAX_ES_RESULTS)
+        s = s.sort('datetime')
+        response = s.execute()
+        return [hit.to_dict() for hit in response]
+
+    def get_weather_forecast_daily(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return daily weather forecast data."""
+        s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
+        e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+        s = Search(using=self.client, index=self.weather_forecast_daily_index)
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
         if area_name:
             s = s.filter('term', area=area_name)
         s = s.extra(size=MAX_ES_RESULTS)
@@ -413,6 +427,44 @@ class ESService:
         s = s.extra(size=0)
         s.aggs.bucket('models', 'terms', field='model', size=100)
         response = s.execute()
+        buckets = response.aggregations.models.buckets
+        return [{'model': b.key, 'doc_count': b.doc_count} for b in buckets]
+
+    def get_weather_models_forecast(self, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return distinct weather model names from the weather_forecast (hourly) index."""
+        s = Search(using=self.client, index=self.weather_forecast_index)
+        if area_name:
+            s = s.query(Q('match', area=area_name))
+        s = s.extra(size=0)
+        s.aggs.bucket('models', 'terms', field='model', size=100)
+        try:
+            response = s.execute()
+        except Exception:
+            s = Search(using=self.client, index=self.weather_forecast_index)
+            if area_name:
+                s = s.query(Q('match', area=area_name))
+            s = s.extra(size=0)
+            s.aggs.bucket('models', 'terms', field='model.keyword', size=100)
+            response = s.execute()
+        buckets = response.aggregations.models.buckets
+        return [{'model': b.key, 'doc_count': b.doc_count} for b in buckets]
+
+    def get_weather_models_forecast_daily(self, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return distinct weather model names from the weather_forecast_daily index."""
+        s = Search(using=self.client, index=self.weather_forecast_daily_index)
+        if area_name:
+            s = s.query(Q('match', area=area_name))
+        s = s.extra(size=0)
+        s.aggs.bucket('models', 'terms', field='model', size=100)
+        try:
+            response = s.execute()
+        except Exception:
+            s = Search(using=self.client, index=self.weather_forecast_daily_index)
+            if area_name:
+                s = s.query(Q('match', area=area_name))
+            s = s.extra(size=0)
+            s.aggs.bucket('models', 'terms', field='model.keyword', size=100)
+            response = s.execute()
         buckets = response.aggregations.models.buckets
         return [{'model': b.key, 'doc_count': b.doc_count} for b in buckets]
 
