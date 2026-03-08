@@ -70,7 +70,8 @@ services:
       - ES_INDEX_TDGC=${ES_INDEX_TDGC:-tdgc}
       - ES_INDEX_WEATHER_ACTUAL_HOURLY=${ES_INDEX_WEATHER_ACTUAL_HOURLY:-weather_actual_hourly}
       - ES_INDEX_WEATHER_ACTUAL_DAILY=${ES_INDEX_WEATHER_ACTUAL_DAILY:-weather_actual_daily}
-      - ES_INDEX_WEATHER_FORECAST=${ES_INDEX_WEATHER_FORECAST:-weather_forecast}
+      - ES_INDEX_WEATHER_FORECAST_HOURLY=${ES_INDEX_WEATHER_FORECAST_HOURLY:-weather_forecast_hourly}
+      - ES_INDEX_WEATHER_FORECAST_DAILY=${ES_INDEX_WEATHER_FORECAST_DAILY:-weather_forecast_daily}
 
   backend-nginx:
     <<: [ *restart, *networks, *extra-hosts ]
