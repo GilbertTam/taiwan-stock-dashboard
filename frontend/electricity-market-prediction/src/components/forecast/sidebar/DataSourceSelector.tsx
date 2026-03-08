@@ -14,14 +14,21 @@ import {
     alpha,
     Alert,
     Tooltip,
-    Chip
+    Chip,
+    TextField,
+    ToggleButtonGroup,
+    ToggleButton,
+    FormControl,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import {
     ExpandMore, ExpandLess,
     Balance, SwapHoriz, Cloud, Map, ShowChart, BarChart, Percent,
     StackedLineChart,
     InfoOutlined,
-    BatteryChargingFull
+    BatteryChargingFull,
+    Settings
 } from '@mui/icons-material';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
@@ -52,6 +59,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({
         weather: false,
         occto: true,
+        yAxis: true,
     });
     const [, startTransition] = useTransition();
 
@@ -77,7 +85,15 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
         bidPlansData,
         weatherActual,
         weatherForecast,
+        weatherActualRaw,
+        weatherForecastRaw,
         occtoAreaData,
+        weatherModelsActual,
+        weatherModelsForecast,
+        selectedWeatherModelActual,
+        setSelectedWeatherModelActual,
+        selectedWeatherModelForecast,
+        setSelectedWeatherModelForecast,
     } = useMarketDataContext();
 
     // Data availability checks
@@ -112,11 +128,17 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     let setSelectedWeatherFieldsForecast: (fn: (prev: Set<string>) => Set<string>) => void = () => { };
     let occtoChartType: 'stacked' | 'area' = 'stacked';
     let setOcctoChartType: (val: 'stacked' | 'area') => void = () => { };
+    let seriesAxisConfig: Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }> = {};
+    let setSeriesAxisConfig: React.Dispatch<React.SetStateAction<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>>> = () => { };
+    let selectedModels: any[] = [];
+    let globalSecondaryRange: { min: number, max: number } | null = null;
+    let setGlobalSecondaryRange: (range: { min: number, max: number } | null) => void = () => { };
 
     try {
         const chartContext = usePriceChart();
         selectedOcctoFields = chartContext.selectedOcctoFields;
         setSelectedOcctoFields = chartContext.setSelectedOcctoFields;
+        // ...
         selectedInterconnectionFields = chartContext.selectedInterconnectionFields;
         setSelectedInterconnectionFields = chartContext.setSelectedInterconnectionFields;
         selectedBatteryFields = chartContext.selectedBatteryFields;
@@ -135,6 +157,11 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
         setSelectedWeatherFieldsForecast = (chartContext as any).setSelectedWeatherFieldsForecast ?? (() => { });
         occtoChartType = chartContext.occtoChartType;
         setOcctoChartType = chartContext.setOcctoChartType;
+        seriesAxisConfig = (chartContext as any).seriesAxisConfig ?? {};
+        setSeriesAxisConfig = (chartContext as any).setSeriesAxisConfig ?? (() => { });
+        selectedModels = (chartContext as any).selectedModels ?? [];
+        globalSecondaryRange = (chartContext as any).globalSecondaryRange ?? null;
+        setGlobalSecondaryRange = (chartContext as any).setGlobalSecondaryRange ?? (() => { });
     } catch { }
 
     const toggleOcctoField = (field: string) => {
@@ -585,89 +612,277 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
 
                             <Collapse in={expandedGroups.weather} timeout="auto" unmountOnExit>
                                 <Box sx={{ pl: 2, pr: 2, pb: 1.5, pt: 0.5, bgcolor: alpha(SOURCE_COLORS.weather, 0.02) }}>
-                                    <Box sx={{ display: 'flex', gap: 2 }}>
-                                        {/* Weather Actual Column */}
-                                        <Box sx={{ flex: 1 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, borderBottom: `1px solid ${alpha(SOURCE_COLORS.weatherActual, 0.3)}`, pb: 0.5 }}>
-                                                <Checkbox
-                                                    checked={showWeatherActual}
-                                                    size="small"
-                                                    sx={{ p: 0.5, color: SOURCE_COLORS.weatherActual, '&.Mui-checked': { color: SOURCE_COLORS.weatherActual } }}
-                                                    onChange={(e) => {
-                                                        startTransition(() => {
-                                                            setShowWeatherActual(e.target.checked);
-                                                            setShowWeather(e.target.checked || showWeatherForecast);
-                                                        });
-                                                    }}
-                                                />
-                                                <Typography variant="caption" fontWeight="bold">實際觀測</Typography>
-                                            </Box>
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                                                {weatherFields.map((field) => {
-                                                    const isSelected = selectedWeatherFieldsActual.has(field.value);
-                                                    return (
-                                                        <Tooltip key={`actual-${field.value}`} title={`${field.label} (${field.unit})`} arrow placement="top">
-                                                            <Box
-                                                                onClick={() => toggleWeatherFieldActual(field.value)}
-                                                                sx={{
-                                                                    px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
-                                                                    fontSize: '0.65rem',
-                                                                    bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
-                                                                    color: isSelected ? field.color : 'text.secondary',
-                                                                    border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
-                                                                    '&:hover': { bgcolor: alpha(field.color, 0.25) }
-                                                                }}
-                                                            >
-                                                                {field.label}
-                                                            </Box>
-                                                        </Tooltip>
-                                                    )
-                                                })}
-                                            </Box>
-                                        </Box>
+                                    {/* Weather Model Selectors - Separate for Actual and Forecast */}
 
-                                        {/* Weather Forecast Column */}
-                                        <Box sx={{ flex: 1 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, borderBottom: `1px solid ${alpha(SOURCE_COLORS.weatherForecast, 0.3)}`, pb: 0.5 }}>
-                                                <Checkbox
-                                                    checked={showWeatherForecast}
-                                                    size="small"
-                                                    sx={{ p: 0.5, color: SOURCE_COLORS.weatherForecast, '&.Mui-checked': { color: SOURCE_COLORS.weatherForecast } }}
-                                                    onChange={(e) => {
-                                                        startTransition(() => {
-                                                            setShowWeatherForecast(e.target.checked);
-                                                            setShowWeather(e.target.checked || showWeatherActual);
-                                                        });
-                                                    }}
-                                                />
-                                                <Typography variant="caption" fontWeight="bold">預報</Typography>
-                                            </Box>
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                                                {weatherFields.map((field) => {
-                                                    const isSelected = selectedWeatherFieldsForecast.has(field.value);
+                                    {/* Actual Weather Model Selector */}
+                                    <Box sx={{ mb: 1.5 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>實際觀測模型</Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                            {(() => {
+                                                if (!weatherModelsActual || weatherModelsActual.length === 0) {
                                                     return (
-                                                        <Tooltip key={`forecast-${field.value}`} title={`${field.label} (${field.unit})`} arrow placement="top">
-                                                            <Box
-                                                                onClick={() => toggleWeatherFieldForecast(field.value)}
-                                                                sx={{
-                                                                    px: 1, py: 0.5, borderRadius: 10, cursor: 'pointer',
-                                                                    fontSize: '0.65rem',
-                                                                    bgcolor: isSelected ? alpha(field.color, 0.15) : 'transparent',
-                                                                    color: isSelected ? field.color : 'text.secondary',
-                                                                    border: `1px solid ${isSelected ? field.color : 'var(--card-border)'}`,
-                                                                    '&:hover': { bgcolor: alpha(field.color, 0.25) }
-                                                                }}
-                                                            >
-                                                                {field.label}
-                                                            </Box>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
+                                                            無可用模型
+                                                        </Typography>
+                                                    );
+                                                }
+
+                                                // Check data availability for each model
+                                                const checkModelAvailability = (model: string, dataType: 'actual' | 'forecast'): boolean => {
+                                                    const data = dataType === 'actual' ? weatherActualRaw : weatherForecastRaw;
+                                                    if (!data || data.length === 0) return false;
+
+                                                    // Check if model has any data in the current dataset
+                                                    return data.some((d: any) => d.model === model);
+                                                };
+
+                                                return weatherModelsActual.map((m: any) => {
+                                                    const isAvailable = checkModelAvailability(m.model, 'actual');
+                                                    const isSelected = selectedWeatherModelActual === m.model;
+                                                    const tooltipTitle = isAvailable ? m.model : '此模型在所選時間範圍內無資料';
+
+                                                    return (
+                                                        <Tooltip key={m.model} title={tooltipTitle} arrow placement="top">
+                                                            <span>
+                                                                <Chip
+                                                                    label={m.model}
+                                                                    size="small"
+                                                                    variant={isSelected ? 'filled' : 'outlined'}
+                                                                    color={isSelected ? 'primary' : 'default'}
+                                                                    disabled={!isAvailable}
+                                                                    onClick={() => {
+                                                                        if (isAvailable) {
+                                                                            startTransition(() => {
+                                                                                setSelectedWeatherModelActual(m.model);
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                    sx={{
+                                                                        fontSize: '0.7rem',
+                                                                        height: 24,
+                                                                        fontWeight: isSelected ? 700 : 400,
+                                                                        opacity: isAvailable ? 1 : 0.5,
+                                                                        cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                                                        '&:hover': {
+                                                                            backgroundColor: isSelected
+                                                                                ? undefined
+                                                                                : isAvailable ? 'var(--hover-bg)' : undefined,
+                                                                        },
+                                                                    }}
+                                                                />
+                                                            </span>
                                                         </Tooltip>
-                                                    )
-                                                })}
-                                            </Box>
+                                                    );
+                                                });
+                                            })()}
                                         </Box>
                                     </Box>
+
+                                    {/* Forecast Weather Model Selector */}
+                                    <Box sx={{ mb: 1.5 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>預報模型</Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                            {(() => {
+                                                if (!weatherModelsForecast || weatherModelsForecast.length === 0) {
+                                                    return (
+                                                        <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
+                                                            無可用模型
+                                                        </Typography>
+                                                    );
+                                                }
+
+                                                // Check data availability for each model
+                                                const checkModelAvailability = (model: string, dataType: 'actual' | 'forecast'): boolean => {
+                                                    const data = dataType === 'actual' ? weatherActualRaw : weatherForecastRaw;
+                                                    if (!data || data.length === 0) return false;
+
+                                                    // Check if model has any data in the current dataset
+                                                    return data.some((d: any) => d.model === model);
+                                                };
+
+                                                return weatherModelsForecast.map((m: any) => {
+                                                    const isAvailable = checkModelAvailability(m.model, 'forecast');
+                                                    const isSelected = selectedWeatherModelForecast === m.model;
+                                                    const tooltipTitle = isAvailable ? m.model : '此模型在所選時間範圍內無資料';
+
+                                                    return (
+                                                        <Tooltip key={m.model} title={tooltipTitle} arrow placement="top">
+                                                            <span>
+                                                                <Chip
+                                                                    label={m.model}
+                                                                    size="small"
+                                                                    variant={isSelected ? 'filled' : 'outlined'}
+                                                                    color={isSelected ? 'primary' : 'default'}
+                                                                    disabled={!isAvailable}
+                                                                    onClick={() => {
+                                                                        if (isAvailable) {
+                                                                            startTransition(() => {
+                                                                                setSelectedWeatherModelForecast(m.model);
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                    sx={{
+                                                                        fontSize: '0.7rem',
+                                                                        height: 24,
+                                                                        fontWeight: isSelected ? 700 : 400,
+                                                                        opacity: isAvailable ? 1 : 0.5,
+                                                                        cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                                                        '&:hover': {
+                                                                            backgroundColor: isSelected
+                                                                                ? undefined
+                                                                                : isAvailable ? 'var(--hover-bg)' : undefined,
+                                                                        },
+                                                                    }}
+                                                                />
+                                                            </span>
+                                                        </Tooltip>
+                                                    );
+                                                });
+                                            })()}
+                                        </Box>
+                                    </Box>
+
+                                    {/* Helper function to check field availability */}
+                                    {(() => {
+                                        // Check if a field has data for the selected model
+                                        const isFieldAvailable = (fieldValue: string, dataType: 'actual' | 'forecast'): boolean => {
+                                            const selectedModel = dataType === 'actual' ? selectedWeatherModelActual : selectedWeatherModelForecast;
+                                            if (!selectedModel) return true; // If no model selected, assume all fields available
+
+                                            const data = dataType === 'actual' ? weatherActual : weatherForecast;
+                                            if (!data || data.length === 0) return false;
+
+                                            // Filter data for selected model
+                                            const modelData = data.filter((d: any) => d.model === selectedModel);
+                                            if (modelData.length === 0) return false;
+
+                                            // Map field value to actual data property name
+                                            const fieldMap: Record<string, string> = {
+                                                'temperature': 'temperature_2m',
+                                                'rainfall': 'precipitation',
+                                                'snowfall': 'snowfall',
+                                                'wind_speed': 'wind_speed_10m',
+                                                'relative_humidity': 'relative_humidity_2m',
+                                                'clouds_all': 'cloud_cover',
+                                                'sunshine_duration': 'sunshine_duration',
+                                                'shortwave_radiation': 'shortwave_radiation',
+                                            };
+
+                                            const dataFieldName = fieldMap[fieldValue] || fieldValue;
+
+                                            // Check if at least one data point has non-null value for this field
+                                            return modelData.some((d: any) => d[dataFieldName] != null);
+                                        };
+
+                                        return (
+
+                                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                                                {/* Weather Actual Column */}
+                                                <Box sx={{ flex: 1, minWidth: '120px' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, borderBottom: `1px solid ${alpha(SOURCE_COLORS.weatherActual, 0.3)}`, pb: 0.5 }}>
+                                                        <Checkbox
+                                                            checked={showWeatherActual}
+                                                            size="small"
+                                                            sx={{ p: 0.5, color: SOURCE_COLORS.weatherActual, '&.Mui-checked': { color: SOURCE_COLORS.weatherActual } }}
+                                                            onChange={(e) => {
+                                                                startTransition(() => {
+                                                                    setShowWeatherActual(e.target.checked);
+                                                                    setShowWeather(e.target.checked || showWeatherForecast);
+                                                                });
+                                                            }}
+                                                        />
+                                                        <Typography variant="caption" fontWeight="bold">實際觀測</Typography>
+                                                    </Box>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                                        {weatherFields.map((field) => {
+                                                            const isSelected = selectedWeatherFieldsActual.has(field.value);
+                                                            const isAvailable = isFieldAvailable(field.value, 'actual');
+                                                            const tooltipTitle = isAvailable
+                                                                ? `${field.label} (${field.unit})`
+                                                                : `${field.label} - 此模型無此欄位資料`;
+
+                                                            return (
+                                                                <Tooltip key={`actual-${field.value}`} title={tooltipTitle} arrow placement="top">
+                                                                    <Box
+                                                                        onClick={() => {
+                                                                            if (isAvailable) {
+                                                                                toggleWeatherFieldActual(field.value);
+                                                                            }
+                                                                        }}
+                                                                        sx={{
+                                                                            px: 1, py: 0.5, borderRadius: 10,
+                                                                            cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                                                            fontSize: '0.65rem',
+                                                                            bgcolor: isSelected && isAvailable ? alpha(field.color, 0.15) : 'transparent',
+                                                                            color: !isAvailable ? 'text.disabled' : (isSelected ? field.color : 'text.secondary'),
+                                                                            border: `1px solid ${!isAvailable ? 'var(--card-border)' : (isSelected ? field.color : 'var(--card-border)')}`,
+                                                                            opacity: isAvailable ? 1 : 0.5,
+                                                                            '&:hover': isAvailable ? { bgcolor: alpha(field.color, 0.25) } : {}
+                                                                        }}
+                                                                    >
+                                                                        {field.label}
+                                                                    </Box>
+                                                                </Tooltip>
+                                                            )
+                                                        })}
+                                                    </Box>
+                                                </Box>
+
+                                                {/* Weather Forecast Column */}
+                                                <Box sx={{ flex: 1, minWidth: '120px' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, borderBottom: `1px solid ${alpha(SOURCE_COLORS.weatherForecast, 0.3)}`, pb: 0.5 }}>
+                                                        <Checkbox
+                                                            checked={showWeatherForecast}
+                                                            size="small"
+                                                            sx={{ p: 0.5, color: SOURCE_COLORS.weatherForecast, '&.Mui-checked': { color: SOURCE_COLORS.weatherForecast } }}
+                                                            onChange={(e) => {
+                                                                startTransition(() => {
+                                                                    setShowWeatherForecast(e.target.checked);
+                                                                    setShowWeather(e.target.checked || showWeatherActual);
+                                                                });
+                                                            }}
+                                                        />
+                                                        <Typography variant="caption" fontWeight="bold">預報</Typography>
+                                                    </Box>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                                        {weatherFields.map((field) => {
+                                                            const isSelected = selectedWeatherFieldsForecast.has(field.value);
+                                                            const isAvailable = isFieldAvailable(field.value, 'forecast');
+                                                            const tooltipTitle = isAvailable
+                                                                ? `${field.label} (${field.unit})`
+                                                                : `${field.label} - 此模型無此欄位資料`;
+
+                                                            return (
+                                                                <Tooltip key={`forecast-${field.value}`} title={tooltipTitle} arrow placement="top">
+                                                                    <Box
+                                                                        onClick={() => {
+                                                                            if (isAvailable) {
+                                                                                toggleWeatherFieldForecast(field.value);
+                                                                            }
+                                                                        }}
+                                                                        sx={{
+                                                                            px: 1, py: 0.5, borderRadius: 10,
+                                                                            cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                                                            fontSize: '0.65rem',
+                                                                            bgcolor: isSelected && isAvailable ? alpha(field.color, 0.15) : 'transparent',
+                                                                            color: !isAvailable ? 'text.disabled' : (isSelected ? field.color : 'text.secondary'),
+                                                                            border: `1px solid ${!isAvailable ? 'var(--card-border)' : (isSelected ? field.color : 'var(--card-border)')}`,
+                                                                            opacity: isAvailable ? 1 : 0.5,
+                                                                            '&:hover': isAvailable ? { bgcolor: alpha(field.color, 0.25) } : {}
+                                                                        }}
+                                                                    >
+                                                                        {field.label}
+                                                                    </Box>
+                                                                </Tooltip>
+                                                            )
+                                                        })}
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        );
+                                    })()}
                                 </Box>
                             </Collapse>
                         </ListItem>
@@ -783,7 +998,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
 
                     </List>
                 </Box>
-            </Collapse>
-        </Paper>
+            </Collapse >
+        </Paper >
     );
 };

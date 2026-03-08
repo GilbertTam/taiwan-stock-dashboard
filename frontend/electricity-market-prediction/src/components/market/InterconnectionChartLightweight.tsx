@@ -6,6 +6,7 @@ import { createChart, LineSeries, AreaSeries, LineStyle, ColorType, type IChartA
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 import type { InterconnectionFlow } from '@/types';
+import { createFullChartOptions } from '@/utils/chartUtils';
 
 interface InterconnectionChartLightweightProps {
   data: InterconnectionFlow[];
@@ -79,24 +80,16 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
   useEffect(() => {
     if (!containerRef.current || processedData.length === 0) return;
 
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: darkMode ? '#1a1a1a' : '#ffffff' },
-        textColor: darkMode ? '#d9d9d9' : '#000000',
-        attributionLogo: false,
-      },
-      grid: { vertLines: { color: darkMode ? '#333' : '#e6e6e6' }, horzLines: { color: darkMode ? '#333' : '#e6e6e6' } },
+    const chart = createChart(containerRef.current, createFullChartOptions(colors, darkMode, {
       rightPriceScale: {
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {
         borderVisible: false,
-        timeVisible: true,
-        secondsVisible: false,
       },
       crosshair: { vertLine: { labelVisible: true }, horzLine: { labelVisible: true } },
-    });
+    }));
     chartRef.current = chart;
 
     seriesRefs.current = [];

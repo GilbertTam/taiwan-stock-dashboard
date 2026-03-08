@@ -1,16 +1,46 @@
+/**
+ * 日期與時間處理共用工具
+ * Shared date and time utilities.
+ *
+ * 提供日期字串解析、時區轉換（JST/UTC）與格式化等功能。
+ * Provides date string parsing, timezone conversion (JST/UTC) and formatting.
+ */
 
 import { format } from 'date-fns';
 import { UTCTimestamp } from 'lightweight-charts';
 
 /**
- * Robustly parses a date string into a Unix timestamp.
- * Supports:
+ * 安全地將日期字串解析為 Unix timestamp，並統一處理 JST 時區。
+ * Robustly parses a date string into a Unix timestamp, ensuring JST timezone.
+ *
+ * 支援格式 / Supports:
  * - ISO string: "2025-04-05T22:30:00" or with offset "2025-04-05T22:30:00+09:00"
- * - Space separated: "2025-04-05 22:30" (interpreted as JST for Japanese market data)
+ * - Space separated: "2025-04-05 22:30" (interpreted as JST)
  * - Compact YYYYMMDD: "20250405" (assumes 00:00 JST)
  * - Compact YYYYMMDDHHmm: "202504052230" (JST)
- * When the string has no timezone (no Z, +, -), it is treated as JST (Asia/Tokyo) so chart data matches API.
+ * 
+ * 若字串無時區標示，預設視為 JST (Asia/Tokyo)。
+ * When the string has no timezone, it is treated as JST (Asia/Tokyo).
  */
+export const normalizeWeatherDatetimeToJST = (dateStr: string | null | undefined): string | null | undefined => {
+    if (!dateStr) return dateStr;
+
+    // Format correct UTC baseline safely into mapped JST 
+    if (dateStr.includes('+09:00') || dateStr.includes('Z')) {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+            return formatDateTimeJST(date.getTime());
+        }
+    }
+
+    const clean = dateStr.replace(/Z$/, '').replace(/[-+]\d{2}:?\d{2}$/, '');
+    const match = clean.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2})/);
+    if (match) {
+        return `${match[1]} ${match[2]}`;
+    }
+    return clean;
+};
+
 export const parseToTimestamp = (dateStr: string | null | undefined): number | null => {
     if (!dateStr) return null;
 
@@ -58,6 +88,25 @@ export const parseToTimestamp = (dateStr: string | null | undefined): number | n
         return isNaN(time) ? null : time;
     } catch (e) {
         console.warn('[parseToTimestamp] Failed to parse:', dateStr);
+        return null;
+    }
+};
+
+/**
+ * Converts a local Date object to a JST timestamp (ms).
+ * Useful for aligning chart visible ranges when the Date source is local browser time (like startDate/endDate states).
+ */
+export const dateToJstTimestamp = (date: Date | null): number | null => {
+    if (!date) return null;
+    try {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+        return parseToTimestamp(`${y}-${m}-${d} ${hh}:${mm}:${ss}`);
+    } catch (e) {
         return null;
     }
 };
@@ -127,3 +176,15 @@ export const formatInTimezone = (timestamp: number, timezone: string, options?: 
         }).format(date);
     }
 };
+
+export function formatDateTimeJST(timestamp: number): string {
+    const tzOffset = 9 * 60 * 60 * 1000; // +09:00
+    const d = new Date(timestamp + tzOffset);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const h = String(d.getUTCHours()).padStart(2, '0');
+    const min = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day} ${h}:${min}`;
+}
+

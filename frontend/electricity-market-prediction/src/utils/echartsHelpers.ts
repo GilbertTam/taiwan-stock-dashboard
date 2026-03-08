@@ -1,6 +1,10 @@
 /**
+ * ECharts 共用輔助函式
  * ECharts Helper Functions
- * Provides reusable configuration functions for common chart elements
+ * 
+ * 提供常用圖表元素（時間軸、數值軸、網格、提示框等）的標準化配置函式。
+ * Provides reusable configuration functions for common chart elements 
+ * (time axes, value axes, grids, tooltips, etc.).
  */
 
 import { EChartsOption } from 'echarts';
@@ -8,6 +12,7 @@ import { startOfDay } from 'date-fns';
 import { ChartColors } from './chart-colors';
 
 /**
+ * 建立標準化的時間軸 (X軸) 設定
  * Creates a standardized time axis configuration
  */
 export const createTimeAxis = (
@@ -208,8 +213,8 @@ export const createMarkArea = (
 export const createMarkAreaForCategoryAxis = (
   categoryLabels: string[],
   darkMode: boolean
-): { markAreaData: [ { xAxis: string }, { xAxis: string } ][]; itemStyle: { color: string; opacity: number } } => {
-  const markAreaData: [ { xAxis: string }, { xAxis: string } ][] = [];
+): { markAreaData: [{ xAxis: string }, { xAxis: string }][]; itemStyle: { color: string; opacity: number } } => {
+  const markAreaData: [{ xAxis: string }, { xAxis: string }][] = [];
   if (categoryLabels.length === 0) {
     return {
       markAreaData,

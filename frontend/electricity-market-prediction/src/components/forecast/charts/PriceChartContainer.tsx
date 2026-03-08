@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { ChartToolbar } from './ChartToolbar';
-import { PriceChartLightweight } from '@/components/price-chart/PriceChartLightweight';
+import { ChartLightweight } from '@/components/price-chart/ChartLightweight';
 
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -59,7 +59,7 @@ export const PriceChartContainer: React.FC<PriceChartContainerProps> = ({
             }}
             >
                 {/* Main Chart - Using Lightweight Charts */}
-                <PriceChartLightweight />
+                <ChartLightweight />
             </Box>
         </Box>
     );

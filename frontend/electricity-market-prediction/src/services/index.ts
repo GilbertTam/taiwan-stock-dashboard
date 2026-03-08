@@ -34,8 +34,18 @@ export type {
 } from './predictionsApi';
 
 // Weather
-export { fetchWeatherActual, fetchWeatherForecast, fetchWeatherActualDaily, fetchWeatherModels } from './weatherApi';
-export type { WeatherParams, WeatherModelInfo } from './weatherApi';
+export {
+    fetchWeatherActual,
+    fetchWeatherForecast,
+    fetchWeatherActualDaily,
+    fetchWeatherForecastDaily,
+    fetchWeatherModels,
+    fetchWeatherActualModels,
+    fetchWeatherActualDailyModels,
+    fetchWeatherForecastModels,
+    fetchWeatherForecastDailyModels,
+} from './weatherApi';
+export type { WeatherParams, WeatherModelInfo, WeatherModelBasicInfo } from './weatherApi';
 
 // Grid operations
 export {

@@ -17,7 +17,7 @@ import {
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 import type { Area, HjksOutage } from '@/types';
-import { ChartDataPoint, toChartTime, fromChartTime } from '@/utils/chartUtils';
+import { ChartDataPoint, toChartTime, fromChartTime, createFullChartOptions } from '@/utils/chartUtils';
 import { format } from 'date-fns';
 import { DayBackgroundPrimitive } from '@/components/charts';
 import { OutageMarkersPrimitive, type OutagePoint } from './OutageMarkersPrimitive';
@@ -195,33 +195,17 @@ export function AllAreasPriceChart({
             if (chartRef.current) return;
 
             // 創建 Lightweight Chart
-            const chart = createChart(container, {
+            const chart = createChart(container, createFullChartOptions(c, darkMode, {
                 width,
                 height,
-                layout: {
-                    background: { type: ColorType.Solid, color: 'transparent' },
-                    textColor: c.text,
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    attributionLogo: false,
-                },
-                grid: {
-                    vertLines: { color: c.grid, style: LineStyle.Dotted },
-                    horzLines: { color: c.grid, style: LineStyle.Dotted },
-                },
                 rightPriceScale: {
-                    borderColor: c.grid,
                     scaleMargins: { top: 0.05, bottom: 0.05 },
-                },
-                timeScale: {
-                    borderColor: c.grid,
-                    timeVisible: true,
-                    secondsVisible: false,
                 },
                 crosshair: {
                     vertLine: { color: '#888', width: 1, style: LineStyle.Dashed },
                     horzLine: { color: '#888', width: 1, style: LineStyle.Dashed },
                 },
-            });
+            }));
             chartRef.current = chart;
 
             // 為每個區域添加線圖系列 (Series)

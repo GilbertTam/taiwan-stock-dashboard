@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { prepareChartData } from '@/utils/chartUtils';
+import { normalizeWeatherDatetimeToKey, mapWeatherFieldsToChart, normalizeWeatherItemToTimestamp } from '@/utils/chart/weatherChartData';
+import { normalizeWeatherDatetimeToJST, parseToTimestamp } from '@/utils/chartUtils';
 
 interface UsePricePredictionDataParams {
     actualPrices: any[];
@@ -22,16 +24,11 @@ export const usePricePredictionData = ({
 
     const weatherChartData = useMemo(() => {
         const dataMap = new Map<string, any>();
-        const getNormalizedKey = (dateStr: string) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toISOString(); }
-            catch (e) { return dateStr; }
-        };
 
         const processItem = (item: any, isForecast: boolean) => {
             const dt = item.datetime || item.weather_datetime;
             if (!dt) return;
-            const key = getNormalizedKey(dt);
+            const key = normalizeWeatherDatetimeToKey(dt);
             if (!dataMap.has(key)) {
                 dataMap.set(key, {
                     time: key,
@@ -47,20 +44,14 @@ export const usePricePredictionData = ({
             }
             const data = dataMap.get(key);
 
-            // Map either new or old fields to be safe during transition
-            const temp = item.temperature_2m ?? item.temperature;
-            const rain = item.precipitation ?? item.rainfall;
-            const snow = item.snowfall;
-            const wind = item.wind_speed_10m ?? item.wind_speed;
-            const humid = item.relative_humidity_2m ?? item.relative_humidity;
-            const clouds = item.cloud_cover ?? item.clouds_all;
-
-            if (temp !== null && temp !== undefined) data.temperature = temp;
-            if (rain !== null && rain !== undefined) data.rainfall = rain;
-            if (snow !== null && snow !== undefined) data.snowfall = snow;
-            if (wind !== null && wind !== undefined) data.windSpeed = wind;
-            if (humid !== null && humid !== undefined) data.humidity = humid;
-            if (clouds !== null && clouds !== undefined) data.cloudCover = clouds;
+            // 使用共用欄位對應 / Use shared field mapping
+            const mapped = mapWeatherFieldsToChart(item);
+            if (mapped.temperature !== null) data.temperature = mapped.temperature;
+            if (mapped.rainfall !== null) data.rainfall = mapped.rainfall;
+            if (mapped.snowfall !== null) data.snowfall = mapped.snowfall;
+            if (mapped.windSpeed !== null) data.windSpeed = mapped.windSpeed;
+            if (mapped.humidity !== null) data.humidity = mapped.humidity;
+            if (mapped.cloudCover !== null) data.cloudCover = mapped.cloudCover;
         };
 
         weatherActual.forEach(item => processItem(item, false));
@@ -70,16 +61,11 @@ export const usePricePredictionData = ({
 
     const marketInfoWeatherChartData = useMemo(() => {
         const dataMap = new Map<string, any>();
-        const getNormalizedKey = (dateStr: string) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toISOString(); }
-            catch (e) { return dateStr; }
-        };
 
         const processInfoItem = (item: any, type: 'actual' | 'forecast') => {
             const dt = item.datetime || item.weather_datetime;
             if (!dt) return;
-            const key = getNormalizedKey(dt);
+            const key = normalizeWeatherDatetimeToKey(dt);
             if (!dataMap.has(key)) {
                 dataMap.set(key, {
                     weather_datetime: dt,
@@ -88,16 +74,23 @@ export const usePricePredictionData = ({
                 });
             }
             const existing = dataMap.get(key);
-            existing[`temperature_${type}`] = item.temperature_2m ?? item.temperature;
-            existing[`rainfall_${type}`] = item.precipitation ?? item.rainfall;
-            existing[`wind_speed_${type}`] = item.wind_speed_10m ?? item.wind_speed;
+
+            // 使用共用欄位對應 / Use shared field mapping
+            const mapped = mapWeatherFieldsToChart(item);
+            existing[`temperature_${type}`] = mapped.temperature;
+            existing[`rainfall_${type}`] = mapped.rainfall;
+            existing[`wind_speed_${type}`] = mapped.windSpeed;
         };
 
         weatherActual.forEach(item => processInfoItem(item, 'actual'));
         weatherForecast.forEach(item => processInfoItem(item, 'forecast'));
 
         return Array.from(dataMap.values()).sort(
-            (a, b) => new Date(a.weather_datetime).getTime() - new Date(b.weather_datetime).getTime()
+            (a, b) => {
+                const tsA = normalizeWeatherItemToTimestamp(a.weather_datetime) || 0;
+                const tsB = normalizeWeatherItemToTimestamp(b.weather_datetime) || 0;
+                return tsA - tsB;
+            }
         );
     }, [weatherActual, weatherForecast]);
 

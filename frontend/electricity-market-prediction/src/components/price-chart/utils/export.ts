@@ -3,14 +3,64 @@ import { format as formatDate } from 'date-fns';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
 import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
 import { hexToRgba } from '../utils';
+import { formatInTimezone, dateToJstTimestamp } from '@/utils/chart/dates';
 
-export const handleDownloadCsv = (processedChartData: ProcessedDataPoint[] | null) => {
+export const handleDownloadCsv = (
+    processedChartData: ProcessedDataPoint[] | null,
+    startDate: Date | null = null,
+    endDate: Date | null = null
+) => {
     if (!processedChartData?.length) return;
-    const headers = ['timestamp', 'actualPrice', 'intraday_average', 'imbalance'];
-    const rows = processedChartData.map(dataPoint => [
-        formatDate(new Date(dataPoint.timestamp), 'yyyy-MM-dd HH:mm:ss'),
-        dataPoint.actualPrice ?? '', dataPoint.intraday_average ?? '', dataPoint.imbalance ?? ''
-    ].join(','));
+
+    // Filter by date range if provided (in JST)
+    const startTs = startDate ? dateToJstTimestamp(startDate) : null;
+    const endTs = endDate ? dateToJstTimestamp(endDate) : null;
+
+    const filteredData = processedChartData.filter(p => {
+        if (!startTs || !endTs) return true;
+        return p.timestamp >= startTs && p.timestamp <= endTs;
+    });
+
+    if (!filteredData.length) return;
+
+    // 1. Identify all dynamic columns present in the data
+    const allKeys = new Set<string>();
+    const weatherActualFields = new Set<string>();
+    const weatherForecastFields = new Set<string>();
+
+    processedChartData.forEach(p => {
+        if (p.weather_data_actual) {
+            Object.keys(p.weather_data_actual).forEach(k => weatherActualFields.add(k));
+        }
+        if (p.weather_data_forecast) {
+            Object.keys(p.weather_data_forecast).forEach(k => weatherForecastFields.add(k));
+        }
+    });
+
+    // 2. Build headers
+    const potentialBaseHeaders = ['actualPrice', 'intraday_average', 'imbalance'];
+    const activeBaseHeaders = potentialBaseHeaders.filter(h => filteredData.some(p => (p as any)[h] != null));
+
+    const baseHeaders = ['timestamp', ...activeBaseHeaders];
+    const actualWeatherHeaders = Array.from(weatherActualFields).map(f => `actual_${f}`);
+    const forecastWeatherHeaders = Array.from(weatherForecastFields).map(f => `forecast_${f}`);
+
+    const headers = [...baseHeaders, ...actualWeatherHeaders, ...forecastWeatherHeaders];
+
+    // 3. Build rows
+    const rows = filteredData.map(dataPoint => {
+        const timeVal = formatInTimezone(dataPoint.timestamp, 'Asia/Tokyo', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        }).replace(',', '');
+        const activeBaseValues = activeBaseHeaders.map(h => (dataPoint as any)[h] ?? '');
+        const actualWeatherValues = Array.from(weatherActualFields).map(f => dataPoint.weather_data_actual?.[f] ?? '');
+        const forecastWeatherValues = Array.from(weatherForecastFields).map(f => dataPoint.weather_data_forecast?.[f] ?? '');
+
+        return [timeVal, ...activeBaseValues, ...actualWeatherValues, ...forecastWeatherValues].join(',');
+    });
+
     const csv = [headers.join(','), ...rows].join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');

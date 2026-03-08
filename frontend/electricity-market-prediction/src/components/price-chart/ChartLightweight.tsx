@@ -1,3 +1,12 @@
+'use client';
+
+/**
+ * ChartLightweight – shared TradingView Lightweight Charts implementation.
+ * Used for both price views (forecast, site-revenue) and weather-only views.
+ * Data and options are driven by PriceChartProvider; this component is agnostic
+ * to the domain and only renders the chart + info panel + legend.
+ */
+
 import React, { useRef, useCallback, useDeferredValue } from 'react';
 import { format as formatDate } from 'date-fns';
 
@@ -6,17 +15,15 @@ import { PriceChartSeriesLegend as ChartLegend } from './PriceChartSeriesLegend'
 import { usePriceChart } from './context/PriceChartContext';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 
-// Hooks
 import { useChartLifecycle } from '@/hooks/useChartLifecycle';
 import { useChartDataTransformers } from './hooks/useChartDataTransformers';
 import { useChartCrosshair } from './hooks/useChartCrosshair';
 import { useChartSeries } from './hooks/useChartSeries';
+import { useDualYAxis } from './hooks/useDualYAxis';
 
-// Utils
 import { handleDownloadCsv, generateChartImage } from './utils/export';
 
-export const PriceChartLightweight: React.FC = () => {
-    // 1. Context
+export const ChartLightweight: React.FC = () => {
     const {
         processedChartData, colors, darkMode, selectedModels, modelColorMap,
         showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate,
@@ -28,8 +35,13 @@ export const PriceChartLightweight: React.FC = () => {
         selectedBidPlanCategories,
         showWeather, showWeatherActual, showWeatherForecast,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
+        seriesAxisConfig, setSeriesAxisConfig,
+        globalPrimaryRange, setGlobalPrimaryRange,
+        globalSecondaryRange, setGlobalSecondaryRange,
         hoveredData, setHoveredData, areaName, timezone, setTimezone,
         showRightAxisLabels, setShowRightAxisLabels,
+        hideObsAndPriceRow,
+        subchartLayout, setSubchartLayout,
     } = usePriceChart();
 
     const {
@@ -38,12 +50,10 @@ export const PriceChartLightweight: React.FC = () => {
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Defer chart updates for interconnection/battery selection so checkbox stays responsive
     const deferredInterconnectionFields = useDeferredValue(selectedInterconnectionFields);
     const deferredBatteryFields = useDeferredValue(selectedBatteryFields);
     const deferredBidPlanFields = useDeferredValue(selectedBidPlanFields);
 
-    // 2. Data Transformation
     const transformedData = useChartDataTransformers({
         processedChartData,
         timezone,
@@ -62,7 +72,6 @@ export const PriceChartLightweight: React.FC = () => {
         showActualPrice: !!showActualPrice,
     });
 
-    // 3. Lifecycle (Create Chart & Resize)
     const chartRef = useChartLifecycle({
         containerRef,
         colors,
@@ -71,7 +80,8 @@ export const PriceChartLightweight: React.FC = () => {
         showRightAxisLabels,
     });
 
-    // 4. Crosshair Handler
+    useDualYAxis(chartRef);
+
     useChartCrosshair({
         chartRef,
         data: processedChartData,
@@ -79,7 +89,6 @@ export const PriceChartLightweight: React.FC = () => {
         timezone,
     });
 
-    // 5. Series Management
     useChartSeries({
         chartRef,
         processedChartData,
@@ -102,14 +111,16 @@ export const PriceChartLightweight: React.FC = () => {
         selectedWeatherFieldsForecast,
         showActualPrice: !!showActualPrice,
         showRightAxisLabels,
+        seriesAxisConfig,
+        hideObsAndPriceRow,
         startDate,
         endDate,
+        subchartLayout,
     });
 
-    // 6. Handlers
     const handleDownload = useCallback((fileFormat: 'csv' | 'jpg' | 'png') => {
         if (fileFormat === 'csv') {
-            handleDownloadCsv(processedChartData);
+            handleDownloadCsv(processedChartData, startDate, endDate);
         } else {
             if (!chartRef.current) return;
             const dataUrl = generateChartImage({
@@ -157,12 +168,12 @@ export const PriceChartLightweight: React.FC = () => {
         else document.exitFullscreen();
     }, []);
 
-    // 7. Render
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
             <ChartInfoPanel
                 hoveredData={hoveredData}
                 selectedModels={selectedModels}
+                hideObsAndPriceRow={hideObsAndPriceRow}
                 modelColorMap={modelColorMap}
                 colors={colors}
                 areaName={areaName}
@@ -185,10 +196,22 @@ export const PriceChartLightweight: React.FC = () => {
                 setTimezone={setTimezone}
                 showRightAxisLabels={showRightAxisLabels}
                 onToggleRightAxisLabels={() => setShowRightAxisLabels(!showRightAxisLabels)}
+                subchartLayout={subchartLayout}
+                setSubchartLayout={setSubchartLayout}
+                seriesAxisConfig={seriesAxisConfig}
+                setSeriesAxisConfig={setSeriesAxisConfig}
+                globalPrimaryRange={globalPrimaryRange}
+                setGlobalPrimaryRange={setGlobalPrimaryRange}
+                globalSecondaryRange={globalSecondaryRange}
+                setGlobalSecondaryRange={setGlobalSecondaryRange}
+                showActualPrice={showActualPrice}
+                showIntradayAverage={showIntradayAverage}
+                showImbalanceSurplusRate={showImbalanceSurplusRate}
+                showImbalanceDeficitRate={showImbalanceDeficitRate}
             />
             <div
                 ref={containerRef}
-                className="price-chart-container"
+                className="chart-lightweight-container"
                 style={{ position: 'relative', flex: 1, width: '100%', minHeight: 0 }}
             />
             <ChartLegend />

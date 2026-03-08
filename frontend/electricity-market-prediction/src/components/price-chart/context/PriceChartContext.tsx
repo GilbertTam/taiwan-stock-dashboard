@@ -1,3 +1,10 @@
+/**
+ * 價格圖表狀態管理 Context
+ * State management context for the main price chart.
+ *
+ * 集中管理圖表所需的各項資料（即時價格、預測、氣象、需給等）及 UI 切換狀態。
+ * Centralizes chart data (spot prices, predictions, weather, imbalance, etc.) and UI toggle states.
+ */
 import React, { createContext, useContext, useState, useMemo, ReactNode, useEffect } from 'react';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
@@ -99,6 +106,16 @@ interface PriceChartState {
     hasBatteryData: boolean;
     hasBidPlansData: boolean;
     hasWeatherData: boolean;
+    weatherY1Field: string | null;
+    setWeatherY1Field: React.Dispatch<React.SetStateAction<string | null>>;
+    weatherY2Field: string | null;
+    setWeatherY2Field: React.Dispatch<React.SetStateAction<string | null>>;
+    weatherAxisAssignment: Record<string, 'Y1' | 'Y2'>;
+    setWeatherAxisAssignment: React.Dispatch<React.SetStateAction<Record<string, 'Y1' | 'Y2'>>>;
+    weatherAxisScale: Record<string, { min?: number, max?: number }>;
+    setWeatherAxisScale: React.Dispatch<React.SetStateAction<Record<string, { min?: number, max?: number }>>>;
+    seriesAxisConfig: Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>;
+    setSeriesAxisConfig: React.Dispatch<React.SetStateAction<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>>>;
     areaName: string;
     selectedModels: any[];
     colors: any;
@@ -109,6 +126,21 @@ interface PriceChartState {
     // View Options
     showRightAxisLabels: boolean;
     setShowRightAxisLabels: (val: boolean) => void;
+
+    // Global Y-Axis Range Overrides (Dual Y-Axis feature)
+    globalPrimaryRange: { min: number; max: number } | null;
+    setGlobalPrimaryRange: React.Dispatch<React.SetStateAction<{ min: number; max: number } | null>>;
+    globalSecondaryRange: { min: number; max: number } | null;
+    setGlobalSecondaryRange: React.Dispatch<React.SetStateAction<{ min: number; max: number } | null>>;
+
+    // Subchart Layout Mode
+    subchartLayout: 'split' | 'overlay';
+    setSubchartLayout: React.Dispatch<React.SetStateAction<'split' | 'overlay'>>;
+
+    /** When true, info panel hides Obs and price/model row (e.g. weather-only page). */
+    hideObsAndPriceRow: boolean;
+    startDate?: Date | null;
+    endDate?: Date | null;
 }
 
 const PriceChartContext = createContext<PriceChartState | undefined>(undefined);
@@ -133,9 +165,24 @@ interface PriceChartProviderProps {
     bidPlansData?: BidPlanData[];
     weatherActual?: any[];
     weatherForecast?: any[];
+    selectedWeatherModelActual?: string | null;
+    selectedWeatherModelForecast?: string | null;
+    weatherHeightByField?: Record<string, string>;
+    showWeatherOverride?: boolean;
+    showWeatherActualOverride?: boolean;
+    showWeatherForecastOverride?: boolean;
+    selectedWeatherFieldsActualOverride?: Set<string>;
+    selectedWeatherFieldsForecastOverride?: Set<string>;
     darkMode: boolean;
     colors: any;
+    /** When true, info panel does not show Obs / price row (e.g. weather page has no price data). */
+    hideObsAndPriceRow?: boolean;
+    startDate?: Date | null;
+    endDate?: Date | null;
 }
+
+const EMPTY_ARRAY: any[] = [];
+const EMPTY_OBJ: Record<string, string> = {};
 
 export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     children,
@@ -143,16 +190,27 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     areaName,
     selectedModels,
     topBottomPairs = 4,
-    imbalanceData = [],
-    intradayData = [],
-    interconnectionData = [],
-    occtoAreaData = [],
-    batteryData = [],
-    bidPlansData = [],
-    weatherActual = [], // Destructure weatherActual
-    weatherForecast = [], // Destructure weatherForecast
+    imbalanceData = EMPTY_ARRAY,
+    intradayData = EMPTY_ARRAY,
+    interconnectionData = EMPTY_ARRAY,
+    occtoAreaData = EMPTY_ARRAY,
+    batteryData = EMPTY_ARRAY,
+    bidPlansData = EMPTY_ARRAY,
+    weatherActual = EMPTY_ARRAY, // Destructure weatherActual
+    weatherForecast = EMPTY_ARRAY, // Destructure weatherForecast
+    selectedWeatherModelActual = null,
+    selectedWeatherModelForecast = null,
+    weatherHeightByField = EMPTY_OBJ,
+    showWeatherOverride,
+    showWeatherActualOverride,
+    showWeatherForecastOverride,
+    selectedWeatherFieldsActualOverride,
+    selectedWeatherFieldsForecastOverride,
     darkMode,
-    colors
+    colors,
+    hideObsAndPriceRow: hideObsAndPriceRowProp = false,
+    startDate = null,
+    endDate = null
 }) => {
     // Get shared data layer toggles from MarketDataContext
     const {
@@ -164,11 +222,26 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         showIntradayAverage, setShowIntradayAverage,
         showInterconnection, setShowInterconnection,
         showOcctoArea, setShowOcctoArea,
-        showWeather, setShowWeather,
-        showWeatherActual, setShowWeatherActual,
-        showWeatherForecast, setShowWeatherForecast,
+        showWeather: _showWeather, setShowWeather,
+        showWeatherActual: _showWeatherActual, setShowWeatherActual,
+        showWeatherForecast: _showWeatherForecast, setShowWeatherForecast,
         // weatherActual, // Removed to use prop instead
     } = useMarketDataContext();
+
+    const showWeather = showWeatherOverride ?? _showWeather;
+    const showWeatherActual = showWeatherActualOverride ?? _showWeatherActual;
+    const showWeatherForecast = showWeatherForecastOverride ?? _showWeatherForecast;
+
+    // Filter weather data by selected models
+    const filteredWeatherActual = useMemo(() => {
+        if (!selectedWeatherModelActual) return weatherActual;
+        return weatherActual.filter(d => d.model === selectedWeatherModelActual);
+    }, [weatherActual, selectedWeatherModelActual]);
+
+    const filteredWeatherForecast = useMemo(() => {
+        if (!selectedWeatherModelForecast) return weatherForecast;
+        return weatherForecast.filter(d => d.model === selectedWeatherModelForecast);
+    }, [weatherForecast, selectedWeatherModelForecast]);
 
     // Local State for other toggles
     const [showPredictionRange, setShowPredictionRange] = useState(true);
@@ -183,8 +256,12 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedInterconnectionFields, setSelectedInterconnectionFields] = useState<Set<string>>(new Set(['flow_diff']));
     const [selectedBatteryFields, setSelectedBatteryFields] = useState<Set<string>>(new Set(['spot_value']));
     const [selectedBidPlanFields, setSelectedBidPlanFields] = useState<Set<string>>(new Set(['buy_price'])); // 存储去掉 'bid_' 前缀的字段名
-    const [selectedWeatherFieldsActual, setSelectedWeatherFieldsActual] = useState<Set<string>>(new Set(['temperature']));
-    const [selectedWeatherFieldsForecast, setSelectedWeatherFieldsForecast] = useState<Set<string>>(new Set(['temperature']));
+    const [selectedWeatherFieldsActualLocal, setSelectedWeatherFieldsActualLocal] = useState<Set<string>>(new Set(['temperature']));
+    const [selectedWeatherFieldsForecastLocal, setSelectedWeatherFieldsForecastLocal] = useState<Set<string>>(new Set(['temperature']));
+
+    const selectedWeatherFieldsActual = selectedWeatherFieldsActualOverride ?? selectedWeatherFieldsActualLocal;
+    const selectedWeatherFieldsForecast = selectedWeatherFieldsForecastOverride ?? selectedWeatherFieldsForecastLocal;
+
     const selectedWeatherFields = useMemo(() => {
         const merged = new Set<string>();
         selectedWeatherFieldsActual.forEach(f => merged.add(f));
@@ -194,6 +271,19 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [occtoChartType, setOcctoChartType] = useState<'stacked' | 'area'>('stacked');
     const [showZScore, setShowZScore] = useState(true);
     const [showRightAxisLabels, setShowRightAxisLabels] = useState(true);
+
+    // Y1/Y2 assignments and scales for weather fields
+    const [weatherY1Field, setWeatherY1Field] = useState<string | null>(null);
+    const [weatherY2Field, setWeatherY2Field] = useState<string | null>(null);
+    const [weatherAxisAssignment, setWeatherAxisAssignment] = useState<Record<string, 'Y1' | 'Y2'>>({});
+    const [weatherAxisScale, setWeatherAxisScale] = useState<Record<string, { min?: number, max?: number }>>({});
+    const [seriesAxisConfig, setSeriesAxisConfig] = useState<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>>({});
+
+    // Global Y-Axis Range Overrides
+    const [globalPrimaryRange, setGlobalPrimaryRange] = useState<{ min: number; max: number } | null>(null);
+    const [globalSecondaryRange, setGlobalSecondaryRange] = useState<{ min: number; max: number } | null>(null);
+
+    const [subchartLayout, setSubchartLayout] = useState<'split' | 'overlay'>('split');
 
     // Dynamic bid plan category discovery
     const availableBidPlanCategories = useMemo(() => {
@@ -244,8 +334,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         batteryData,
         bidPlansData: filteredBidPlansData,
         selectedBidPlanCategories,
-        weatherActual,
-        weatherForecast,
+        weatherActual: filteredWeatherActual,
+        weatherForecast: filteredWeatherForecast,
         areaName,
         selectedModels,
         topBottomPairs,
@@ -254,7 +344,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedOcctoFields,
         selectedWeatherFields,
         showWeatherActual,
-        showWeatherForecast
+        showWeatherForecast,
+        weatherHeightByField,
     });
 
     const value: PriceChartState = useMemo(() => ({
@@ -293,9 +384,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         availableSiteIds,
         selectedWeatherFields,
         selectedWeatherFieldsActual,
-        setSelectedWeatherFieldsActual,
+        setSelectedWeatherFieldsActual: setSelectedWeatherFieldsActualLocal,
         selectedWeatherFieldsForecast,
-        setSelectedWeatherFieldsForecast,
+        setSelectedWeatherFieldsForecast: setSelectedWeatherFieldsForecastLocal,
         adjacentPointsCount, setAdjacentPointsCount,
         showSettings, setShowSettings,
         hasImbalanceData: imbalanceData && imbalanceData.length > 0,
@@ -305,13 +396,24 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hasBatteryData: batteryData && batteryData.length > 0,
         hasBidPlansData: bidPlansData && bidPlansData.length > 0,
         hasWeatherData: weatherActual && weatherActual.length > 0,
+        weatherY1Field, setWeatherY1Field,
+        weatherY2Field, setWeatherY2Field,
+        weatherAxisAssignment, setWeatherAxisAssignment,
+        weatherAxisScale, setWeatherAxisScale,
+        seriesAxisConfig, setSeriesAxisConfig,
         areaName,
         selectedModels,
         colors,
         darkMode,
         timezone,
         setTimezone,
-        showRightAxisLabels, setShowRightAxisLabels
+        showRightAxisLabels, setShowRightAxisLabels,
+        globalPrimaryRange, setGlobalPrimaryRange,
+        globalSecondaryRange, setGlobalSecondaryRange,
+        subchartLayout, setSubchartLayout,
+        hideObsAndPriceRow: hideObsAndPriceRowProp,
+        startDate,
+        endDate
     }), [
         processedChartData, priceRange, imbalanceRange, occtoRange, modelColorMap, modelMAEs,
         hoveredData,
@@ -319,7 +421,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields, availableBidPlanCategories, selectedBidPlanCategories, selectedSiteIds, setSelectedSiteIds, availableSiteIds, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
         bidPlansData, // 添加 bidPlansData 到依赖
         imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, filteredBidPlansData, weatherActual,
-        areaName, selectedModels, colors, darkMode
+        weatherY1Field, weatherY2Field, weatherAxisScale, seriesAxisConfig,
+        globalPrimaryRange, globalSecondaryRange, subchartLayout,
+        areaName, selectedModels, colors, darkMode, hideObsAndPriceRowProp, startDate, endDate
     ]);
 
     return (

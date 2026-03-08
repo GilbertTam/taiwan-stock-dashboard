@@ -19,6 +19,8 @@ interface UserPreferences {
     showInterconnection: boolean;
     showOcctoArea: boolean;
     dateRangePreset: string | null;
+    selectedWeatherModelActual: string | null;
+    selectedWeatherModelForecast: string | null;
 }
 
 const PREFERENCES_KEY = 'hdjp-dashboard-preferences';

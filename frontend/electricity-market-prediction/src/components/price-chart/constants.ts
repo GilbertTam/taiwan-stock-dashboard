@@ -50,12 +50,20 @@ export const BATTERY_FIELDS = [
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [
-    { value: 'temperature', label: '溫度', unit: '°C', color: '#ff9800' },
-    { value: 'rainfall', label: '降雨', unit: 'mm', color: '#2196f3' },
-    { value: 'snowfall', label: '降雪', unit: 'cm', color: '#90caf9' },
-    { value: 'wind_speed', label: '風速', unit: 'm/s', color: '#4caf50' },
-    { value: 'relative_humidity', label: '濕度', unit: '%', color: '#9c27b0' },
-    { value: 'clouds_all', label: '雲量', unit: '%', color: '#607d8b' },
+    { value: 'temperature_2m', label: '氣溫', unit: '°C', color: '#ff9800' },
+    { value: 'apparent_temperature', label: '體感', unit: '°C', color: '#ffcc80' },
+    { value: 'precipitation', label: '降水', unit: 'mm', color: '#2196f3' },
+    { value: 'rain', label: '雨量', unit: 'mm', color: '#42a5f5' },
+    { value: 'snowfall', label: '降雪', unit: 'cm', color: '#b3e5fc' },
+    { value: 'wind_speed_10m', label: '風速', unit: 'm/s', color: '#4caf50' },
+    { value: 'wind_gusts_10m', label: '陣風', unit: 'm/s', color: '#81c784' },
+    { value: 'relative_humidity_2m', label: '濕度', unit: '%', color: '#9c27b0' },
+    { value: 'cloud_cover', label: '雲量', unit: '%', color: '#607d8b' },
+    { value: 'sunshine_duration', label: '日照', unit: 'h', color: '#ffd700' },
+    { value: 'shortwave_radiation', label: '輻射', unit: 'W/m²', color: '#ff8c00' },
+    { value: 'soil_temperature', label: '土溫', unit: '°C', color: '#795548' },
+    { value: 'soil_moisture', label: '土濕', unit: 'm³/m³', color: '#009688' },
+    { value: 'pressure_msl', label: '氣壓', unit: 'hPa', color: '#e91e63' },
 ];
 
 /** 投標計畫 (bid_plans) 基礎欄位定義 */

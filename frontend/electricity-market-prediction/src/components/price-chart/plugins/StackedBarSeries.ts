@@ -7,7 +7,7 @@ import {
     CustomSeriesWhitespaceData,
     CustomSeriesOptions,
 } from 'lightweight-charts';
-import { CanvasRenderingTarget2D } from '../types/lightweight-charts-extended';
+import { CanvasRenderingTarget2D } from '@/components/charts/lightweight-charts-extended';
 
 export interface StackedBarItem {
     value: number;

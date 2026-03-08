@@ -38,11 +38,9 @@ export const transformOcctoData = (
         .map(d => {
             const items: OcctoItem[] = [];
             sortedFields.forEach(field => {
-                const val = d.occto_values?.[field];
-                if (typeof val === 'number' && Math.abs(val) > 1e-6) {
-                    const base = occtoFieldColors[field] || '#6b7280';
-                    items.push({ value: val, color: hexToRgba(base, 0.75) });
-                }
+                const val = d.occto_values?.[field] || 0;
+                const base = occtoFieldColors[field] || '#6b7280';
+                items.push({ value: val, color: hexToRgba(base, 0.75) });
             });
             return { time: toChartTime(d.timestamp, timezone), items };
         })

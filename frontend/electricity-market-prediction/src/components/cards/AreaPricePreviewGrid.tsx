@@ -9,6 +9,8 @@ import { toUTCTimestamp } from '@/utils/lightweightChartsHelpers';
 import { useTheme } from '@/app/ThemeProvider';
 import type { Area } from '@/types';
 
+import { createMinimalChartOptions } from '@/utils/chartUtils';
+
 interface MiniAreaChartProps {
   data: ChartDataPoint[];
   height: number;
@@ -16,7 +18,7 @@ interface MiniAreaChartProps {
   darkMode?: boolean;
 }
 
-function MiniAreaChart({ data, height, color, darkMode }: MiniAreaChartProps) {
+function MiniAreaChart({ data, height, color, darkMode = false }: MiniAreaChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -29,25 +31,7 @@ function MiniAreaChart({ data, height, color, darkMode }: MiniAreaChartProps) {
 
   useEffect(() => {
     if (!containerRef.current || lineData.length === 0) return;
-    const chart = createChart(containerRef.current, {
-        layout: {
-          background: { type: ColorType.Solid, color: 'transparent' },
-          textColor: darkMode ? '#9ca3af' : '#6b7280',
-          fontFamily: 'inherit',
-          attributionLogo: false,
-        },
-      grid: {
-        vertLines: { visible: false },
-        horzLines: { visible: false },
-      },
-      rightPriceScale: { visible: false },
-      leftPriceScale: { visible: false },
-      timeScale: {
-        visible: false,
-      },
-      handleScroll: { vertTouchDrag: false, horzTouchDrag: false },
-      handleScale: { pinch: false, axisPressedMouseMove: false },
-    });
+    const chart = createChart(containerRef.current, createMinimalChartOptions(darkMode));
     chartRef.current = chart;
     const series = chart.addSeries(LineSeries, {
       color: color || 'var(--primary)',

@@ -1,6 +1,24 @@
 import { useMemo } from 'react';
-import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp } from '@/utils/chartUtils';
+import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp, normalizeWeatherDatetimeToJST } from '@/utils/chartUtils';
 import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData, BidPlanData } from '@/types';
+
+/**
+ * Extract an OCCTO field value from an API item, supporting both:
+ * - Flat structure: { nuclear_power: 1200, area_demand: 5000, ... }
+ * - Nested structure: { generation: { nuclear_power: 1200, ... }, demand: 5000 }
+ */
+function getOcctoValue(item: any, field: string): number | null {
+    if (!item) return null;
+    // 1. Try flat access (e.g. item.nuclear_power)
+    const flat = item[field];
+    if (flat != null && typeof flat === 'number') return flat;
+    // 2. Special case: area_demand → item.demand (nested schema)
+    if (field === 'area_demand' && typeof item.demand === 'number') return item.demand;
+    // 3. Try nested: item.generation[field]
+    const fromGen = item.generation?.[field];
+    if (fromGen != null && typeof fromGen === 'number') return fromGen;
+    return null;
+}
 
 interface UseChartDataProps {
     chartData: ChartDataPoint[];
@@ -27,6 +45,7 @@ interface UseChartDataProps {
     selectedWeatherFields?: Set<string>;
     showWeatherActual?: boolean;
     showWeatherForecast?: boolean;
+    weatherHeightByField?: Record<string, string>;
 }
 
 export const useChartData = ({
@@ -48,7 +67,8 @@ export const useChartData = ({
     selectedOcctoFields,
     selectedWeatherFields,
     showWeatherActual = false,
-    showWeatherForecast = false
+    showWeatherForecast = false,
+    weatherHeightByField = {},
 }: UseChartDataProps) => {
 
     // 1. modelColorMap - 強制使用高區別度調色盤，忽略後端內建顏色，確保模型之間顏色差異大
@@ -357,82 +377,127 @@ export const useChartData = ({
                     const point = ensurePoint(ts);
                     point.occto_data = item;
                     // Keep backward compatibility with selectedOcctoField
-                    point.occto_value = (item as any)[selectedOcctoField];
+                    point.occto_value = getOcctoValue(item, selectedOcctoField);
                     // Store all selected fields for multi-field rendering
                     if (!point.occto_values) {
                         point.occto_values = {};
                     }
                     selectedOcctoFields.forEach(field => {
-                        point.occto_values![field] = (item as any)[field];
+                        point.occto_values![field] = getOcctoValue(item, field);
                     });
                 }
             });
         }
 
         // G. Weather Actual Data
-        // NOTE: 新版 Weather 的 datetime 已經是 UTC+9（例如 "2026-03-01T09:00:00+09:00"）。
-        // parseToTimestamp 會將此轉換為 UTC epoch，圖表軸也以 JST 顯示，因此不需要額外偏移。
-        const WEATHER_TIME_OFFSET_MS = 0;
+        // Helper: look up a weather field with height-aware fallback
+        const resolveField = (item: any, normalizedKey: string, defaultSuffix: string): any => {
+            const height = weatherHeightByField[normalizedKey] || defaultSuffix;
+            const key = `${normalizedKey}_${height}`;
+            const value = item[key];
+            if (value !== undefined && value !== null) return value;
+            // Fallback to the default suffix if the selected height has no data
+            if (height !== defaultSuffix) {
+                return item[`${normalizedKey}_${defaultSuffix}`] ?? null;
+            }
+            return null;
+        };
+
         if (showWeatherActual && weatherActual && Array.isArray(weatherActual)) {
             weatherActual.forEach((item) => {
-                const tsRaw = parseToTimestamp(item.datetime);
-                const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
+                const ts = parseToTimestamp(normalizeWeatherDatetimeToJST(item.datetime));
 
                 if (ts) {
                     const point = ensurePoint(ts);
-                    // Store all weather fields with source marker
-                    if (!point.weather_data) {
-                        point.weather_data = {};
-                    }
-                    if (!point.weather_data_actual) {
-                        point.weather_data_actual = {};
-                    }
-                    point.weather_data_actual.temperature = item.temperature_2m;
-                    point.weather_data_actual.rainfall = item.precipitation;
-                    point.weather_data_actual.snowfall = item.snowfall;
-                    point.weather_data_actual.wind_speed = item.wind_speed_10m;
-                    point.weather_data_actual.relative_humidity = item.relative_humidity_2m;
-                    point.weather_data_actual.clouds_all = item.cloud_cover;
-                    // Also store in weather_data for backward compatibility
-                    point.weather_data.temperature = item.temperature_2m;
-                    point.weather_data.rainfall = item.precipitation;
-                    point.weather_data.snowfall = item.snowfall;
-                    point.weather_data.wind_speed = item.wind_speed_10m;
-                    point.weather_data.relative_humidity = item.relative_humidity_2m;
-                    point.weather_data.clouds_all = item.cloud_cover;
+                    if (!point.weather_data_actual) point.weather_data_actual = {};
+
+                    // Dynamically extract all selected fields
+                    selectedWeatherFields?.forEach(fieldKey => {
+                        const weatherItem = item as any;
+                        const targetData = point.weather_data_actual as any;
+
+                        // 1. Try exact match (e.g. daily fields like temperature_2m_max)
+                        if (weatherItem[fieldKey] !== undefined && weatherItem[fieldKey] !== null) {
+                            targetData[fieldKey] = weatherItem[fieldKey];
+                            return;
+                        }
+
+                        // 2. Try height-suffixed match (e.g. temperature_2m, soil_temperature_0_to_7cm)
+                        const scalePattern = /_(\d+m?|0_to_7cm|7_to_28cm|28_to_100cm|100_to_255cm|0_to_100cm|max|min|mean|sum)$/;
+                        const match = fieldKey.match(scalePattern);
+                        if (match) {
+                            const base = fieldKey.replace(scalePattern, '');
+                            const height = match[1];
+                            const val = weatherItem[`${base}_${height}`];
+                            if (val !== undefined && val !== null) {
+                                targetData[fieldKey] = val;
+                                return;
+                            }
+                        }
+
+                        // 3. Fallback for generic fields (e.g. 'temperature' -> 'temperature_2m')
+                        const fallbacks: Record<string, string> = {
+                            'temperature': 'temperature_2m',
+                            'wind_speed': 'wind_speed_10m',
+                            'relative_humidity': 'relative_humidity_2m',
+                            'precipitation': 'precipitation',
+                            'rainfall': 'precipitation',
+                            'cloud_cover': 'cloud_cover',
+                        };
+                        const fallbackKey = fallbacks[fieldKey];
+                        if (fallbackKey && weatherItem[fallbackKey] !== undefined) {
+                            targetData[fieldKey] = weatherItem[fallbackKey];
+                        }
+                    });
                 }
             });
         }
 
         // G2. Weather Forecast Data
-        // 使用相同的時區對齊邏輯
         if (showWeatherForecast && weatherForecast && Array.isArray(weatherForecast)) {
             weatherForecast.forEach((item) => {
-                const tsRaw = parseToTimestamp(item.datetime);
-                const ts = tsRaw !== null ? tsRaw + WEATHER_TIME_OFFSET_MS : null;
+                const ts = parseToTimestamp(normalizeWeatherDatetimeToJST(item.datetime));
 
                 if (ts) {
                     const point = ensurePoint(ts);
-                    // Store all weather fields with source marker
-                    if (!point.weather_data) {
-                        point.weather_data = {};
-                    }
-                    if (!point.weather_data_forecast) {
-                        point.weather_data_forecast = {};
-                    }
-                    point.weather_data_forecast.temperature = item.temperature_2m;
-                    point.weather_data_forecast.rainfall = item.precipitation;
-                    point.weather_data_forecast.snowfall = item.snowfall;
-                    point.weather_data_forecast.wind_speed = item.wind_speed_10m;
-                    point.weather_data_forecast.relative_humidity = item.relative_humidity_2m;
-                    point.weather_data_forecast.clouds_all = item.cloud_cover;
-                    // Forecast overwrites weather_data if both exist (for backward compatibility)
-                    point.weather_data.temperature = item.temperature_2m;
-                    point.weather_data.rainfall = item.precipitation;
-                    point.weather_data.snowfall = item.snowfall;
-                    point.weather_data.wind_speed = item.wind_speed_10m;
-                    point.weather_data.relative_humidity = item.relative_humidity_2m;
-                    point.weather_data.clouds_all = item.cloud_cover;
+                    if (!point.weather_data_forecast) point.weather_data_forecast = {};
+
+                    selectedWeatherFields?.forEach(fieldKey => {
+                        const weatherItem = item as any;
+                        const targetData = point.weather_data_forecast as any;
+
+                        // 1. Try exact match
+                        if (weatherItem[fieldKey] !== undefined && weatherItem[fieldKey] !== null) {
+                            targetData[fieldKey] = weatherItem[fieldKey];
+                            return;
+                        }
+
+                        // 2. Try height-suffixed match
+                        const match = fieldKey.match(/^(.+?)_(\d+m?)$/);
+                        if (match) {
+                            const base = match[1];
+                            const height = match[2];
+                            const val = weatherItem[`${base}_${height}`];
+                            if (val !== undefined && val !== null) {
+                                targetData[fieldKey] = val;
+                                return;
+                            }
+                        }
+
+                        // 3. Fallback
+                        const fallbacks: Record<string, string> = {
+                            'temperature': 'temperature_2m',
+                            'wind_speed': 'wind_speed_10m',
+                            'relative_humidity': 'relative_humidity_2m',
+                            'precipitation': 'precipitation',
+                            'rainfall': 'precipitation',
+                            'cloud_cover': 'cloud_cover',
+                        };
+                        const fallbackKey = fallbacks[fieldKey];
+                        if (fallbackKey && weatherItem[fallbackKey] !== undefined) {
+                            targetData[fieldKey] = weatherItem[fallbackKey];
+                        }
+                    });
                 }
             });
         }
@@ -507,7 +572,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, bidPlansData, selectedBidPlanCategories, weatherActual, weatherForecast, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, bidPlansData, selectedBidPlanCategories, weatherActual, weatherForecast, weatherHeightByField, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {
@@ -581,8 +646,8 @@ export const useChartData = ({
                 let sum = 0;
                 let hasValue = false;
                 selectedOcctoFields.forEach(field => {
-                    const val = (p.occto_data as any)[field];
-                    if (val !== null && val !== undefined && !isNaN(val)) {
+                    const val = getOcctoValue(p.occto_data, field);
+                    if (val !== null && !isNaN(val)) {
                         sum += val;
                         hasValue = true;
                     }

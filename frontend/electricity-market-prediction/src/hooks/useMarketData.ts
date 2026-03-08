@@ -33,13 +33,18 @@ import {
     fetchSpecificPredictions,
     fetchWeatherActual,
     fetchWeatherForecast,
+    fetchWeatherForecastDaily,
+    fetchWeatherActualModels,
+    fetchWeatherForecastModels,
     fetchImbalance,
     fetchIntraday,
     fetchInterconnectionFlows,
     fetchOcctoArea,
     fetchBatteryData,
     fetchBidPlans,
-    fetchWeatherActualDaily
+    fetchWeatherActualDaily,
+    WeatherModelInfo,
+    WeatherModelBasicInfo
 } from '@/services';
 import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, WeatherDailyData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -88,6 +93,15 @@ export interface UseMarketDataReturn {
     weatherActual: WeatherData[];
     weatherActualDaily: WeatherDailyData[];
     weatherForecast: WeatherData[];
+    weatherForecastDaily: WeatherDailyData[];
+    weatherActualRaw: WeatherData[];
+    weatherForecastRaw: WeatherData[];
+    weatherModelsActual: WeatherModelBasicInfo[];
+    weatherModelsForecast: WeatherModelBasicInfo[];
+    selectedWeatherModelActual: string | null;
+    setSelectedWeatherModelActual: React.Dispatch<React.SetStateAction<string | null>>;
+    selectedWeatherModelForecast: string | null;
+    setSelectedWeatherModelForecast: React.Dispatch<React.SetStateAction<string | null>>;
     imbalanceData: ImbalanceData[];
     intradayData: IntradayData[];
     interconnectionData: InterconnectionFlow[];
@@ -331,6 +345,7 @@ export const useMarketData = (): UseMarketDataReturn => {
             weatherActual: WeatherData[];
             weatherActualDaily: WeatherDailyData[];
             weatherForecast: WeatherData[];
+            weatherForecastDaily: WeatherDailyData[];
             imbalanceData: ImbalanceData[];
             intradayData: IntradayData[];
             interconnectionData: InterconnectionFlow[];
@@ -345,6 +360,9 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Weather forecast data */
     const [weatherForecast, setWeatherForecast] = useState<WeatherData[]>([]);
+
+    /** Weather forecast daily data */
+    const [weatherForecastDaily, setWeatherForecastDaily] = useState<WeatherDailyData[]>([]);
 
     /** Grid imbalance data (supply vs demand gap) */
     const [imbalanceData, setImbalanceData] = useState<ImbalanceData[]>([]);
@@ -372,6 +390,36 @@ export const useMarketData = (): UseMarketDataReturn => {
         if (!bidPlansData || bidPlansData.length === 0) return [];
         return Array.from(new Set(bidPlansData.map(d => d.site_id).filter(Boolean))).sort() as string[];
     }, [bidPlansData]);
+
+    // Weather model selection
+    const [weatherModelsActual, setWeatherModelsActual] = useState<WeatherModelBasicInfo[]>([]);
+    const [weatherModelsForecast, setWeatherModelsForecast] = useState<WeatherModelBasicInfo[]>([]);
+    const [selectedWeatherModelActual, setSelectedWeatherModelActual] = useState<string | null>(null);
+    const [selectedWeatherModelForecast, setSelectedWeatherModelForecast] = useState<string | null>(null);
+
+    /** Filtered weather actual data based on selected model */
+    const filteredWeatherActual = useMemo(() => {
+        if (!selectedWeatherModelActual) return weatherActual;
+        return weatherActual.filter((d: any) => d.model === selectedWeatherModelActual);
+    }, [weatherActual, selectedWeatherModelActual]);
+
+    /** Filtered weather forecast data based on selected model */
+    const filteredWeatherForecast = useMemo(() => {
+        if (!selectedWeatherModelForecast) return weatherForecast;
+        return weatherForecast.filter((d: any) => d.model === selectedWeatherModelForecast);
+    }, [weatherForecast, selectedWeatherModelForecast]);
+
+    /** Filtered weather actual daily data based on selected model */
+    const filteredWeatherActualDaily = useMemo(() => {
+        if (!selectedWeatherModelActual) return weatherActualDaily;
+        return weatherActualDaily.filter((d: any) => d.model === selectedWeatherModelActual);
+    }, [weatherActualDaily, selectedWeatherModelActual]);
+
+    /** Filtered weather forecast daily data based on selected model */
+    const filteredWeatherForecastDaily = useMemo(() => {
+        if (!selectedWeatherModelForecast) return weatherForecastDaily;
+        return weatherForecastDaily.filter((d: any) => d.model === selectedWeatherModelForecast);
+    }, [weatherForecastDaily, selectedWeatherModelForecast]);
 
     // 当有新的 availableSiteIds 时，如果当前没有选中任何 site，自动选中第一个
     useEffect(() => {
@@ -515,6 +563,16 @@ export const useMarketData = (): UseMarketDataReturn => {
         updatePreference('selectedModels', selectedModels);
     }, [selectedModels, updatePreference]);
 
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('selectedWeatherModelActual', selectedWeatherModelActual);
+    }, [selectedWeatherModelActual, updatePreference]);
+
+    useEffect(() => {
+        if (!prefsLoadedRef.current) return;
+        updatePreference('selectedWeatherModelForecast', selectedWeatherModelForecast);
+    }, [selectedWeatherModelForecast, updatePreference]);
+
     // ==========================================================================
     // Effects: Initial Data Fetch
     // ==========================================================================
@@ -554,6 +612,14 @@ export const useMarketData = (): UseMarketDataReturn => {
                 if (prefs.showInterconnection !== undefined) setShowInterconnection(prefs.showInterconnection);
                 if (prefs.showOcctoArea !== undefined) setShowOcctoArea(prefs.showOcctoArea);
 
+                // Apply weather model preferences
+                if (prefs.selectedWeatherModelActual !== undefined) {
+                    setSelectedWeatherModelActual(prefs.selectedWeatherModelActual);
+                }
+                if (prefs.selectedWeatherModelForecast !== undefined) {
+                    setSelectedWeatherModelForecast(prefs.selectedWeatherModelForecast);
+                }
+
                 // Apply model preferences (filter to existing models only)
                 if (prefs.selectedModels && prefs.selectedModels.length > 0) {
                     const validModels = prefs.selectedModels.filter(pm =>
@@ -583,6 +649,60 @@ export const useMarketData = (): UseMarketDataReturn => {
 
         fetchInitialData();
     }, [logout, loadPreferences]);
+
+    // ==========================================================================
+    // Effects: Fetch Weather Models
+    // ==========================================================================
+
+    /**
+     * Fetch available weather models when area changes
+     */
+    useEffect(() => {
+        if (!selectedArea) return;
+
+        const fetchModels = async () => {
+            try {
+                const [actualModels, forecastModels] = await Promise.all([
+                    fetchWeatherActualModels({ area_name: selectedArea }).catch(err => {
+                        console.warn('Failed to fetch weather actual models:', err);
+                        return [];
+                    }),
+                    fetchWeatherForecastModels({ area_name: selectedArea }).catch(err => {
+                        console.warn('Failed to fetch weather forecast models:', err);
+                        return [];
+                    })
+                ]);
+
+                setWeatherModelsActual(actualModels);
+                setWeatherModelsForecast(forecastModels);
+
+                // Auto-select first model if none selected or current selection is invalid
+                if (actualModels.length > 0) {
+                    setSelectedWeatherModelActual(prev => {
+                        if (!prev || !actualModels.some((m: any) => m.model === prev)) {
+                            return actualModels[0].model;
+                        }
+                        return prev;
+                    });
+                }
+
+                if (forecastModels.length > 0) {
+                    setSelectedWeatherModelForecast(prev => {
+                        if (!prev || !forecastModels.some((m: any) => m.model === prev)) {
+                            return forecastModels[0].model;
+                        }
+                        return prev;
+                    });
+                }
+            } catch (err) {
+                console.warn('Failed to fetch weather models:', err);
+                setWeatherModelsActual([]);
+                setWeatherModelsForecast([]);
+            }
+        };
+
+        fetchModels();
+    }, [selectedArea]);
 
     // ==========================================================================
     // Effects: Fetch Calculating Dates
@@ -682,6 +802,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                 setWeatherActual(existingCache.data.weatherActual);
                 setWeatherActualDaily(existingCache.data.weatherActualDaily);
                 setWeatherForecast(existingCache.data.weatherForecast);
+                setWeatherForecastDaily(existingCache.data.weatherForecastDaily || []);
             }
             if (activeScopes.has('grid')) {
                 setImbalanceData(existingCache.data.imbalanceData);
@@ -722,7 +843,8 @@ export const useMarketData = (): UseMarketDataReturn => {
                 promises.push(fetchWeatherActual({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際)')));
                 promises.push(fetchWeatherActualDaily({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(實際日)')));
                 promises.push(fetchWeatherForecast({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報)')));
-                indices.push('weatherActual', 'weatherActualDaily', 'weatherForecast');
+                promises.push(fetchWeatherForecastDaily({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('天氣(預報日)')));
+                indices.push('weatherActual', 'weatherActualDaily', 'weatherForecast', 'weatherForecastDaily');
             }
             if (scopesToFetch.has('grid')) {
                 promises.push(fetchImbalance({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('不平衡')));
@@ -753,6 +875,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                 setWeatherActual(newData['weatherActual'] || []);
                 setWeatherActualDaily(newData['weatherActualDaily'] || []);
                 setWeatherForecast(newData['weatherForecast'] || []);
+                setWeatherForecastDaily(newData['weatherForecastDaily'] || []);
             }
             if (activeScopes.has('grid')) {
                 setImbalanceData(newData['imbalance'] || []);
@@ -774,6 +897,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                     weatherActual: newData['weatherActual'] || [],
                     weatherActualDaily: newData['weatherActualDaily'] || [],
                     weatherForecast: newData['weatherForecast'] || [],
+                    weatherForecastDaily: newData['weatherForecastDaily'] || [],
                     imbalanceData: newData['imbalance'] || [],
                     intradayData: newData['intraday'] || [],
                     interconnectionData: newData['interconnection'] || [],
@@ -1104,9 +1228,18 @@ export const useMarketData = (): UseMarketDataReturn => {
         dateRangePreset,
         actualPrices,
         predictionsByModel,
-        weatherActual,
-        weatherActualDaily,
-        weatherForecast,
+        weatherActual: filteredWeatherActual,
+        weatherActualDaily: filteredWeatherActualDaily,
+        weatherForecast: filteredWeatherForecast,
+        weatherForecastDaily: filteredWeatherForecastDaily,
+        weatherActualRaw: weatherActual,
+        weatherForecastRaw: weatherForecast,
+        weatherModelsActual,
+        weatherModelsForecast,
+        selectedWeatherModelActual,
+        setSelectedWeatherModelActual,
+        selectedWeatherModelForecast,
+        setSelectedWeatherModelForecast,
         imbalanceData,
         intradayData,
         interconnectionData,

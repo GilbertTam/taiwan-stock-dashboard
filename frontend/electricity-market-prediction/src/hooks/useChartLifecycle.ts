@@ -1,3 +1,10 @@
+/**
+ * Lightweight Charts 生命週期管理 Hook
+ * Lightweight Charts lifecycle management hook.
+ *
+ * 處理圖表實例的建立、掛載、調整尺寸（ResizeObserver）及清理。
+ * Handles the creation, mounting, responsive resizing, and cleanup of chart instances.
+ */
 import { useEffect, useRef, RefObject } from 'react';
 import {
     createChart,
@@ -12,11 +19,20 @@ import {
 } from '@/utils/lightweightChartsHelpers';
 import { formatInTimezone } from '@/utils/chartUtils';
 
+/**
+ * Hook 參數介面
+ * Hook parameters interface
+ */
 interface UseChartLifecycleParams {
+    /** 圖表容器的 DOM 參考 / DOM ref for the chart container */
     containerRef: RefObject<HTMLDivElement | null>;
+    /** 圖表顏色設定 / Chart color configuration */
     colors: any;
+    /** 是否為深色模式 / Whether dark mode is enabled */
     darkMode: boolean;
+    /** 顯示時區（預設 UTC）/ Display timezone (default UTC) */
     timezone?: string;
+    /** 額外的圖表設定選項 / Additional chart configuration options */
     chartOptions?: DeepPartial<ChartOptions>;
 }
 

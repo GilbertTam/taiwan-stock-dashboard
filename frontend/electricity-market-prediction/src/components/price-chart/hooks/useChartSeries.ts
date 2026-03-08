@@ -8,10 +8,12 @@ import {
     HistogramSeries,
     Time,
     LineStyle,
+    LineType,
 } from 'lightweight-charts';
 import {
     convertToLineSeriesData,
     toChartTime,
+    dateToJstTimestamp,
     ProcessedDataPoint,
 } from '@/utils/lightweightChartsHelpers';
 import { StackedBarSeries } from '../plugins/StackedBarSeries';
@@ -25,6 +27,7 @@ import {
     BID_PLAN_PRICE_RANGE_FACTOR,
     BID_PLAN_MIN_VISUAL_RANGE,
 } from '../constants';
+import { DAILY_CATEGORIES, WEATHER_FIELD_DISPLAY } from '@/constants/weatherCategories';
 
 const WEATHER_FIELD_COLORS = weatherFields.reduce((acc, curr) => {
     acc[curr.value] = curr.color;
@@ -60,9 +63,15 @@ interface UseChartSeriesParams {
     // Display Options
     showRightAxisLabels: boolean;
 
+    // Series Axis Configuration
+    seriesAxisConfig?: Record<string, { axis?: 'Y1' | 'Y2'; scale?: { min?: number; max?: number } }>;
+    hideObsAndPriceRow?: boolean;
+
     // Range params
     startDate: Date | null;
     endDate: Date | null;
+
+    subchartLayout?: 'split' | 'overlay';
 }
 
 export const useChartSeries = ({
@@ -87,8 +96,11 @@ export const useChartSeries = ({
     selectedWeatherFieldsForecast,
     showActualPrice,
     showRightAxisLabels,
+    seriesAxisConfig,
+    hideObsAndPriceRow,
     startDate,
     endDate,
+    subchartLayout,
 }: UseChartSeriesParams) => {
 
     const seriesRefs = useRef<Map<string, ISeriesApi<any>>>(new Map());
@@ -276,24 +288,144 @@ export const useChartSeries = ({
 
         // Weather Data
         if (showWeather) {
+            const isWeatherOnly = hideObsAndPriceRow === true;
+            const dailyFieldsSet = new Set(DAILY_CATEGORIES.flatMap(c => c.fields));
+
+            // In split mode + weather only, we want to assign the first few fields to primary scales (right, left)
+            // to ensure native axes are drawn and have labels.
+            const uniqueWeatherFields = Array.from(new Set([
+                ...(showWeatherActual ? Array.from(selectedWeatherFieldsActual) : []),
+                ...(showWeatherForecast ? Array.from(selectedWeatherFieldsForecast) : [])
+            ]));
+
+            const weatherScaleMap: Record<string, string> = {};
+
+            if (isWeatherOnly && subchartLayout === 'split') {
+                // Determine available native axes
+                const availableAxes = ['right', 'left'];
+                let axisIndex = 0;
+
+                uniqueWeatherFields.forEach(field => {
+                    // 1. Check user preference first
+                    const isActualActive = showWeatherActual && selectedWeatherFieldsActual.has(field);
+                    const isForecastActive = showWeatherForecast && selectedWeatherFieldsForecast.has(field);
+
+                    let userAxisChoice: string | undefined;
+
+                    // Prioritize finding a user config (check actual then forecast if both active)
+                    if (isActualActive) {
+                        const freqStr = dailyFieldsSet.has(field) ? 'day' : 'hour';
+                        const itemKey = `weather-actual-${freqStr}-${field}`;
+                        userAxisChoice = seriesAxisConfig?.[itemKey]?.axis;
+                    }
+                    if (!userAxisChoice && isForecastActive) {
+                        const freqStr = dailyFieldsSet.has(field) ? 'day' : 'hour';
+                        const itemKey = `weather-forecast-${freqStr}-${field}`;
+                        userAxisChoice = seriesAxisConfig?.[itemKey]?.axis;
+                    }
+
+                    if (userAxisChoice === 'Y2') {
+                        weatherScaleMap[field] = 'left';
+                    } else if (userAxisChoice === 'Y1') {
+                        weatherScaleMap[field] = 'right';
+                    } else {
+                        // 2. Fallback to existing un-assigned axes for the first two variables
+                        if (axisIndex < availableAxes.length) {
+                            const target = availableAxes[axisIndex];
+                            weatherScaleMap[field] = target;
+                            axisIndex++;
+                        }
+                    }
+                });
+            }
+
             const processWeather = (fields: Set<string>, dataObjKey: 'weather_data_actual' | 'weather_data_forecast', prefix: string) => {
                 fields.forEach(field => {
-                    const isBar = field === 'rainfall' || field === 'snowfall';
+                    const isBar = field.includes('precipitation') || field.includes('rain') || field.includes('snowfall');
+                    const isDaily = dailyFieldsSet.has(field);
                     const seriesType = isBar ? HistogramSeries : LineSeries;
-                    // Note: Calculating line data here inside loop as it varies by field
                     const data = convertToLineSeriesData(processedChartData, p => (p as any)[dataObjKey]?.[field] ?? null, timezone);
 
                     if (data.length > 0) {
                         const weatherConfig = weatherFields.find(w => w.value === field);
-                        const label = weatherConfig?.label ?? field;
+                        const display = WEATHER_FIELD_DISPLAY[field];
+                        const isDaily = dailyFieldsSet.has(field);
+                        const typeStr = prefix.includes('forecast') ? '預測' : '實測';
+                        const freqStr = isDaily ? 'day' : 'hour';
+                        const itemKey = `${prefix.replace('_', '-')}-${freqStr}-${field}`;
+                        const label = `[${typeStr}·${isDaily ? '日' : '時'}] ${display?.shortLabel || weatherConfig?.label || field}`;
+                        let targetScale = 'weather_overlay_' + field;
+
+                        // Try to find a color: exact match, then prefix match
+                        let color = WEATHER_FIELD_COLORS[field];
+                        if (!color) {
+                            const baseField = weatherFields.find(w => field.startsWith(w.value.split('_')[0]));
+                            color = baseField?.color || '#888';
+                        }
+
+                        // Unify target scale logic: user config always wins
+                        const assignedAxis = seriesAxisConfig?.[itemKey]?.axis;
+
+                        if (isWeatherOnly) {
+                            if (subchartLayout === 'split') {
+                                // Use the unified map which respects user config, or fallback to a custom panel
+                                targetScale = weatherScaleMap[field] || ('weather_overlay_' + field);
+                            } else {
+                                // Overlay mode: Y2 -> left, else default to right
+                                if (assignedAxis === 'Y2') {
+                                    targetScale = 'left';
+                                } else {
+                                    targetScale = 'right';
+                                }
+                            }
+                        } else {
+                            // Non-weather-only mode: Y2 -> left, else default to Y1 which for weather currently is grouped or specific, 
+                            // but in this logic we'll default it to 'right' (primary data axis) if no specific weather overlay is set
+                            // Note: earlier implementation defaulted to Y1? No, existing code was falling through.
+                            if (assignedAxis === 'Y2') {
+                                targetScale = 'left';
+                            } else {
+                                targetScale = 'right';
+                            }
+                        }
+
+                        const isForecast = prefix.includes('forecast');
+                        const finalColor = isForecast ? hexToRgba(color, 0.6) : color;
+
                         updateOrAdd(`${prefix}_${field}`, seriesType, data, {
-                            color: WEATHER_FIELD_COLORS[field] || '#888',
-                            priceScaleId: 'weather',
-                            lineWidth: 2,
-                            lineStyle: prefix.includes('forecast') && !isBar ? LineStyle.Dashed : LineStyle.Solid,
+                            color: finalColor,
+                            priceScaleId: targetScale,
+                            lineWidth: isDaily ? 4 : 2,
+                            lineStyle: isForecast && !isBar ? LineStyle.Dashed : LineStyle.Solid,
+                            lineType: isDaily && !isBar ? LineType.WithSteps : undefined,
                             title: showRightAxisLabels ? label : '',
+                            autoscaleInfoProvider: (original: () => any) => {
+                                const customRange = seriesAxisConfig?.[itemKey]?.scale;
+                                const res = original();
+                                if (customRange && (customRange.min !== undefined || customRange.max !== undefined)) {
+                                    const finalRes = res || {
+                                        priceRange: { minValue: 0, maxValue: 100 },
+                                        margins: { above: 0.1, below: 0.1 }
+                                    };
+                                    if (customRange.min !== undefined) finalRes.priceRange.minValue = customRange.min;
+                                    if (customRange.max !== undefined) finalRes.priceRange.maxValue = customRange.max;
+                                    return finalRes;
+                                }
+                                return res;
+                            }
                         });
-                        usedSubCharts.add('weather');
+
+                        if (targetScale === 'weather') {
+                            usedSubCharts.add('weather');
+                        } else if (targetScale === 'weather_secondary') {
+                            usedSubCharts.add('weather_secondary');
+                        } else if (targetScale === 'left') {
+                            usedSubCharts.add('left');
+                        } else if (targetScale === 'right') {
+                            usedSubCharts.add('right');
+                        } else if (targetScale.startsWith('weather_overlay_')) {
+                            usedSubCharts.add(targetScale);
+                        }
                     }
                 });
             };
@@ -315,44 +447,52 @@ export const useChartSeries = ({
 
         // Imbalance Rates (Main Axis)
         if (imbalanceSurplusData && imbalanceSurplusData.length > 0) {
+            const targetScale = seriesAxisConfig?.['imbalance_surplus']?.axis === 'Y2' ? 'left' : 'right';
             updateOrAdd('imbalance_surplus', LineSeries, imbalanceSurplusData, {
                 color: colors.imbalanceSurplus,
-                priceScaleId: 'right',
+                priceScaleId: targetScale,
                 lineWidth: 2,
                 // Use title on the right price scale to show the line name;
                 // toggle it via showRightAxisLabels.
                 title: showRightAxisLabels ? 'Surplus Rate' : '',
             });
+            usedSubCharts.add(targetScale);
         }
         if (imbalanceDeficitData && imbalanceDeficitData.length > 0) {
+            const targetScale = seriesAxisConfig?.['imbalance_deficit']?.axis === 'Y2' ? 'left' : 'right';
             updateOrAdd('imbalance_deficit', LineSeries, imbalanceDeficitData, {
                 color: colors.imbalanceDeficit,
-                priceScaleId: 'right',
+                priceScaleId: targetScale,
                 lineWidth: 2,
                 title: showRightAxisLabels ? 'Deficit Rate' : '',
             });
+            usedSubCharts.add(targetScale);
         }
 
         // Intraday Candlesticks
         if (candleData.length > 0) {
             const alpha = showIntradayAverage ? 0.5 : 1;
+            const targetScale = seriesAxisConfig?.['intraday']?.axis === 'Y2' ? 'left' : 'right';
             updateOrAdd('intraday', CandlestickSeries, candleData, {
                 upColor: `rgba(239, 83, 80, ${alpha})`,
                 downColor: `rgba(38, 166, 154, ${alpha})`,
                 wickUpColor: `rgba(239, 83, 80, ${alpha})`,
                 wickDownColor: `rgba(38, 166, 154, ${alpha})`,
-                priceScaleId: 'right',
+                priceScaleId: targetScale,
                 title: showRightAxisLabels ? 'Intraday' : '',
             });
+            usedSubCharts.add(targetScale);
         }
         if (intradayAvgData.length > 0) {
+            const targetScale = seriesAxisConfig?.['intraday_avg']?.axis === 'Y2' ? 'left' : 'right';
             updateOrAdd('intraday_avg', LineSeries, intradayAvgData, {
                 color: '#ffa726',
                 lineWidth: 2,
                 lineStyle: LineStyle.Dashed,
-                priceScaleId: 'right',
+                priceScaleId: targetScale,
                 title: showRightAxisLabels ? 'Intraday Avg' : '',
             });
+            usedSubCharts.add(targetScale);
         }
 
         // Models
@@ -367,24 +507,66 @@ export const useChartSeries = ({
             }, timezone);
 
             if (lineData.length > 0) {
+                const targetScale = seriesAxisConfig?.[`model-${modelKey}`]?.axis === 'Y2' ? 'left' : 'right';
                 updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
                     color: color,
                     lineWidth: isHighlighted ? 3 : 1,
-                    priceScaleId: 'right',
+                    priceScaleId: targetScale,
                     visible: true,
                     title: showRightAxisLabels ? model.name : '',
+                    autoscaleInfoProvider: (original: () => any) => {
+                        const customRange = seriesAxisConfig?.[`model-${modelKey}`]?.scale;
+                        const res = original();
+                        if (customRange && (customRange.min !== undefined || customRange.max !== undefined)) {
+                            if (res) {
+                                if (customRange.min !== undefined) res.priceRange.minValue = customRange.min;
+                                if (customRange.max !== undefined) res.priceRange.maxValue = customRange.max;
+                                return res;
+                            }
+                            return {
+                                priceRange: {
+                                    minValue: customRange.min ?? 0,
+                                    maxValue: customRange.max ?? 100
+                                },
+                                margins: { above: 0.1, below: 0.1 }
+                            };
+                        }
+                        return res;
+                    }
                 });
+                usedSubCharts.add(targetScale);
             }
         });
 
         // Actual Price (Top-most line)
         if (actualData.length > 0 && showActualPrice) {
+            const targetScale = seriesAxisConfig?.['price']?.axis === 'Y2' ? 'left' : 'right';
             const s = updateOrAdd('actual', LineSeries, actualData, {
                 color: colors.actual,
                 lineWidth: 2,
-                priceScaleId: 'right',
+                priceScaleId: targetScale,
                 title: showRightAxisLabels ? 'Actual' : '',
+                autoscaleInfoProvider: (original: () => any) => {
+                    const customRange = seriesAxisConfig?.['price']?.scale;
+                    const res = original();
+                    if (customRange && (customRange.min !== undefined || customRange.max !== undefined)) {
+                        if (res) {
+                            if (customRange.min !== undefined) res.priceRange.minValue = customRange.min;
+                            if (customRange.max !== undefined) res.priceRange.maxValue = customRange.max;
+                            return res;
+                        }
+                        return {
+                            priceRange: {
+                                minValue: customRange.min ?? 0,
+                                maxValue: customRange.max ?? 100
+                            },
+                            margins: { above: 0.1, below: 0.1 }
+                        };
+                    }
+                    return res;
+                }
             });
+            usedSubCharts.add(targetScale);
 
             if (dayBackgroundRef.current && s && !seriesWithBackgroundRef.current.has(s)) {
                 s.attachPrimitive(dayBackgroundRef.current);
@@ -413,45 +595,230 @@ export const useChartSeries = ({
         // --- Layout Configuration (SubCharts) ---
         // 雙 Y 軸：投標電量用左軸 (left)、投標價格用右側 overlay (bidPlan_price)
         try {
-            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather', 'bidPlan_price', 'left'];
+            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather', 'weather_secondary', 'bidPlan_price'];
             const activeSubCharts = knownSubCharts.filter(k => usedSubCharts.has(k));
-            const subHeight = 0.12;
-            const gap = 0.02;
-            const mainBottom = Math.max(0.1, activeSubCharts.length > 0 ? (activeSubCharts.length * (subHeight + gap)) : 0.08);
-            chart.priceScale('right').applyOptions({
-                scaleMargins: { top: 0.05, bottom: mainBottom },
-                visible: true,
-                borderVisible: true,
-                borderColor: colors.grid,
+
+            // In split mode on weather-only page, also treat each weather_overlay scale as a subchart panel
+            const isOverlay = subchartLayout === 'overlay';
+            const hasPriceSeries = actualData.length > 0 || selectedModels.length > 0;
+            // A more robust check for whether we are effectively in a weather-only view
+            const isWeatherOnly = hideObsAndPriceRow === true || (!hasPriceSeries && usedSubCharts.size > 0 && Array.from(usedSubCharts).every(k => k.startsWith('weather') || k === 'right' || k === 'left'));
+
+            if (!isOverlay) {
+                // In split weather-only mode, if right/left were used for weather, add them to activeSubCharts
+                if (isWeatherOnly) {
+                    if (usedSubCharts.has('right') && !activeSubCharts.includes('right')) activeSubCharts.push('right');
+                    if (usedSubCharts.has('left') && !activeSubCharts.includes('left')) activeSubCharts.push('left');
+                }
+
+                usedSubCharts.forEach(key => {
+                    if (key.startsWith('weather_overlay_')) {
+                        // Avoid duplicates in activeSubCharts
+                        if (!activeSubCharts.includes(key)) {
+                            activeSubCharts.push(key);
+                        }
+                    }
+                });
+            }
+
+            const isSplitWeatherOnly = !isOverlay && isWeatherOnly;
+            const topMargin = 0.25;
+            const totalAvailableHeight = 1.0 - topMargin - 0.05; // Leave 5% at bottom
+
+            const subHeight = isSplitWeatherOnly
+                ? Math.min(0.32, totalAvailableHeight / Math.max(1, activeSubCharts.length))
+                : (isWeatherOnly ? 0.32 : 0.12);
+
+            const gap = isSplitWeatherOnly ? 0.01 : 0.02;
+            const mainBottom = (!isOverlay && activeSubCharts.length > 0)
+                ? Math.min(0.9, (activeSubCharts.length * (subHeight + gap)) + 0.02)
+                : 0.08;
+
+            // 1. Right Scale Configuration
+            // In split weather-only mode, if 'right' is used as a sub-panel, it will be handled by the loop below.
+            const isRightSubPanel = !isOverlay && isWeatherOnly && usedSubCharts.has('right');
+            if (!isRightSubPanel) {
+                chart.priceScale('right').applyOptions({
+                    scaleMargins: { top: 0.25, bottom: isWeatherOnly ? 0.08 : mainBottom },
+                    visible: showRightAxisLabels,
+                    borderVisible: true,
+                    borderColor: colors.grid,
+                });
+            } else {
+                chart.priceScale('right').applyOptions({
+                    // Minimum width to ensure the title and axis labels have space
+                    minimumWidth: 64,
+                });
+            }
+
+            // 2. Left Scale Configuration
+            const isLeftSubPanel = !isOverlay && isWeatherOnly && usedSubCharts.has('left');
+            if (usedSubCharts.has('left') && !isLeftSubPanel) {
+                // Ensure left scale is visible if it's used
+                chart.priceScale('left').applyOptions({
+                    scaleMargins: { top: 0.25, bottom: isWeatherOnly ? 0.08 : mainBottom },
+                    visible: true,
+                    borderVisible: true,
+                    borderColor: colors.grid,
+                });
+            } else if (!isLeftSubPanel) {
+                chart.priceScale('left').applyOptions({ visible: false });
+            } else if (isLeftSubPanel && isWeatherOnly) {
+                chart.priceScale('left').applyOptions({
+                    minimumWidth: 64,
+                });
+            }
+
+            // Ensure any weather_overlay_ scales share the same margins as the main area.
+            usedSubCharts.forEach(key => {
+                if (key.startsWith('weather_overlay_')) {
+                    // In overlay mode, these don't show labels on the side,
+                    // but they must have correct margins to line up with the grid.
+                    // In split mode, the loop below will override margins per panel.
+                    chart.priceScale(key).applyOptions({
+                        scaleMargins: { top: 0.25, bottom: isWeatherOnly ? 0.08 : mainBottom },
+                        visible: false, // These are overlay scales, they don't have side labels anyway
+                        autoScale: true,
+                    });
+                }
             });
 
             const layoutKey = activeSubCharts.slice().sort().join(',');
             if (lastLayoutKeyRef.current !== layoutKey) {
                 lastLayoutKeyRef.current = layoutKey;
-                let currentTop = 1.0;
-                activeSubCharts.reverse().forEach(key => {
+            }
+
+            // 2. We apply subchart options on every tick to ensure weather axes appear correctly
+            // (even if layoutKey hasn't changed, series initialization racing could hide it otherwise)
+            let currentTop = 1.0;
+            activeSubCharts.reverse().forEach(key => {
+                let margins;
+                let isVisible = true;
+                const isWeatherAxis = key === 'weather' || key === 'weather_secondary' || key.startsWith('weather_overlay_');
+
+                if (isOverlay) {
+                    margins = { top: 0.22, bottom: mainBottom };
+                    // For overlay mode, typically we don't show individual axes for sub-charts 
+                    // if they are meant to be overlaid on the primary axis.
+                    // But if it's a panel (like imbalance), it still needs visibility.
+                    isVisible = true;
+                } else {
                     const bottom = currentTop;
                     const top = Math.max(0, currentTop - subHeight);
                     currentTop = top - gap;
-                    const margins = { top: 1 - bottom, bottom: 1 - top };
-                    chart.priceScale(key).applyOptions({
-                        visible: true, autoScale: true,
-                        scaleMargins: margins,
-                        borderVisible: true, borderColor: colors.grid,
-                    });
+                    margins = { top, bottom: 1.0 - bottom };
+                }
+
+                chart.priceScale(key).applyOptions({
+                    visible: true,
+                    autoScale: true,
+                    scaleMargins: margins,
+                    borderVisible: true,
+                    borderColor: colors.grid,
+                    ...((isWeatherAxis && !isOverlay) ? { minimumWidth: 64, ensureEdgeTickMarksVisible: true } : {})
                 });
+            });
+
+            // --- Set Weather Range directly ---
+            // If scale overrides are defined for weather specifically used on Y1/Y2 weather axes
+            if (usedSubCharts.has('weather')) {
+                const dailyFieldsSet = new Set(DAILY_CATEGORIES.flatMap(c => c.fields));
+
+                // Helper to get unique key for scaling lookup
+                const getWKey = (f: string, isForecast: boolean) => {
+                    const freqStr = dailyFieldsSet.has(f) ? 'day' : 'hour';
+                    return `weather-${isForecast ? 'forecast' : 'actual'}-${freqStr}-${f}`;
+                };
+
+                // Find any field that is mapped to Y1 (or no axis specified, which defaults to Y1 for weather)
+                const y1Fields = [
+                    ...Array.from(selectedWeatherFieldsActual).map(f => ({ f, isForecast: false })),
+                    ...Array.from(selectedWeatherFieldsForecast).map(f => ({ f, isForecast: true }))
+                ].filter(({ f, isForecast }) => {
+                    const itemKey = getWKey(f, isForecast);
+                    return !seriesAxisConfig?.[itemKey]?.axis || seriesAxisConfig?.[itemKey]?.axis === 'Y1';
+                });
+
+                // Grab the first field with a custom scale to apply to the main weather axis
+                const fieldWithScale = y1Fields.find(({ f, isForecast }) => {
+                    const itemKey = getWKey(f, isForecast);
+                    return seriesAxisConfig?.[itemKey]?.scale?.min !== undefined || seriesAxisConfig?.[itemKey]?.scale?.max !== undefined;
+                });
+
+                if (fieldWithScale) {
+                    const itemKey = getWKey(fieldWithScale.f, fieldWithScale.isForecast);
+                    const scaleCfg = seriesAxisConfig?.[itemKey]?.scale;
+                    if (scaleCfg && (scaleCfg.min !== undefined || scaleCfg.max !== undefined)) {
+                        chart.priceScale('weather').setAutoScale(false);
+                        const currentRange = chart.priceScale('weather').getVisibleRange() || { from: 0, to: 100 };
+                        chart.priceScale('weather').setVisibleRange({
+                            from: scaleCfg.min ?? currentRange.from,
+                            to: scaleCfg.max ?? currentRange.to
+                        });
+                    }
+                } else {
+                    chart.priceScale('weather').setAutoScale(true);
+                }
             }
-            if (!usedSubCharts.has('left')) {
-                chart.priceScale('left').applyOptions({ visible: false });
+
+            if (usedSubCharts.has('weather_secondary')) {
+                const dailyFieldsSet = new Set(DAILY_CATEGORIES.flatMap(c => c.fields));
+                const getWKey = (f: string, isForecast: boolean) => {
+                    const freqStr = dailyFieldsSet.has(f) ? 'day' : 'hour';
+                    return `weather-${isForecast ? 'forecast' : 'actual'}-${freqStr}-${f}`;
+                };
+
+                const y2Fields = [
+                    ...Array.from(selectedWeatherFieldsActual).map(f => ({ f, isForecast: false })),
+                    ...Array.from(selectedWeatherFieldsForecast).map(f => ({ f, isForecast: true }))
+                ].filter(({ f, isForecast }) => {
+                    const itemKey = getWKey(f, isForecast);
+                    return seriesAxisConfig?.[itemKey]?.axis === 'Y2';
+                });
+
+                const fieldWithScale = y2Fields.find(({ f, isForecast }) => {
+                    const itemKey = getWKey(f, isForecast);
+                    return seriesAxisConfig?.[itemKey]?.scale?.min !== undefined || seriesAxisConfig?.[itemKey]?.scale?.max !== undefined;
+                });
+
+                if (fieldWithScale) {
+                    const itemKey = getWKey(fieldWithScale.f, fieldWithScale.isForecast);
+                    const scaleCfg = seriesAxisConfig?.[itemKey]?.scale;
+                    if (scaleCfg && (scaleCfg.min !== undefined || scaleCfg.max !== undefined)) {
+                        chart.priceScale('weather_secondary').setAutoScale(false);
+                        const currentRange = chart.priceScale('weather_secondary').getVisibleRange() || { from: 0, to: 100 };
+                        chart.priceScale('weather_secondary').setVisibleRange({
+                            from: scaleCfg.min ?? currentRange.from,
+                            to: scaleCfg.max ?? currentRange.to
+                        });
+                    }
+                } else {
+                    chart.priceScale('weather_secondary').setAutoScale(true);
+                }
             }
 
             // --- Set Visible Range (only on initial load for this chart instance) ---
-            if (!hasSetInitialRangeRef.current && startDate && endDate && processedChartData.length > 0) {
+            // Weather-only page: no price series; fit time axis to data so it doesn't overlap/cramp (same UX as forecast).
+            // Forecast page: use startDate/endDate so the chart shows the selected date range.
+            if (!hasSetInitialRangeRef.current && processedChartData.length > 0) {
                 try {
-                    const fromTime = toChartTime(startDate.getTime(), timezone) as Time;
-                    const toTime = toChartTime(endDate.getTime() + 86400000 - 1, timezone) as Time;
-                    chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
-                    hasSetInitialRangeRef.current = true; // Mark as set
+                    const hasPriceSeries = actualData.length > 0 || selectedModels.length > 0;
+                    if (hasPriceSeries && startDate && endDate) {
+                        const startJst = dateToJstTimestamp(startDate);
+                        const endJst = dateToJstTimestamp(endDate);
+                        if (startJst && endJst) {
+                            const fromTime = toChartTime(startJst, timezone) as Time;
+                            // End of day is handled by dateToJstTimestamp preserving the time part if it's already 23:59:59
+                            const toTime = toChartTime(endJst, timezone) as Time;
+                            chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
+                        } else {
+                            chart.timeScale().fitContent();
+                        }
+                    } else {
+                        // Weather-only or no date range: fit content so all data is visible without overlap
+                        chart.timeScale().fitContent();
+                    }
+                    hasSetInitialRangeRef.current = true;
                 } catch (e) {
                     try { chart.timeScale().fitContent(); } catch (e2) { /* disposed */ }
                 }
@@ -465,6 +832,7 @@ export const useChartSeries = ({
         selectedModels, highlightedModelId, modelColorMap,
         showImbalance, showOcctoArea, occtoChartType,
         showWeather, showWeatherActual, showWeatherForecast, selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
-        startDate, endDate, showActualPrice, showRightAxisLabels
+        seriesAxisConfig,
+        startDate, endDate, showActualPrice, showRightAxisLabels, subchartLayout
     ]);
 };

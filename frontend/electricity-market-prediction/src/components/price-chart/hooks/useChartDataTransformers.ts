@@ -163,7 +163,7 @@ export const useChartDataTransformers = ({
         return out;
     }, [processedChartData, selectedBidPlanFields, selectedBidPlanCategories, timezone]);
 
-    return {
+    return useMemo(() => ({
         candleData,
         intradayAvgData,
         actualData,
@@ -174,5 +174,16 @@ export const useChartDataTransformers = ({
         batterySeries,
         bidPlanSeries,
         occtoData,
-    };
+    }), [
+        candleData,
+        intradayAvgData,
+        actualData,
+        imbalanceData,
+        imbalanceSurplusData,
+        imbalanceDeficitData,
+        interconnectionSeries,
+        batterySeries,
+        bidPlanSeries,
+        occtoData,
+    ]);
 };

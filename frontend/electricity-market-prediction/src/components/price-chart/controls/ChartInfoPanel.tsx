@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Box, Typography, IconButton, Menu, MenuItem, Tooltip, Paper, ListItemIcon, ListItemText } from '@mui/material';
-import { formatInTimezone } from '@/utils/chartUtils'; // 假設您有這個工具
+import { Box, Typography, IconButton, Menu, MenuItem, Tooltip, Paper, ListItemIcon, ListItemText, ToggleButton, ToggleButtonGroup, TextField, alpha } from '@mui/material';
+import { formatInTimezone } from '@/utils/chartUtils';
+import { WEATHER_FIELD_DISPLAY, DAILY_CATEGORIES } from '@/constants/weatherCategories';
 
 // --- Icons ---
 import DownloadIcon from '@mui/icons-material/Download';
@@ -11,6 +12,10 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 import LabelOffOutlinedIcon from '@mui/icons-material/LabelOffOutlined';
+
+import TuneIcon from '@mui/icons-material/Tune';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import CompressIcon from '@mui/icons-material/Compress';
 
 // Data Icons
 import ThermostatIcon from '@mui/icons-material/Thermostat';
@@ -26,9 +31,10 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Solar
 import ModeFanOffIcon from '@mui/icons-material/ModeFanOff'; // Wind
 import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 // --- Constants ---
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from '../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, weatherFields } from '../constants';
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -154,26 +160,50 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
 // --- Main Component ---
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
-    showImbalance, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), showOcctoArea,
+    hideObsAndPriceRow = false,
+    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
     onDownload, onFullscreen, timezone,
-    showRightAxisLabels, onToggleRightAxisLabels
+    showRightAxisLabels, onToggleRightAxisLabels,
+    subchartLayout, setSubchartLayout,
+    seriesAxisConfig, setSeriesAxisConfig,
+    globalPrimaryRange, setGlobalPrimaryRange,
+    globalSecondaryRange, setGlobalSecondaryRange,
+    showActualPrice, showIntradayAverage
 }) => {
 
     const PANEL_HEIGHT = 100;
 
     // 天氣欄位設定
-    const getWeatherConfig = (field: string) => {
-        const config: Record<string, any> = {
-            temperature: { icon: ThermostatIcon, unit: '°C', color: '#ff7043', label: 'T' },
-            rainfall: { icon: WaterDropIcon, unit: 'mm', color: '#42a5f5', label: 'Rain' },
-            snowfall: { icon: AcUnitIcon, unit: 'mm', color: '#90caf9', label: 'Snow' },
-            wind_speed: { icon: AirIcon, unit: 'm/s', color: '#66bb6a', label: 'Wind' },
-            relative_humidity: { icon: OpacityIcon, unit: '%', color: '#ab47bc', label: 'RH' },
-            clouds_all: { icon: CloudIcon, unit: '%', color: '#78909c', label: 'Cloud' },
-        };
-        return config[field];
+    const getWeatherIcon = (field: string) => {
+        if (field.includes('temperature') || field.includes('temp')) return ThermostatIcon;
+        if (field.includes('precipitation') || field.includes('rain') || field.includes('snow')) return WaterDropIcon;
+        if (field.includes('wind')) return AirIcon;
+        if (field.includes('humidity')) return OpacityIcon;
+        if (field.includes('cloud')) return CloudIcon;
+        if (field.includes('radiation') || field.includes('sun')) return WbSunnyIcon;
+        if (field.includes('pressure')) return CompressIcon; // Add this if available or use a fallback
+        return HelpOutlineIcon;
+    };
+
+    const getWeatherColor = (field: string) => {
+        const scalePattern = /_(\d+m?|0_to_7cm|7_to_28cm|28_to_100cm|100_to_255cm|0_to_100cm|max|min|mean|sum)$/;
+        const baseFieldName = field.replace(scalePattern, '');
+        const base = (weatherFields as any[]).find(f => f.value === field || f.value === baseFieldName);
+        return base?.color || '#888';
+    };
+
+    const isDailyField = (field: string) => {
+        return DAILY_CATEGORIES.some(cat => cat.fields.includes(field));
+    };
+
+    const buildWeatherLabel = (field: string, isForecast: boolean) => {
+        const display = WEATHER_FIELD_DISPLAY[field];
+        const baseLabel = display?.shortLabel || field;
+        const typeStr = isForecast ? '預測' : '實測';
+        const freqStr = isDailyField(field) ? '日' : '時';
+        return `[${typeStr}·${freqStr}] ${baseLabel}`;
     };
 
     // OCCTO 欄位設定 (包含圖示與顏色查找)
@@ -219,17 +249,217 @@ export const ChartInfoPanel: React.FC<any> = ({
             }}
         >
             {!hoveredData ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column' }}>
-                    <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.7, letterSpacing: 1 }}>
-                        HOVER CHART FOR DETAILS
-                    </Typography>
-                    <Box sx={{ position: 'absolute', top: 8, right: 8, opacity: 0.5 }}>
+                <Box sx={{ display: 'flex', height: '100%', position: 'relative' }}>
+                    {/* Left zone: Layout toggle + hint */}
+                    <Box sx={{
+                        minWidth: 120,
+                        borderRight: `1px solid ${colors.tooltipBorder}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 1.5,
+                        bgcolor: alpha(colors.subText || '#000', 0.03),
+                    }}>
+                        <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.6, letterSpacing: 0.5, fontSize: '0.6rem', textAlign: 'center' }}>
+                            HOVER FOR DETAILS
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <TuneIcon sx={{ fontSize: '0.8rem', color: colors.subText, opacity: 0.5 }} />
+                            <ToggleButtonGroup
+                                size="small"
+                                exclusive
+                                value={subchartLayout}
+                                onChange={(_, val) => { if (val) setSubchartLayout?.(val as 'split' | 'overlay') }}
+                                sx={{
+                                    '& .MuiToggleButton-root': { py: 0.2, px: 1, fontSize: '0.6rem', height: 22 }
+                                }}
+                            >
+                                <ToggleButton value="split">分層</ToggleButton>
+                                <ToggleButton value="overlay">疊圖</ToggleButton>
+                            </ToggleButtonGroup>
+                        </Box>
+                    </Box>
+
+                    {/* Right zone: Unified axis controls */}
+                    <Box sx={{ flex: 1, px: 1.5, display: 'flex', gap: 1.5, height: '100%', alignItems: 'center', overflow: 'hidden' }}>
+                        {/* Global Y1 info */}
+                        <Box sx={{ minWidth: 80, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>Y1 主軸</Typography>
+                                <IconButton size="small" onClick={() => setGlobalPrimaryRange?.(null)} sx={{ p: 0.1, color: colors.actual }}>
+                                    <RestartAltIcon sx={{ fontSize: '0.7rem' }} />
+                                </IconButton>
+                            </Box>
+                            <Typography variant="caption" sx={{ fontSize: '0.5rem', color: colors.text, opacity: 0.6 }}>
+                                {globalPrimaryRange ? `${globalPrimaryRange.min.toFixed(0)} – ${globalPrimaryRange.max.toFixed(0)}` : '自動'}
+                            </Typography>
+                        </Box>
+
+                        {/* Global Y2 info */}
+                        <Box sx={{ minWidth: 80, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>Y2 副軸</Typography>
+                                <IconButton size="small" onClick={() => setGlobalSecondaryRange?.(null)} sx={{ p: 0.1, color: colors.actual }}>
+                                    <RestartAltIcon sx={{ fontSize: '0.7rem' }} />
+                                </IconButton>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 0.3 }}>
+                                <TextField
+                                    size="small"
+                                    placeholder="Min"
+                                    value={globalSecondaryRange?.min ?? ''}
+                                    onChange={e => {
+                                        const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                        if (val !== undefined) setGlobalSecondaryRange?.({ min: val, max: globalSecondaryRange?.max ?? 100 });
+                                        else if (!globalSecondaryRange?.max) setGlobalSecondaryRange?.(null);
+                                        else setGlobalSecondaryRange?.({ min: 0, max: globalSecondaryRange.max });
+                                    }}
+                                    sx={{ '& .MuiInputBase-input': { p: '1px 3px', fontSize: '0.55rem', textAlign: 'center' } }}
+                                />
+                                <TextField
+                                    size="small"
+                                    placeholder="Max"
+                                    value={globalSecondaryRange?.max ?? ''}
+                                    onChange={e => {
+                                        const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                        if (val !== undefined) setGlobalSecondaryRange?.({ min: globalSecondaryRange?.min ?? 0, max: val });
+                                        else if (!globalSecondaryRange?.min) setGlobalSecondaryRange?.(null);
+                                        else setGlobalSecondaryRange?.({ min: globalSecondaryRange.min, max: 0 });
+                                    }}
+                                    sx={{ '& .MuiInputBase-input': { p: '1px 3px', fontSize: '0.55rem', textAlign: 'center' } }}
+                                />
+                            </Box>
+                        </Box>
+
+                        <Box sx={{ height: '60%', borderRight: `1px solid ${colors.tooltipBorder}`, opacity: 0.4 }} />
+
+                        {/* Scrollable series axis list */}
+                        <Box sx={{
+                            flex: 1,
+                            height: '85%',
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 0.4,
+                            pr: 0.5,
+                            '&::-webkit-scrollbar': { width: 3 },
+                            '&::-webkit-scrollbar-thumb': { bgcolor: alpha(colors.subText || '#000', 0.2), borderRadius: 2 }
+                        }}>
+                            {(() => {
+                                const activeItems: { key: string; label: string; color: string; hasRange?: boolean }[] = [];
+                                if (showActualPrice && !hideObsAndPriceRow) activeItems.push({ key: 'price', label: '實際價格', color: colors.actual, hasRange: true });
+                                selectedModels.forEach((m: any) => activeItems.push({ key: `model-${m.id}|${m.name}`, label: m.name, color: m.color, hasRange: true }));
+
+                                if (!hideObsAndPriceRow) {
+                                    if (showImbalanceSurplusRate) activeItems.push({ key: 'imbalance_surplus', label: '剩餘單價', color: '#4caf50' });
+                                    if (showImbalanceDeficitRate) activeItems.push({ key: 'imbalance_deficit', label: '不足單價', color: '#e65100' });
+                                    if (showIntraday) activeItems.push({ key: 'intraday', label: '日前 K 線', color: '#ffa726' });
+                                    if (showIntradayAverage) activeItems.push({ key: 'intraday_avg', label: '日前均線', color: '#ffa726' });
+                                }
+
+                                const activeWeatherFieldsActual = Array.from(selectedWeatherFieldsActual) as string[];
+                                activeWeatherFieldsActual.forEach(fieldValue => {
+                                    const display = WEATHER_FIELD_DISPLAY[fieldValue];
+                                    if (display) {
+                                        const color = getWeatherColor(fieldValue);
+                                        const freqStr = isDailyField(fieldValue) ? 'day' : 'hour';
+                                        const itemKey = `weather-actual-${freqStr}-${fieldValue}`;
+                                        activeItems.push({ key: itemKey, label: buildWeatherLabel(fieldValue, false), color: color, hasRange: true });
+                                    }
+                                });
+
+                                const activeWeatherFieldsForecast = Array.from(selectedWeatherFieldsForecast) as string[];
+                                activeWeatherFieldsForecast.forEach(fieldValue => {
+                                    const display = WEATHER_FIELD_DISPLAY[fieldValue];
+                                    if (display) {
+                                        const color = getWeatherColor(fieldValue);
+                                        const freqStr = isDailyField(fieldValue) ? 'day' : 'hour';
+                                        const itemKey = `weather-forecast-${freqStr}-${fieldValue}`;
+                                        activeItems.push({ key: itemKey, label: buildWeatherLabel(fieldValue, true), color: color, hasRange: true });
+                                    }
+                                });
+
+                                if (activeItems.length === 0) {
+                                    return (
+                                        <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.5, fontSize: '0.55rem', textAlign: 'center', py: 1 }}>
+                                            無可用資料源
+                                        </Typography>
+                                    );
+                                }
+
+                                return activeItems.map(item => (
+                                    <Box key={item.key} sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.4,
+                                        bgcolor: alpha(item.color || '#888', 0.05),
+                                        p: '1px 4px',
+                                        borderRadius: 0.5,
+                                        border: `1px solid ${alpha(item.color || '#888', 0.1)}`,
+                                        flexShrink: 0,
+                                    }}>
+                                        <Typography variant="caption" noWrap sx={{ fontSize: '0.55rem', color: item.color, fontWeight: 700, flex: 1, minWidth: 0 }}>
+                                            {item.label}
+                                        </Typography>
+
+                                        <ToggleButtonGroup
+                                            size="small"
+                                            exclusive
+                                            value={seriesAxisConfig?.[item.key]?.axis || 'Y1'}
+                                            onChange={(_, val) => {
+                                                if (val) setSeriesAxisConfig?.((prev: any) => ({ ...prev, [item.key]: { ...prev[item.key], axis: val } }));
+                                            }}
+                                            sx={{ '& .MuiToggleButton-root': { py: 0, px: 0.5, fontSize: '0.5rem', height: 15, minWidth: 20 } }}
+                                        >
+                                            <ToggleButton value="Y1">Y1</ToggleButton>
+                                            <ToggleButton value="Y2">Y2</ToggleButton>
+                                        </ToggleButtonGroup>
+
+                                        {item.hasRange && (
+                                            <Box sx={{ display: 'flex', gap: 0.2, width: 52 }}>
+                                                <TextField
+                                                    size="small"
+                                                    placeholder="Min"
+                                                    value={seriesAxisConfig?.[item.key]?.scale?.min ?? ''}
+                                                    onChange={e => {
+                                                        const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                                        setSeriesAxisConfig?.((prev: any) => ({ ...prev, [item.key]: { ...prev[item.key], scale: { ...prev[item.key]?.scale, min: val } } }));
+                                                    }}
+                                                    sx={{ '& .MuiInputBase-input': { p: '0px 2px', fontSize: '0.5rem', textAlign: 'center' } }}
+                                                />
+                                                <TextField
+                                                    size="small"
+                                                    placeholder="Max"
+                                                    value={seriesAxisConfig?.[item.key]?.scale?.max ?? ''}
+                                                    onChange={e => {
+                                                        const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                                        setSeriesAxisConfig?.((prev: any) => ({ ...prev, [item.key]: { ...prev[item.key], scale: { ...prev[item.key]?.scale, max: val } } }));
+                                                    }}
+                                                    sx={{ '& .MuiInputBase-input': { p: '0px 2px', fontSize: '0.5rem', textAlign: 'center' } }}
+                                                />
+                                            </Box>
+                                        )}
+                                    </Box>
+                                ));
+                            })()}
+                        </Box>
+                    </Box>
+
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 1,
+                        ml: 'auto',
+                        borderLeft: `1px solid ${colors.tooltipBorder}`,
+                        bgcolor: alpha(colors.subText || '#000', 0.02)
+                    }}>
                         <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} showRightAxisLabels={showRightAxisLabels} onToggleRightAxisLabels={onToggleRightAxisLabels} />
                     </Box>
                 </Box>
             ) : (
                 <>
-                    {/* --- Row 1: Header --- */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, height: 20 }}>
                         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                             <Typography variant="caption" sx={{ color: colors.subText, fontWeight: 700, fontSize: '0.7rem' }}>
@@ -239,46 +469,48 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 {formattedTime}
                             </Typography>
                         </Box>
-                        <ActionButtons onDownload={onDownload} onFullscreen={onFullscreen} showRightAxisLabels={showRightAxisLabels} onToggleRightAxisLabels={onToggleRightAxisLabels} />
+                        {/* ActionButtons hidden during hover per user request */}
                     </Box>
 
-                    {/* --- Row 2: Prices --- */}
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        height: 28,
-                        mb: 0.5,
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
-                    }}>
-                        <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 2, pr: 2, borderRight: `1px dashed ${colors.tooltipBorder}` }}>
-                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colors.actual, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>Obs:</Typography>
-                            <Typography variant="body2" sx={{ color: colors.actual, fontWeight: 800, fontSize: '0.9rem' }}>
-                                {hoveredData.actualPrice != null ? `¥${hoveredData.actualPrice.toFixed(2)}` : '-'}
-                            </Typography>
-                            <DeltaBadge value={hoveredData.actualDelta} colors={colors} />
+                    {/* --- Row 2: Prices (hidden on weather-only page; no Obs/model data) --- */}
+                    {!hideObsAndPriceRow && (
+                        <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            height: 28,
+                            mb: 0.5,
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
+                        }}>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 2, pr: 2, borderRight: `1px dashed ${colors.tooltipBorder}` }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colors.actual, mr: 0.5 }} />
+                                <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>Obs:</Typography>
+                                <Typography variant="body2" sx={{ color: colors.actual, fontWeight: 800, fontSize: '0.9rem' }}>
+                                    {hoveredData.actualPrice != null ? `¥${hoveredData.actualPrice.toFixed(2)}` : '-'}
+                                </Typography>
+                                <DeltaBadge value={hoveredData.actualDelta} colors={colors} />
+                            </Box>
+
+                            {selectedModels.map((model: any) => {
+                                const modelKey = `${model.id}|${model.name}`;
+                                const pred = hoveredData.modelPredictions?.find((p: any) => `${p.modelId}|${p.modelName}` === modelKey);
+                                const diff = hoveredData.modelDifferences?.[modelKey];
+                                return (
+                                    <Box key={modelKey} sx={{ display: 'inline-flex', alignItems: 'center', mr: 2 }}>
+                                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: model.color, mr: 0.5 }} />
+                                        <Typography variant="caption" sx={{ color: colors.text, fontWeight: 600, fontSize: '0.75rem' }}>
+                                            {model.name}:
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: colors.text, ml: 0.5 }}>
+                                            {pred?.predictedPrice != null ? `¥${pred.predictedPrice.toFixed(2)}` : '-'}
+                                        </Typography>
+                                        <DeltaBadge value={diff} colors={colors} />
+                                    </Box>
+                                );
+                            })}
                         </Box>
-
-                        {selectedModels.map((model: any) => {
-                            const modelKey = `${model.id}|${model.name}`;
-                            const pred = hoveredData.modelPredictions?.find((p: any) => `${p.modelId}|${p.modelName}` === modelKey);
-                            const diff = hoveredData.modelDifferences?.[modelKey];
-                            return (
-                                <Box key={modelKey} sx={{ display: 'inline-flex', alignItems: 'center', mr: 2 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: model.color, mr: 0.5 }} />
-                                    <Typography variant="caption" sx={{ color: colors.text, fontWeight: 600, fontSize: '0.75rem' }}>
-                                        {model.name}:
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: colors.text, ml: 0.5 }}>
-                                        {pred?.predictedPrice != null ? `¥${pred.predictedPrice.toFixed(2)}` : '-'}
-                                    </Typography>
-                                    <DeltaBadge value={diff} colors={colors} />
-                                </Box>
-                            );
-                        })}
-                    </Box>
+                    )}
 
                     {/* --- Row 3: Secondary Metrics (OCCTO Colors Applied Here) --- */}
                     <Box sx={{
@@ -295,13 +527,13 @@ export const ChartInfoPanel: React.FC<any> = ({
                         )}
                         {showImbalance && (
                             <>
-                                {hoveredData.imbalance != null && (
+                                {showImbalanceQuantity && hoveredData.imbalance != null && (
                                     <DataChip icon={ElectricBoltIcon} label="Imb" value={hoveredData.imbalance} unit="kWh" color="#ef5350" />
                                 )}
-                                {hoveredData.imbalance_surplus_rate != null && (
+                                {showImbalanceSurplusRate && hoveredData.imbalance_surplus_rate != null && (
                                     <DataChip icon={ElectricBoltIcon} label="Surplus" value={hoveredData.imbalance_surplus_rate} unit="¥" color="#4caf50" />
                                 )}
-                                {hoveredData.imbalance_deficit_rate != null && (
+                                {showImbalanceDeficitRate && hoveredData.imbalance_deficit_rate != null && (
                                     <DataChip icon={ElectricBoltIcon} label="Deficit" value={hoveredData.imbalance_deficit_rate} unit="¥" color="#e65100" />
                                 )}
                             </>
@@ -365,20 +597,40 @@ export const ChartInfoPanel: React.FC<any> = ({
                         {showWeather && (
                             <>
                                 {showWeatherActual && Array.from(selectedWeatherFieldsActual).map((field: any) => {
-                                    const cfg = getWeatherConfig(field);
-                                    if (!cfg) return null;
-                                    return <DataChip key={`act-${field}`} {...cfg} value={hoveredData.weather_data_actual?.[field]} />;
+                                    const display = WEATHER_FIELD_DISPLAY[field];
+                                    return (
+                                        <DataChip
+                                            key={`act-${field}`}
+                                            icon={getWeatherIcon(field)}
+                                            label={buildWeatherLabel(field, false)}
+                                            value={hoveredData.weather_data_actual?.[field]}
+                                            unit={display?.unit}
+                                            color={getWeatherColor(field)}
+                                            decimals={(field.includes('temp') || field.includes('wind')) ? 1 : 0}
+                                        />
+                                    );
                                 })}
                                 {showWeatherForecast && Array.from(selectedWeatherFieldsForecast).map((field: any) => {
-                                    const cfg = getWeatherConfig(field);
-                                    if (!cfg) return null;
-                                    return <DataChip key={`fcst-${field}`} {...cfg} value={hoveredData.weather_data_forecast?.[field]} isForecast />;
+                                    const display = WEATHER_FIELD_DISPLAY[field];
+                                    return (
+                                        <DataChip
+                                            key={`fcst-${field}`}
+                                            icon={getWeatherIcon(field)}
+                                            label={buildWeatherLabel(field, true)}
+                                            value={hoveredData.weather_data_forecast?.[field]}
+                                            unit={display?.unit}
+                                            color={getWeatherColor(field)}
+                                            isForecast
+                                            decimals={(field.includes('temp') || field.includes('wind')) ? 1 : 0}
+                                        />
+                                    );
                                 })}
                             </>
                         )}
                     </Box>
                 </>
-            )}
-        </Paper>
+            )
+            }
+        </Paper >
     );
 };
