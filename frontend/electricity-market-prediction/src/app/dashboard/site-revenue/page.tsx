@@ -423,7 +423,7 @@ function SiteRevenueContent() {
 
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-      {(isDataLoading || isSimulating) && <LoadingOverlay />}
+      {isDataLoading && <LoadingOverlay />}
 
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
         <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
@@ -498,6 +498,11 @@ function SiteRevenueContent() {
                 />
               </Box>
               <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {error && (
+                  <Alert onClose={() => setError(null)} severity="error" sx={{ mb: 2, borderRadius: 1 }}>
+                    {error}
+                  </Alert>
+                )}
                 <RevenueAnalysisContainer
                   actualResult={actualResult}
                   modelResults={modelResults}
@@ -505,6 +510,8 @@ function SiteRevenueContent() {
                   selectedModels={selectedModels}
                   colors={colors}
                   dt={config.dt}
+                  isSimulating={isSimulating}
+                  onRunSimulation={handleCalculate}
                 />
               </Box>
             </ResizableLayout>

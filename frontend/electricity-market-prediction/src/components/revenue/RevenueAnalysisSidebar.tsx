@@ -44,6 +44,10 @@ interface RevenueAnalysisSidebarProps {
 
 }
 
+/**
+ * 案場收益側邊欄 | Site revenue analysis sidebar
+ * 包含區域、模型選擇與參數設定 (Contains region/model selection and parameter settings)
+ */
 export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
     areas,
     selectedArea,
@@ -60,9 +64,9 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
     chartData,
 }) => {
     const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
-        area: false,
-        models: false,
-        params: true, // Default open for params
+        area: true,
+        models: true,
+        params: true,
     });
 
     const handleReset = () => {
@@ -85,24 +89,29 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
             },
         }}>
 
-            {/* Header Actions */}
+            {/* 側邊欄主要操作 | Header Actions */}
             <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                    size="large"
-                    startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />}
-                    onClick={onRunSimulation}
-                    disabled={isLoading}
-                    sx={{
-                        fontWeight: 600,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        '&:hover': { boxShadow: '0 6px 16px rgba(0,0,0,0.15)' }
-                    }}
-                >
-                    {isLoading ? 'Calculating...' : 'Run Simulation'}
-                </Button>
+                <Box>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        size="large"
+                        startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />}
+                        onClick={onRunSimulation}
+                        disabled={isLoading}
+                        sx={{
+                            fontWeight: 600,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            '&:hover': { boxShadow: '0 6px 16px rgba(0,0,0,0.15)' }
+                        }}
+                    >
+                        {isLoading ? '計算中... (Calculating...)' : '執行模擬 (Run Simulation)'}
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
+                        依目前區域、日期與模型計算最適排程與收益
+                    </Typography>
+                </Box>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button
@@ -114,7 +123,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                         onClick={handleReset}
                         sx={{ color: 'text.secondary', borderColor: 'var(--card-border)' }}
                     >
-                        Reset
+                        恢復預設 (Reset to default)
                     </Button>
                 </Box>
             </Box>
@@ -129,7 +138,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                 expanded={expandedSections.area}
                 onToggle={() => setExpandedSections(prev => ({ ...prev, area: !prev.area }))}
                 step={1}
-                description="Region Selection"
+                description="區域選擇 (Region Selection)"
             />
 
             <Divider sx={{ borderColor: 'var(--card-border)', my: 0.5 }} />
@@ -144,7 +153,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                 expanded={expandedSections.models}
                 onToggle={() => setExpandedSections(prev => ({ ...prev, models: !prev.models }))}
                 step={2}
-                description="Models Comparison"
+                description="模型比較 (Models Comparison)"
             />
 
             <Divider sx={{ borderColor: 'var(--card-border)', my: 0.5 }} />

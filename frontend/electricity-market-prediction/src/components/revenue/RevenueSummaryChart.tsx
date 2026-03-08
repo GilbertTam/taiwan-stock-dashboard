@@ -27,6 +27,10 @@ interface RevenueSummaryChartProps {
     dt?: number;
 }
 
+/**
+ * 案場收益圖表與指標總覽 | Site revenue summary charts and metrics
+ * 渲染所有的圖表與表格區塊 (Renders all charts and table sections)
+ */
 export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
     actualResult,
     modelResults,
@@ -41,6 +45,15 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
     const priceChartRef = useRef<{ getInstance: () => any }>(null);
     const opChartRef = useRef<{ getInstance: () => any }>(null);
     const socChartRef = useRef<{ getInstance: () => any }>(null);
+
+    const summaryRef = useRef<HTMLDivElement>(null);
+    const chartsRef = useRef<HTMLDivElement>(null);
+    const dailyRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
+
+    const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
     // Metrics: computed only from Detailed Operation Schedule (ganttData), no separate API data
     const metrics = useMemo(() => {
@@ -403,104 +416,122 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
 
 
     return (
-        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', p: 1 }}>
+        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', p: 1, position: 'relative' }}>
+
+            {/* Section Navigation */}
+            <Box sx={{
+                display: 'flex', gap: 2, pb: 1, pt: 1,
+                position: 'sticky', top: -8, zIndex: 10,
+                backgroundColor: darkMode ? 'var(--card-bg, #1e1e1e)' : '#ffffff',
+                borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+            }}>
+                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(summaryRef)}>摘要指標</Typography>
+                <Typography variant="body2" color="text.secondary">|</Typography>
+                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(chartsRef)}>價格與排程</Typography>
+                <Typography variant="body2" color="text.secondary">|</Typography>
+                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(dailyRef)}>每日收益</Typography>
+                <Typography variant="body2" color="text.secondary">|</Typography>
+                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(tableRef)}>明細表</Typography>
+            </Box>
 
             {/* Metrics Cards */}
-            {metrics && (
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                bgcolor: darkMode ? 'rgba(33, 150, 243, 0.1)' : '#e3f2fd',
-                                border: '1px solid',
-                                borderColor: darkMode ? 'rgba(33, 150, 243, 0.3)' : '#90caf9',
-                                borderRadius: 2,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="overline" color="primary.main" fontWeight="600">Optimal (Realized)</Typography>
-                                <Tooltip title="以區間內實際價格回算：若完全依照最優排程（事後最優）執行，可獲得的總收益。" placement="top" arrow enterDelay={300}>
-                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                    </Box>
-                                </Tooltip>
-                            </Box>
-                            <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                ¥{((metrics.optimalRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                bgcolor: darkMode ? 'rgba(156, 39, 176, 0.1)' : '#f3e5f5',
-                                border: '1px solid',
-                                borderColor: darkMode ? 'rgba(156, 39, 176, 0.3)' : '#ce93d8',
-                                borderRadius: 2,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="overline" sx={{ color: '#9c27b0', fontWeight: 600 }}>Best Model (Realized)</Typography>
-                                <Tooltip title="在已選擇的預測模型中，依其建議排程並以實際價格結算後，實現收益最高的模型；下方為該模型名稱與其實現收益。" placement="top" arrow enterDelay={300}>
-                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                    </Box>
-                                </Tooltip>
-                            </Box>
-                            <Typography variant="caption" sx={{ mb: 0.5, color: 'text.secondary' }}>{metrics.bestModelName}</Typography>
-                            <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                ¥{((metrics.bestModelRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                bgcolor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
-                                    ? (darkMode ? 'rgba(76, 175, 80, 0.1)' : '#e8f5e9')
-                                    : (darkMode ? 'rgba(255, 152, 0, 0.1)' : '#fff3e0'),
-                                border: '1px solid',
-                                borderColor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
-                                    ? (darkMode ? 'rgba(76, 175, 80, 0.3)' : '#a5d6a7')
-                                    : (darkMode ? 'rgba(255, 152, 0, 0.3)' : '#ffcc80'),
-                                borderRadius: 2,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="overline" sx={{ color: typeof metrics.efficiency === 'number' && metrics.efficiency > 90 ? 'success.main' : 'warning.main', fontWeight: 600 }}>
-                                    Strategy Efficiency
+            <Box ref={summaryRef}>
+                {metrics && (
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    bgcolor: darkMode ? 'rgba(33, 150, 243, 0.1)' : '#e3f2fd',
+                                    border: '1px solid',
+                                    borderColor: darkMode ? 'rgba(33, 150, 243, 0.3)' : '#90caf9',
+                                    borderRadius: 2,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="overline" color="primary.main" fontWeight="600">Optimal (Realized)</Typography>
+                                    <Tooltip title="以區間內實際價格回算：若完全依照最優排程（事後最優）執行，可獲得的總收益。" placement="top" arrow enterDelay={300}>
+                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                        </Box>
+                                    </Tooltip>
+                                </Box>
+                                <Typography variant="h4" fontWeight="bold" color="text.primary">
+                                    ¥{((metrics.optimalRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                 </Typography>
-                                <Tooltip title="最佳模型之實現收益占最優實現收益的百分比。100% 表示該模型策略與最優結果一致；愈低表示與最優差距愈大。" placement="top" arrow enterDelay={300}>
-                                    <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                        <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                    </Box>
-                                </Tooltip>
-                            </Box>
-                            <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                {typeof metrics.efficiency === 'number' && Number.isFinite(metrics.efficiency) ? `${metrics.efficiency.toFixed(1)}%` : '—'}
-                            </Typography>
-                        </Paper>
+                            </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    bgcolor: darkMode ? 'rgba(156, 39, 176, 0.1)' : '#f3e5f5',
+                                    border: '1px solid',
+                                    borderColor: darkMode ? 'rgba(156, 39, 176, 0.3)' : '#ce93d8',
+                                    borderRadius: 2,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="overline" sx={{ color: '#9c27b0', fontWeight: 600 }}>Best Model (Realized)</Typography>
+                                    <Tooltip title="在已選擇的預測模型中，依其建議排程並以實際價格結算後，實現收益最高的模型；下方為該模型名稱與其實現收益。" placement="top" arrow enterDelay={300}>
+                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                        </Box>
+                                    </Tooltip>
+                                </Box>
+                                <Typography variant="caption" sx={{ mb: 0.5, color: 'text.secondary' }}>{metrics.bestModelName}</Typography>
+                                <Typography variant="h4" fontWeight="bold" color="text.primary">
+                                    ¥{((metrics.bestModelRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    bgcolor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
+                                        ? (darkMode ? 'rgba(76, 175, 80, 0.1)' : '#e8f5e9')
+                                        : (darkMode ? 'rgba(255, 152, 0, 0.1)' : '#fff3e0'),
+                                    border: '1px solid',
+                                    borderColor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
+                                        ? (darkMode ? 'rgba(76, 175, 80, 0.3)' : '#a5d6a7')
+                                        : (darkMode ? 'rgba(255, 152, 0, 0.3)' : '#ffcc80'),
+                                    borderRadius: 2,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="overline" sx={{ color: typeof metrics.efficiency === 'number' && metrics.efficiency > 90 ? 'success.main' : 'warning.main', fontWeight: 600 }}>
+                                        Strategy Efficiency
+                                    </Typography>
+                                    <Tooltip title="最佳模型之實現收益占最優實現收益的百分比。100% 表示該模型策略與最優結果一致；愈低表示與最優差距愈大。" placement="top" arrow enterDelay={300}>
+                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
+                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
+                                        </Box>
+                                    </Tooltip>
+                                </Box>
+                                <Typography variant="h4" fontWeight="bold" color="text.primary">
+                                    {typeof metrics.efficiency === 'number' && Number.isFinite(metrics.efficiency) ? `${metrics.efficiency.toFixed(1)}%` : '—'}
+                                </Typography>
+                            </Paper>
+                        </Grid>
                     </Grid>
-                </Grid>
-            )}
+                )}
+            </Box>
 
             {/* Price vs Operation Chart */}
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ mt: 1 }} ref={chartsRef}>
                 <PriceOperationChart
                     ref={priceChartRef}
                     ganttData={ganttData ?? undefined}
@@ -508,7 +539,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     colors={colors}
                     timeCategories={timeCategories}
                     height={320}
-                    title="Price & Operation Analysis"
+                    title="價格與操作分析 (Price & Operation Analysis)"
                     groupId="revenue-time-group"
                 />
             </Box>
@@ -517,7 +548,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             <Box sx={{ mt: 2 }}>
                 {ganttData ? (
                     <Box>
-                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>Operating Schedule</Typography>
+                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>操作排程與電池狀態 (Operating Schedule & State)</Typography>
                         <RevenueGanttChart data={ganttData} selectedModels={selectedModels} timeCategories={timeCategories} colors={colors} opChartRef={opChartRef} socChartRef={socChartRef} />
                     </Box>
                 ) : (
@@ -530,11 +561,11 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             <Divider sx={{ my: 2 }} />
 
             {/* Daily Revenue Analysis */}
-            <Box sx={{ minHeight: 420, mt: 1 }}>
+            <Box sx={{ minHeight: 420, mt: 1 }} ref={dailyRef}>
                 {actualResult && (
                     <>
                         <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                            Daily Revenue Analysis
+                            每日收益分析 (Daily Revenue Analysis)
                         </Typography>
                         <BaseChart option={dailyAnalysisOption as EChartsOption} height={400} />
                     </>
@@ -544,27 +575,29 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             <Divider sx={{ my: 2 }} />
 
             {/* Operation Details Table */}
-            {ganttData && displayedSchedule.length > 0 && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pb: 4 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="h6">Operation Details Table</Typography>
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel id="schedule-select-label">Select Schedule</InputLabel>
-                            <Select
-                                labelId="schedule-select-label"
-                                value={selectedScheduleId}
-                                label="Select Schedule"
-                                onChange={(e) => setSelectedScheduleId(e.target.value)}
-                            >
-                                {availableSchedules.map(opt => (
-                                    <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+            <Box ref={tableRef}>
+                {ganttData && displayedSchedule.length > 0 && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pb: 4 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="subtitle1" fontWeight="600">操作明細表 (Operation Details)</Typography>
+                            <FormControl size="small" sx={{ minWidth: 200 }}>
+                                <InputLabel id="schedule-select-label">排程類型 (Schedule)</InputLabel>
+                                <Select
+                                    labelId="schedule-select-label"
+                                    value={selectedScheduleId}
+                                    label="排程類型 (Schedule)"
+                                    onChange={(e) => setSelectedScheduleId(e.target.value)}
+                                >
+                                    {availableSchedules.map(opt => (
+                                        <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Box>
+                        <OperationScheduleTable data={displayedSchedule} />
                     </Box>
-                    <OperationScheduleTable data={displayedSchedule} />
-                </Box>
-            )}
+                )}
+            </Box>
         </Box>
     );
 };

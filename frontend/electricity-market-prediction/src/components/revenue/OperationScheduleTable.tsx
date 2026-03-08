@@ -28,9 +28,13 @@ interface OperationScheduleTableProps {
 type Order = 'asc' | 'desc';
 type OrderBy = keyof GanttOperation | 'timeCode';
 
+/**
+ * 儲能操作明細表 | Energy storage operation details table
+ * 顯示每小時/每半小時的充放電狀態與收益 (Displays hourly/half-hourly charge/discharge state and revenue)
+ */
 export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
     data,
-    title = "Detailed Operation Schedule",
+    title = "詳細操作排程 (Detailed Operation Schedule)",
     height = 400
 }) => {
     const { darkMode } = useTheme();
@@ -89,14 +93,14 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
             <TableContainer sx={{ maxHeight: height }}>
                 <Table stickyHeader aria-label="operation table" size="small">
                     <TableHead>
-                        <TableRow>
+                        <TableRow sx={{ '& th': { bgcolor: darkMode ? '#1e1e1e' : '#f5f5f5', zIndex: 1 } }}>
                             <TableCell>
                                 <TableSortLabel
                                     active={orderBy === 'datetime'}
                                     direction={orderBy === 'datetime' ? order : 'asc'}
                                     onClick={() => handleRequestSort('datetime')}
                                 >
-                                    Time
+                                    時間 (Time)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="center">
@@ -105,7 +109,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'timeCode' ? order : 'asc'}
                                     onClick={() => handleRequestSort('timeCode')}
                                 >
-                                    Time Code
+                                    時段 (Time Code)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="center">
@@ -114,7 +118,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'action' ? order : 'asc'}
                                     onClick={() => handleRequestSort('action')}
                                 >
-                                    Action
+                                    操作 (Action)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -123,7 +127,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'power' ? order : 'asc'}
                                     onClick={() => handleRequestSort('power')}
                                 >
-                                    Power (kW)
+                                    功率 (Power) (kW)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -132,7 +136,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'priceActual' ? order : 'asc'}
                                     onClick={() => handleRequestSort('priceActual' as any)}
                                 >
-                                    Price (Actual)
+                                    實際價格 (Act. Price)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -141,7 +145,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'pricePredicted' ? order : 'asc'}
                                     onClick={() => handleRequestSort('pricePredicted' as any)}
                                 >
-                                    Price (Pred)
+                                    預測價格 (Pred. Price)
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -150,7 +154,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'revenueRealized' ? order : 'asc'}
                                     onClick={() => handleRequestSort('revenueRealized' as any)}
                                 >
-                                    Revenue (Realized)
+                                    實現收益 (Realized JPY)
                                 </TableSortLabel>
                             </TableCell>
                         </TableRow>
