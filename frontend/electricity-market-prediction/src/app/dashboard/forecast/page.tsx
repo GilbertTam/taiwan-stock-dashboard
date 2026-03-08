@@ -36,6 +36,7 @@ function ForecastContent() {
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading, isFetchingPredictions,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
     handleDateRangePreset, setStartDate, setEndDate, refreshData, registerPageNeeds, unregisterPageNeeds,
+    selectedWeatherModelActual, selectedWeatherModelForecast,
   } = useMarketDataContext();
 
   // Register scopes required for ForecastPage
@@ -106,6 +107,8 @@ function ForecastContent() {
         bidPlansData={bidPlansData}
         weatherActual={weatherActual}
         weatherForecast={weatherForecast}
+        selectedWeatherModelActual={selectedWeatherModelActual}
+        selectedWeatherModelForecast={selectedWeatherModelForecast}
         darkMode={darkMode}
         colors={colors}
       >

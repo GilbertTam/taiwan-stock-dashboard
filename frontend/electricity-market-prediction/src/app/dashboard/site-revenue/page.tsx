@@ -47,6 +47,7 @@ function SiteRevenueContent() {
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading: isDataLoading,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
     handleDateRangePreset, setStartDate, setEndDate, refreshData, registerPageNeeds, unregisterPageNeeds,
+    selectedWeatherModelActual, selectedWeatherModelForecast,
   } = useMarketDataContext();
 
   // Register scopes required for SiteRevenuePage
@@ -94,15 +95,32 @@ function SiteRevenueContent() {
     initialSimulationRun.current = false;
   }, [chartData.length, selectedModels.length]);
 
+  // Explicit model change handler - triggers simulation when models change and previous results existed
+  useEffect(() => {
+    // Only trigger if we had previous results (ganttData exists) and models changed
+    if (ganttData && selectedModels.length > 0 && !isSimulating) {
+      // Reset flag to allow re-run
+      initialSimulationRun.current = false;
+      // Trigger simulation after a brief delay to allow clearing to complete
+      const timer = setTimeout(() => {
+        handleCalculate();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedModels.map(m => `${m.id}|${m.name}`).join(',')]);
+
+  // Create stable serialization key for selectedModels comparison
+  const selectedModelsKey = JSON.stringify(selectedModels.map(m => ({ id: m.id, name: m.name })));
+
   // Auto-run simulation when page has valid data (including after date/area change)
   useEffect(() => {
     if (initialSimulationRun.current) return;
     const validData = chartData.filter(d => d.actualPrice !== null || (d.modelPredictions?.length ?? 0) > 0);
-    if (validData.length > 0 && selectedModels.length > 0 && !ganttData && !isSimulating) {
+    if (validData.length > 0 && selectedModels.length > 0 && !ganttData && !isSimulating && !isDataLoading) {
       initialSimulationRun.current = true;
       handleCalculate();
     }
-  }, [chartData, selectedModels.length, ganttData, isSimulating]);
+  }, [chartData, selectedModelsKey, ganttData, isSimulating, isDataLoading]);
 
   // Handlers
   const handleDownloadRevenueCsv = useCallback(() => {
@@ -426,6 +444,8 @@ function SiteRevenueContent() {
         bidPlansData={bidPlansData}
         weatherActual={weatherActual}
         weatherForecast={weatherForecast}
+        selectedWeatherModelActual={selectedWeatherModelActual}
+        selectedWeatherModelForecast={selectedWeatherModelForecast}
         darkMode={darkMode}
         colors={colors}
       >
