@@ -58,7 +58,8 @@ class Settings(BaseSettings):
     ES_INDEX_TDGC: str = "tdgc"
     ES_INDEX_WEATHER_ACTUAL_HOURLY: str = "weather_actual_hourly"
     ES_INDEX_WEATHER_ACTUAL_DAILY: str = "weather_actual_daily"
-    ES_INDEX_WEATHER_FORECAST: str = "weather_forecast"
+    ES_INDEX_WEATHER_FORECAST_HOURLY: str = "weather_forecast_hourly"
+    ES_INDEX_WEATHER_FORECAST_DAILY: str = "weather_forecast_daily"
     ES_INDEX_BATTERY_DATA: str = "battery_data"
     ES_INDEX_BID_PLANS: str = "bid_plans"
 
@@ -83,7 +84,8 @@ class Settings(BaseSettings):
             'tdgc': self.ES_INDEX_TDGC,
             'weather_actual': self.ES_INDEX_WEATHER_ACTUAL_HOURLY,
             'weather_actual_daily': self.ES_INDEX_WEATHER_ACTUAL_DAILY,
-            'weather_forecast': self.ES_INDEX_WEATHER_FORECAST,
+            'weather_forecast': self.ES_INDEX_WEATHER_FORECAST_HOURLY,
+            'weather_forecast_daily': self.ES_INDEX_WEATHER_FORECAST_DAILY,
             'battery_data': self.ES_INDEX_BATTERY_DATA,
             'bid_plans': self.ES_INDEX_BID_PLANS,
         }
