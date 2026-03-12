@@ -1,6 +1,10 @@
 
 # My custom ignore list
 
+optimizer.py
+update-weather-actual.py
+update-weather-forecast.py
+
 *-examples/
 .kiro
 .vscode
@@ -154,4 +158,3 @@ dmypy.json
 *.log.*
 .vscode/*
 .cursor/*
-
