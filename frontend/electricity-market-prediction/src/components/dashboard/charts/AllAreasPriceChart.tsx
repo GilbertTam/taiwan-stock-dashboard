@@ -21,8 +21,9 @@ import { ChartDataPoint, toChartTime, fromChartTime, createFullChartOptions } fr
 import { format } from 'date-fns';
 import { DayBackgroundPrimitive } from '@/components/charts';
 import { OutageMarkersPrimitive, type OutagePoint } from './OutageMarkersPrimitive';
-import { OutageTooltip } from './chart-parts/OutageTooltip';
-import { OutageIndicatorBar } from './chart-parts/OutageIndicatorBar';
+import { OutageHoverBar } from './chart-parts/OutageHoverBar';
+import { OutageSummaryChip } from './chart-parts/OutageSummaryChip';
+import { OutageDetailDrawer } from './chart-parts/OutageDetailDrawer';
 import { AreaChartLegend } from '@/components/charts/legends/AreaChartLegend';
 
 // 9個不同區域的顏色定義，用於圖表線條與圖例
@@ -82,12 +83,12 @@ export function AllAreasPriceChart({
     const onHoverDataRef = useRef(onHoverData);
 
     const mergedPointsRef = useRef<OutagePoint[]>([]);
-    const lastMousePositionRef = useRef({ x: 0, y: 0 });
-    const setHoveredOutageRef = useRef<((v: { outages: HjksOutage[]; position: { x: number; y: number } } | null) => void) | null>(null);
+    const setHoveredOutageRef = useRef<((v: { outages: HjksOutage[] } | null) => void) | null>(null);
 
     const [chartInitialized, setChartInitialized] = useState(false);
-    const [hoveredOutage, setHoveredOutage] = useState<{ outages: HjksOutage[]; position: { x: number; y: number } } | null>(null);
+    const [hoveredOutage, setHoveredOutage] = useState<{ outages: HjksOutage[] } | null>(null);
     const [showLabels, setShowLabels] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     // 用於淡化非高亮區域的透明度動畫
     const dimOpacityRef = useRef(1);
@@ -242,7 +243,6 @@ export function AllAreasPriceChart({
             // 訂閱十字準線移動事件，處理數據懸停顯示與停機事件提示
             chart.subscribeCrosshairMove((param) => {
                 const setHover = setHoveredOutageRef.current;
-                const pos = lastMousePositionRef.current;
 
                 const callOnHoverData = (data: { areaName: string; price: number; time: string; timestamp: number }[] | null) => {
                     const fn = onHoverDataRef.current;
@@ -282,7 +282,7 @@ export function AllAreasPriceChart({
                 const points = mergedPointsRef.current;
                 const near = points.find((p) => Math.abs(timeSec - p.time) <= NEAR_OUTAGE_THRESHOLD_SEC);
                 if (near && near.outages.length > 0) {
-                    setHover?.({ outages: near.outages, position: { x: pos.x, y: pos.y } });
+                    setHover?.({ outages: near.outages });
                 } else {
                     setHover?.(null);
                 }
@@ -451,14 +451,6 @@ export function AllAreasPriceChart({
         };
     }, [highlightedArea, chartInitialized, areas]);
 
-    // 處理停機列表條目的懸停事件
-    const handleOutageBarHover = useCallback((outages: HjksOutage[], e: React.MouseEvent) => {
-        setHoveredOutage({ outages, position: { x: e.clientX, y: e.clientY } });
-    }, []);
-
-    const handleOutageBarLeave = useCallback(() => {
-        setHoveredOutage(null);
-    }, []);
 
     // 載入中狀態
     if (loading) {
@@ -513,20 +505,19 @@ export function AllAreasPriceChart({
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                {/* 停機事件指示條 (顯示總數與橫向捲動列表) */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <OutageIndicatorBar
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                {/* 停機影響摘要徽章（點擊展開詳細抽屜） */}
+                <Box sx={{ flexShrink: 0 }}>
+                    <OutageSummaryChip
                         outages={outages}
-                        outagePoints={outagePoints}
-                        highlightedArea={highlightedArea}
-                        areas={areas}
-                        onHover={handleOutageBarHover}
-                        onLeave={handleOutageBarLeave}
+                        onClick={() => setDrawerOpen(true)}
+                        totalAreas={areas.length}
                     />
                 </Box>
+                {/* 停機懸停資訊（Chip 右側空白區域） */}
+                <OutageHoverBar outages={hoveredOutage?.outages ?? null} />
                 {/* 標籤顯示切換按鈕 */}
-                <Box sx={{ flexShrink: 0, ml: 2 }}>
+                <Box sx={{ flexShrink: 0, ml: 'auto' }}>
                     <Tooltip title={showLabels ? '隱藏文字標籤' : '顯示文字標籤'} placement="left" arrow>
                         <IconButton
                             size="small"
@@ -545,12 +536,9 @@ export function AllAreasPriceChart({
                 </Box>
             </Box>
 
-            {/* 圖表容器 - 追蹤滑鼠位置用於 Tooltip 定位 */}
+            {/* 圖表容器 */}
             <Box
                 ref={containerRef}
-                onMouseMove={(e) => {
-                    lastMousePositionRef.current = { x: e.clientX, y: e.clientY };
-                }}
                 onMouseLeave={() => setHoveredOutage(null)}
                 sx={{
                     flex: 1,
@@ -559,16 +547,19 @@ export function AllAreasPriceChart({
                 }}
             />
 
-            {/* 懸停 Tooltip - 使用 Portal 渲染在頂層 */}
-            {hoveredOutage && (
-                <OutageTooltip outages={hoveredOutage.outages} position={hoveredOutage.position} />
-            )}
-
             {/* 圖例 */}
             <AreaChartLegend
                 areas={areas}
                 highlightedArea={highlightedArea}
                 colors={AREA_COLORS}
+            />
+
+            {/* 停機詳細抽屜（從右側展開，不遮擋圖表） */}
+            <OutageDetailDrawer
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                outages={outages}
+                darkMode={darkMode}
             />
         </Box>
     );

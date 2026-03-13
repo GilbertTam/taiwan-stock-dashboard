@@ -29,10 +29,10 @@ export interface OutagePoint {
     prices: Record<string, number>;
 }
 
-const VERTICAL_LINE_COLOR = '#dc2626';
-const VERTICAL_LINE_WIDTH = 2;
+const VERTICAL_LINE_COLOR = 'rgba(220,38,38,0.35)';
+const VERTICAL_LINE_WIDTH = 1;
 const PIN_TOP_OFFSET = 10;
-const PIN_SIZE = 10; // half-width of the triangle
+const PIN_SIZE = 0; // 0 = no triangle pin
 const PIN_FILL = '#dc2626';
 const PIN_STROKE = '#ffffff';
 const PIN_STROKE_WIDTH = 1.5;
@@ -105,24 +105,26 @@ class OutageMarkersRenderer implements IPrimitivePaneRenderer {
                 // Vertical line (full height)
                 ctx.strokeStyle = VERTICAL_LINE_COLOR;
                 ctx.lineWidth = lineW;
-                ctx.setLineDash([6 * horzRatio, 4 * horzRatio]);
+                ctx.setLineDash([3 * horzRatio, 3 * horzRatio]);
                 ctx.beginPath();
-                ctx.moveTo(bitmapX, topY + pinSize * 2);
+                ctx.moveTo(bitmapX, topY);
                 ctx.lineTo(bitmapX, height);
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Single pin marker at top: downward triangle (▼) = "停機 at this time"
-                ctx.fillStyle = PIN_FILL;
-                ctx.strokeStyle = PIN_STROKE;
-                ctx.lineWidth = PIN_STROKE_WIDTH * horzRatio;
-                ctx.beginPath();
-                ctx.moveTo(bitmapX, topY);
-                ctx.lineTo(bitmapX - pinSize, topY + pinSize * 2);
-                ctx.lineTo(bitmapX + pinSize, topY + pinSize * 2);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                // Triangle pin disabled (PIN_SIZE = 0)
+                if (pinSize > 0) {
+                    ctx.fillStyle = PIN_FILL;
+                    ctx.strokeStyle = PIN_STROKE;
+                    ctx.lineWidth = PIN_STROKE_WIDTH * horzRatio;
+                    ctx.beginPath();
+                    ctx.moveTo(bitmapX, topY);
+                    ctx.lineTo(bitmapX - pinSize, topY + pinSize * 2);
+                    ctx.lineTo(bitmapX + pinSize, topY + pinSize * 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             });
