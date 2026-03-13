@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, useMediaQuery, useTheme } from '@mui/material';
+import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import { useAuth } from '@/context/AuthContext';
+import { checkSetupStatus } from '@/services/authApi';
 import {
   CircuitBoardWithRegions,
   LoginFormCard,
+  DevToolSetupButton,
 } from '@/components/auth';
 
 export default function LoginPage() {
@@ -15,11 +17,53 @@ export default function LoginPage() {
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
 
+  // null = loading, true = setup required, false = normal login
+  const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/dashboard');
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    checkSetupStatus()
+      .then((res) => setSetupRequired(res.setup_required))
+      .catch(() => setSetupRequired(false)); // fallback to normal login on error
+  }, []);
+
+  const handleSetupComplete = () => {
+    setSetupRequired(false);
+  };
+
+  // While checking setup status, show a centered spinner
+  if (setupRequired === null) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--background)',
+        }}
+      >
+        <CircularProgress size={32} sx={{ color: 'var(--primary)' }} />
+      </Box>
+    );
+  }
+
+  const formCard = (
+    <LoginFormCard
+      onSubmit={login}
+      mode={setupRequired ? 'setup' : 'login'}
+      onSetupComplete={handleSetupComplete}
+    />
+  );
+
+  const devButton = setupRequired ? (
+    <DevToolSetupButton onSetupComplete={handleSetupComplete} />
+  ) : null;
 
   return (
     <Box
@@ -48,15 +92,19 @@ export default function LoginPage() {
       >
         {isCompact ? (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 0 }}>
-              <LoginFormCard onSubmit={login} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minHeight: 0 }}>
+              {formCard}
+              {devButton}
             </Box>
             <CircuitBoardWithRegions />
           </>
         ) : (
           <>
             <CircuitBoardWithRegions />
-            <LoginFormCard onSubmit={login} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {formCard}
+              {devButton}
+            </Box>
           </>
         )}
       </Box>

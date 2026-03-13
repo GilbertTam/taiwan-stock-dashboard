@@ -8,3 +8,5 @@ export { CircuitFlowBar } from './CircuitFlowBar';
 export { CircuitCardTraces } from './CircuitCardTraces';
 export { LoginForm } from './LoginForm';
 export { LoginFormCard } from './LoginFormCard';
+export { SetupForm } from './SetupForm';
+export { DevToolSetupButton } from './DevToolSetupButton';

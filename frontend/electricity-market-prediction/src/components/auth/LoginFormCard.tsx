@@ -4,13 +4,16 @@ import { Box } from '@mui/material';
 import { CircuitFlowBar } from './CircuitFlowBar';
 import { CircuitCardTraces } from './CircuitCardTraces';
 import { LoginForm } from './LoginForm';
+import { SetupForm } from './SetupForm';
 import type { LoginCredentials } from '@/types';
 
 interface LoginFormCardProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
+  mode?: 'login' | 'setup';
+  onSetupComplete?: () => void;
 }
 
-export function LoginFormCard({ onSubmit }: LoginFormCardProps) {
+export function LoginFormCard({ onSubmit, mode = 'login', onSetupComplete }: LoginFormCardProps) {
   return (
     <Box
       sx={{
@@ -34,7 +37,11 @@ export function LoginFormCard({ onSubmit }: LoginFormCardProps) {
     >
       <CircuitFlowBar />
       <CircuitCardTraces />
-      <LoginForm onSubmit={onSubmit} />
+      {mode === 'setup' ? (
+        <SetupForm onSetupComplete={onSetupComplete ?? (() => {})} />
+      ) : (
+        <LoginForm onSubmit={onSubmit} />
+      )}
     </Box>
   );
 }

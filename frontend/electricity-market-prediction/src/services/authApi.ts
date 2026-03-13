@@ -8,6 +8,41 @@ import { createApiInstance } from './apiClient';
 import { AuthTokens, LoginCredentials } from '@/types';
 
 /**
+ * Check whether initial setup is required (no users exist).
+ */
+export const checkSetupStatus = async (): Promise<{ setup_required: boolean }> => {
+    const api = createApiInstance();
+    const response = await api.get<{ setup_required: boolean }>('/setup/status');
+    return response.data;
+};
+
+/**
+ * Create the first admin user during initial setup.
+ * Only works when no users exist in the database.
+ */
+export const createAdminUser = async (data: {
+    username: string;
+    email: string;
+    password: string;
+}): Promise<void> => {
+    const api = createApiInstance();
+    await api.post('/setup/create-admin', {
+        username: data.username,
+        email: data.email || null,
+        password: data.password,
+    });
+};
+
+/**
+ * Dev convenience: create default admin/1234 user.
+ * Only works when no users exist in the database.
+ */
+export const createDefaultAdmin = async (): Promise<void> => {
+    const api = createApiInstance();
+    await api.post('/setup/create-default-admin');
+};
+
+/**
  * Authenticate user and retrieve tokens.
  *
  * @param credentials - Username and password
