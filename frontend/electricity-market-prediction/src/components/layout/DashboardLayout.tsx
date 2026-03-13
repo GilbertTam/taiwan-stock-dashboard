@@ -1,19 +1,21 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { DashboardSidebar } from '@/components/navigation/DashboardSidebar';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 /**
- * 主內容佈局 | Main dashboard layout — full-screen container with fade-in animation.
+ * 主內容佈局 | Main dashboard layout — full-screen container with sidebar navigation.
  */
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col">
-      {/* Main Content Area - TradingView-like maximized layout */}
-      <main className="flex-1 overflow-hidden">
+    <div className="min-h-screen bg-[var(--background)] flex">
+      <DashboardSidebar />
+      {/* Main Content Area — offset by collapsed sidebar width (60px) */}
+      <main className="flex-1 overflow-hidden" style={{ marginLeft: 60 }}>
         {children}
       </main>
     </div>

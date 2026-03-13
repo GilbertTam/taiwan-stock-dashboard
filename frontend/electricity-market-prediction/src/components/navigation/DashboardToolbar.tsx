@@ -4,27 +4,19 @@ import React, { useState } from 'react';
 import {
   Box,
   Paper,
-  Button,
-  IconButton,
+  ButtonBase,
   Tooltip,
-  TextField,
-  InputAdornment,
   Popover,
   Menu,
   MenuItem,
+  Typography,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import { DateRange } from 'react-date-range';
 import { zhTW } from 'date-fns/locale';
 import { format } from 'date-fns';
-import { useRouter, usePathname } from 'next/navigation';
-import { TimeRangeSwitcher } from '@/components/navigation/TimeRangeSwitcher';
-import UserMenu from '@/components/navigation/UserMenu';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
@@ -34,7 +26,7 @@ export interface DownloadAction {
 }
 
 interface SimpleToolbarProps {
-  /** When 'minimal', only nav items and UserMenu are shown (for settings/about pages). */
+  /** When 'minimal', toolbar is hidden (nav is in the sidebar). */
   variant?: 'full' | 'minimal';
   startDate?: Date | null;
   endDate?: Date | null;
@@ -47,16 +39,23 @@ interface SimpleToolbarProps {
   downloadActions?: DownloadAction[];
   /** Current tab key for highlight (price | market-info). Only relevant on forecast page. */
   currentTab?: string;
+  isLoading?: boolean;
 }
 
-const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.ElementType }[] = [
-  { key: 'home', label: '總覽', path: '/dashboard', Icon: DashboardIcon },
-  { key: 'price', label: '預測分析', path: '/dashboard/forecast', Icon: TrendingUpIcon },
-  { key: 'site-revenue', label: '案場收益', path: '/dashboard/site-revenue', Icon: TrendingUpIcon },
-  { key: 'weather', label: '天氣分析', path: '/dashboard/weather', Icon: WbSunnyIcon },
+const DATE_PRESETS = [
+  { key: '1D',          label: '1D'  },
+  { key: '3D',          label: '3D'  },
+  { key: 'week',        label: '1W'  },
+  { key: 'twoWeeks',    label: '2W'  },
+  { key: 'month',       label: '1M'  },
+  { key: 'twoMonths',   label: '2M'  },
+  { key: 'threeMonths', label: '3M'  },
 ];
 
-export const DashboardToolbar: React.FC<SimpleToolbarProps & { isLoading?: boolean }> = ({
+// Shared button height
+const BTN_H = 28;
+
+export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   variant = 'full',
   startDate = null,
   endDate = null,
@@ -66,14 +65,13 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps & { isLoading?: boole
   onDateMenuClose,
   onRefresh,
   downloadActions = [],
-  currentTab = 'price',
   isLoading = false,
 }) => {
-  const router = useRouter();
-  const pathname = usePathname();
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
   const [downloadAnchorEl, setDownloadAnchorEl] = useState<HTMLElement | null>(null);
-  const isMinimal = variant === 'minimal';
+
+  // Minimal pages (settings/about) don't need a toolbar — sidebar handles navigation
+  if (variant === 'minimal') return null;
 
   const handleDateClick = (event: React.MouseEvent<HTMLElement>) => {
     setDateAnchorEl(event.currentTarget);
@@ -81,301 +79,330 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps & { isLoading?: boole
 
   const handleDateClose = () => {
     setDateAnchorEl(null);
-    if (onDateMenuClose) {
-      onDateMenuClose();
-    }
+    onDateMenuClose?.();
   };
 
   const openDateData = Boolean(dateAnchorEl);
   const idDateData = openDateData ? 'date-range-popover' : undefined;
 
+  const shiftDate = (dir: -1 | 1) => {
+    if (!startDate || !endDate) return;
+    const ONE_DAY = 86_400_000;
+    onDateRangeChange?.({
+      selection: {
+        startDate: new Date(startDate.getTime() + dir * ONE_DAY),
+        endDate:   new Date(endDate.getTime()   + dir * ONE_DAY),
+      },
+    });
+  };
+
   return (
     <Box component="span" sx={{ display: 'contents' }}>
       <Paper
+        elevation={0}
         sx={{
-          p: 1.5,
-          borderRadius: 1,
+          px: 1.5,
+          py: 0.75,
+          borderRadius: 1.5,
           border: '1px solid var(--card-border)',
-          backgroundColor: 'var(--card-bg)',
+          background: 'var(--card-bg)',
           mb: 1,
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
+          gap: 0.75,
+          minHeight: 44,
         }}
       >
-        {/* Nav: 總覽, 預測分析, 案場收益 */}
-        {NAV_ITEMS.map(({ key, label, path, Icon }) => {
-          const isActive = pathname === path ||
-            (key === 'price' && pathname.startsWith('/dashboard/forecast')) ||
-            (key === 'weather' && pathname.startsWith('/dashboard/weather')) ||
-            (key === 'site-revenue' && pathname.startsWith('/dashboard/site-revenue'));
-          return (
-            <Button
-              key={key}
-              size="small"
-              startIcon={<Icon sx={{ fontSize: 18 }} />}
-              onClick={() => router.push(path)}
+        {/* ── Unified date stepper ── */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: BTN_H,
+            border: '1px solid var(--card-border)',
+            borderRadius: 1,
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          {/* Prev */}
+          <Tooltip title="上一天">
+            <ButtonBase
+              disableRipple
+              onClick={() => shiftDate(-1)}
               sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                color: isActive ? 'var(--primary)' : 'var(--foreground)',
-                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-                borderRadius: 0,
-                minWidth: 'auto',
-                px: 1.5,
-                '&:hover': {
-                  backgroundColor: 'var(--hover-bg)',
-                },
+                width: 26,
+                height: '100%',
+                color: 'var(--muted)',
+                fontSize: 16,
+                fontWeight: 300,
+                borderRight: '1px solid var(--card-border)',
+                transition: 'all 0.12s',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
               }}
             >
-              {label}
-            </Button>
-          );
-        })}
+              ‹
+            </ButtonBase>
+          </Tooltip>
 
-        {!isMinimal && (
-          <Box component="span" sx={{ display: 'contents' }}>
-            <Box sx={{ width: 16, flexShrink: 0, borderLeft: '1px solid var(--card-border)', alignSelf: 'stretch', mx: 0.5 }} />
-
-            {/* Time Selection */}
-            <TextField
-              size="small"
-              value={`${startDate ? format(startDate, 'yyyy/MM/dd') : ''} - ${endDate ? format(endDate, 'yyyy/MM/dd') : ''}`}
-              onClick={handleDateClick}
-              InputProps={{
-                readOnly: true,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarTodayIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
+          {/* Date display / open picker */}
+          <ButtonBase
+            disableRipple
+            onClick={handleDateClick}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.625,
+              px: 1.25,
+              height: '100%',
+              transition: 'background 0.12s',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
+            }}
+          >
+            <CalendarTodayIcon sx={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }} />
+            <Typography
               sx={{
-                width: 250,
-                cursor: 'pointer',
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'var(--hover-bg)',
-                },
+                fontSize: 12,
+                color: 'var(--foreground)',
+                fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
+                whiteSpace: 'nowrap',
+                letterSpacing: 0.3,
               }}
-            />
+            >
+              {startDate ? format(startDate, 'MM/dd') : '--/--'}
+              <Box component="span" sx={{ color: 'var(--muted)', mx: 0.5 }}>–</Box>
+              {endDate ? format(endDate, 'MM/dd') : '--/--'}
+            </Typography>
+          </ButtonBase>
 
-            {/* Navigation Buttons */}
-            <Tooltip title="上一段區間">
-              <IconButton
-                size="small"
-                onClick={() => {
-                  if (startDate && endDate) {
-                    const diff = endDate.getTime() - startDate.getTime();
-                    // Shift back by the current range duration (or 1 day if preferred, but range makes sense for "previous view")
-                    // User asked for "Forward/Backward X days". Let's stick to 1 day shift for granular control as per common dashboard UX, 
-                    // OR shift by the range length.
-                    // Let's implement shifting by 1 day as a safe default for "scrolling".
-                    const shiftMs = 24 * 60 * 60 * 1000;
-                    // Wait, if I'm looking at a week, moving 1 day is slow.
-                    // Let's use 20% of the range or 1 day, whichever is larger?
-                    // Actually, "control forward/backward few days" - let's do 1 day for now as requested by "few days".
-                    const ONE_DAY = 24 * 60 * 60 * 1000;
-                    onDateRangeChange?.({
-                      selection: {
-                        startDate: new Date(startDate.getTime() - ONE_DAY),
-                        endDate: new Date(endDate.getTime() - ONE_DAY),
-                      }
-                    });
-                  }
+          {/* Next */}
+          <Tooltip title="下一天">
+            <ButtonBase
+              disableRipple
+              onClick={() => shiftDate(1)}
+              sx={{
+                width: 26,
+                height: '100%',
+                color: 'var(--muted)',
+                fontSize: 16,
+                fontWeight: 300,
+                borderLeft: '1px solid var(--card-border)',
+                transition: 'all 0.12s',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
+              }}
+            >
+              ›
+            </ButtonBase>
+          </Tooltip>
+        </Box>
+
+        {/* ── Preset chips ── */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          {DATE_PRESETS.map(({ key, label }) => {
+            const active = dateRangePreset === key;
+            return (
+              <ButtonBase
+                key={key}
+                disableRipple
+                onClick={() => onDateRangePreset?.(key)}
+                sx={{
+                  height: BTN_H,
+                  px: 0.875,
+                  borderRadius: 0.75,
+                  fontSize: 11,
+                  fontWeight: active ? 700 : 500,
+                  fontFamily: 'monospace',
+                  color: active ? 'var(--primary)' : 'var(--muted)',
+                  backgroundColor: active ? 'rgba(0,204,122,0.12)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: active ? 'rgba(0,204,122,0.3)' : 'transparent',
+                  transition: 'all 0.12s',
+                  '&:hover': {
+                    backgroundColor: active ? 'rgba(0,204,122,0.18)' : 'rgba(255,255,255,0.06)',
+                    color: active ? 'var(--primary)' : 'var(--foreground)',
+                    borderColor: active ? 'rgba(0,204,122,0.4)' : 'rgba(255,255,255,0.1)',
+                  },
                 }}
-                sx={{ border: '1px solid var(--card-border)', mr: 1 }}
               >
-                <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'<'}</Box>
-              </IconButton>
-            </Tooltip>
+                {label}
+              </ButtonBase>
+            );
+          })}
+        </Box>
 
-            <Tooltip title="下一段區間">
-              <IconButton
-                size="small"
-                onClick={() => {
-                  if (startDate && endDate) {
-                    const ONE_DAY = 24 * 60 * 60 * 1000;
-                    onDateRangeChange?.({
-                      selection: {
-                        startDate: new Date(startDate.getTime() + ONE_DAY),
-                        endDate: new Date(endDate.getTime() + ONE_DAY),
-                      }
-                    });
-                  }
+        {/* spacer */}
+        <Box sx={{ flex: 1 }} />
+
+        {/* ── Right action group ── */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: BTN_H,
+            border: '1px solid var(--card-border)',
+            borderRadius: 1,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Refresh */}
+          <Tooltip title="刷新數據">
+            <span>
+              <ButtonBase
+                disableRipple
+                onClick={() => onRefresh?.()}
+                disabled={isLoading}
+                sx={{
+                  width: BTN_H,
+                  height: BTN_H,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.12s',
+                  opacity: isLoading ? 0.4 : 1,
+                  borderRight: downloadActions.length > 0 ? '1px solid var(--card-border)' : 'none',
+                  '&:hover:not(:disabled)': { backgroundColor: 'rgba(255,255,255,0.07)' },
                 }}
-                sx={{ border: '1px solid var(--card-border)', mr: 1 }}
               >
-                <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{'>'}</Box>
-              </IconButton>
-            </Tooltip>
-
-            {/* Quick Time Range Switcher */}
-            <TimeRangeSwitcher
-              dateRangePreset={dateRangePreset}
-              onDateRangePreset={onDateRangePreset ?? (() => { })}
-            />
-
-            <Box sx={{ flex: 1 }} />
-
-            {/* Action Buttons */}
-            <Tooltip title="刷新數據">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={() => onRefresh?.()}
-                  disabled={isLoading}
+                <RefreshIcon
                   sx={{
-                    border: '1px solid var(--card-border)',
-                    '&:hover': {
-                      backgroundColor: 'var(--hover-bg)',
-                    },
+                    fontSize: 14,
+                    color: 'var(--muted)',
+                    animation: isLoading ? 'spin 1s linear infinite' : 'none',
+                    '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
                   }}
-                >
-                  <RefreshIcon
-                    fontSize="small"
-                    sx={{ color: isLoading ? 'text.disabled' : 'text.secondary' }}
-                  />
-                </IconButton>
-              </span>
+                />
+              </ButtonBase>
+            </span>
+          </Tooltip>
+
+          {/* Download — single action */}
+          {downloadActions.length === 1 && (
+            <Tooltip title={downloadActions[0].label}>
+              <ButtonBase
+                disableRipple
+                onClick={downloadActions[0].onClick}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  height: BTN_H,
+                  transition: 'all 0.12s',
+                  '&:hover': { backgroundColor: 'rgba(0,204,122,0.1)' },
+                }}
+              >
+                <DownloadIcon sx={{ fontSize: 13, color: 'var(--muted)' }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', fontFamily: 'monospace' }}>
+                  {downloadActions[0].label}
+                </Typography>
+              </ButtonBase>
             </Tooltip>
+          )}
 
-            {downloadActions.length > 0 && (
-              <Box component="span" sx={{ display: 'contents' }}>
-                {downloadActions.length === 1 ? (
-                  <Tooltip title={downloadActions[0].label}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      startIcon={<DownloadIcon />}
-                      onClick={downloadActions[0].onClick}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      {downloadActions[0].label}
-                    </Button>
-                  </Tooltip>
-                ) : (
-                  <Box component="span" sx={{ display: 'contents' }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      startIcon={<DownloadIcon />}
-                      onClick={(e) => setDownloadAnchorEl(e.currentTarget)}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      下載
-                    </Button>
-                    <Menu
-                      anchorEl={downloadAnchorEl}
-                      open={Boolean(downloadAnchorEl)}
-                      onClose={() => setDownloadAnchorEl(null)}
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    >
-                      {downloadActions.map((action, idx) => (
-                        <MenuItem
-                          key={idx}
-                          onClick={() => {
-                            action.onClick();
-                            setDownloadAnchorEl(null);
-                          }}
-                        >
-                          {action.label}
-                        </MenuItem>
-                      ))}
-                    </Menu>
-                  </Box>
-                )}
-              </Box>
-            )}
-          </Box>
-        )}
-
-        {isMinimal && <Box sx={{ flex: 1 }} />}
-        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, pl: 1, borderLeft: '1px solid var(--card-border)' }}>
-          <UserMenu showLabel size="small" />
+          {/* Download — multiple actions dropdown */}
+          {downloadActions.length > 1 && (
+            <>
+              <ButtonBase
+                disableRipple
+                onClick={(e: React.MouseEvent<HTMLElement>) => setDownloadAnchorEl(e.currentTarget)}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  height: BTN_H,
+                  transition: 'all 0.12s',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)' },
+                }}
+              >
+                <DownloadIcon sx={{ fontSize: 13, color: 'var(--muted)' }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', fontFamily: 'monospace' }}>
+                  下載
+                </Typography>
+              </ButtonBase>
+              <Menu
+                anchorEl={downloadAnchorEl}
+                open={Boolean(downloadAnchorEl)}
+                onClose={() => setDownloadAnchorEl(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      mt: 0.5,
+                      backgroundColor: 'var(--card-bg)',
+                      border: '1px solid var(--card-border)',
+                      backgroundImage: 'none',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                    },
+                  },
+                }}
+              >
+                {downloadActions.map((action, idx) => (
+                  <MenuItem
+                    key={idx}
+                    onClick={() => { action.onClick(); setDownloadAnchorEl(null); }}
+                    sx={{ fontSize: 13 }}
+                  >
+                    {action.label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </>
+          )}
         </Box>
       </Paper>
 
-      {!isMinimal && (
-        <Popover
-          id={idDateData}
-          open={openDateData}
-          anchorEl={dateAnchorEl}
-          onClose={handleDateClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              p: 0,
-              backgroundColor: 'var(--card-bg)',
-              backgroundImage: 'none',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--card-border)',
-              borderRadius: 2,
-              overflow: 'hidden'
-            }
+      {/* ── Date picker popover ── */}
+      <Popover
+        id={idDateData}
+        open={openDateData}
+        anchorEl={dateAnchorEl}
+        onClose={handleDateClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{
+          sx: {
+            mt: 0.75,
+            p: 0,
+            backgroundColor: 'var(--card-bg)',
+            backgroundImage: 'none',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+            border: '1px solid var(--card-border)',
+            borderRadius: 2,
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <Box
+          className="hdjp-date-range"
+          sx={{
+            '& .rdrDateRangeWrapper':       { backgroundColor: 'var(--card-bg) !important' },
+            '& .rdrDateRangePickerWrapper':  { backgroundColor: 'var(--card-bg) !important' },
+            '& .rdrCalendarWrapper':         { backgroundColor: 'var(--card-bg) !important' },
           }}
         >
-          <Box
-            className="hdjp-date-range"
-            sx={{
-              p: 0,
-              backgroundColor: 'var(--card-bg)',
-              '& .rdrDateRangeWrapper': {
-                backgroundColor: 'var(--card-bg) !important',
-              },
-              '& .rdrDateRangePickerWrapper': {
-                backgroundColor: 'var(--card-bg) !important',
-              },
-              '& .rdrCalendarWrapper': {
-                backgroundColor: 'var(--card-bg) !important',
-              },
+          <DateRange
+            editableDateInputs={true}
+            onChange={(ranges) => {
+              const { startDate: s, endDate: e } = ranges.selection;
+              onDateRangeChange?.(ranges);
+              if (s && e && s.getTime() !== e.getTime()) handleDateClose();
             }}
-          >
-            <DateRange
-              editableDateInputs={true}
-              onChange={(ranges) => {
-                const { startDate: newStartDate, endDate: newEndDate } = ranges.selection;
-
-                onDateRangeChange?.(ranges);
-
-                // 只有選完區間（起訖不同日）才自動關閉，避免只點開始日就關閉
-                if (
-                  newStartDate &&
-                  newEndDate &&
-                  newStartDate.getTime() !== newEndDate.getTime()
-                ) {
-                  handleDateClose();
-                }
-              }}
-              moveRangeOnFirstSelection={false}
-              ranges={[
-                {
-                  startDate: startDate || new Date(),
-                  endDate: endDate || new Date(),
-                  key: 'selection'
-                }
-              ]}
-              locale={zhTW}
-              months={2}
-              direction="horizontal"
-              showDateDisplay={false}
-              showMonthAndYearPickers={true}
-              rangeColors={['#00cc7a']}
-            />
-          </Box>
-        </Popover>
-      )}
+            moveRangeOnFirstSelection={false}
+            ranges={[{ startDate: startDate || new Date(), endDate: endDate || new Date(), key: 'selection' }]}
+            locale={zhTW}
+            months={2}
+            direction="horizontal"
+            showDateDisplay={false}
+            showMonthAndYearPickers={true}
+            rangeColors={['#00cc7a']}
+          />
+        </Box>
+      </Popover>
     </Box>
   );
 };
