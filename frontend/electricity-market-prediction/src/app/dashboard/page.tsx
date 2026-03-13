@@ -308,37 +308,66 @@ export default function Dashboard() {
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
-        <Suspense fallback={<LoadingOverlay />}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+        <Suspense fallback={<LoadingOverlay />} >
           {allAreasLoading ? (
             <LoadingOverlay />
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-              <Box sx={{ p: 1.5, pb: 0, flexShrink: 0 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, px: 0.5, gap: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 13 }}>
-                    區域一覽
-                  </Typography>
-                  <Tooltip
-                    title="價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較"
-                    arrow
-                    placement="right"
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 15, color: 'var(--muted)', cursor: 'help' }} />
-                  </Tooltip>
-                </Box>
-                <AreaCardList
-                  areas={areas}
-                  allAreasChartData={allAreasChartData}
-                  loading={allAreasLoading}
-                  focusedArea={highlightedArea}
-                  onAreaClick={(name) => setHighlightedArea((prev) => (prev === name ? null : name))}
-                  dailySpreadStats={dailySpreadStats}
-                />
-              </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-              <Box sx={{ display: 'flex', flex: 1, minHeight: 450, flexShrink: 0 }}>
-                {/* Main Dynamic Chart */}
+              {/* ── 主要區域：左右分割 ── */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, overflow: 'hidden' }}>
+
+                {/* 左側：區域卡片清單（垂直，可滾動） */}
+                <Box
+                  sx={{
+                    width: 220,
+                    flexShrink: 0,
+                    borderRight: '1px solid var(--card-border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* 標題列 */}
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      py: 1,
+                      flexShrink: 0,
+                      borderBottom: '1px solid var(--card-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.75,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 12 }}>
+                      區域一覽
+                    </Typography>
+                    <Tooltip
+                      title="價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較"
+                      arrow
+                      placement="bottom"
+                    >
+                      <InfoOutlinedIcon sx={{ fontSize: 13, color: 'var(--muted)', cursor: 'help' }} />
+                    </Tooltip>
+                  </Box>
+
+                  {/* 卡片垂直清單 */}
+                  <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0, p: 1 }}>
+                    <AreaCardList
+                      areas={areas}
+                      allAreasChartData={allAreasChartData}
+                      loading={allAreasLoading}
+                      focusedArea={highlightedArea}
+                      onAreaClick={(name) => setHighlightedArea((prev) => (prev === name ? null : name))}
+                      dailySpreadStats={dailySpreadStats}
+                      direction="column"
+                    />
+                  </Box>
+                </Box>
+
+                {/* 右側：全區域電價主圖 */}
                 <Box
                   sx={{
                     flex: 1,
@@ -363,11 +392,10 @@ export default function Dashboard() {
                     outages={outages}
                   />
                 </Box>
-
               </Box>
 
-              {/* Bottom: Regional Price Heatmap */}
-              <Box sx={{ p: 1.5, pt: 2, borderTop: '1px solid var(--card-border)', flexShrink: 0 }}>
+              {/* ── 底部：區域電價熱圖（全寬） ── */}
+              <Box sx={{ flexShrink: 0, p: 1.5, pt: 1, borderTop: '1px solid var(--card-border)' }}>
                 <RegionalPriceHeatmap
                   areas={areas}
                   allAreasChartData={allAreasChartData}

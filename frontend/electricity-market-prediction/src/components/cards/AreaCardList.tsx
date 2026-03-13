@@ -102,37 +102,68 @@ export function AreaInfoCard({
             />
 
             {/* Main content */}
-            <Box sx={{ flex: 1, minWidth: 0, py: 1, pl: 1.25, pr: 0.5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0.25 }}>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 13, lineHeight: 1.3 }} noWrap>
+            <Box sx={{ flex: 1, minWidth: 0, py: 1, pl: 1.25, pr: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0.375 }}>
+                {/* 地區名稱 */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
+                    <Typography sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 12, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {area.name_ch}
                     </Typography>
-                    {loading ? (
-                        <Skeleton variant="text" width={44} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
-                    ) : hasData && latestPrice != null && (
-                        <Typography component="span" sx={{ fontWeight: 600, color: 'var(--foreground)', fontFamily: 'monospace', fontSize: 12 }}>
-                            ¥{latestPrice.toFixed(1)}
-                        </Typography>
+                    {/* 漲跌指標 */}
+                    {!loading && spreadChange != null && (
+                        <Box
+                            component="span"
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.25,
+                                px: 0.5,
+                                py: 0.125,
+                                borderRadius: 0.5,
+                                flexShrink: 0,
+                                backgroundColor: spreadChange >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                                color: spreadChange >= 0 ? '#4ade80' : '#f87171',
+                            }}
+                        >
+                            {spreadChange >= 0
+                                ? <TrendingUpIcon sx={{ fontSize: 10 }} />
+                                : <TrendingDownIcon sx={{ fontSize: 10 }} />}
+                            <Box component="span" sx={{ fontSize: 9, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                {spreadChange >= 0 ? '+' : ''}{spreadChange.toFixed(1)}%
+                            </Box>
+                        </Box>
                     )}
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-                    <Typography variant="caption" sx={{ color: 'var(--muted)', fontSize: 10 }}>
+
+                {/* 最新電價（大字） */}
+                {loading ? (
+                    <Skeleton variant="text" width={56} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                ) : hasData && latestPrice != null ? (
+                    <Typography
+                        sx={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: color,
+                            fontFamily: 'monospace',
+                            fontVariantNumeric: 'tabular-nums',
+                            lineHeight: 1.1,
+                            letterSpacing: '-0.02em',
+                        }}
+                    >
+                        ¥{latestPrice.toFixed(2)}
+                    </Typography>
+                ) : (
+                    <Typography sx={{ fontSize: 12, color: 'var(--muted)' }}>—</Typography>
+                )}
+
+                {/* 次要資訊：ID + 價差 */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
+                    <Typography sx={{ color: 'var(--muted)', fontSize: 9, fontFamily: 'monospace', letterSpacing: 0.2 }}>
                         {area.name}
                     </Typography>
-                    {!loading && hasData && (spreadChange != null || todaySpread != null) && (
-                        <>
-                            {spreadChange != null && (
-                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', color: spreadChange >= 0 ? 'var(--success)' : 'var(--danger)', fontSize: 9 }}>
-                                    {spreadChange >= 0 ? <TrendingUpIcon sx={{ fontSize: 10 }} /> : <TrendingDownIcon sx={{ fontSize: 10 }} />}
-                                    <span style={{ marginLeft: 2 }}>{spreadChange >= 0 ? '+' : ''}{spreadChange.toFixed(1)}%</span>
-                                </Box>
-                            )}
-                            {todaySpread != null && (
-                                <Typography component="span" variant="caption" sx={{ color: 'var(--muted)', fontSize: 9, fontFamily: 'monospace' }}>
-                                    價差 ¥{todaySpread.toFixed(1)}
-                                </Typography>
-                            )}
-                        </>
+                    {!loading && todaySpread != null && (
+                        <Typography sx={{ color: 'var(--muted)', fontSize: 9, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
+                            Δ¥{todaySpread.toFixed(1)}
+                        </Typography>
                     )}
                 </Box>
             </Box>
@@ -147,6 +178,7 @@ interface AreaCardListProps {
     focusedArea?: string | null;
     onAreaClick?: (areaName: string) => void;
     dailySpreadStats?: Record<string, { todaySpread: number | null; yesterdaySpread: number | null; change: number | null }>;
+    direction?: 'row' | 'column';
 }
 
 export function AreaCardList({
@@ -156,21 +188,25 @@ export function AreaCardList({
     focusedArea,
     onAreaClick,
     dailySpreadStats,
+    direction = 'row',
 }: AreaCardListProps) {
+    const isColumn = direction === 'column';
     return (
         <Box
             sx={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center', // Added to center cards horizontally
-                flexDirection: 'row',
+                alignItems: isColumn ? 'stretch' : 'center',
+                justifyContent: isColumn ? 'flex-start' : 'center',
+                flexDirection: isColumn ? 'column' : 'row',
                 gap: 0.75,
                 width: '100%',
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                pb: 0.5,
+                height: isColumn ? '100%' : undefined,
+                overflowX: isColumn ? 'hidden' : 'auto',
+                overflowY: isColumn ? 'auto' : 'hidden',
+                pb: isColumn ? 0 : 0.5,
                 '&::-webkit-scrollbar': {
-                    height: 4,
+                    width: isColumn ? 4 : undefined,
+                    height: isColumn ? undefined : 4,
                 },
                 '&::-webkit-scrollbar-track': {
                     backgroundColor: 'transparent',
@@ -179,10 +215,16 @@ export function AreaCardList({
                     backgroundColor: 'rgba(255,255,255,0.2)',
                     borderRadius: 2,
                 },
-                '& > *': {
-                    flexShrink: 0,
-                    width: 140, // Fixed width for each card so they scrolling nicely
-                },
+                ...(isColumn ? {
+                    '& > *': {
+                        minWidth: 0,
+                    },
+                } : {
+                    '& > *': {
+                        flexShrink: 0,
+                        width: 140,
+                    },
+                }),
             }}
         >
             {areas.map((area, idx) => (
