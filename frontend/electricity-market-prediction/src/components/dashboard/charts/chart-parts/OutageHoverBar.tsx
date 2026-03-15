@@ -63,11 +63,6 @@ function SingleOutageRow({ outage }: { outage: HjksOutage }) {
                 )}
             </Typography>
 
-            {/* 地區 */}
-            <Typography sx={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>
-                {outage.area}
-            </Typography>
-
             {/* 容量 */}
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: colors.text, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                 {capacity} MW

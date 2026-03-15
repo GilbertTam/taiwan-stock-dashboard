@@ -89,13 +89,10 @@ function StatBox({ label, value, color }: { label: string; value: string; color?
  * 顯示：摘要統計 + 按停機類型分組的詳細清單
  */
 export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageDetailDrawerProps) {
-    const { activeOutages, affectedAreas, largestOutage, grouped, endedCount } = useMemo(() => {
+    const { activeOutages, largestOutage, grouped, endedCount } = useMemo(() => {
         const now = new Date();
         const active = outages.filter((o) => !o.end_datetime || new Date(o.end_datetime) > now);
         const ended = outages.filter((o) => o.end_datetime && new Date(o.end_datetime) <= now);
-
-        // 各地區分開計算，不跨地區加總
-        const areas = new Set(active.map((o) => o.area).filter(Boolean));
 
         const largest = active.reduce<HjksOutage | null>((prev, curr) => {
             const currCap = curr.down_capacity ?? curr.max_capacity ?? 0;
@@ -129,7 +126,6 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
 
         return {
             activeOutages: active,
-            affectedAreas: areas.size,
             largestOutage: largest,
             grouped: groups,
             endedCount: ended.length,
@@ -203,7 +199,6 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                         {/* ── 摘要統計 ── */}
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             <StatBox label="件数" value={`${activeOutages.length}件`} color="#f87171" />
-                            <StatBox label="影響エリア" value={`${affectedAreas}地區`} color="#f97316" />
                             <StatBox
                                 label="最大單一"
                                 value={largestOutage

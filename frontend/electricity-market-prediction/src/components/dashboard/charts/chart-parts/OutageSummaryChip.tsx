@@ -9,26 +9,22 @@ interface OutageSummaryChipProps {
     outages: HjksOutage[];
     onClick: () => void;
     loading?: boolean;
-    /** Total number of areas in the system — used for the N in "X/N エリア" */
-    totalAreas?: number;
 }
 
 /**
  * 停機影響摘要徽章
  * 顯示目前停機件數、受影響地區數與總削減容量 (MW)，點擊後開啟詳細抽屜
  */
-export function OutageSummaryChip({ outages, onClick, loading, totalAreas }: OutageSummaryChipProps) {
-    const { activeCount, affectedAreas, totalDownMW } = useMemo(() => {
+export function OutageSummaryChip({ outages, onClick, loading }: OutageSummaryChipProps) {
+    const { activeCount, totalDownMW } = useMemo(() => {
         const active = outages.filter(
             (o) => !o.end_datetime || new Date(o.end_datetime) > new Date()
         );
-        const areas = new Set(active.map((o) => o.area).filter(Boolean));
         const totalDownMW = active.reduce((sum, o) => sum + (o.down_capacity ?? 0), 0);
-        return { activeCount: active.length, affectedAreas: areas.size, totalDownMW };
+        return { activeCount: active.length, totalDownMW };
     }, [outages]);
 
     const hasOutages = activeCount > 0;
-    const areaTotal = totalAreas ?? 9;
 
     if (loading) {
         return (
@@ -99,7 +95,7 @@ export function OutageSummaryChip({ outages, onClick, loading, totalAreas }: Out
                 }}
             >
                 {hasOutages
-                    ? `${activeCount}件 · ${affectedAreas}/${areaTotal}エリア${totalDownMW > 0 ? ` · ${totalDownMW.toLocaleString()}MW` : ''}`
+                    ? `${activeCount}件${totalDownMW > 0 ? ` · ${totalDownMW.toLocaleString()}MW` : ''}`
                     : '停機なし'}
             </Typography>
         </Box>

@@ -511,7 +511,6 @@ export function AllAreasPriceChart({
                     <OutageSummaryChip
                         outages={outages}
                         onClick={() => setDrawerOpen(true)}
-                        totalAreas={areas.length}
                     />
                 </Box>
                 {/* 停機懸停資訊（Chip 右側空白區域） */}
