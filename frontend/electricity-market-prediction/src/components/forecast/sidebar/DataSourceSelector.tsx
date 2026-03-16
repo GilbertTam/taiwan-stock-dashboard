@@ -506,7 +506,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             {availableBidPlanCategories.map((cat) => (
                                                 <Chip
                                                     key={cat}
-                                                    label={cat === 'spot' ? '現貨市場' : cat === 'intraday' ? '日內市場' : cat}
+                                                    label={cat === 'spot' ? '現貨市場' : cat === 'intraday' ? '日內市場' : cat === '1000' ? '一次調整市場' : cat}
                                                     size="small"
                                                     variant={selectedBidPlanCategories.has(cat) ? 'filled' : 'outlined'}
                                                     color={selectedBidPlanCategories.has(cat) ? 'primary' : 'default'}
