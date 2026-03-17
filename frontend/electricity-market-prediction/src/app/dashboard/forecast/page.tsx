@@ -169,6 +169,7 @@ function ForecastContent() {
                   weatherActual={weatherActual}
                   weatherForecast={weatherForecast}
                   marketInfoWeatherChartData={marketInfoWeatherChartData}
+                  intradayData={intradayData}
                   defaultPanelMarketInfo={defaultPanelMarketInfo}
                 />
               </Box>

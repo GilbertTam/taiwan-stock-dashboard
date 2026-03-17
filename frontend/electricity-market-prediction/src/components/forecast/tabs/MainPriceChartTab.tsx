@@ -18,13 +18,16 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CloudIcon from '@mui/icons-material/Cloud';
+import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
 import { PriceChartContainer } from '../charts/PriceChartContainer';
 import ProfitAnalysis from '../profit-analysis/ProfitAnalysis';
 import MaeAnalysis from '../mae-analysis/MaeAnalysis';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/market/InterconnectionPanel';
 import WeatherChartSection from '@/components/market/weather/WeatherChartSection';
+import IntradayPanel from '@/components/market/intraday/IntradayPanel';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
+import type { IntradayData } from '@/types';
 
 interface MainPriceChartTabProps {
   areaName: string;
@@ -36,11 +39,12 @@ interface MainPriceChartTabProps {
   weatherActual: any[];
   weatherForecast: any[];
   marketInfoWeatherChartData: any[];
+  intradayData?: IntradayData[];
   /** 若為 true，下方區塊預設展開並選「停機資訊」 */
   defaultPanelMarketInfo?: boolean;
 }
 
-type SubTabIndex = 0 | 1 | 2 | 3 | 4;
+type SubTabIndex = 0 | 1 | 2 | 3 | 4 | 5;
 
 const BOTTOM_BAR_HEIGHT = 40;
 const STORAGE_KEY = 'main-price-chart-bottom-panel';
@@ -59,6 +63,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   weatherActual,
   weatherForecast,
   marketInfoWeatherChartData,
+  intradayData = [],
   defaultPanelMarketInfo = false,
 }) => {
   const theme = useTheme();
@@ -181,6 +186,12 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         label="天氣資料"
         onClick={() => handleTabClick(4)}
       />
+      <Tab
+        icon={<CandlestickChartIcon sx={{ fontSize: 18, mr: 0.5 }} />}
+        iconPosition="start"
+        label="日内市場"
+        onClick={() => handleTabClick(5)}
+      />
     </Tabs>
   );
 
@@ -270,6 +281,11 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
             weatherForecast={weatherForecast}
             weatherChartData={marketInfoWeatherChartData}
           />
+        </Box>
+      )}
+      {subTab === 5 && (
+        <Box sx={{ py: 0.5 }}>
+          <IntradayPanel data={intradayData} />
         </Box>
       )}
     </Box>
