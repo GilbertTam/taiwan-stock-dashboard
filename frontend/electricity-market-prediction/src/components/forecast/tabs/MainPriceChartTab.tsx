@@ -19,6 +19,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CloudIcon from '@mui/icons-material/Cloud';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
+import BalanceIcon from '@mui/icons-material/Balance';
 import { PriceChartContainer } from '../charts/PriceChartContainer';
 import ProfitAnalysis from '../profit-analysis/ProfitAnalysis';
 import MaeAnalysis from '../mae-analysis/MaeAnalysis';
@@ -26,6 +27,7 @@ import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/market/InterconnectionPanel';
 import WeatherChartSection from '@/components/market/weather/WeatherChartSection';
 import IntradayPanel from '@/components/market/intraday/IntradayPanel';
+import SupplyDemandChart from '@/components/market/supply-demand/SupplyDemandChart';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
 import type { IntradayData } from '@/types';
 
@@ -44,7 +46,7 @@ interface MainPriceChartTabProps {
   defaultPanelMarketInfo?: boolean;
 }
 
-type SubTabIndex = 0 | 1 | 2 | 3 | 4 | 5;
+type SubTabIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const BOTTOM_BAR_HEIGHT = 40;
 const STORAGE_KEY = 'main-price-chart-bottom-panel';
@@ -192,6 +194,12 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         label="日内市場"
         onClick={() => handleTabClick(5)}
       />
+      <Tab
+        icon={<BalanceIcon sx={{ fontSize: 18, mr: 0.5 }} />}
+        iconPosition="start"
+        label="需給バランス"
+        onClick={() => handleTabClick(6)}
+      />
     </Tabs>
   );
 
@@ -286,6 +294,11 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
       {subTab === 5 && (
         <Box sx={{ py: 0.5 }}>
           <IntradayPanel data={intradayData} />
+        </Box>
+      )}
+      {subTab === 6 && (
+        <Box sx={{ py: 0.5 }}>
+          <SupplyDemandChart startDate={startDate} endDate={endDate} />
         </Box>
       )}
     </Box>

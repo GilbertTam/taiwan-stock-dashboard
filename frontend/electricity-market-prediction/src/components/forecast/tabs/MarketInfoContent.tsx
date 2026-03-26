@@ -5,6 +5,7 @@ import { Box, Tabs, Tab } from '@mui/material';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/market/InterconnectionPanel';
 import WeatherChartSection from '@/components/market/weather/WeatherChartSection';
+import OcctoEventsPanel from '@/components/market/occto-events/OcctoEventsPanel';
 
 export interface MarketInfoContentProps {
   startDate: Date | null;
@@ -44,6 +45,7 @@ export const MarketInfoContent: React.FC<MarketInfoContentProps> = ({
         <Tab label="停機資訊" />
         <Tab label="互連流量" />
         <Tab label="天氣資料" />
+        <Tab label="系統イベント" />
       </Tabs>
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: padding }}>
         {marketInfoSubTab === 0 && (
@@ -65,6 +67,12 @@ export const MarketInfoContent: React.FC<MarketInfoContentProps> = ({
             weatherActual={weatherActual}
             weatherForecast={weatherForecast}
             weatherChartData={marketInfoWeatherChartData}
+          />
+        )}
+        {marketInfoSubTab === 3 && (
+          <OcctoEventsPanel
+            startDate={startDate}
+            endDate={endDate}
           />
         )}
       </Box>

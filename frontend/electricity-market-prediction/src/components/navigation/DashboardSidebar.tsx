@@ -10,14 +10,16 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
+import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.ElementType }[] = [
-    { key: 'home',         label: '現貨總覽', path: '/dashboard',              Icon: DashboardIcon  },
-    { key: 'price',        label: '市場分析', path: '/dashboard/forecast',     Icon: TrendingUpIcon },
-    { key: 'site-revenue', label: '案場收益', path: '/dashboard/site-revenue', Icon: StorefrontIcon },
-    { key: 'weather',      label: '天氣分析', path: '/dashboard/weather',      Icon: WbSunnyIcon    },
+    { key: 'home',            label: '現貨總覽', path: '/dashboard',                  Icon: DashboardIcon          },
+    { key: 'price',           label: '市場分析', path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
+    { key: 'generation-mix',  label: '發電組合', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
+    { key: 'site-revenue',    label: '案場收益', path: '/dashboard/site-revenue',     Icon: StorefrontIcon         },
+    { key: 'weather',         label: '天氣分析', path: '/dashboard/weather',          Icon: WbSunnyIcon            },
 ];
 
 const COLLAPSED_W = 60;
@@ -98,9 +100,10 @@ export function DashboardSidebar() {
                 {NAV_ITEMS.map(({ key, label, path, Icon }) => {
                     const isActive =
                         pathname === path ||
-                        (key === 'price'        && pathname.startsWith('/dashboard/forecast'))     ||
-                        (key === 'weather'      && pathname.startsWith('/dashboard/weather'))      ||
-                        (key === 'site-revenue' && pathname.startsWith('/dashboard/site-revenue'));
+                        (key === 'price'           && pathname.startsWith('/dashboard/forecast'))          ||
+                        (key === 'generation-mix'  && pathname.startsWith('/dashboard/generation-mix'))    ||
+                        (key === 'weather'         && pathname.startsWith('/dashboard/weather'))            ||
+                        (key === 'site-revenue'    && pathname.startsWith('/dashboard/site-revenue'));
 
                     return (
                         <ButtonBase

@@ -18,7 +18,8 @@ import {
     OcctoEvent,
     BatteryData,
     TdgcData,
-    BidPlanData
+    BidPlanData,
+    JepxSystemData,
 } from '@/types';
 
 // =============================================================================
@@ -139,5 +140,12 @@ export const fetchTdgc = async (params: AreaDateRangeParams): Promise<TdgcData[]
 export const fetchBidPlans = async (params: BidPlanParams): Promise<BidPlanData[]> => {
     const api = createAuthenticatedApi();
     const response = await api.get<ApiResponse<BidPlanData[]>>('/market-info/bid-plans', { params });
+    return response.data.data;
+};
+
+/** Fetch JEPX system-level price and bid/ask volume data. */
+export const fetchJepxSystem = async (params: DateRangeParams): Promise<JepxSystemData[]> => {
+    const api = createAuthenticatedApi();
+    const response = await api.get<ApiResponse<JepxSystemData[]>>('/market-info/jepx-system', { params });
     return response.data.data;
 };

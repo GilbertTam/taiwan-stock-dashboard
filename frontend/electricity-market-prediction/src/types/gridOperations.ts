@@ -326,3 +326,25 @@ export interface BidPlanData {
     /** Crawl time */
     crawl_time?: string;
 }
+
+/**
+ * JEPX system-level price and bid/ask volume data.
+ */
+export interface JepxSystemData {
+    /** Trading date (YYYY-MM-DD) */
+    trade_date: string;
+    /** 30-minute interval code (1-48) */
+    time_code: number;
+    /** Full datetime (ISO format) */
+    datetime: string;
+    /** System clearing price (yen/kWh) */
+    system_price: number;
+    /** Total sell volume (kWh) */
+    sell_quantity: number;
+    /** Total buy volume (kWh) */
+    buy_quantity: number;
+    /** Contracted volume (kWh) */
+    contract_quantity: number;
+    /** Avoidable cost (yen/kWh) */
+    avoidable_cost: number;
+}

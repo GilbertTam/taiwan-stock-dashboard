@@ -286,6 +286,40 @@ class ESService:
         response = s.execute()
         return [hit.to_dict() for hit in response]
 
+    def get_jepx_system_data(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Query JEPX system-level price and bid/ask volume data."""
+        s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
+        e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+        range_gte = s_date + ' 00:00:00'
+        range_lte = e_date + ' 23:59:59'
+
+        s = Search(using=self.client, index=self.jepx_system_index)
+        s = s.filter('range', **{'event_time': {'gte': range_gte, 'lte': range_lte}})
+        s = s.extra(size=MAX_ES_RESULTS)
+        s = s.sort('event_time')
+        response = s.execute()
+
+        results = []
+        for hit in response:
+            try:
+                event_time_str = hit.event_time
+                time_code = self._get_time_code(event_time_str)
+                trade_date = self._get_trade_date(event_time_str)
+                results.append({
+                    "trade_date": trade_date,
+                    "time_code": time_code,
+                    "datetime": event_time_str,
+                    "system_price": float(getattr(hit, 'system_price', 0) or 0),
+                    "sell_quantity": float(getattr(hit, 'sell_quantity', 0) or 0),
+                    "buy_quantity": float(getattr(hit, 'buy_quantity', 0) or 0),
+                    "contract_quantity": float(getattr(hit, 'contract_quantity', 0) or 0),
+                    "avoidable_cost": float(getattr(hit, 'avoidable_cost', 0) or 0),
+                })
+            except Exception as e:
+                logger.error(f"Error parsing jepx system hit: {e}")
+                continue
+        return results
+
     def get_earthquakes(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")

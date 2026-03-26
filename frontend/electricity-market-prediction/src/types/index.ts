@@ -34,6 +34,7 @@ export type {
     BatteryData,
     TdgcData,
     BidPlanData,
+    JepxSystemData,
 } from './gridOperations';
 
 // External data types

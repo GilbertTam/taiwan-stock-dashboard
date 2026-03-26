@@ -86,6 +86,17 @@ async def intraday(
     data = es.get_intraday_data(start_date, end_date)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
+@router.get("/jepx-system", response_model=APIResponse)
+async def jepx_system(
+    start_date: str,
+    end_date: str,
+    current_user = Depends(get_current_user)
+):
+    validate_dates(start_date, end_date)
+    es = es_service
+    data = es.get_jepx_system_data(start_date, end_date)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
 @router.get("/earthquakes", response_model=APIResponse)
 async def earthquakes(
     start_date: str,
