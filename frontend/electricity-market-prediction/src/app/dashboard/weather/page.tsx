@@ -59,7 +59,7 @@ export default function WeatherPage() {
         dateRangePreset,
         setStartDate,
         setEndDate,
-        setDateRangePreset,
+        handleDateRangePreset,
         refreshData,
         isLoading,
         dataFetchWarnings,
@@ -339,7 +339,7 @@ export default function WeatherPage() {
                 startDate={startDate}
                 endDate={endDate}
                 dateRangePreset={dateRangePreset}
-                onDateRangePreset={setDateRangePreset}
+                onDateRangePreset={handleDateRangePreset}
                 onDateRangeChange={handleDateRangeChange}
                 onRefresh={refreshData}
                 isLoading={isLoading}
