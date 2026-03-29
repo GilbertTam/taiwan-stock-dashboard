@@ -38,6 +38,7 @@ import { BaseChart }  from '@/components/charts/BaseChart';
 import { AREA_JP }    from './DataStatusControls';
 import type { SelectedCell } from './DataStatusDetailDrawer';
 import { RecordsTab } from './RecordsTab';
+import type { EChartsOption } from 'echarts';
 
 // ─── Weather chart helpers (ported from DataStatusWeatherDetailDrawer) ────────
 
@@ -80,7 +81,7 @@ function buildWeatherMiniOption(
     isDaily: boolean,
     axisColor: string,
     darkMode: boolean,
-): object | null {
+): EChartsOption | null {
     const series: any[] = [];
     for (const field of fields) {
         if (SKIP_FIELDS.has(field)) continue;
@@ -139,7 +140,7 @@ function buildMarketMiniOption(
     group: PreviewGroup,
     axisColor: string,
     darkMode: boolean,
-): object {
+): EChartsOption {
     const splitLineColor = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const axisLineColor  = darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
     return {
@@ -331,14 +332,14 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
         const axisColor = darkMode ? '#b8bfc9' : '#4b5563';
         return categories
             .filter(cat => cat.id !== 'daily_sunshine')
-            .map(cat => {
+            .flatMap(cat => {
                 const visibleFields = cat.fields.filter(
                     f => !SKIP_FIELDS.has(f) && dedupedWeatherData.some(d => d[f] != null),
                 );
                 const option = buildWeatherMiniOption(cat.fields, dedupedWeatherData, isForecast, isDaily, axisColor, darkMode);
-                return { ...cat, option, visibleFields };
-            })
-            .filter(c => c.option !== null && c.visibleFields.length > 0);
+                if (option === null || visibleFields.length === 0) return [];
+                return [{ ...cat, option, visibleFields }];
+            });
     }, [dedupedWeatherData, categories, isForecast, isDaily, darkMode]);
 
     // ── Market chart memos ────────────────────────────────────────────────────
@@ -624,7 +625,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                             })}
                                         </Box>
                                         <BaseChart
-                                            option={cat.option as object}
+                                            option={cat.option}
                                             height="130px"
                                             showLoading={false}
                                             onEvents={chartEvents}
