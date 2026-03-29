@@ -1,0 +1,4 @@
+# Exclude local dev env so NEXT_PUBLIC_* values are not baked into the Docker build.
+# In Docker, apiConfig.ts falls through to same-origin /api, which nginx routes to the backend.
+electricity-market-prediction/.env.local
+electricity-market-prediction/.env*.local

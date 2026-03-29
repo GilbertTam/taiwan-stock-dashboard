@@ -11,6 +11,8 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
+import LayersIcon from '@mui/icons-material/Layers';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -20,6 +22,8 @@ const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.Element
     { key: 'generation-mix',  label: '發電組合', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
     { key: 'site-revenue',    label: '案場收益', path: '/dashboard/site-revenue',     Icon: StorefrontIcon         },
     { key: 'weather',         label: '天氣分析', path: '/dashboard/weather',          Icon: WbSunnyIcon            },
+    { key: 'daily-compare',   label: '疊圖比較', path: '/dashboard/daily-compare',    Icon: LayersIcon             },
+    { key: 'data-status',     label: '資料狀態', path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
 ];
 
 const COLLAPSED_W = 60;
