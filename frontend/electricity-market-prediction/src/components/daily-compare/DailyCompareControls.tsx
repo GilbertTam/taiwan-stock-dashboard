@@ -11,11 +11,12 @@ import {
     ListItemButton,
     ListItemIcon,
     ListItemText,
+    Checkbox,
     Radio,
-    SelectChangeEvent,
+    Chip,
+    Tooltip,
 } from '@mui/material';
 import { Area } from '@/types';
-import { AreaSelector } from '@/components/selectors/AreaSelector';
 import { SectionHeader, SubHeader } from '@/components/selectors/shared';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,15 +83,16 @@ const CHART_TYPE_LABELS: Record<ChartType, string> = {
     bar:  '長條',
 };
 
-// Group configs for rendering
 const GROUPS = Array.from(new Set(METRIC_CONFIGS.map(m => m.group)));
+
+const MAX_AREAS = 6;
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
 interface DailyCompareControlsProps {
     areas: Area[];
-    selectedArea: string;
-    onAreaChange: (areaName: string) => void;
+    selectedAreas: string[];
+    onAreasChange: (names: string[]) => void;
     selectedMetric: MetricKey;
     onMetricChange: (metric: MetricKey) => void;
 }
@@ -99,8 +101,8 @@ interface DailyCompareControlsProps {
 
 export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
     areas,
-    selectedArea,
-    onAreaChange,
+    selectedAreas,
+    onAreasChange,
     selectedMetric,
     onMetricChange,
 }) => {
@@ -110,11 +112,26 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
         setExpandedSection(prev => prev === section ? null : section);
     };
 
-    const handleAreaChange = (e: SelectChangeEvent) => {
-        onAreaChange(e.target.value);
+    const handleAreaToggle = (areaName: string) => {
+        if (selectedAreas.includes(areaName)) {
+            onAreasChange(selectedAreas.filter(a => a !== areaName));
+        } else {
+            if (selectedAreas.length >= MAX_AREAS) return;
+            onAreasChange([...selectedAreas, areaName]);
+        }
+    };
+
+    const handleSelectAll = () => {
+        const allNames = areas.map(a => a.name).slice(0, MAX_AREAS);
+        onAreasChange(allNames);
+    };
+
+    const handleClear = () => {
+        onAreasChange([]);
     };
 
     const currentMetric = METRIC_CONFIGS.find(m => m.key === selectedMetric);
+    const atMax = selectedAreas.length >= MAX_AREAS;
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -129,16 +146,133 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
             </Box>
 
             <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-                {/* Section 1: Area */}
-                <AreaSelector
-                    areas={areas}
-                    selectedArea={selectedArea}
-                    onAreaChange={handleAreaChange}
-                    expanded={expandedSection === 1}
-                    onToggle={() => toggleSection(1)}
-                    step={1}
-                    description="選擇要比較的電力地區"
-                />
+
+                {/* Section 1: Area (multi-select) */}
+                <Paper
+                    elevation={0}
+                    sx={{ borderBottom: '1px solid var(--card-border)', borderRadius: 0, backgroundColor: 'transparent', flexShrink: 0 }}
+                >
+                    <SectionHeader
+                        onClick={() => toggleSection(1)}
+                        expanded={expandedSection === 1}
+                        step={1}
+                        description="可選多個地區同時比較（最多 6 個）"
+                    >
+                        選擇地區
+                    </SectionHeader>
+
+                    <Collapse in={expandedSection === 1}>
+                        {/* Quick actions */}
+                        <Box sx={{ px: 1.5, pt: 0.75, pb: 0.5, display: 'flex', gap: 0.75 }}>
+                            <Chip
+                                label="全選"
+                                size="small"
+                                variant="outlined"
+                                onClick={handleSelectAll}
+                                disabled={areas.length === 0}
+                                sx={{ fontSize: '0.7rem', height: 22, cursor: 'pointer' }}
+                            />
+                            <Chip
+                                label="清除"
+                                size="small"
+                                variant="outlined"
+                                onClick={handleClear}
+                                disabled={selectedAreas.length === 0}
+                                sx={{ fontSize: '0.7rem', height: 22, cursor: 'pointer' }}
+                            />
+                            {atMax && (
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'warning.main', alignSelf: 'center' }}>
+                                    已達上限 {MAX_AREAS} 個
+                                </Typography>
+                            )}
+                        </Box>
+
+                        <List dense sx={{ p: 1, pt: 0 }}>
+                            {areas.map((area) => {
+                                const isSelected = selectedAreas.includes(area.name);
+                                const isDisabled = !isSelected && atMax;
+                                return (
+                                    <Tooltip
+                                        key={area.id}
+                                        title={isDisabled ? `最多可選 ${MAX_AREAS} 個地區` : ''}
+                                        placement="right"
+                                        disableHoverListener={!isDisabled}
+                                    >
+                                        <ListItem
+                                            disablePadding
+                                            onClick={() => !isDisabled && handleAreaToggle(area.name)}
+                                            sx={{
+                                                borderRadius: 1,
+                                                mb: 0.5,
+                                                opacity: isDisabled ? 0.45 : 1,
+                                                backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
+                                                color: isSelected ? 'var(--primary)' : 'inherit',
+                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                '&:hover': {
+                                                    backgroundColor: isDisabled
+                                                        ? 'transparent'
+                                                        : isSelected ? 'var(--primary-light)' : 'var(--hover-bg)',
+                                                },
+                                            }}
+                                        >
+                                            <ListItemButton sx={{ py: 0.5, px: 1, borderRadius: 1 }} disableRipple={isDisabled}>
+                                                <ListItemIcon sx={{ minWidth: 28 }}>
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        size="small"
+                                                        disableRipple
+                                                        sx={{
+                                                            p: 0.5,
+                                                            color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                                                            '&.Mui-checked': { color: 'var(--primary)' },
+                                                        }}
+                                                    />
+                                                </ListItemIcon>
+                                                <ListItemText
+                                                    primary={area.name_ch}
+                                                    secondary={area.name}
+                                                    primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 400 }}
+                                                    secondaryTypographyProps={{
+                                                        fontSize: '0.7rem',
+                                                        color: isSelected ? 'color-mix(in srgb, var(--primary), transparent 30%)' : 'text.secondary',
+                                                    }}
+                                                />
+                                            </ListItemButton>
+                                        </ListItem>
+                                    </Tooltip>
+                                );
+                            })}
+                        </List>
+                    </Collapse>
+
+                    {/* Collapsed summary */}
+                    {expandedSection !== 1 && (
+                        <Box sx={{ px: 1.5, py: 0.75, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, borderLeft: '3px solid var(--primary)', ml: 0.5, bgcolor: 'var(--hover-bg)' }}>
+                            {selectedAreas.length === 0 ? (
+                                <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>尚未選擇地區</Typography>
+                            ) : (
+                                <>
+                                    {selectedAreas.slice(0, 3).map(name => {
+                                        const area = areas.find(a => a.name === name);
+                                        return (
+                                            <Chip
+                                                key={name}
+                                                label={area?.name_ch ?? name}
+                                                size="small"
+                                                sx={{ height: 18, fontSize: '0.65rem', backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}
+                                            />
+                                        );
+                                    })}
+                                    {selectedAreas.length > 3 && (
+                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>
+                                            +{selectedAreas.length - 3}
+                                        </Typography>
+                                    )}
+                                </>
+                            )}
+                        </Box>
+                    )}
+                </Paper>
 
                 {/* Section 2: Metric */}
                 <Paper
@@ -176,6 +310,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                                                             mb: 0.5,
                                                             backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
                                                             color: isSelected ? 'var(--primary)' : 'inherit',
+                                                            cursor: 'pointer',
                                                             '&:hover': {
                                                                 backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--hover-bg)',
                                                             },
@@ -197,13 +332,20 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                                                                 primary={metric.label}
                                                                 secondary={
                                                                     <Box component="span" sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                                                        <Box
+                                                                            component="span"
+                                                                            sx={{
+                                                                                width: 8, height: 8, borderRadius: '50%',
+                                                                                backgroundColor: metric.baseColor,
+                                                                                display: 'inline-block', flexShrink: 0,
+                                                                            }}
+                                                                        />
                                                                         <span>{metric.unit}</span>
                                                                         <Box
                                                                             component="span"
                                                                             sx={{
                                                                                 fontSize: '0.6rem',
-                                                                                px: 0.5,
-                                                                                py: 0.1,
+                                                                                px: 0.5, py: 0.1,
                                                                                 borderRadius: 0.5,
                                                                                 backgroundColor: isSelected
                                                                                     ? 'color-mix(in srgb, var(--primary), transparent 80%)'
@@ -240,21 +382,17 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                     </Collapse>
                     {/* Collapsed summary */}
                     {expandedSection !== 2 && currentMetric && (
-                        <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, borderLeft: '3px solid var(--primary)', ml: 0.5, bgcolor: 'var(--hover-bg)' }}>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>目前指標：</Typography>
+                        <Box sx={{ px: 1.5, py: 0.75, display: 'flex', alignItems: 'center', gap: 1, borderLeft: '3px solid var(--primary)', ml: 0.5, bgcolor: 'var(--hover-bg)' }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: currentMetric.baseColor, flexShrink: 0 }} />
                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--primary)', fontSize: '0.75rem' }}>
                                 {currentMetric.label}
                             </Typography>
                             <Box
                                 component="span"
                                 sx={{
-                                    fontSize: '0.65rem',
-                                    px: 0.5,
-                                    py: 0.1,
-                                    borderRadius: 0.5,
+                                    fontSize: '0.65rem', px: 0.5, py: 0.1, borderRadius: 0.5,
                                     backgroundColor: 'color-mix(in srgb, var(--primary), transparent 80%)',
-                                    color: 'var(--primary)',
-                                    border: '1px solid',
+                                    color: 'var(--primary)', border: '1px solid',
                                     borderColor: 'color-mix(in srgb, var(--primary), transparent 60%)',
                                 }}
                             >

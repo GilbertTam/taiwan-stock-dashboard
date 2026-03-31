@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Box, Typography, Alert } from '@mui/material';
+import React, { useCallback, useMemo } from 'react';
+import { Box, Typography, Alert, Chip } from '@mui/material';
+import * as echarts from 'echarts/core';
 import { BaseChart } from '@/components/charts/BaseChart';
 import { MetricConfig } from './DailyCompareControls';
 
@@ -14,20 +15,64 @@ const SLOT_LABELS = Array.from({ length: 48 }, (_, i) => {
     return `${h}:${m}`;
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Color Helpers ─────────────────────────────────────────────────────────────
 
-function hexToRgba(hex: string, alpha: number): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+/** Convert a #rrggbb hex string to [h (0–360), s (0–1), l (0–1)] */
+function hexToHsl(hex: string): [number, number, number] {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+
+    if (max === min) return [0, 0, l];
+
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+    let h = 0;
+    if (max === r)      h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else                h = ((r - g) / d + 4) / 6;
+
+    return [h * 360, s, l];
 }
 
-/** index 0 = newest (opacity 1.0), index total-1 = oldest (opacity 0.25) */
+function hue2rgb(p: number, q: number, t: number): number {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+}
+
+/** Convert HSL (h: 0–360, s: 0–1, l: 0–1) to css rgb() string */
+function hslToRgb(h: number, s: number, l: number): string {
+    h = h / 360;
+    let r: number, g: number, b: number;
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
+}
+
+/**
+ * index 0 = newest (L=45%, vivid), index = total-1 = oldest (L=72%, faded).
+ * Keeps original hue & saturation; only lightness varies.
+ */
 function seriesColor(baseHex: string, index: number, total: number): string {
-    if (total <= 1) return hexToRgba(baseHex, 1.0);
-    const opacity = 1.0 - (index / (total - 1)) * 0.75;
-    return hexToRgba(baseHex, opacity);
+    const [h, s] = hexToHsl(baseHex);
+    const l = (45 + (index / Math.max(total - 1, 1)) * 27) / 100;
+    return hslToRgb(h, Math.max(s, 0.55), l);
 }
 
 /** Line width: newest = 2.5px, oldest = 1px */
@@ -46,7 +91,7 @@ function buildSeries(metric: MetricConfig, date: string, data: (number | null)[]
             name: date,
             type: 'bar',
             data,
-            barGap: '-100%',       // overlay all dates' bars
+            barGap: '-100%',
             barCategoryGap: '30%',
             z: zOrder,
             itemStyle: { color },
@@ -72,12 +117,16 @@ function buildSeries(metric: MetricConfig, date: string, data: (number | null)[]
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface DailyOverlayChartProps {
-    /** Map of trade_date (YYYY-MM-DD) → 48-slot value array (index = コマ - 1) */
+    /** Map of trade_date (YYYY-MM-DD) → 48-slot value array */
     seriesData: Map<string, (number | null)[]>;
     /** Dates sorted newest-first */
     sortedDates: string[];
     metric: MetricConfig;
     isLoading: boolean;
+    /** Optional area label shown as panel title */
+    areaLabel?: string;
+    /** ECharts group ID for crosshair sync across panels */
+    groupId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -87,6 +136,8 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
     sortedDates,
     metric,
     isLoading,
+    areaLabel,
+    groupId,
 }) => {
     const total = sortedDates.length;
 
@@ -98,7 +149,7 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
             grid: {
                 left: 16,
                 right: 20,
-                top: 16,
+                top: areaLabel ? 8 : 16,
                 bottom: 56,
                 containLabel: true,
             },
@@ -107,7 +158,7 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
                 data: SLOT_LABELS,
                 axisLabel: {
                     fontSize: 10,
-                    interval: 3, // every 4th label = every 2 hours
+                    interval: 3,
                     rotate: 0,
                 },
                 axisLine: { show: true },
@@ -123,9 +174,7 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
                 nameLocation: 'end',
                 nameTextStyle: { fontSize: 11, padding: [0, 0, 0, -10] },
                 axisLabel: { fontSize: 11 },
-                splitLine: {
-                    lineStyle: { type: 'dashed' },
-                },
+                splitLine: { lineStyle: { type: 'dashed' } },
                 axisLine: { show: true },
             },
             legend: {
@@ -134,8 +183,8 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
                 bottom: 4,
                 itemWidth: metric.chartType === 'bar' ? 12 : 20,
                 itemHeight: metric.chartType === 'bar' ? 12 : 2,
-                textStyle: { fontSize: 11 },
-                pageTextStyle: { fontSize: 11 },
+                textStyle: { fontSize: 10 },
+                pageTextStyle: { fontSize: 10 },
             },
             tooltip: {
                 trigger: 'axis',
@@ -170,9 +219,15 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
                 buildSeries(metric, date, seriesData.get(date) ?? new Array(48).fill(null), index, total)
             ),
         };
-    }, [sortedDates, seriesData, metric, total]);
+    }, [sortedDates, seriesData, metric, total, areaLabel]);
 
-    // Empty state after load
+    // Connect this chart instance to the ECharts group for crosshair sync
+    const handleChartReady = useCallback((instance: any) => {
+        if (!groupId) return;
+        instance.group = groupId;
+        echarts.connect(groupId);
+    }, [groupId]);
+
     if (!isLoading && total === 0) {
         return (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -187,17 +242,30 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
 
     return (
         <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Chart title */}
-            <Box sx={{ px: 1, py: 0.5, flexShrink: 0 }}>
-                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                    {metric.label} — 多日疊圖比較（最新日期顏色最亮）
-                </Typography>
-            </Box>
-
+            {areaLabel && (
+                <Box sx={{ px: 1.5, pt: 0.75, pb: 0.25, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip
+                        label={areaLabel}
+                        size="small"
+                        sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            backgroundColor: `${metric.baseColor}22`,
+                            color: metric.baseColor,
+                            border: `1px solid ${metric.baseColor}55`,
+                        }}
+                    />
+                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                        {metric.label} · {metric.unit}
+                    </Typography>
+                </Box>
+            )}
             <BaseChart
                 option={option}
                 height="100%"
                 showLoading={isLoading}
+                onChartReady={handleChartReady}
                 sx={{ flex: 1, minHeight: 0 }}
             />
         </Box>

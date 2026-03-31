@@ -4,9 +4,7 @@
  * Overlays the same metric across every day in the global date range on a single chart.
  * X-axis: コマ 1–48 (30-min slots, 00:00–23:30)
  * Y-axis: unit depends on the selected metric
- * Color: most recent day = brightest; older days progressively more transparent
- *
- * Date range is shared with the global toolbar (same as all other pages).
+ * Supports multiple areas simultaneously (small multiples grid layout).
  */
 'use client';
 
@@ -20,9 +18,9 @@ import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { fetchActualPrices } from '@/services/marketApi';
 import { fetchImbalance, fetchOcctoArea, fetchIntraday, fetchJepxSystem } from '@/services/gridOperationsApi';
 import { DailyCompareControls, MetricKey, MetricConfig, METRIC_CONFIGS } from '@/components/daily-compare/DailyCompareControls';
-import { DailyOverlayChart } from '@/components/daily-compare/DailyOverlayChart';
+import { DailyCompareGrid } from '@/components/daily-compare/DailyCompareGrid';
 
-// ─── Fetch registry ────────────────────────────────────────────────────────────
+// ─── Fetch registry ─────────────────────────────────────────────────────────
 
 function datetimeToDate(row: { datetime: string }): string {
     const dt = new Date(row.datetime);
@@ -61,23 +59,23 @@ interface MetricMapping {
 }
 
 const METRIC_MAP: Record<MetricKey, MetricMapping> = {
-    spot_price:         { source: 'actualPrices', getDate: r => r.trade_date,              getSlot: r => r.time_code - 1,                getValue: r => r.price ?? null },
-    system_price:       { source: 'actualPrices', getDate: r => r.trade_date,              getSlot: r => r.time_code - 1,                getValue: r => r.system_price ?? null },
-    imbalance_surplus:  { source: 'imbalance',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.imbalance_surplus_rate ?? null },
-    imbalance_deficit:  { source: 'imbalance',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.imbalance_deficit_rate ?? null },
-    imbalance_quantity: { source: 'imbalance',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.imbalance_quantity ?? null },
-    intraday_avg:       { source: 'intraday',     getDate: r => (r.date ?? '').substring(0, 10), getSlot: r => r.time_code - 1,         getValue: r => r.average_price ?? null },
-    intraday_volume:    { source: 'intraday',     getDate: r => (r.date ?? '').substring(0, 10), getSlot: r => r.time_code - 1,         getValue: r => r.total_contracted_volume ?? null },
-    solar:              { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.solar_power_generation_actual ?? null },
-    solar_curtail:      { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.solar_power_output_control ?? null },
-    wind:               { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.wind_power_generation_actual ?? null },
-    wind_curtail:       { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.wind_power_output_control ?? null },
-    thermal:            { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.thermal ?? null },
-    nuclear:            { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.nuclear_power ?? null },
-    hydro:              { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.hydropower ?? null },
-    area_demand:        { source: 'occtoArea',    getDate: datetimeToDate,                 getSlot: datetimeToSlot,                      getValue: r => r.area_demand ?? null },
-    jepx_sell_qty:      { source: 'jepxSystem',   getDate: r => r.trade_date,              getSlot: r => r.time_code - 1,                getValue: r => r.sell_quantity ?? null },
-    jepx_contract_qty:  { source: 'jepxSystem',   getDate: r => r.trade_date,              getSlot: r => r.time_code - 1,                getValue: r => r.contract_quantity ?? null },
+    spot_price:         { source: 'actualPrices', getDate: r => r.trade_date,                   getSlot: r => r.time_code - 1,          getValue: r => r.price ?? null },
+    system_price:       { source: 'actualPrices', getDate: r => r.trade_date,                   getSlot: r => r.time_code - 1,          getValue: r => r.system_price ?? null },
+    imbalance_surplus:  { source: 'imbalance',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.imbalance_surplus_rate ?? null },
+    imbalance_deficit:  { source: 'imbalance',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.imbalance_deficit_rate ?? null },
+    imbalance_quantity: { source: 'imbalance',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.imbalance_quantity ?? null },
+    intraday_avg:       { source: 'intraday',     getDate: r => (r.date ?? '').substring(0, 10), getSlot: r => r.time_code - 1,        getValue: r => r.average_price ?? null },
+    intraday_volume:    { source: 'intraday',     getDate: r => (r.date ?? '').substring(0, 10), getSlot: r => r.time_code - 1,        getValue: r => r.total_contracted_volume ?? null },
+    solar:              { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.solar_power_generation_actual ?? null },
+    solar_curtail:      { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.solar_power_output_control ?? null },
+    wind:               { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.wind_power_generation_actual ?? null },
+    wind_curtail:       { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.wind_power_output_control ?? null },
+    thermal:            { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.thermal ?? null },
+    nuclear:            { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.nuclear_power ?? null },
+    hydro:              { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.hydropower ?? null },
+    area_demand:        { source: 'occtoArea',    getDate: datetimeToDate,                      getSlot: datetimeToSlot,                getValue: r => r.area_demand ?? null },
+    jepx_sell_qty:      { source: 'jepxSystem',   getDate: r => r.trade_date,                   getSlot: r => r.time_code - 1,          getValue: r => r.sell_quantity ?? null },
+    jepx_contract_qty:  { source: 'jepxSystem',   getDate: r => r.trade_date,                   getSlot: r => r.time_code - 1,          getValue: r => r.contract_quantity ?? null },
 };
 
 async function fetchDailyCompareData(
@@ -101,7 +99,9 @@ async function fetchDailyCompareData(
     return map;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
+
+const ECHARTS_GROUP_ID = 'daily-compare-crosshair';
 
 export default function DailyComparePage() {
     const {
@@ -116,7 +116,6 @@ export default function DailyComparePage() {
         isLoading: ctxLoading,
     } = useMarketDataContext();
 
-    // Buffered date range — same pattern as all other pages
     const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
         startDate,
         endDate,
@@ -125,39 +124,35 @@ export default function DailyComparePage() {
         clearPreset: () => handleDateRangePreset(null),
     });
 
-    // Local state — managed independently from the global context
-    const [selectedArea, setSelectedArea] = useState<string>('');
+    // Local state — multiple areas
+    const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
     const [selectedMetric, setSelectedMetric] = useState<MetricKey>('spot_price');
 
-    // Sync area from context once on mount
+    // Sync first area from context on mount
     const didSyncArea = useRef(false);
     useEffect(() => {
         if (!didSyncArea.current && ctxArea) {
-            setSelectedArea(ctxArea);
+            setSelectedAreas([ctxArea]);
             didSyncArea.current = true;
         }
     }, [ctxArea]);
 
-    // Data state
-    const [rawData, setRawData] = useState<Map<string, (number | null)[]>>(new Map());
+    // Data state: areaName → (date → 48-slot values)
+    const [rawDataMap, setRawDataMap] = useState<Map<string, Map<string, (number | null)[]>>>(new Map());
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Sorted newest-first
-    const sortedDates = useMemo(
-        () => [...rawData.keys()].sort((a, b) => b.localeCompare(a)),
-        [rawData],
-    );
-
-    // Full MetricConfig for the selected metric
     const currentMetricConfig = useMemo<MetricConfig>(
         () => METRIC_CONFIGS.find(m => m.key === selectedMetric)!,
         [selectedMetric],
     );
 
-    // Fetch whenever inputs change
+    // Fetch all selected areas in parallel whenever inputs change
     useEffect(() => {
-        if (!selectedArea || !startDate || !endDate) return;
+        if (selectedAreas.length === 0 || !startDate || !endDate) {
+            setRawDataMap(new Map());
+            return;
+        }
 
         const ctrl = new AbortController();
         setIsLoading(true);
@@ -166,14 +161,19 @@ export default function DailyComparePage() {
         const startStr = format(startDate, 'yyyyMMdd');
         const endStr = format(endDate, 'yyyyMMdd');
 
-        fetchDailyCompareData(selectedMetric, selectedArea, startStr, endStr)
-            .then((data) => {
-                if (!ctrl.signal.aborted) setRawData(data);
+        Promise.all(
+            selectedAreas.map(area =>
+                fetchDailyCompareData(selectedMetric, area, startStr, endStr)
+                    .then(data => [area, data] as const)
+            )
+        )
+            .then((results) => {
+                if (!ctrl.signal.aborted) setRawDataMap(new Map(results));
             })
             .catch(() => {
                 if (!ctrl.signal.aborted) {
                     setError('データの取得に失敗しました。しばらくしてからもう一度お試しください。');
-                    setRawData(new Map());
+                    setRawDataMap(new Map());
                 }
             })
             .finally(() => {
@@ -181,16 +181,14 @@ export default function DailyComparePage() {
             });
 
         return () => ctrl.abort();
-    }, [selectedArea, selectedMetric, startDate, endDate]);
+    }, [selectedAreas, selectedMetric, startDate, endDate]);
 
     const handleRefresh = () => {
-        if (!selectedArea || !startDate || !endDate) return;
-        setRawData(new Map());
+        setRawDataMap(new Map());
     };
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-            {/* Toolbar — shared with all other pages */}
             <Box sx={{ flexShrink: 0, p: 0.5 }}>
                 <DashboardToolbar
                     startDate={tempStartDate}
@@ -215,24 +213,26 @@ export default function DailyComparePage() {
                     <Box sx={{ height: '100%', overflow: 'hidden', borderRight: '1px solid var(--card-border)', backgroundColor: 'var(--card-bg)' }}>
                         <DailyCompareControls
                             areas={areas}
-                            selectedArea={selectedArea}
-                            onAreaChange={setSelectedArea}
+                            selectedAreas={selectedAreas}
+                            onAreasChange={setSelectedAreas}
                             selectedMetric={selectedMetric}
                             onMetricChange={setSelectedMetric}
                         />
                     </Box>
 
-                    {/* Right: chart */}
+                    {/* Right: grid of charts */}
                     <Box sx={{ height: '100%', p: 1.5, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         {error ? (
                             <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>
                         ) : (
                             <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                                <DailyOverlayChart
-                                    seriesData={rawData}
-                                    sortedDates={sortedDates}
+                                <DailyCompareGrid
+                                    selectedAreas={selectedAreas}
+                                    areas={areas}
+                                    rawDataMap={rawDataMap}
                                     metric={currentMetricConfig}
                                     isLoading={isLoading}
+                                    groupId={ECHARTS_GROUP_ID}
                                 />
                             </Box>
                         )}

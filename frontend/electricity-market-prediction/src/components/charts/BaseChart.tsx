@@ -17,6 +17,8 @@ export interface BaseChartProps extends Omit<BoxProps, 'children'> {
   onEvents?: Record<string, (params: any) => void>;
   notMerge?: boolean;
   showLoading?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onChartReady?: (instance: any) => void;
 }
 
 /**
@@ -28,10 +30,19 @@ export const BaseChart: React.FC<BaseChartProps> = ({
   onEvents,
   notMerge = true,
   showLoading = false,
+  onChartReady,
   sx,
   ...boxProps
 }) => {
   const chartRef = useRef<ReactECharts>(null);
+
+  useEffect(() => {
+    if (onChartReady && chartRef.current) {
+      const instance = chartRef.current.getEchartsInstance();
+      if (instance) onChartReady(instance);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const colors = useChartColors();
   const { darkMode } = useTheme();
 
