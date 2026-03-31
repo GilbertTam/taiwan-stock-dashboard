@@ -174,17 +174,128 @@ function buildMarketMiniOption(
     };
 }
 
+// ─── Prediction confidence-band chart builder ─────────────────────────────────
+// Renders a fan chart: P5–P95 confidence band (stacked area) + P50 main line.
+// Falls back to the generic market chart if the P5/P50/P95 trio is not detected.
+
+function buildPredictionMiniOption(
+    group: PreviewGroup,
+    axisColor: string,
+    darkMode: boolean,
+): EChartsOption {
+    const splitLineColor = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const axisLineColor  = darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+
+    const p5  = group.series.find(s => /p5\b/i.test(s.name) && !/p50|p95/i.test(s.name));
+    const p50 = group.series.find(s => /p50/i.test(s.name));
+    const p95 = group.series.find(s => /p95/i.test(s.name));
+
+    // Fall back to generic chart when the P5/P50/P95 trio is absent
+    if (!p5 || !p50 || !p95) return buildMarketMiniOption(group, axisColor, darkMode);
+
+    // Build band-width series: value = P95 - P5 (stacked on invisible P5 base)
+    const p5Map = new Map<number, number>(p5.data.map(([t, v]) => [t, v]));
+    const bandData: [number, number][] = p95.data.map(([t, v]) => [t, Math.max(0, v - (p5Map.get(t) ?? v))]);
+
+    const bandFill   = darkMode ? 'rgba(255,112,67,0.18)' : 'rgba(255,112,67,0.14)';
+    const p50Color   = '#ff7043';
+    const boundColor = darkMode ? 'rgba(144,164,174,0.6)' : 'rgba(100,130,150,0.5)';
+
+    return {
+        animation: false,
+        backgroundColor: 'transparent',
+        grid: { left: 58, right: 12, top: 6, bottom: 24 },
+        xAxis: {
+            type: 'time',
+            axisLabel: { fontSize: 9, color: axisColor },
+            axisLine: { show: true, lineStyle: { color: axisLineColor } },
+            axisTick: { show: false },
+            splitLine: { show: false },
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: { fontSize: 9, color: axisColor },
+            splitLine: { lineStyle: { color: splitLineColor } },
+        },
+        tooltip: {
+            trigger: 'axis',
+            textStyle: { fontSize: 11 },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter: (params: any) => {
+                const arr = Array.isArray(params) ? params : [params];
+                return arr
+                    .filter((p: any) => p.seriesName !== '_band')
+                    .map((p: any) => `${p.marker}${p.seriesName}: ${Number(p.value[1]).toFixed(2)}`)
+                    .join('<br/>');
+            },
+        },
+        series: [
+            // 1. P5 base — invisible, acts as stack anchor for confidence band
+            {
+                name: p5.name,
+                type: 'line',
+                data: p5.data,
+                stack: 'confidence_band',
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { opacity: 0, width: 0 },
+                areaStyle: { opacity: 0 },
+                itemStyle: { color: 'transparent' },
+                z: 1,
+            },
+            // 2. Band width (P95 - P5) — filled area on top of P5 base
+            {
+                name: '_band',
+                type: 'line',
+                data: bandData,
+                stack: 'confidence_band',
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { opacity: 0, width: 0 },
+                areaStyle: { color: bandFill, opacity: 1 },
+                itemStyle: { color: bandFill },
+                z: 2,
+            },
+            // 3. P50 main forecast line
+            {
+                name: p50.name,
+                type: 'line',
+                data: p50.data,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: p50Color, width: 2 },
+                itemStyle: { color: p50Color },
+                z: 10,
+            },
+            // 4. P95 upper bound — thin dashed
+            {
+                name: p95.name,
+                type: 'line',
+                data: p95.data,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: boundColor, width: 1, type: 'dashed' },
+                itemStyle: { color: boundColor },
+                z: 3,
+            },
+        ],
+    };
+}
+
 // ─── Misc helpers ─────────────────────────────────────────────────────────────
 
 const formatDate = (d: string) => `${d.slice(0, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}`;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface RecordsCell { sourceKey: string; area: string; date: string; slot?: number; }
+
 interface Props {
     selectedCell: SelectedCell | null;
     availableDates: string[];           // sorted YYYY-MM-DD list from Gantt rows
     onClose: () => void;
     onNavigate: (cell: SelectedCell) => void;
+    onOpenRecords: (cell: RecordsCell) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -194,6 +305,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     availableDates,
     onClose,
     onNavigate,
+    onOpenRecords,
 }) => {
     const { darkMode } = useTheme();
 
@@ -343,10 +455,16 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     }, [dedupedWeatherData, categories, isForecast, isDaily, darkMode]);
 
     // ── Market chart memos ────────────────────────────────────────────────────
+    const isPrediction = selectedCell?.sourceKey.startsWith('prediction_') ?? false;
     const chartOptions = useMemo(() => {
         const axisColor = darkMode ? '#b8bfc9' : '#4b5563';
-        return groups.map(g => ({ group: g, option: buildMarketMiniOption(g, axisColor, darkMode) }));
-    }, [groups, darkMode]);
+        return groups.map(g => ({
+            group: g,
+            option: isPrediction
+                ? buildPredictionMiniOption(g, axisColor, darkMode)
+                : buildMarketMiniOption(g, axisColor, darkMode),
+        }));
+    }, [groups, darkMode, isPrediction]);
 
     // ── Theme colors ──────────────────────────────────────────────────────────
     const bg         = darkMode ? '#16171e' : '#ffffff';
@@ -397,6 +515,17 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     const cellH    = interval === 'day' ? 60 : interval === '30m' ? 28 : 26;
 
     const dateParam = selectedCell?.date.replace(/-/g, '') ?? '';
+
+    // ── Full-page raw data navigation ─────────────────────────────────────────
+    const handleOpenFullPage = useCallback(() => {
+        if (!selectedCell) return;
+        onOpenRecords({
+            sourceKey: selectedCell.sourceKey,
+            area: selectedCell.area,
+            date: dateParam,
+            slot: slotFilter ?? undefined,
+        });
+    }, [selectedCell, dateParam, slotFilter, onOpenRecords]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -732,6 +861,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                     interval={interval}
                     slotFilter={slotFilter}
                     onSlotFilterChange={setSlotFilter}
+                    onOpenFullPage={handleOpenFullPage}
                 />
             )}
         </Drawer>

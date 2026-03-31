@@ -28,10 +28,10 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
     selectedAreas,
     onCellClick,
 }) => {
-    // Build a lookup of interval per source key for expected-count calculation
-    const intervalByKey = useMemo(() => {
-        const m = new Map<string, 'hour' | '30m' | 'day'>();
-        sourceConfigs.forEach(s => m.set(s.key, s.interval));
+    // Build a lookup of validation config per source key
+    const configByKey = useMemo(() => {
+        const m = new Map<string, { validationType: 'fixed' | 'variable' | 'event'; expectedPerDay: number | null }>();
+        sourceConfigs.forEach(s => m.set(s.key, { validationType: s.validationType, expectedPerDay: s.expectedPerDay }));
         return m;
     }, [sourceConfigs]);
 
@@ -108,17 +108,28 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
 
         for (let yi = 0; yi < yRows.length; yi++) {
             const row = yRows[yi];
-            // For 30m sources (TDGC, prediction) expected count is exactly 48 slots/day.
-            // For hourly sources, fall back to the median of non-zero days.
-            const ivl = intervalByKey.get(row.sourceKey);
-            const expectedCount = ivl === '30m' ? 48 : ivl === 'day' ? 1 : (medianBySourceArea.get(`${row.sourceKey}||${row.area}`) ?? 0);
+            const cfg   = configByKey.get(row.sourceKey);
+            const vtype = cfg?.validationType ?? 'variable';
+            const epd   = cfg?.expectedPerDay ?? null;
+
             for (let xi = 0; xi < xLabels.length; xi++) {
-                const date = xLabels[xi];
+                const date  = xLabels[xi];
                 const count = lookup.get(`${row.sourceKey}||${row.area}||${date}`);
-                const value = count === undefined ? -1
-                    : count === 0 ? 0
-                    : count < expectedCount ? 0.5
-                    : 1;
+
+                let value: number;
+                if (count === undefined) {
+                    value = -1; // N/A — date not in range for this source
+                } else if (vtype === 'event') {
+                    // Event sources: binary present/absent — no partial state
+                    value = count > 0 ? 1 : 0;
+                } else if (vtype === 'fixed' && epd !== null) {
+                    // Fixed expected count — explicit comparison, no median estimation
+                    value = count === 0 ? 0 : count < epd ? 0.5 : 1;
+                } else {
+                    // Variable sources (intraday, weather) — use median as baseline
+                    const median = medianBySourceArea.get(`${row.sourceKey}||${row.area}`) ?? 0;
+                    value = count === 0 ? 0 : median === 0 ? 1 : count < median * 0.8 ? 0.5 : 1;
+                }
                 heatData.push([xi, yi, value]);
             }
         }
@@ -182,8 +193,18 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
                     const [xi, yi, val] = params.value as [number, number, number];
                     const date = xLabels[xi] ?? '';
                     const rowLabel = yLabels[yi] ?? '';
-                    const status = val === 1 ? '✅ 完整' : val === 0.5 ? '⚠️ 不完整' : val === 0 ? '❌ 缺失' : '─ N/A';
-                    return `<div style="font-size:12px;"><b>${rowLabel}</b><br/>${date}<br/>${status}</div>`;
+                    const srcKey = yRows[yi]?.sourceKey ?? '';
+                    const cfg = configByKey.get(srcKey);
+                    const isVariable = cfg?.validationType === 'variable';
+                    const isEvent    = cfg?.validationType === 'event';
+                    const docCount = lookup.get(`${srcKey}||${yRows[yi]?.area}||${date}`);
+                    const countStr = docCount !== undefined ? `　${docCount} 筆` : '';
+                    const status =
+                        val === 1   ? (isEvent ? '✅ 有事件' : '✅ 完整')
+                      : val === 0.5 ? `⚠️ 不完整${isVariable ? '（依中位值判定）' : ''}${countStr}`
+                      : val === 0   ? (isEvent ? '─ 無事件' : '❌ 缺失')
+                      :               '─ N/A';
+                    return `<div style="font-size:12px;"><b>${rowLabel}</b><br/>${date}<br/>${status}${val >= 0 && !isEvent ? countStr : ''}</div>`;
                 },
             },
             series: [
@@ -201,7 +222,7 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
                 },
             ],
         };
-    }, [rows, sourceConfigs, selectedSources, selectedAreas, axisColor]);
+    }, [rows, sourceConfigs, selectedSources, selectedAreas, axisColor, configByKey]);
 
     const handleCellClick = useCallback((params: any) => {
         if (!onCellClick || !params?.value) return;

@@ -11,10 +11,12 @@ import {
     TableBody,
     TablePagination,
     Chip,
+    IconButton,
     MenuItem,
     Select,
     Skeleton,
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@/app/ThemeProvider';
 import { fetchCoverageRecords, fetchPredictionCalculateTimes, RecordRow } from '@/services/dataStatusApi';
 import { getRecordColumns } from '@/constants/dataStatusColumns';
@@ -29,6 +31,7 @@ interface Props {
     interval: 'hour' | '30m' | 'day';
     slotFilter: number | null;
     onSlotFilterChange: (slot: number | null) => void;
+    onOpenFullPage?: () => void;                // optional: navigate to full-page raw data view
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,7 +57,7 @@ function slotIndexToLabel(slot: number, interval: 'hour' | '30m' | 'day'): strin
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const RecordsTab: React.FC<Props> = ({
-    sourceKey, area, date, interval, slotFilter, onSlotFilterChange,
+    sourceKey, area, date, interval, slotFilter, onSlotFilterChange, onOpenFullPage,
 }) => {
     const { darkMode } = useTheme();
 
@@ -171,9 +174,21 @@ export const RecordsTab: React.FC<Props> = ({
                         }}
                     />
                 )}
-                <Typography sx={{ fontSize: '0.72rem', color: textSec, ml: 'auto' }}>
-                    {loading ? '…' : `共 ${total.toLocaleString()} 筆`}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: textSec }}>
+                        {loading ? '…' : `共 ${total.toLocaleString()} 筆`}
+                    </Typography>
+                    {onOpenFullPage && (
+                        <IconButton
+                            size="small"
+                            onClick={onOpenFullPage}
+                            title="在完整頁面開啟原始資料"
+                            sx={{ color: textSec, p: 0.4 }}
+                        >
+                            <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
+                        </IconButton>
+                    )}
+                </Box>
             </Box>
 
             {/* Content area */}

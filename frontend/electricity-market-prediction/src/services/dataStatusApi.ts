@@ -42,6 +42,8 @@ export interface DynamicSourceConfig {
     label: string;              // e.g. "Mersol", "一次調整力"
     category: string;           // e.g. "價格預測", "調整市場"
     interval: 'hour' | '30m' | 'day';
+    validation_type: 'fixed' | 'variable' | 'event';
+    expected_per_day: number | null;
 }
 
 export interface CoverageSourcesResponse {

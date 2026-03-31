@@ -12,7 +12,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Alert, Button, Divider } from '@mui/material';
+import { Box, Alert, Dialog, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
@@ -30,6 +30,9 @@ import { DataStatusKPI } from '@/components/data-status/DataStatusKPI';
 import { DataStatusGantt } from '@/components/data-status/DataStatusGantt';
 import { SelectedCell } from '@/components/data-status/DataStatusDetailDrawer';
 import { DataStatusUnifiedDrawer } from '@/components/data-status/DataStatusUnifiedDrawer';
+import { DataStatusRawView } from '@/components/data-status/DataStatusRawView';
+
+interface RecordsCell { sourceKey: string; area: string; date: string; slot?: number; }
 
 export default function DataStatusPage() {
     const {
@@ -57,8 +60,18 @@ export default function DataStatusPage() {
         fetchCoverageSources()
             .then(r => {
                 setDynamicSources([
-                    ...r.tdgc_categories.map(s => ({ ...s, isSystem: false as const })),
-                    ...r.prediction_sources.map(s => ({ ...s, isSystem: false as const })),
+                    ...r.tdgc_categories.map(s => ({
+                        ...s,
+                        isSystem: false as const,
+                        validationType: s.validation_type,
+                        expectedPerDay: s.expected_per_day,
+                    })),
+                    ...r.prediction_sources.map(s => ({
+                        ...s,
+                        isSystem: false as const,
+                        validationType: s.validation_type,
+                        expectedPerDay: s.expected_per_day,
+                    })),
                 ]);
             })
             .catch(() => { /* keep empty — static sources still work */ });
@@ -73,7 +86,7 @@ export default function DataStatusPage() {
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set(STATIC_SOURCE_CONFIGS.map(s => s.key)));
-    const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(AREA_ORDER));
+    const [selectedArea,    setSelectedArea]    = useState<string>('tokyo');
 
     // Auto-select newly loaded dynamic sources
     useEffect(() => {
@@ -81,23 +94,8 @@ export default function DataStatusPage() {
         setSelectedSources(new Set(allSourceKeys));
     }, [allSourceKeys, dynamicSources.length]);
 
-    // ── Area toggle helpers ──────────────────────────────────────────────────
-    const toggleArea = useCallback((area: string) => {
-        setSelectedAreas(prev => {
-            const next = new Set(prev);
-            next.has(area) ? next.delete(area) : next.add(area);
-            return next;
-        });
-    }, []);
-
-    const toggleAllAreas = useCallback(() => {
-        setSelectedAreas(prev =>
-            prev.size === AREA_ORDER.length ? new Set() : new Set(AREA_ORDER),
-        );
-    }, []);
-
-    const allAreasSelected = selectedAreas.size === AREA_ORDER.length;
-    const someAreasSelected = selectedAreas.size > 0 && !allAreasSelected;
+    // ── Records fullscreen dialog state ─────────────────────────────────────
+    const [recordsCell, setRecordsCell] = useState<RecordsCell | null>(null);
 
     // ── Detail drawer state ──────────────────────────────────────────────────
     const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
@@ -152,17 +150,6 @@ export default function DataStatusPage() {
         [rows],
     );
 
-    // ── Area filter button sx helper ─────────────────────────────────────────
-    const areaButtonSx = (active: boolean) => ({
-        height: 26,
-        px: 1.25,
-        fontSize: '0.72rem',
-        minWidth: 0,
-        fontWeight: active ? 600 : 400,
-        borderColor: active ? 'var(--primary)' : 'var(--card-border)',
-        ...(active && { color: 'var(--primary-foreground)' }),
-    });
-
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
             {/* Shared toolbar */}
@@ -202,50 +189,54 @@ export default function DataStatusPage() {
                             sourceConfigs={allSourceConfigs}
                             selectedSources={selectedSources}
                             onSourcesChange={setSelectedSources}
-                            isLoading={isLoading}
-                            onRefresh={loadData}
                         />
                     </Box>
 
                     {/* Right: area filter + gantt */}
                     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        {/* Area filter button strip */}
+                        {/* Area single-select tab strip */}
                         <Box sx={{
                             flexShrink: 0,
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            px: 1.5,
-                            pt: 1,
-                            pb: 0.75,
+                            px: 1.5, pt: 0.75, pb: 0.5,
                             borderBottom: '1px solid var(--card-border)',
                         }}>
-                            <Button
+                            <ToggleButtonGroup
+                                exclusive
+                                value={selectedArea}
+                                onChange={(_, v) => { if (v) setSelectedArea(v); }}
                                 size="small"
-                                variant={allAreasSelected ? 'contained' : someAreasSelected ? 'outlined' : 'outlined'}
-                                onClick={toggleAllAreas}
-                                sx={areaButtonSx(allAreasSelected)}
+                                sx={{
+                                    flexWrap: 'wrap',
+                                    gap: 0.4,
+                                    '& .MuiToggleButtonGroup-grouped': {
+                                        border: '1px solid var(--card-border) !important',
+                                        borderRadius: '6px !important',
+                                        mx: 0,
+                                    },
+                                }}
                             >
-                                全選
-                            </Button>
-
-                            <Divider orientation="vertical" flexItem sx={{ mx: 0.25, my: 0.25 }} />
-
-                            {AREA_ORDER.map(area => {
-                                const active = selectedAreas.has(area);
-                                return (
-                                    <Button
+                                {AREA_ORDER.map(area => (
+                                    <ToggleButton
                                         key={area}
-                                        size="small"
-                                        variant={active ? 'contained' : 'outlined'}
-                                        onClick={() => toggleArea(area)}
-                                        sx={areaButtonSx(active)}
+                                        value={area}
+                                        sx={{
+                                            height: 26, px: 1.25,
+                                            fontSize: '0.72rem',
+                                            fontWeight: selectedArea === area ? 600 : 400,
+                                            color: selectedArea === area ? 'var(--primary)' : 'text.secondary',
+                                            '&.Mui-selected': {
+                                                backgroundColor: 'rgba(var(--primary-rgb, 99,102,241), 0.1)',
+                                                color: 'var(--primary)',
+                                            },
+                                            '&.Mui-selected:hover': {
+                                                backgroundColor: 'rgba(var(--primary-rgb, 99,102,241), 0.15)',
+                                            },
+                                        }}
                                     >
                                         {AREA_JP[area]}
-                                    </Button>
-                                );
-                            })}
+                                    </ToggleButton>
+                                ))}
+                            </ToggleButtonGroup>
                         </Box>
 
                         {/* Gantt chart */}
@@ -258,7 +249,7 @@ export default function DataStatusPage() {
                                     isLoading={isLoading}
                                     sourceConfigs={allSourceConfigs}
                                     selectedSources={selectedSources}
-                                    selectedAreas={selectedAreas}
+                                    selectedAreas={new Set([selectedArea])}
                                     onCellClick={handleCellClick}
                                 />
                             )}
@@ -272,7 +263,25 @@ export default function DataStatusPage() {
                 availableDates={availableDates}
                 onClose={() => setSelectedCell(null)}
                 onNavigate={setSelectedCell}
+                onOpenRecords={setRecordsCell}
             />
+
+            {/* ── Full-screen raw records dialog ── */}
+            <Dialog
+                fullScreen
+                open={!!recordsCell}
+                onClose={() => setRecordsCell(null)}
+            >
+                {recordsCell && (
+                    <DataStatusRawView
+                        sourceKey={recordsCell.sourceKey}
+                        area={recordsCell.area}
+                        date={recordsCell.date}
+                        slot={recordsCell.slot}
+                        onClose={() => setRecordsCell(null)}
+                    />
+                )}
+            </Dialog>
         </Box>
     );
 }
