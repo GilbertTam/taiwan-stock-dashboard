@@ -119,6 +119,10 @@ export interface UseMarketDataReturn {
     setStartDate: React.Dispatch<React.SetStateAction<Date | null>>;
     setEndDate: React.Dispatch<React.SetStateAction<Date | null>>;
     setDateRangePreset: React.Dispatch<React.SetStateAction<string | null>>;
+    /** Monotonically increasing counter; increments on every user date selection. */
+    selectionVersion: number;
+    /** Commit a new date range. Increments selectionVersion to force re-fetch. */
+    commitDateSelection: (start: Date, end: Date, preset: string | null) => void;
 
     // Loading/Error states
     isLoading: boolean;
@@ -253,6 +257,14 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Active date range preset identifier (e.g., '3D', 'week', 'month') */
     const [dateRangePreset, setDateRangePreset] = useState<string | null>('week');
+
+    /**
+     * Monotonically increasing counter. Increments on every user date selection,
+     * even when startDate/endDate values are unchanged. Used to force re-fetches
+     * for subset-range selections that would otherwise hit the same cache key.
+     */
+    const [selectionVersion, setSelectionVersion] = useState(0);
+    const selectionVersionRef = useRef(0);
 
     // ==========================================================================
     // Market Data State
@@ -1068,12 +1080,14 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /**
      * Re-fetch actual data when area or date range changes.
+     * selectionVersion is included to force re-fetch even when dates are structurally
+     * identical to the previous selection (e.g., subset-range re-selection).
      */
     useEffect(() => {
         if (selectedArea && startDate && endDate) {
             fetchActualData();
         }
-    }, [selectedArea, startDate, endDate, fetchActualData]);
+    }, [selectedArea, startDate, endDate, selectionVersion, fetchActualData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     /**
      * Re-fetch predictions when area, models, date range, or prediction enablement changes.
@@ -1089,7 +1103,7 @@ export const useMarketData = (): UseMarketDataReturn => {
         } else {
             setPredictionsByModel({});
         }
-    }, [predictionsEnabled, selectedArea, selectedModels, startDate, endDate, fetchPredictionData]);
+    }, [predictionsEnabled, selectedArea, selectedModels, startDate, endDate, selectionVersion, fetchPredictionData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ==========================================================================
     // Event Handlers
@@ -1141,6 +1155,20 @@ export const useMarketData = (): UseMarketDataReturn => {
     };
 
     /**
+     * Commit a new date range selection. Increments selectionVersion so fetch
+     * effects re-run even when startDate/endDate values are unchanged.
+     * Both dates are normalized to 00:00:00.000 by the caller (DateRangePicker).
+     */
+    const commitDateSelection = useCallback((start: Date, end: Date, preset: string | null) => {
+        selectionVersionRef.current += 1;
+        const v = selectionVersionRef.current;
+        setStartDate(start);
+        setEndDate(end);
+        setDateRangePreset(preset);
+        setSelectionVersion(v);
+    }, []);
+
+    /**
      * Apply a date range preset (e.g., 'week', 'month').
      * Sets start/end dates based on preset relative to today.
      * @param preset - Preset identifier or null to clear
@@ -1151,7 +1179,7 @@ export const useMarketData = (): UseMarketDataReturn => {
             return;
         }
         const today = new Date();
-        today.setHours(23, 59, 59, 999);
+        today.setHours(0, 0, 0, 0);
         let start: Date;
         // N 天 = 含今日往前 N 天（1D=1天, 3D=3天, week=7天）
         switch (preset) {
@@ -1168,9 +1196,7 @@ export const useMarketData = (): UseMarketDataReturn => {
             default: start = subDays(today, 6);                           // 預設 7 天
         }
         start.setHours(0, 0, 0, 0);
-        setStartDate(start);
-        setEndDate(today);
-        setDateRangePreset(preset);
+        commitDateSelection(start, today, preset);
     };
 
     /**
@@ -1179,9 +1205,7 @@ export const useMarketData = (): UseMarketDataReturn => {
      */
     const handleMoveMonthBackward = () => {
         if (startDate && endDate) {
-            setStartDate(subMonths(startDate, 1));
-            setEndDate(subMonths(endDate, 1));
-            setDateRangePreset(null);
+            commitDateSelection(subMonths(startDate, 1), subMonths(endDate, 1), null);
         }
     };
 
@@ -1191,15 +1215,14 @@ export const useMarketData = (): UseMarketDataReturn => {
      */
     const handleMoveMonthForward = () => {
         if (startDate && endDate) {
-            setStartDate(addMonths(startDate, 1));
-            setEndDate(addMonths(endDate, 1));
-            setDateRangePreset(null);
+            commitDateSelection(addMonths(startDate, 1), addMonths(endDate, 1), null);
         }
     };
 
     /**
-     * Force refresh all data by clearing cache and re-fetching.
-     * Useful when user wants latest data or suspects stale cache.
+     * Force refresh all data by clearing cache and incrementing selectionVersion.
+     * Version increment causes fetch effects to re-run and the page-level version
+     * watcher to reset simulation state.
      */
     const refreshData = useCallback(() => {
         if (selectedArea && startDate && endDate) {
@@ -1207,10 +1230,10 @@ export const useMarketData = (): UseMarketDataReturn => {
             setCachedPredictionsByModel({});
             // Clear actual data cache to force fresh API calls
             actualDataCacheRef.current = {};
-            fetchActualData();
-            fetchPredictionData();
+            // Increment version so fetch effects re-run and page resets simulation
+            commitDateSelection(startDate, endDate, dateRangePreset);
         }
-    }, [selectedArea, startDate, endDate, fetchActualData, fetchPredictionData]);
+    }, [selectedArea, startDate, endDate, dateRangePreset, commitDateSelection]);
 
     // ==========================================================================
     // Return Hook API
@@ -1266,6 +1289,8 @@ export const useMarketData = (): UseMarketDataReturn => {
         setStartDate,
         setEndDate,
         setDateRangePreset,
+        selectionVersion,
+        commitDateSelection,
 
         // Handlers
         handleAreaChange,

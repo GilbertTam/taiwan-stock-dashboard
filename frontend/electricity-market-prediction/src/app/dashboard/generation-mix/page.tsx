@@ -10,11 +10,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
+  ButtonBase,
   Collapse,
   Typography,
   Paper,
-  ToggleButton,
-  ToggleButtonGroup,
   Alert,
   CircularProgress,
   Chip,
@@ -24,13 +23,19 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import BoltIcon from '@mui/icons-material/Bolt';
+import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import AirIcon from '@mui/icons-material/Air';
+import ElectricalServicesIcon from '@mui/icons-material/ElectricalServices';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 import ReactECharts from 'echarts-for-react';
 import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 import { useTheme } from '@/app/ThemeProvider';
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { fetchOcctoArea, fetchHjksOutages } from '@/services';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import type { OcctoAreaData, HjksOutage } from '@/types';
@@ -148,11 +153,8 @@ export default function GenerationMixPage() {
     startDate,
     endDate,
     dateRangePreset,
-    setStartDate,
-    setEndDate,
+    commitDateSelection,
     handleDateRangePreset,
-    occtoAreaData,
-    isLoading,
     refreshData,
     registerPageNeeds,
     unregisterPageNeeds,
@@ -163,14 +165,6 @@ export default function GenerationMixPage() {
     return () => unregisterPageNeeds('generation-mix');
   }, [registerPageNeeds, unregisterPageNeeds]);
 
-  const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
-    startDate,
-    endDate,
-    setStartDate,
-    setEndDate,
-    clearPreset: () => handleDateRangePreset(null),
-  });
-
   const [pageMode, setPageMode] = useState<PageMode>('timeseries');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [outages, setOutages] = useState<HjksOutage[]>([]);
@@ -180,6 +174,29 @@ export default function GenerationMixPage() {
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
   const [lockedOutages, setLockedOutages] = useState<HjksOutage[]>([]);
   const [lockedTime, setLockedTime] = useState<number | null>(null);
+
+  // ── Timeseries data (fetched independently per area, not via context scope) ──
+  const [timeseriesOcctoData, setTimeseriesOcctoData] = useState<OcctoAreaData[]>([]);
+  const [timeseriesLoading, setTimeseriesLoading] = useState(false);
+  const [timeseriesVersion, setTimeseriesVersion] = useState(0);
+  const timeseriesAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!startDate || !endDate || !selectedArea) return;
+    timeseriesAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    timeseriesAbortRef.current = ctrl;
+    setTimeseriesLoading(true);
+    fetchOcctoArea({
+      start_date: format(startDate, 'yyyyMMdd'),
+      end_date: format(endDate, 'yyyyMMdd'),
+      area_name: selectedArea,
+    })
+      .then((data) => { if (!ctrl.signal.aborted) setTimeseriesOcctoData(data); })
+      .catch((err) => { if (!ctrl.signal.aborted) { console.error('Failed to fetch timeseries OCCTO data:', err); setTimeseriesOcctoData([]); } })
+      .finally(() => { if (!ctrl.signal.aborted) setTimeseriesLoading(false); });
+    return () => ctrl.abort();
+  }, [startDate, endDate, selectedArea, timeseriesVersion]);
 
   // ── All-area data for comparison mode (fetched independently, no area filter) ─
   const [allAreaData, setAllAreaData] = useState<OcctoAreaData[]>([]);
@@ -204,14 +221,17 @@ export default function GenerationMixPage() {
 
   // ── Outages fetch (timeseries mode only, filtered by selected area) ─────────
   const outagesFetchRef = useRef<AbortController | null>(null);
+  const didAutoExpandRef = useRef(false);
   useEffect(() => {
     if (pageMode !== 'timeseries' || !startDate || !endDate || !selectedArea) {
       setOutages([]);
+      didAutoExpandRef.current = false;
       return;
     }
     outagesFetchRef.current?.abort();
     const ctrl = new AbortController();
     outagesFetchRef.current = ctrl;
+    didAutoExpandRef.current = false;
     fetchHjksOutages({
       start_date: format(startDate, 'yyyyMMdd'),
       end_date: format(endDate, 'yyyyMMdd'),
@@ -222,13 +242,19 @@ export default function GenerationMixPage() {
     return () => ctrl.abort();
   }, [pageMode, startDate, endDate, selectedArea]);
 
-  // ── Timeseries: filter + sort by selected area ──────────────────────────────
+  // Auto-expand outage panel the first time outages arrive
+  useEffect(() => {
+    if (outages.length > 0 && !didAutoExpandRef.current) {
+      didAutoExpandRef.current = true;
+      setOutagesExpanded(true);
+    }
+  }, [outages.length]);
+
+  // ── Timeseries: sort the independently-fetched area data ───────────────────
   const areaData: OcctoAreaData[] = useMemo(() => {
-    if (!occtoAreaData?.length) return [];
-    return [...occtoAreaData]
-      .filter((d) => !selectedArea || d.area === selectedArea)
-      .sort((a, b) => a.datetime.localeCompare(b.datetime));
-  }, [occtoAreaData, selectedArea]);
+    if (!timeseriesOcctoData?.length) return [];
+    return [...timeseriesOcctoData].sort((a, b) => a.datetime.localeCompare(b.datetime));
+  }, [timeseriesOcctoData]);
 
   const timeLabels = useMemo(
     () => areaData.map((d) => d.datetime.slice(0, 16).replace('T', ' ')),
@@ -301,13 +327,15 @@ export default function GenerationMixPage() {
   }, [activeIndex, pageMode, areaData, comparisonData]);
 
   const donutTitle = useMemo(() => {
-    if (activeIndex === null) return '期間平均組合';
+    if (activeIndex === null) {
+      return pageMode === 'comparison' ? '全域平均（懸停查看各地區）' : '期間平均組合';
+    }
     if (pageMode === 'timeseries') {
       const label = timeLabels[activeIndex];
       return label ? `${label.slice(5, 16)}` : '組合';
     } else {
       const label = comparisonLabels[activeIndex];
-      return label ?? '組合';
+      return label ? `${label} 平均組合` : '組合';
     }
   }, [activeIndex, pageMode, timeLabels, comparisonLabels]);
 
@@ -343,55 +371,74 @@ export default function GenerationMixPage() {
     [comparisonData]
   );
 
-  const handleRefresh = () => refreshData?.() ?? window.location.reload();
+  const handleRefresh = () => {
+    setTimeseriesVersion(v => v + 1);
+    refreshData?.() ?? window.location.reload();
+  };
 
-  const activeLoading = pageMode === 'timeseries' ? isLoading : allAreaLoading;
+  const activeLoading = pageMode === 'timeseries' ? timeseriesLoading : allAreaLoading;
   const hasData = pageMode === 'timeseries' ? areaData.length > 0 : comparisonItems.length > 0;
 
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-      {isLoading && <LoadingOverlay />}
+      {timeseriesLoading && pageMode === 'timeseries' && <LoadingOverlay />}
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0 }}>
           <DashboardToolbar
-            startDate={tempStartDate}
-            endDate={tempEndDate}
+            startDate={startDate}
+            endDate={endDate}
             dateRangePreset={dateRangePreset}
-            onDateRangeChange={onDateRangeChange}
+            onDateChange={commitDateSelection}
             onDateRangePreset={handleDateRangePreset}
-            onDateMenuClose={onDateMenuClose}
             onRefresh={handleRefresh}
-            isLoading={isLoading}
+            isLoading={timeseriesLoading || allAreaLoading}
           />
         </Box>
 
-        {/* Header row */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5, flexWrap: 'wrap', gap: 1, flexShrink: 0 }}>
+        {/* Row A: Page identity strip + mode toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5, flexShrink: 0, minHeight: 32 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              發電組合分析
-            </Typography>
-            {pageMode === 'timeseries' && selectedArea && (
-              <Chip size="small" label={selectedArea} sx={{ fontFamily: 'monospace', height: 20, fontSize: 11 }} />
-            )}
+            <ElectricalServicesIcon sx={{ fontSize: 16, color: 'var(--primary)' }} />
+            <Typography variant="subtitle1" fontWeight={700}>發電組合分析</Typography>
+            <Box sx={{ width: '1px', height: 14, backgroundColor: 'var(--card-border)', mx: 0.25 }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>OCCTO 発電源分析</Typography>
           </Box>
+          {/* Mode toggle — toolbar-style ButtonBase pair */}
+          <Box sx={{ display: 'inline-flex', border: '1px solid var(--card-border)', borderRadius: 1, overflow: 'hidden', height: 28, flexShrink: 0 }}>
+            {(['timeseries', 'comparison'] as PageMode[]).map((mode, i) => (
+              <React.Fragment key={mode}>
+                {i > 0 && <Box sx={{ width: '1px', backgroundColor: 'var(--card-border)', flexShrink: 0 }} />}
+                <ButtonBase
+                  onClick={() => { if (mode !== pageMode) { setPageMode(mode); setHoverIndex(null); setLockedIndex(null); setLockedTime(null); } }}
+                  sx={{
+                    px: 1.5,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    height: '100%',
+                    whiteSpace: 'nowrap',
+                    transition: 'background-color 0.15s, color 0.15s',
+                    ...(pageMode === mode ? {
+                      backgroundColor: 'rgba(0,255,157,0.12)',
+                      color: 'var(--primary)',
+                      fontWeight: 700,
+                    } : {
+                      color: 'var(--muted)',
+                    }),
+                  }}
+                >
+                  {mode === 'timeseries' ? '時序分析' : '地區比較'}
+                </ButtonBase>
+              </React.Fragment>
+            ))}
+          </Box>
+        </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {/* Page mode toggle */}
-            <ToggleButtonGroup
-              value={pageMode}
-              exclusive
-              onChange={(_, v) => { if (v) { setPageMode(v); setHoverIndex(null); setLockedIndex(null); setLockedTime(null); } }}
-              size="small"
-              sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1.25, fontSize: 11, textTransform: 'none' } }}
-            >
-              <ToggleButton value="timeseries">時序分析</ToggleButton>
-              <ToggleButton value="comparison">地區比較</ToggleButton>
-            </ToggleButtonGroup>
-
-            {/* Area chips — only meaningful in timeseries mode */}
-            {pageMode === 'timeseries' && areas.map((area) => (
+        {/* Row B: Area chip selector (timeseries mode only) */}
+        {pageMode === 'timeseries' && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.5, flexWrap: 'wrap', flexShrink: 0 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>選擇地區：</Typography>
+            {areas.map((area) => (
               <Chip
                 key={area.name}
                 label={area.name_ch || area.name}
@@ -399,6 +446,7 @@ export default function GenerationMixPage() {
                 variant={selectedArea === area.name ? 'filled' : 'outlined'}
                 onClick={() => handleAreaChange({ target: { value: area.name } } as any)}
                 sx={{
+                  flexShrink: 0,
                   cursor: 'pointer',
                   fontSize: 11,
                   height: 22,
@@ -412,33 +460,58 @@ export default function GenerationMixPage() {
               />
             ))}
           </Box>
-        </Box>
+        )}
+
+        {/* Row C: Comparison mode context banner */}
+        {pageMode === 'comparison' && (
+          <Box sx={{ px: 1.5, py: 0.5, flexShrink: 0, borderLeft: '4px solid var(--secondary)', backgroundColor: 'rgba(0,210,255,0.05)', borderRadius: '0 4px 4px 0', mx: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              地區比較模式：顯示各地區期間平均發電組合。懸停長條可查看各地區詳情。
+            </Typography>
+          </Box>
+        )}
 
         {/* KPI strip — period aggregates (timeseries mode only) */}
         {pageMode === 'timeseries' && periodStats && (
           <Box sx={{ display: 'flex', gap: 1, px: 0.5, flexWrap: 'wrap', flexShrink: 0 }}>
-            <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, minWidth: 120 }}>
-              <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>期間均值總供給</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace' }}>
-                {periodStats.avgTotal.toFixed(0)} MW
+            <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', borderTop: '2px solid rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.04)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                <BoltIcon sx={{ fontSize: 11, color: '#e0e0e0', opacity: 0.8 }} />
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>期間均值總供給</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1.2 }}>
+                {periodStats.avgTotal.toFixed(0)}
+                <Box component="span" sx={{ fontSize: 11, fontWeight: 400, opacity: 0.6, ml: 0.4 }}>MW</Box>
               </Typography>
             </Paper>
-            <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, minWidth: 120, backgroundColor: 'rgba(0,204,122,0.08)', borderColor: 'rgba(0,204,122,0.3)' }}>
-              <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>均值再生能源佔比</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: '#00cc7a' }}>
-                {periodStats.avgRenewablePct.toFixed(1)}%
+            <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(0,204,122,0.08)', borderColor: 'rgba(0,204,122,0.3)', borderTop: '2px solid rgba(0,204,122,0.5)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                <EnergySavingsLeafIcon sx={{ fontSize: 11, color: '#00cc7a', opacity: 0.7 }} />
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>均值再生能源佔比</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#00cc7a', lineHeight: 1.2 }}>
+                {periodStats.avgRenewablePct.toFixed(1)}
+                <Box component="span" sx={{ fontSize: 11, fontWeight: 400, opacity: 0.6, ml: 0.4 }}>%</Box>
               </Typography>
             </Paper>
-            <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, minWidth: 120, backgroundColor: 'rgba(255,202,40,0.08)', borderColor: 'rgba(255,202,40,0.3)' }}>
-              <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>太陽能峰值</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: '#ffca28' }}>
-                {periodStats.peakSolar.toFixed(0)} MW
+            <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(255,202,40,0.08)', borderColor: 'rgba(255,202,40,0.3)', borderTop: '2px solid rgba(255,202,40,0.5)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                <WbSunnyIcon sx={{ fontSize: 11, color: '#ffca28', opacity: 0.7 }} />
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>太陽能峰值</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#ffca28', lineHeight: 1.2 }}>
+                {periodStats.peakSolar.toFixed(0)}
+                <Box component="span" sx={{ fontSize: 11, fontWeight: 400, opacity: 0.6, ml: 0.4 }}>MW</Box>
               </Typography>
             </Paper>
-            <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, minWidth: 120, backgroundColor: 'rgba(38,198,218,0.08)', borderColor: 'rgba(38,198,218,0.3)' }}>
-              <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>風力峰值</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: '#26c6da' }}>
-                {periodStats.peakWind.toFixed(0)} MW
+            <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(38,198,218,0.08)', borderColor: 'rgba(38,198,218,0.3)', borderTop: '2px solid rgba(38,198,218,0.5)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                <AirIcon sx={{ fontSize: 11, color: '#26c6da', opacity: 0.7 }} />
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>風力峰值</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#26c6da', lineHeight: 1.2 }}>
+                {periodStats.peakWind.toFixed(0)}
+                <Box component="span" sx={{ fontSize: 11, fontWeight: 400, opacity: 0.6, ml: 0.4 }}>MW</Box>
               </Typography>
             </Paper>
           </Box>
@@ -450,7 +523,7 @@ export default function GenerationMixPage() {
             <Alert severity="info" sx={{ mx: 0.5, alignSelf: 'flex-start' }}>
               該時段無 OCCTO 供需資料 (No OCCTO area data for this period)
             </Alert>
-          ) : activeLoading && !hasData && !isLoading ? (
+          ) : activeLoading && !hasData ? (
             <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <CircularProgress />
             </Box>
@@ -510,26 +583,35 @@ export default function GenerationMixPage() {
                   flexDirection: 'column',
                   borderRadius: 1.5,
                   overflow: 'hidden',
+                  transition: 'border-color 0.2s, box-shadow 0.2s',
+                  ...(lockedIndex !== null && {
+                    borderColor: 'rgba(0,255,157,0.45)',
+                    boxShadow: '0 0 8px rgba(0,255,157,0.15)',
+                  }),
                 }}
               >
                 {/* Lock indicator */}
-                {lockedIndex !== null && (
+                {lockedIndex !== null ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: 10, color: 'primary.main', fontWeight: 700 }}>
-                      📌 已鎖定
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <LockIcon sx={{ fontSize: 12, color: 'var(--primary)' }} />
+                      <Typography sx={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}>已鎖定</Typography>
+                    </Box>
                     <Chip
                       size="small"
                       label="解除"
+                      variant="outlined"
                       onClick={() => { setLockedIndex(null); setLockedOutages([]); setLockedTime(null); }}
-                      sx={{ fontSize: 10, height: 18, cursor: 'pointer' }}
+                      sx={{ fontSize: 10, height: 18, cursor: 'pointer', color: 'var(--primary)', borderColor: 'rgba(0,255,157,0.5)' }}
                     />
                   </Box>
-                )}
-                {lockedIndex === null && (
-                  <Typography sx={{ fontSize: 9, color: 'text.disabled', mb: 0.25 }}>
-                    點擊圖表可鎖定時段
-                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                    <LockOpenIcon sx={{ fontSize: 11, color: 'var(--muted)' }} />
+                    <Typography sx={{ fontSize: 11, color: 'var(--muted)' }}>
+                      點擊圖表可鎖定時段
+                    </Typography>
+                  </Box>
                 )}
 
                 <DonutPanel
@@ -610,13 +692,27 @@ export default function GenerationMixPage() {
               <Typography variant="caption" sx={{ fontWeight: 700, flex: 1 }}>
                 停機事件
               </Typography>
+              {outages.length > 0 && (
+                <Chip
+                  size="small"
+                  label={outages.length}
+                  sx={{
+                    height: 18,
+                    fontSize: 10,
+                    mr: 0.75,
+                    backgroundColor: 'rgba(255,152,0,0.2)',
+                    color: 'warning.main',
+                    border: '1px solid rgba(255,152,0,0.4)',
+                  }}
+                />
+              )}
               <IconButton size="small" sx={{ p: 0.25 }} tabIndex={-1}>
                 {outagesExpanded
                   ? <ExpandLessIcon sx={{ fontSize: 18 }} />
                   : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
               </IconButton>
             </Box>
-            <Collapse in={outagesExpanded} timeout="auto">
+            <Collapse in={outagesExpanded} timeout={0}>
               <Box sx={{ px: 1.5, pb: 1.5, maxHeight: 480, overflowY: 'auto' }}>
                 <OutagesPanel
                   startDate={startDate}

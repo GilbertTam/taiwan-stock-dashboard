@@ -1,15 +1,37 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Box, Typography, useTheme, Card, CardContent, Grid, Divider, Paper, FormControl, InputLabel, Select, MenuItem, Tooltip } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import {
+    Box, useTheme, FormControl, InputLabel, Select, MenuItem,
+    Tabs, Tab, Typography, Divider,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Paper, Chip,
+} from '@mui/material';
 import type { EChartsOption } from 'echarts';
 import { BaseChart } from '@/components/charts/BaseChart';
-import { OptimizationResult, GanttChartData } from '@/types/revenueAnalysis';
+import { OptimizationResult, GanttChartData, GanttOperation } from '@/types/revenueAnalysis';
 import { RevenueGanttChart } from './RevenueGanttChart';
+import { SocLineChart } from './SocLineChart';
 import { OperationScheduleTable } from './OperationScheduleTable';
 import { PriceOperationChart } from './PriceOperationChart';
+import RevenueKpiHeader from './RevenueKpiHeader';
+import { RevenueEmptyState } from './RevenueEmptyState';
 
-/** Scale factor for revenue display (backend returns in different unit). */
-const REVENUE_DISPLAY_SCALE = 1;
+/** Resolve revenue for an operation based on the current price basis (own-model only). */
+function resolveRevenue(op: GanttOperation, basis: string): number {
+    if (basis === 'actual') return op.revenueRealized ?? op.revenue ?? 0;
+    return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+}
+
+/**
+ * Compute a model operation's revenue at the basis model's predicted prices.
+ * Used when model Y's schedule is evaluated at model X's assumed prices.
+ * Degradation cost is omitted (Cost_cycle defaults to 0).
+ */
+function computeRevAtBasisPrices(op: GanttOperation, basisMap: Map<string, number>, dt: number): number {
+    if (op.action == null || op.power == null || op.action === 'Idle') return 0;
+    const price = basisMap.get(op.datetime) ?? 0;
+    if (op.action === 'Charge') return -(op.power * 1000 * price * dt);
+    return op.power * 1000 * price * dt; // Spot / Balance / Discharge
+}
 
 interface RevenueSummaryChartProps {
     actualResult: OptimizationResult | null;
@@ -25,183 +47,270 @@ interface RevenueSummaryChartProps {
     }[];
     colors: any;
     dt?: number;
+    manualResult?: { optimization: OptimizationResult; realizedRevenue: number } | null;
+    batteryECap?: number;
+    cycleLimit?: number;
+    /** Controlled: the active price basis ('actual' | modelKey). Falls back to internal state if omitted. */
+    priceBasis?: string;
+    onPriceBasisChange?: (basis: string) => void;
 }
 
-/**
- * 案場收益圖表與指標總覽 | Site revenue summary charts and metrics
- * 渲染所有的圖表與表格區塊 (Renders all charts and table sections)
- */
 export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
     actualResult,
     modelResults,
     ganttData,
     selectedModels,
     colors,
-    dt = 0.5
+    dt = 0.5,
+    manualResult,
+    batteryECap,
+    cycleLimit,
+    priceBasis: priceBasisProp,
+    onPriceBasisChange,
 }) => {
     const theme = useTheme();
     const darkMode = theme.palette.mode === 'dark';
+    const [activeTab, setActiveTab] = useState(0);
     const [selectedScheduleId, setSelectedScheduleId] = useState<string>('optimal');
+    // Internal fallback when not controlled from outside
+    const [priceBasisInternal, setPriceBasisInternal] = useState<string>('actual');
+    const priceBasis = priceBasisProp ?? priceBasisInternal;
+    const setPriceBasis = (v: string) => {
+        setPriceBasisInternal(v);
+        onPriceBasisChange?.(v);
+    };
     const priceChartRef = useRef<{ getInstance: () => any }>(null);
     const opChartRef = useRef<{ getInstance: () => any }>(null);
     const socChartRef = useRef<{ getInstance: () => any }>(null);
 
-    const summaryRef = useRef<HTMLDivElement>(null);
-    const chartsRef = useRef<HTMLDivElement>(null);
-    const dailyRef = useRef<HTMLDivElement>(null);
-    const tableRef = useRef<HTMLDivElement>(null);
+    const manualColor = useMemo(() => {
+        if (typeof window === 'undefined') return '#29b6f6';
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#29b6f6';
+    }, []);
 
-    const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
-        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
+    // datetime → pricePredicted map for the selected basis model (null when basis = 'actual')
+    const basisPriceMap = useMemo((): Map<string, number> | null => {
+        if (priceBasis === 'actual' || !ganttData?.models?.[priceBasis]) return null;
+        const map = new Map<string, number>();
+        ganttData.models[priceBasis].forEach(op => {
+            if (op.pricePredicted != null) map.set(op.datetime, op.pricePredicted);
+        });
+        return map.size > 0 ? map : null;
+    }, [ganttData, priceBasis]);
 
-    // Metrics: computed only from Detailed Operation Schedule (ganttData), no separate API data
+    // Price basis options: 'actual' + each model that has predictions
+    const priceBasisOptions = useMemo(() => {
+        const options: { id: string; label: string }[] = [{ id: 'actual', label: '實際值' }];
+        if (ganttData?.models) {
+            selectedModels.forEach(m => {
+                const key = `${m.id}|${m.name}`;
+                const ops = ganttData.models[key];
+                if (ops?.some(op => op.pricePredicted != null)) {
+                    options.push({ id: key, label: m.name });
+                }
+            });
+        }
+        return options;
+    }, [ganttData, selectedModels]);
+
+    // When ganttData changes, reset priceBasis to 'actual' if current basis is no longer available
+    useEffect(() => {
+        if (priceBasis === 'actual') return;
+        const validIds = new Set(priceBasisOptions.map(o => o.id));
+        if (!validIds.has(priceBasis)) setPriceBasis('actual');
+    }, [priceBasisOptions, priceBasis]);
+
+    // KPI Metrics — handles three modes:
+    //   1. priceBasis='actual'         → standard: actual optimal vs model realized revenues
+    //   2. priceBasis=model, has actual → hybrid:  actual optimal, models evaluated at basis prices
+    //   3. priceBasis=model, no actual  → reference mode: basis model is the 100% reference
     const metrics = useMemo(() => {
         if (!ganttData) return null;
         const hasOptimal = (ganttData.optimal?.length ?? 0) > 0;
         const modelKeys = Object.keys(ganttData.models || {});
         if (!hasOptimal && modelKeys.length === 0) return null;
 
-        const sumRevenue = (ops: { revenueRealized?: number | null; revenue?: number | null }[]) =>
-            ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
+        const isBasisMode = priceBasis !== 'actual' && basisPriceMap !== null;
+        const isReferenceMode = isBasisMode && !hasOptimal; // no actual prices
 
-        const optimalRev = hasOptimal
-            ? sumRevenue(ganttData.optimal!)
-            : 0;
+        // ── Optimal / Reference revenue ─────────────────────────────────────────
+        let optimalRev: number;
+        let referenceName: string | undefined;
 
+        if (isReferenceMode) {
+            // No actual data → basis model's own estimated revenue is the reference (= 100%)
+            const basisOps = ganttData.models[priceBasis] ?? [];
+            optimalRev = basisOps.reduce((s, op) => s + (op.revenueEstimated ?? 0), 0);
+            referenceName = selectedModels.find(m => `${m.id}|${m.name}` === priceBasis)?.name;
+        } else {
+            optimalRev = hasOptimal
+                ? (ganttData.optimal!).reduce((s, op) => s + (op.revenueRealized ?? op.revenue ?? 0), 0)
+                : 0;
+        }
+
+        // Helper: revenue for an op of modelKey evaluated at current priceBasis
+        const revOfOp = (op: GanttOperation, modelKey: string): number => {
+            if (priceBasis === 'actual') return op.revenueRealized ?? op.revenue ?? 0;
+            if (modelKey === priceBasis) return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+            if (basisPriceMap) return computeRevAtBasisPrices(op, basisPriceMap, dt);
+            return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+        };
+
+        // ── Best Model ──────────────────────────────────────────────────────────
+        // In reference mode: exclude the basis model itself (it IS the reference)
+        const candidates = isReferenceMode && selectedModels.length > 1
+            ? selectedModels.filter(m => `${m.id}|${m.name}` !== priceBasis)
+            : selectedModels;
+
+        let bestModelKey: string | null = null;
         let bestModelRev = -Infinity;
         let bestModelName = '-';
-
-        selectedModels.forEach((model) => {
+        candidates.forEach(model => {
             const key = `${model.id}|${model.name}`;
             const ops = ganttData.models?.[key];
             if (ops?.length) {
-                const rev = sumRevenue(ops);
-                if (rev > bestModelRev) {
-                    bestModelRev = rev;
-                    bestModelName = model.name;
-                }
+                const rev = ops.reduce((s, op) => s + revOfOp(op, key), 0);
+                if (rev > bestModelRev) { bestModelRev = rev; bestModelName = model.name; bestModelKey = key; }
             }
         });
-
         if (bestModelRev === -Infinity) bestModelRev = 0;
-        // Efficiency only meaningful when both same sign (both positive or both negative)
-        const sameSign = (optimalRev > 0 && bestModelRev > 0) || (optimalRev < 0 && bestModelRev < 0);
-        const efficiency: number | null =
-            optimalRev !== 0 && sameSign ? (bestModelRev / optimalRev) * 100 : null;
+
+        // ── Dual values: actual realized + estimated (shown when both exist) ────
+        const bestOps = bestModelKey ? (ganttData.models?.[bestModelKey] ?? null) : null;
+
+        const bestModelRevActual: number | null = (bestOps?.length && hasOptimal)
+            ? bestOps.reduce((s, op) => s + (op.revenueRealized ?? op.revenue ?? 0), 0)
+            : null;
+
+        const hasEst = bestOps?.some(op => op.revenueEstimated != null) ?? false;
+        const bestModelRevEstimated: number | null = (bestOps?.length && hasEst)
+            ? bestOps.reduce((s, op) => s + (op.revenueEstimated ?? 0), 0)
+            : null;
+
+        // ── Efficiencies ────────────────────────────────────────────────────────
+        const calcEff = (rev: number, ref: number): number | null => {
+            if (ref === 0) return null;
+            if (!((ref > 0 && rev > 0) || (ref < 0 && rev < 0))) return null;
+            return (rev / ref) * 100;
+        };
+
+        const actualOptRev = hasOptimal
+            ? (ganttData.optimal!).reduce((s, op) => s + (op.revenueRealized ?? op.revenue ?? 0), 0)
+            : 0;
+
+        const efficiency = calcEff(bestModelRev, optimalRev);
+        const efficiencyActual = bestModelRevActual !== null ? calcEff(bestModelRevActual, actualOptRev) : null;
+        const efficiencyEstimated = bestModelRevEstimated !== null ? calcEff(bestModelRevEstimated, actualOptRev) : null;
+
+        const manualRevActual: number | null = ganttData.manual?.length
+            ? ganttData.manual.reduce((s, op) => s + (op.revenueRealized ?? op.revenue ?? 0), 0)
+            : (manualResult?.realizedRevenue ?? null);
+
+        const manualRevEstimated: number | null = (basisPriceMap !== null && (ganttData.manual?.length ?? 0) > 0)
+            ? ganttData.manual!.reduce((s, op) => s + computeRevAtBasisPrices(op, basisPriceMap, dt), 0)
+            : null;
+
+        const manualRev = (priceBasis !== 'actual' && manualRevEstimated !== null)
+            ? manualRevEstimated
+            : manualRevActual;
+
+        // Effective cycles: total discharge energy / E_cap from manual gantt data
+        const manualEffectiveCycles: number | null = (ganttData.manual?.length && batteryECap && batteryECap > 0)
+            ? ganttData.manual.reduce((s, op) => {
+                if (op.action !== 'Discharge' && op.action !== 'Spot') return s;
+                return s + ((op.power ?? 0) * dt / batteryECap);
+            }, 0)
+            : null;
 
         return {
-            optimalRev,
-            bestModelRev,
-            bestModelName,
-            efficiency
+            optimalRev, bestModelRev, bestModelName, efficiency, manualRev, referenceName,
+            bestModelRevActual, bestModelRevEstimated, efficiencyActual, efficiencyEstimated,
+            manualRevActual, manualRevEstimated, manualEffectiveCycles,
         };
-    }, [ganttData, selectedModels]);
+    }, [ganttData, selectedModels, manualResult, priceBasis, basisPriceMap, dt]);
 
+    // Whether any data is available to render Analysis/Details
+    const hasData = useMemo(() => {
+        if (!ganttData) return false;
+        return (ganttData.optimal?.length ?? 0) > 0 || Object.keys(ganttData.models ?? {}).length > 0;
+    }, [ganttData]);
 
-
-    // 2. Consolidated Daily Analysis (Net Revenue vs Cumulative)
+    // Daily Revenue chart option — uses priceBasis for revenue values
     const dailyAnalysisOption = useMemo(() => {
-        if (!actualResult && selectedModels.length === 0) return {};
+        if (!ganttData) return {};
+        if (!hasData) return {};
 
-        const dates = Object.keys(ganttData?.optimal ?
-            ganttData.optimal.reduce((acc: any, op: any) => ({ ...acc, [op.datetime.substring(0, 10)]: 1 }), {}) :
-            {}
-        ).sort();
+        const allOps: GanttOperation[] = [
+            ...(ganttData.optimal ?? []),
+            ...Object.values(ganttData.models ?? {}).flat(),
+            ...(ganttData.manual ?? []),
+        ];
+        const dateSet = new Set(allOps.map(op => op.datetime.substring(0, 10)));
+        const dates = Array.from(dateSet).sort();
 
-        // Helper to get Daily Net and Cumulative. When useZeroForPredicted (model has no prediction data), show predicted revenue as 0.
-        const getSeriesData = (ops: any[], name: string, color: string, isOptimal: boolean, useZeroForPredicted = false) => {
+        // Revenue resolver for chart series: cross-model aware
+        const revForSeries = (op: GanttOperation, modelKey: string): number => {
+            if (modelKey === 'optimal') {
+                return op.revenueRealized ?? op.revenue ?? 0;
+            }
+            if (modelKey === 'manual') {
+                if (basisPriceMap) return computeRevAtBasisPrices(op, basisPriceMap, dt);
+                return op.revenueRealized ?? op.revenue ?? 0;
+            }
+            if (priceBasis === 'actual') return op.revenueRealized ?? op.revenue ?? 0;
+            if (modelKey === priceBasis) return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+            if (basisPriceMap) return computeRevAtBasisPrices(op, basisPriceMap, dt);
+            return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+        };
+
+        const getSeriesData = (ops: GanttOperation[], name: string, color: string, isOptimal: boolean, modelKey: string) => {
             const dailyNet: Record<string, number> = {};
             const cumulative: number[] = [];
             let sum = 0;
 
-            if (useZeroForPredicted) {
-                const netData = dates.map(() => 0);
-                const cumData = dates.map(() => 0);
-                return {
-                    net: {
-                        name: `${name} (Net)`,
-                        type: 'bar',
-                        data: netData,
-                        itemStyle: { color: color, opacity: 0.7 },
-                        barGap: 0,
-                        yAxisIndex: 0
-                    },
-                    cum: {
-                        name: `${name} (Cum)`,
-                        type: 'line',
-                        yAxisIndex: 0,
-                        data: cumData,
-                        itemStyle: { color: color },
-                        lineStyle: { color: color, width: 3, type: 'dashed' as const },
-                        showSymbol: false
-                    }
-                };
-            }
-
-            // Map ops to days for net
             ops.forEach(op => {
                 const d = op.datetime.substring(0, 10);
-                dailyNet[d] = (dailyNet[d] || 0) + (op.revenueRealized ?? op.revenue ?? 0);
+                dailyNet[d] = (dailyNet[d] || 0) + revForSeries(op, modelKey);
             });
-
-            // Build arrays aligned with 'dates'
             const netData = dates.map(d => dailyNet[d] || 0);
-
-            // Build Cumulative (continuously summing sorted ops, but we need to match 'dates' points?)
-            // Actually, Cumulative Line should probably be per TimeStep (detailed) or per Day (summary)?
-            // User request usually implies "Daily Cumulative" if combined with Daily Net.
-            // Let's do Daily Cumulative (End of Day).
-
-            dates.forEach(d => {
-                sum += dailyNet[d] || 0;
-                cumulative.push(sum);
-            });
+            dates.forEach(d => { sum += dailyNet[d] || 0; cumulative.push(sum); });
 
             return {
                 net: {
                     name: isOptimal ? 'Optimal (Net)' : `${name} (Net)`,
-                    type: 'bar',
-                    data: netData,
-                    itemStyle: { color: color, opacity: 0.7 },
-                    barGap: 0,
-                    yAxisIndex: 0
+                    type: 'bar', data: netData,
+                    itemStyle: { color, opacity: 0.7 }, barGap: 0, yAxisIndex: 0,
                 },
                 cum: {
                     name: isOptimal ? 'Optimal (Cum)' : `${name} (Cum)`,
-                    type: 'line',
-                    yAxisIndex: 0,
-                    data: cumulative,
-                    itemStyle: { color: color },
-                    lineStyle: { color: color, width: 3, type: isOptimal ? 'solid' : 'dashed' },
-                    showSymbol: false
+                    type: 'line', yAxisIndex: 0, data: cumulative,
+                    itemStyle: { color },
+                    lineStyle: { color, width: 3, type: isOptimal ? 'solid' : 'dashed' },
+                    showSymbol: false,
                 }
             };
         };
 
         const series: any[] = [];
-        const noDataSeriesNames = new Set<string>();
 
-        // Optimal
-        if (ganttData?.optimal) {
-            const d = getSeriesData(ganttData.optimal, 'Optimal', colors.actual || '#ff4d4f', true);
+        if (ganttData.optimal?.length) {
+            const d = getSeriesData(ganttData.optimal, 'Optimal', colors.actual || '#ff4d4f', true, 'optimal');
             series.push(d.net, d.cum);
         }
 
-        // Models
         selectedModels.forEach(model => {
             const key = `${model.id}|${model.name}`;
-            const ops = ganttData?.models?.[key];
-            if (ops && ops.length > 0) {
-                const hasNoPrediction = ops.every((op: any) => op.pricePredicted == null);
-                const d = getSeriesData(ops, model.name, model.color, false, hasNoPrediction);
+            const ops = ganttData.models?.[key];
+            if (ops?.length) {
+                const d = getSeriesData(ops, model.name, model.color, false, key);
                 series.push(d.net, d.cum);
-                if (hasNoPrediction) {
-                    noDataSeriesNames.add(`${model.name} (Net)`);
-                    noDataSeriesNames.add(`${model.name} (Cum)`);
-                }
             }
         });
+
+        if (ganttData.manual?.length) {
+            const d = getSeriesData(ganttData.manual, 'Manual', manualColor, false, 'manual');
+            series.push(d.net, { ...d.cum, lineStyle: { ...d.cum.lineStyle, type: 'solid' as const } });
+        }
 
         return {
             tooltip: {
@@ -216,9 +325,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     const sep = darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
                     let html = `<div style="font-weight:600;font-size:13px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid ${sep}">${params[0].name}</div>`;
                     params.forEach(p => {
-                        const isNoDataZero = noDataSeriesNames.has(p.seriesName) && Number(p.value) === 0;
-                        const valueStr = isNoDataZero ? '-' : `¥${Number(p.value).toLocaleString()}`;
-                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span><span style="color:${darkMode ? '#aaa' : '#666'}">${p.seriesName}</span></span><b>${valueStr}</b></div>`;
+                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span><span style="color:${darkMode ? '#aaa' : '#666'}">${p.seriesName}</span></span><b>¥${Number(p.value).toLocaleString()}</b></div>`;
                     });
                     return html;
                 }
@@ -234,7 +341,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             grid: { left: '3%', right: '3%', bottom: 56, top: 48, containLabel: true },
             xAxis: {
                 type: 'category' as const,
-                data: dates.map(d => d.substring(5)), // MM-DD
+                data: dates.map(d => d.substring(5)),
                 axisLabel: { color: colors.text },
                 splitArea: {
                     show: true,
@@ -247,64 +354,137 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     }
                 }
             },
-            yAxis: [
-                {
-                    type: 'value' as const,
-                    name: 'JPY',
-                    position: 'right' as const,
-                    boundaryGap: ['0%', '8%'] as [string, string],
-                    axisLabel: { color: colors.text },
-                    axisLine: { show: true, lineStyle: { color: colors.text, opacity: 0.5 } },
-                    splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } },
-                    axisTick: { show: true }
-                }
-            ],
+            yAxis: [{
+                type: 'value' as const,
+                name: 'JPY',
+                position: 'right' as const,
+                boundaryGap: ['0%', '8%'] as [string, string],
+                axisLabel: { color: colors.text },
+                axisLine: { show: true, lineStyle: { color: colors.text, opacity: 0.5 } },
+                splitLine: { lineStyle: { type: 'dashed' as const, opacity: 0.3 } },
+                axisTick: { show: true }
+            }],
             series: (() => {
                 const zeroLineStyle = { type: 'solid' as const, width: 2, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)' };
                 let addedBarZero = false, addedLineZero = false;
                 return series.map((s) => {
-                    if (s.type === 'bar' && !addedBarZero) {
-                        addedBarZero = true;
-                        return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } };
-                    }
-                    if (s.type === 'line' && !addedLineZero) {
-                        addedLineZero = true;
-                        return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } };
-                    }
+                    if (s.type === 'bar' && !addedBarZero) { addedBarZero = true; return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } }; }
+                    if (s.type === 'line' && !addedLineZero) { addedLineZero = true; return { ...s, markLine: { silent: true, symbol: 'none', lineStyle: zeroLineStyle, data: [{ yAxis: 0 }] } }; }
                     return s;
                 });
             })()
         };
-    }, [ganttData, selectedModels, colors, actualResult, darkMode]);
+    }, [ganttData, selectedModels, colors, darkMode, manualResult, manualColor, hasData, priceBasis, basisPriceMap, dt]);
 
+    // Daily revenue table — all series (optimal + each model + manual), cross-model aware
+    const allModelDailyData = useMemo(() => {
+        if (!ganttData || !hasData) return null;
 
-    // Data for Table
+        // Revenue resolver — same logic as in dailyAnalysisOption
+        const revForSeries = (op: GanttOperation, modelKey: string): number => {
+            if (modelKey === 'optimal') return op.revenueRealized ?? op.revenue ?? 0;
+            if (modelKey === 'manual') {
+                if (basisPriceMap) return computeRevAtBasisPrices(op, basisPriceMap, dt);
+                return op.revenueRealized ?? op.revenue ?? 0;
+            }
+            if (priceBasis === 'actual') return op.revenueRealized ?? op.revenue ?? 0;
+            if (modelKey === priceBasis) return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+            if (basisPriceMap) return computeRevAtBasisPrices(op, basisPriceMap, dt);
+            return op.revenueEstimated ?? op.revenueRealized ?? op.revenue ?? 0;
+        };
+
+        // Collect all dates across all series
+        const allOps = [
+            ...(ganttData.optimal ?? []),
+            ...Object.values(ganttData.models ?? {}).flat(),
+            ...(ganttData.manual ?? []),
+        ];
+        const dates = Array.from(new Set(allOps.map(op => op.datetime.substring(0, 10)))).sort();
+
+        const buildSeries = (ops: GanttOperation[], id: string, name: string, color: string) => {
+            const dailyNet: Record<string, number> = {};
+            ops.forEach(op => {
+                const d = op.datetime.substring(0, 10);
+                dailyNet[d] = (dailyNet[d] || 0) + revForSeries(op, id);
+            });
+            let cum = 0;
+            const rows = dates.map(date => {
+                const daily = dailyNet[date] ?? 0;
+                cum += daily;
+                return { daily, cumulative: cum };
+            });
+            return { id, name, color, rows };
+        };
+
+        const series = [];
+        if (ganttData.optimal?.length) {
+            series.push(buildSeries(ganttData.optimal, 'optimal', 'Optimal', colors.actual || '#ff4d4f'));
+        }
+        selectedModels.forEach(m => {
+            const key = `${m.id}|${m.name}`;
+            const ops = ganttData.models?.[key];
+            if (ops?.length) series.push(buildSeries(ops, key, m.name, m.color));
+        });
+        if (ganttData.manual?.length) {
+            series.push(buildSeries(ganttData.manual, 'manual', 'Manual', manualColor));
+        }
+
+        return series.length > 0 ? { dates, series } : null;
+    }, [ganttData, hasData, selectedModels, priceBasis, basisPriceMap, dt, colors, manualColor]);
+
+    // Displayed schedule for the Details tab
     const displayedSchedule = useMemo(() => {
         if (!ganttData) return [];
-        if (selectedScheduleId === 'optimal') {
-            return ganttData.optimal || [];
-        }
+        if (selectedScheduleId === 'optimal') return ganttData.optimal || [];
+        if (selectedScheduleId === 'manual') return ganttData.manual || [];
         return ganttData.models[selectedScheduleId] || [];
     }, [ganttData, selectedScheduleId]);
 
     const availableSchedules = useMemo(() => {
-        const options = [{ id: 'optimal', name: 'Optimal Plan' }];
-        if (!ganttData?.models) return options;
-        selectedModels.forEach(m => {
-            const key = `${m.id}|${m.name}`;
-            const ops = ganttData.models[key];
-            const hasAnyPrediction = ops?.length && ops.some((op: { pricePredicted?: number | null }) => op.pricePredicted != null);
-            if (hasAnyPrediction) options.push({ id: key, name: `Predicted: ${m.name}` });
-        });
+        const options: { id: string; name: string }[] = [];
+        // Only show Optimal if actual data was computed
+        if (ganttData?.optimal?.length) {
+            options.push({ id: 'optimal', name: 'Optimal Plan' });
+        }
+        if (ganttData?.models) {
+            selectedModels.forEach(m => {
+                const key = `${m.id}|${m.name}`;
+                const ops = ganttData.models[key];
+                // Include if has any prediction OR any valid action (covers no-actual-price scenario)
+                if (ops?.length) options.push({ id: key, name: `Predicted: ${m.name}` });
+            });
+        }
+        if (ganttData?.manual && ganttData.manual.length > 0) {
+            options.push({ id: 'manual', name: 'Manual Plan' });
+        }
         return options;
     }, [selectedModels, ganttData]);
 
-    // When selected schedule is a no-data model, switch to optimal so dropdown and table stay in sync
     useEffect(() => {
-        if (!ganttData || selectedScheduleId === 'optimal') return;
+        if (!ganttData) return;
         const validIds = new Set(availableSchedules.map(o => o.id));
-        if (!validIds.has(selectedScheduleId)) setSelectedScheduleId('optimal');
+        if (!validIds.has(selectedScheduleId)) {
+            // Fall back to first available schedule
+            setSelectedScheduleId(availableSchedules[0]?.id ?? 'optimal');
+        }
     }, [ganttData, selectedScheduleId, availableSchedules]);
+
+    // Per-row revenue overrides for the operation table (cross-model, keyed by datetime)
+    const displayedScheduleRevenueAtBasis = useMemo((): Record<string, number> | null => {
+        if (displayedSchedule.length === 0) return null;
+        if (priceBasis === 'actual') return null; // table uses revenueRealized directly
+        // Viewing the basis model's own schedule: revenueEstimated is already on each op
+        if (selectedScheduleId === priceBasis) return null;
+        // Cross-model: compute revenue at basis prices, keyed by datetime
+        if (basisPriceMap) {
+            const result: Record<string, number> = {};
+            displayedSchedule.forEach(op => {
+                result[op.datetime] = computeRevAtBasisPrices(op, basisPriceMap, dt);
+            });
+            return result;
+        }
+        return null;
+    }, [displayedSchedule, priceBasis, selectedScheduleId, basisPriceMap, dt]);
 
     const timeCategories = useMemo(() => {
         if (!ganttData) return [];
@@ -317,6 +497,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             .map(d => (d.datetime ? d.datetime.substring(5, 16).replace('T', ' ') : ''));
     }, [ganttData]);
 
+    // ECharts cross-chart axis pointer sync
     const connectGroupIdRef = useRef<string | null>(null);
     const axisPointerCleanupsRef = useRef<(() => void)[]>([]);
     const bindListenersTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,7 +512,6 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                 import('echarts').then((echarts) => {
                     const groupId = echarts.connect([p, o, s]);
                     connectGroupIdRef.current = groupId;
-
                     const charts = [p, o, s];
                     const len = timeCategories.length;
                     const syncAxisPointer = (sourceChart: any, dataIndex: number) => {
@@ -339,38 +519,24 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         charts.forEach((ch) => {
                             if (ch === sourceChart) return;
                             try {
-                                ch.dispatchAction({
-                                    type: 'updateAxisPointer',
-                                    currTrigger: 'axis',
-                                    xAxisIndex: 0,
-                                    dataIndex: idx
-                                });
+                                ch.dispatchAction({ type: 'updateAxisPointer', currTrigger: 'axis', xAxisIndex: 0, dataIndex: idx });
                                 ch.dispatchAction({ type: 'showTip', dataIndex: idx });
                             } catch (_) { }
                         });
                     };
                     const clearAxisPointer = () => {
-                        charts.forEach((ch) => {
-                            try { ch.dispatchAction({ type: 'hideTip' }); } catch (_) { }
-                        });
+                        charts.forEach((ch) => { try { ch.dispatchAction({ type: 'hideTip' }); } catch (_) { } });
                     };
-
                     const offFns: (() => void)[] = [];
                     const bindListeners = () => {
                         if (!connectGroupIdRef.current) return;
                         charts.forEach((ch) => {
                             const zr = ch.getZr();
-                            if (!zr) {
-                                offFns.push(() => { });
-                                return;
-                            }
+                            if (!zr) { offFns.push(() => { }); return; }
                             const onMove = (e: any) => {
                                 const point = [e.offsetX, e.offsetY];
                                 try {
-                                    const result = ch.convertFromPixel(
-                                        { gridIndex: 0 },
-                                        point
-                                    );
+                                    const result = ch.convertFromPixel({ gridIndex: 0 }, point);
                                     const rawIdx = result != null && Array.isArray(result) ? result[0] : null;
                                     if (typeof rawIdx === 'number' && !Number.isNaN(rawIdx)) {
                                         const dataIndex = Math.round(rawIdx);
@@ -381,10 +547,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                             const onOut = () => clearAxisPointer();
                             zr.on('mousemove', onMove);
                             zr.on('globalout', onOut);
-                            offFns.push(() => {
-                                zr.off('mousemove', onMove);
-                                zr.off('globalout', onOut);
-                            });
+                            offFns.push(() => { zr.off('mousemove', onMove); zr.off('globalout', onOut); });
                         });
                         axisPointerCleanupsRef.current = offFns;
                     };
@@ -395,15 +558,10 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             return false;
         };
         let t: ReturnType<typeof setTimeout> | undefined;
-        if (!attemptConnect()) {
-            t = setTimeout(attemptConnect, 150);
-        }
+        if (!attemptConnect()) { t = setTimeout(attemptConnect, 150); }
         return () => {
             if (t) clearTimeout(t);
-            if (bindListenersTimeoutRef.current != null) {
-                clearTimeout(bindListenersTimeoutRef.current);
-                bindListenersTimeoutRef.current = null;
-            }
+            if (bindListenersTimeoutRef.current != null) { clearTimeout(bindListenersTimeoutRef.current); bindListenersTimeoutRef.current = null; }
             axisPointerCleanupsRef.current.forEach((fn) => fn());
             axisPointerCleanupsRef.current = [];
             const gid = connectGroupIdRef.current;
@@ -414,190 +572,292 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         };
     }, [ganttData, timeCategories.length]);
 
+    const borderColor = colors.border || 'var(--card-border)';
+
+    /** Price basis selector — rendered above the tab bar */
+    const PriceBasisSelector = () => (
+        priceBasisOptions.length > 1 ? (
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="price-basis-label" sx={{ fontSize: '0.8rem' }}>價格參考來源</InputLabel>
+                <Select
+                    labelId="price-basis-label"
+                    value={priceBasis}
+                    label="價格參考來源"
+                    onChange={(e) => setPriceBasis(e.target.value)}
+                    sx={{ fontSize: '0.8rem' }}
+                >
+                    {priceBasisOptions.map(opt => (
+                        <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: '0.8rem' }}>
+                            {opt.id === 'actual'
+                                ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Chip label="實際" size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#1976d244', color: '#42a5f5' }} />
+                                    {opt.label}
+                                </Box>
+                                : <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Chip label="預測" size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
+                                    {opt.label}
+                                </Box>
+                            }
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+        ) : null
+    );
 
     return (
-        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', p: 1, position: 'relative' }}>
+        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* KPI Header Band */}
+            <RevenueKpiHeader
+                optimalRev={metrics?.optimalRev ?? null}
+                bestModelRev={metrics?.bestModelRev ?? null}
+                bestModelName={metrics?.bestModelName ?? ''}
+                efficiency={metrics?.efficiency ?? null}
+                manualRev={metrics?.manualRev ?? null}
+                priceBasis={priceBasis}
+                referenceName={metrics?.referenceName}
+                bestModelRevActual={metrics?.bestModelRevActual ?? null}
+                bestModelRevEstimated={metrics?.bestModelRevEstimated ?? null}
+                efficiencyActual={metrics?.efficiencyActual ?? null}
+                efficiencyEstimated={metrics?.efficiencyEstimated ?? null}
+                manualRevActual={metrics?.manualRevActual ?? null}
+                manualRevEstimated={metrics?.manualRevEstimated ?? null}
+                manualEffectiveCycles={metrics?.manualEffectiveCycles ?? null}
+                cycleLimit={cycleLimit}
+            />
 
-            {/* Section Navigation */}
-            <Box sx={{
-                display: 'flex', gap: 2, pb: 1, pt: 1,
-                position: 'sticky', top: -8, zIndex: 10,
-                backgroundColor: darkMode ? 'var(--card-bg, #1e1e1e)' : '#ffffff',
-                borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
-            }}>
-                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(summaryRef)}>摘要指標</Typography>
-                <Typography variant="body2" color="text.secondary">|</Typography>
-                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(chartsRef)}>價格與排程</Typography>
-                <Typography variant="body2" color="text.secondary">|</Typography>
-                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(dailyRef)}>每日收益</Typography>
-                <Typography variant="body2" color="text.secondary">|</Typography>
-                <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 600, '&:hover': { color: 'primary.main' } }} onClick={() => scrollTo(tableRef)}>明細表</Typography>
+            {/* 價格參考來源 — 全域，影響所有 Tab 的收益計算 */}
+            {priceBasisOptions.length > 1 && (
+                <Box sx={{
+                    px: 1.5, py: 0.75,
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    borderBottom: '1px solid', borderColor: 'divider',
+                    bgcolor: 'var(--card-bg)', flexShrink: 0,
+                }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                        {(ganttData?.optimal?.length ?? 0) > 0 ? '收益計算基準' : '假設實際值（價格參考）'}
+                    </Typography>
+                    <PriceBasisSelector />
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', opacity: 0.7 }}>
+                        {priceBasis === 'actual'
+                            ? '以實際成交價計算各模型回測收益'
+                            : `以「${priceBasisOptions.find(o => o.id === priceBasis)?.label}」預測價格為基準，評估其他模型收益`
+                        }
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Tab bar */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, bgcolor: 'var(--card-bg)' }}>
+                <Tabs
+                    value={activeTab}
+                    onChange={(_, v) => setActiveTab(v)}
+                    sx={{
+                        minHeight: 40,
+                        '& .MuiTab-root': { minHeight: 40, fontSize: '0.78rem', fontWeight: 600, textTransform: 'none', py: 0 },
+                        '& .Mui-selected': { color: 'var(--primary) !important' },
+                        '& .MuiTabs-indicator': { bgcolor: 'var(--primary)' },
+                    }}
+                >
+                    <Tab label="概覽 Overview" />
+                    <Tab label="分析 Analysis" />
+                    <Tab label="操作明細 Details" />
+                    <Tab label="說明 Info" />
+                </Tabs>
             </Box>
 
-            {/* Metrics Cards */}
-            <Box ref={summaryRef}>
-                {metrics && (
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 2,
-                                    bgcolor: darkMode ? 'rgba(33, 150, 243, 0.1)' : '#e3f2fd',
-                                    border: '1px solid',
-                                    borderColor: darkMode ? 'rgba(33, 150, 243, 0.3)' : '#90caf9',
-                                    borderRadius: 2,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Typography variant="overline" color="primary.main" fontWeight="600">Optimal (Realized)</Typography>
-                                    <Tooltip title="以區間內實際價格回算：若完全依照最優排程（事後最優）執行，可獲得的總收益。" placement="top" arrow enterDelay={300}>
-                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                        </Box>
-                                    </Tooltip>
-                                </Box>
-                                <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                    ¥{((metrics.optimalRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 2,
-                                    bgcolor: darkMode ? 'rgba(156, 39, 176, 0.1)' : '#f3e5f5',
-                                    border: '1px solid',
-                                    borderColor: darkMode ? 'rgba(156, 39, 176, 0.3)' : '#ce93d8',
-                                    borderRadius: 2,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Typography variant="overline" sx={{ color: '#9c27b0', fontWeight: 600 }}>Best Model (Realized)</Typography>
-                                    <Tooltip title="在已選擇的預測模型中，依其建議排程並以實際價格結算後，實現收益最高的模型；下方為該模型名稱與其實現收益。" placement="top" arrow enterDelay={300}>
-                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                        </Box>
-                                    </Tooltip>
-                                </Box>
-                                <Typography variant="caption" sx={{ mb: 0.5, color: 'text.secondary' }}>{metrics.bestModelName}</Typography>
-                                <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                    ¥{((metrics.bestModelRev ?? 0) * REVENUE_DISPLAY_SCALE).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 2,
-                                    bgcolor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
-                                        ? (darkMode ? 'rgba(76, 175, 80, 0.1)' : '#e8f5e9')
-                                        : (darkMode ? 'rgba(255, 152, 0, 0.1)' : '#fff3e0'),
-                                    border: '1px solid',
-                                    borderColor: typeof metrics.efficiency === 'number' && metrics.efficiency > 90
-                                        ? (darkMode ? 'rgba(76, 175, 80, 0.3)' : '#a5d6a7')
-                                        : (darkMode ? 'rgba(255, 152, 0, 0.3)' : '#ffcc80'),
-                                    borderRadius: 2,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Typography variant="overline" sx={{ color: typeof metrics.efficiency === 'number' && metrics.efficiency > 90 ? 'success.main' : 'warning.main', fontWeight: 600 }}>
-                                        Strategy Efficiency
-                                    </Typography>
-                                    <Tooltip title="最佳模型之實現收益占最優實現收益的百分比。100% 表示該模型策略與最優結果一致；愈低表示與最優差距愈大。" placement="top" arrow enterDelay={300}>
-                                        <Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'inline-flex' }}>
-                                            <InfoOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary', cursor: 'help' }} />
-                                        </Box>
-                                    </Tooltip>
-                                </Box>
-                                <Typography variant="h4" fontWeight="bold" color="text.primary">
-                                    {typeof metrics.efficiency === 'number' && Number.isFinite(metrics.efficiency) ? `${metrics.efficiency.toFixed(1)}%` : '—'}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                    </Grid>
-                )}
-            </Box>
-
-            {/* Price vs Operation Chart */}
-            <Box sx={{ mt: 1 }} ref={chartsRef}>
-                <PriceOperationChart
-                    ref={priceChartRef}
-                    ganttData={ganttData ?? undefined}
-                    selectedModels={selectedModels}
-                    colors={colors}
-                    timeCategories={timeCategories}
-                    height={320}
-                    title="價格與操作分析 (Price & Operation Analysis)"
-                    groupId="revenue-time-group"
-                />
-            </Box>
-
-            {/* Gantt Chart Section */}
-            <Box sx={{ mt: 2 }}>
-                {ganttData ? (
-                    <Box>
-                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>操作排程與電池狀態 (Operating Schedule & State)</Typography>
-                        <RevenueGanttChart data={ganttData} selectedModels={selectedModels} timeCategories={timeCategories} colors={colors} opChartRef={opChartRef} socChartRef={socChartRef} />
+            {/* Tab 0: Overview — 3 synchronized charts in CSS Grid */}
+            {activeTab === 0 && (
+                <Box sx={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    display: 'grid',
+                    gridTemplateRows: '300px 240px 200px',
+                    gap: '4px',
+                    p: 1,
+                    overflowY: 'auto',
+                }}>
+                    <Box sx={{ minHeight: 0, overflow: 'hidden' }}>
+                        <PriceOperationChart
+                            ref={priceChartRef}
+                            ganttData={ganttData ?? undefined}
+                            selectedModels={selectedModels}
+                            colors={colors}
+                            timeCategories={timeCategories}
+                            height={294}
+                            title="價格與操作分析"
+                            groupId="revenue-time-group"
+                        />
                     </Box>
-                ) : (
-                    <Box sx={{ p: 4, textAlign: 'center', border: `1px dashed ${colors.border}`, borderRadius: 2 }}>
-                        <Typography color="text.secondary">Run simulation to view Gantt chart</Typography>
-                    </Box>
-                )}
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Daily Revenue Analysis */}
-            <Box sx={{ minHeight: 420, mt: 1 }} ref={dailyRef}>
-                {actualResult && (
-                    <>
-                        <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                            每日收益分析 (Daily Revenue Analysis)
-                        </Typography>
-                        <BaseChart option={dailyAnalysisOption as EChartsOption} height={400} />
-                    </>
-                )}
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Operation Details Table */}
-            <Box ref={tableRef}>
-                {ganttData && displayedSchedule.length > 0 && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pb: 4 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="subtitle1" fontWeight="600">操作明細表 (Operation Details)</Typography>
-                            <FormControl size="small" sx={{ minWidth: 200 }}>
-                                <InputLabel id="schedule-select-label">排程類型 (Schedule)</InputLabel>
-                                <Select
-                                    labelId="schedule-select-label"
-                                    value={selectedScheduleId}
-                                    label="排程類型 (Schedule)"
-                                    onChange={(e) => setSelectedScheduleId(e.target.value)}
-                                >
-                                    {availableSchedules.map(opt => (
-                                        <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                    {ganttData ? (
+                        <Box sx={{ minHeight: 0, overflow: 'hidden' }}>
+                            <RevenueGanttChart
+                                data={ganttData}
+                                selectedModels={selectedModels}
+                                timeCategories={timeCategories}
+                                colors={colors}
+                                opChartRef={opChartRef}
+                            />
                         </Box>
-                        <OperationScheduleTable data={displayedSchedule} />
-                    </Box>
-                )}
-            </Box>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
+                            <Typography color="text.secondary" variant="caption">執行模擬後顯示排程圖</Typography>
+                        </Box>
+                    )}
+                    {ganttData ? (
+                        <Box sx={{ minHeight: 0, overflow: 'hidden' }}>
+                            <SocLineChart
+                                ref={socChartRef}
+                                data={ganttData}
+                                selectedModels={selectedModels}
+                                timeCategories={timeCategories}
+                                colors={colors}
+                                height={194}
+                                groupId="revenue-time-group"
+                            />
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
+                            <Typography color="text.secondary" variant="caption">SoC 顯示於模擬後</Typography>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            {/* Tab 1: Analysis — daily revenue chart + daily revenue table */}
+            {activeTab === 1 && (
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.5 }}>
+                    {hasData ? (
+                        <>
+                            {/* Header row: title */}
+                            <Box sx={{ flexShrink: 0 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    每日收益分析
+                                </Typography>
+                            </Box>
+
+                            {/* Bar + cumulative chart */}
+                            <Box sx={{ flex: 1, minHeight: 180 }}>
+                                <BaseChart option={dailyAnalysisOption as EChartsOption} height='100%' />
+                            </Box>
+
+                            {/* Daily revenue summary table */}
+                            {allModelDailyData && (
+                                <>
+                                    <Divider sx={{ flexShrink: 0, borderColor: 'var(--card-border)' }} />
+                                    <Box sx={{ flexShrink: 0 }}>
+                                        <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            每日收益明細
+                                            {priceBasis !== 'actual' && (
+                                                <Chip label="預測值" size="small" sx={{ ml: 1, height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
+                                            )}
+                                        </Typography>
+                                        <TableContainer component={Paper} elevation={0} sx={{ maxHeight: 260, border: `1px solid ${borderColor}`, borderRadius: 1, overflowX: 'auto' }}>
+                                            <Table size="small" stickyHeader sx={{ minWidth: allModelDailyData.series.length > 2 ? allModelDailyData.series.length * 200 + 80 : 'auto' }}>
+                                                <TableHead>
+                                                    {/* Row 1: series name headers (colspan 2 each) */}
+                                                    <TableRow>
+                                                        <TableCell rowSpan={2} sx={{ fontWeight: 700, fontSize: '0.72rem', py: 0.75, bgcolor: 'var(--card-bg)', verticalAlign: 'bottom' }}>日期</TableCell>
+                                                        {allModelDailyData.series.map(s => (
+                                                            <TableCell key={s.id} colSpan={2} align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', py: 0.5, bgcolor: 'var(--card-bg)', borderLeft: `3px solid ${s.color}`, color: s.color, whiteSpace: 'nowrap' }}>
+                                                                {s.name}
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                    {/* Row 2: 日收益 / 累積 sub-headers */}
+                                                    <TableRow>
+                                                        {allModelDailyData.series.map(s => (
+                                                            <React.Fragment key={s.id}>
+                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', borderLeft: `3px solid ${s.color}`, whiteSpace: 'nowrap' }}>日收益</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', whiteSpace: 'nowrap' }}>累積收益</TableCell>
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {allModelDailyData.dates.map((date, i) => (
+                                                        <TableRow key={date} sx={{ '&:last-child td': { border: 0 } }}>
+                                                            <TableCell sx={{ fontSize: '0.75rem', py: 0.5, whiteSpace: 'nowrap' }}>{date}</TableCell>
+                                                            {allModelDailyData.series.map(s => {
+                                                                const row = s.rows[i];
+                                                                return (
+                                                                    <React.Fragment key={s.id}>
+                                                                        <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.5, borderLeft: `3px solid ${s.color}`, color: row.daily >= 0 ? 'success.main' : 'error.main', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                                            ¥{row.daily.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}
+                                                                        </TableCell>
+                                                                        <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.5, color: row.cumulative >= 0 ? 'text.primary' : 'error.main', whiteSpace: 'nowrap' }}>
+                                                                            ¥{row.cumulative.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}
+                                                                        </TableCell>
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </Box>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
+                            <Typography color="text.secondary" variant="caption">執行模擬後顯示每日收益分析</Typography>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            {/* Tab 2: Operation Details — schedule selector + operation table */}
+            {activeTab === 2 && (
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.5 }}>
+                    {ganttData && displayedSchedule.length > 0 ? (
+                        <>
+                            <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    操作明細表
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                    <FormControl size="small" sx={{ minWidth: 180 }}>
+                                        <InputLabel id="schedule-select-label" sx={{ fontSize: '0.8rem' }}>排程類型</InputLabel>
+                                        <Select
+                                            labelId="schedule-select-label"
+                                            value={selectedScheduleId}
+                                            label="排程類型"
+                                            onChange={(e) => setSelectedScheduleId(e.target.value)}
+                                            sx={{ fontSize: '0.8rem' }}
+                                        >
+                                            {availableSchedules.map(opt => (
+                                                <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: '0.8rem' }}>{opt.name}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+                            </Box>
+                            <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                                <OperationScheduleTable
+                                    data={displayedSchedule}
+                                    isManualSchedule={selectedScheduleId === 'manual'}
+                                    isOptimalSchedule={selectedScheduleId === 'optimal'}
+                                    priceBasis={priceBasis}
+                                    revenueOverrides={displayedScheduleRevenueAtBasis}
+                                />
+                            </Box>
+                        </>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
+                            <Typography color="text.secondary" variant="caption">執行模擬後顯示操作明細</Typography>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            {/* Tab 3: Info — usage instructions */}
+            {activeTab === 3 && (
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
+                    <RevenueEmptyState />
+                </Box>
+            )}
         </Box>
     );
 };

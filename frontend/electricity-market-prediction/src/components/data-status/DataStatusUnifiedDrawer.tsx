@@ -317,6 +317,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     const [slotRows,        setSlotRows]        = useState<DetailHourRow[]>([]);
     const [interval,        setInterval]        = useState<'hour' | '30m' | 'day'>('hour');
     const [coverageLoading, setCoverageLoading] = useState(false);
+    const [coverageError,   setCoverageError]   = useState(false);
 
     // ── Market preview data ───────────────────────────────────────────────────
     const [groups,         setGroups]         = useState<PreviewGroup[]>([]);
@@ -336,6 +337,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     useEffect(() => {
         setActiveTab(0);
         setSlotFilter(null);
+        setCoverageError(false);
     }, [selectedCell?.sourceKey, selectedCell?.area]);
 
     // Fetch coverage detail whenever cell changes
@@ -343,10 +345,11 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
         if (!selectedCell) return;
         const dp = selectedCell.date.replace(/-/g, '');
         setCoverageLoading(true);
+        setCoverageError(false);
         setSlotRows([]);
         fetchCoverageDetail(selectedCell.sourceKey, selectedCell.area, dp)
             .then(r => { setSlotRows(r.rows); setInterval(r.interval); })
-            .catch(() => setSlotRows([]))
+            .catch(() => setCoverageError(true))
             .finally(() => setCoverageLoading(false));
     }, [selectedCell]);
 
@@ -658,6 +661,15 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                 {Array.from({ length: Math.min(totalSlots, 24) }).map((_, i) => (
                                     <Skeleton key={i} variant="rounded" height={cellH} />
                                 ))}
+                            </Box>
+                        ) : coverageError ? (
+                            <Box sx={{ py: 2, px: 1.5, borderRadius: 1, backgroundColor: 'rgba(255,77,79,0.1)', border: '1px solid #ff4d4f' }}>
+                                <Typography sx={{ fontSize: '0.8rem', color: '#ff4d4f', fontWeight: 600 }}>
+                                    ❌ 明細資料載入失敗
+                                </Typography>
+                                <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.5 }}>
+                                    無法取得此時段的明細資料，請確認後端服務狀態。
+                                </Typography>
                             </Box>
                         ) : (
                             <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: '3px' }}>

@@ -70,3 +70,19 @@ export const calculateRevenue = async (config: BatteryConfig, data: any[]): Prom
     const response = await api.post<OptimizationResult>('/optimization', { config, data });
     return response.data;
 };
+
+export interface ManualSimulationInput {
+    time_step: number;
+    action: 'Charge' | 'Discharge' | 'Idle';
+    power: number | null;
+}
+
+export const simulateManual = async (
+    config: BatteryConfig,
+    data: any[],
+    schedule: ManualSimulationInput[]
+): Promise<OptimizationResult> => {
+    const api = createAuthenticatedApi();
+    const response = await api.post<OptimizationResult>('/optimization/manual', { config, data, schedule });
+    return response.data;
+};

@@ -57,8 +57,7 @@ export default function WeatherPage() {
         startDate,
         endDate,
         dateRangePreset,
-        setStartDate,
-        setEndDate,
+        commitDateSelection,
         handleDateRangePreset,
         refreshData,
         isLoading,
@@ -310,12 +309,6 @@ export default function WeatherPage() {
         return Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
     }, [showForecastHourly, showForecastDaily, selectedModelForecastHourly, selectedModelForecastDaily, weatherForecast, weatherForecastDaily]);
 
-    // ── Date range handler ──
-    const handleDateRangeChange = (ranges: any) => {
-        if (ranges.selection.startDate) setStartDate(ranges.selection.startDate);
-        if (ranges.selection.endDate) setEndDate(ranges.selection.endDate);
-    };
-
     const currentAreaName = areas.find(a => a.name === selectedArea)?.name_ch || selectedArea;
     const dataCount = displayedWeatherActual.length + displayedWeatherForecast.length;
 
@@ -339,63 +332,48 @@ export default function WeatherPage() {
                 startDate={startDate}
                 endDate={endDate}
                 dateRangePreset={dateRangePreset}
+                onDateChange={commitDateSelection}
                 onDateRangePreset={handleDateRangePreset}
-                onDateRangeChange={handleDateRangeChange}
                 onRefresh={refreshData}
                 isLoading={isLoading}
             />
 
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <ResizableLayout
-                    direction="horizontal"
-                    defaultSizes={[25, 75]}
-                    minSizes={[15, 40]}
-                    storageKey="weather-page-layout"
-                >
-                    <Box
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                            borderRight: '1px solid var(--card-border)',
-                            backgroundColor: 'var(--card-bg)',
-                        }}
-                    >
-                        <WeatherUnifiedSidebar
-                            areas={areas}
-                            selectedArea={selectedArea}
-                            onAreaChange={handleAreaChange}
-                            showActualHourly={showActualHourly}
-                            onShowActualHourlyChange={setShowActualHourly}
-                            showActualDaily={showActualDaily}
-                            onShowActualDailyChange={setShowActualDaily}
-                            showForecastHourly={showForecastHourly}
-                            onShowForecastHourlyChange={setShowForecastHourly}
-                            showForecastDaily={showForecastDaily}
-                            onShowForecastDailyChange={setShowForecastDaily}
-                            modelsActualHourly={modelsActualHourly}
-                            selectedModelActualHourly={selectedModelActualHourly}
-                            onModelActualHourlyChange={setSelectedModelActualHourly}
-                            modelsActualDaily={modelsActualDaily}
-                            selectedModelActualDaily={selectedModelActualDaily}
-                            onModelActualDailyChange={setSelectedModelActualDaily}
-                            modelsForecastHourly={modelsForecastHourly}
-                            selectedModelForecastHourly={selectedModelForecastHourly}
-                            onModelForecastHourlyChange={setSelectedModelForecastHourly}
-                            modelsForecastDaily={modelsForecastDaily}
-                            selectedModelForecastDaily={selectedModelForecastDaily}
-                            onModelForecastDailyChange={setSelectedModelForecastDaily}
-                            selectedFields={selectedFields}
-                            onFieldToggle={handleFieldToggle}
-                            weatherHeightByField={weatherHeightByField}
-                            availableHeights={availableHeights}
-                            onHeightChange={handleHeightChange}
-                        />
-                    </Box>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row' }}>
+                {/* Fixed-width sidebar — no accordion, all controls always visible */}
+                <Box sx={{ width: 210, flexShrink: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <WeatherUnifiedSidebar
+                        areas={areas}
+                        selectedArea={selectedArea}
+                        onAreaChange={handleAreaChange}
+                        showActualHourly={showActualHourly}
+                        onShowActualHourlyChange={setShowActualHourly}
+                        showActualDaily={showActualDaily}
+                        onShowActualDailyChange={setShowActualDaily}
+                        showForecastHourly={showForecastHourly}
+                        onShowForecastHourlyChange={setShowForecastHourly}
+                        showForecastDaily={showForecastDaily}
+                        onShowForecastDailyChange={setShowForecastDaily}
+                        modelsActualHourly={modelsActualHourly}
+                        selectedModelActualHourly={selectedModelActualHourly}
+                        onModelActualHourlyChange={setSelectedModelActualHourly}
+                        modelsActualDaily={modelsActualDaily}
+                        selectedModelActualDaily={selectedModelActualDaily}
+                        onModelActualDailyChange={setSelectedModelActualDaily}
+                        modelsForecastHourly={modelsForecastHourly}
+                        selectedModelForecastHourly={selectedModelForecastHourly}
+                        onModelForecastHourlyChange={setSelectedModelForecastHourly}
+                        modelsForecastDaily={modelsForecastDaily}
+                        selectedModelForecastDaily={selectedModelForecastDaily}
+                        onModelForecastDailyChange={setSelectedModelForecastDaily}
+                        selectedFields={selectedFields}
+                        onFieldToggle={handleFieldToggle}
+                        weatherHeightByField={weatherHeightByField}
+                        availableHeights={availableHeights}
+                        onHeightChange={handleHeightChange}
+                    />
+                </Box>
 
-                    <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <PriceChartProvider
                             chartData={[]}
                             areaName={selectedArea}
@@ -501,8 +479,7 @@ export default function WeatherPage() {
                             )}
                         </PriceChartProvider>
                     </Box>
-                </ResizableLayout>
+                </Box>
             </Box>
-        </Box>
     );
 }

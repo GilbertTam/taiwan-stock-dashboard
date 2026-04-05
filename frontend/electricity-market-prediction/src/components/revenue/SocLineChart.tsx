@@ -32,6 +32,12 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
         getInstance: () => chartRef.current?.getEchartsInstance?.()
     }), []);
 
+    // Resolve CSS variable to a real hex so ECharts canvas can compute emphasis styles
+    const manualColor = useMemo(() => {
+        if (typeof window === 'undefined') return '#29b6f6';
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#29b6f6';
+    }, []);
+
     const { series } = useMemo(() => {
         const result: { name: string; color: string; data: number[] }[] = [];
 
@@ -60,20 +66,31 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
             });
         });
 
+        // Manual schedule SoC
+        if (data.manual && data.manual.length > 0) {
+            const sorted = [...data.manual].sort(sortByDatetime);
+            result.push({
+                name: 'Manual',
+                color: manualColor,
+                data: sorted.map(op => op.soc == null ? (null as any) : op.soc * 100)
+            });
+        }
+
         return { series: result };
-    }, [data, selectedModels, colors.actual]);
+    }, [data, selectedModels, colors.actual, manualColor]);
 
     const chartOption = useMemo(() => {
         if (series.length === 0 || timeCategories.length === 0) return {};
 
         const dataZoom = [
             { type: 'inside' as const, xAxisIndex: 0, group: groupId },
-            { type: 'slider' as const, xAxisIndex: 0, group: groupId }
+            { type: 'slider' as const, xAxisIndex: 0, group: groupId, height: 18, bottom: 4 }
         ];
 
         return {
             tooltip: {
                 trigger: 'axis',
+                confine: true,
                 backgroundColor: darkMode ? 'rgba(40,40,40,0.96)' : 'rgba(255,255,255,0.98)',
                 borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                 borderWidth: 1,
@@ -98,10 +115,10 @@ export const SocLineChart = forwardRef<SocLineChartRef, SocLineChartProps>(({
                 data: series.map((s) => s.name)
             },
             grid: {
-                left: '3%',
+                left: '6%',
                 right: '4%',
                 top: 40,
-                bottom: 48,
+                bottom: 56,
                 containLabel: true
             },
             xAxis: {

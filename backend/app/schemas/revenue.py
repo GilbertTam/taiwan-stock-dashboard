@@ -33,6 +33,16 @@ class OptimizationRequest(BaseModel):
     config: OptimizationConfig
     data: List[OptimizationDataRow]
 
+class ManualScheduleEntry(BaseModel):
+    time_step: int
+    action: str  # "Charge" | "Discharge" | "Idle"
+    power: Optional[float] = None  # MW; None = use P_max from config
+
+class ManualSimulationRequest(BaseModel):
+    config: OptimizationConfig
+    data: List[OptimizationDataRow]
+    schedule: List[ManualScheduleEntry]
+
 class OptimizationResultRow(BaseModel):
     time_step: int
     price_spot: float
@@ -46,6 +56,10 @@ class OptimizationResultRow(BaseModel):
     soc_mwh: float
     soc_pct: float
     revenue: float
+    # Manual simulation clamping info (absent for LP optimizer results)
+    requested_power: Optional[float] = None
+    was_clamped: Optional[bool] = None
+    cycles_used: Optional[float] = None  # Cumulative discharge cycles at this step
 
 class OptimizationSummary(BaseModel):
     total_revenue: float

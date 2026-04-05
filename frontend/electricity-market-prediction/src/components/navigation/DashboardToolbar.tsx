@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -19,6 +19,7 @@ import { zhTW } from 'date-fns/locale';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
+import { DateRangePicker } from '@/components/selectors/DateRangePicker';
 
 export interface DownloadAction {
   label: string;
@@ -31,9 +32,17 @@ interface SimpleToolbarProps {
   startDate?: Date | null;
   endDate?: Date | null;
   dateRangePreset?: string | null;
+  /** Legacy: used by pages still on useBufferedDateRange */
   onDateRangeChange?: (ranges: any) => void;
   onDateRangePreset?: (preset: string | null) => void;
+  /** Legacy: used by pages still on useBufferedDateRange */
   onDateMenuClose?: () => void;
+  /**
+   * New API: called by DateRangePicker when the user commits a date selection.
+   * When provided, renders DateRangePicker (split start/end inputs) instead of
+   * the legacy single-range calendar.
+   */
+  onDateChange?: (startDate: Date, endDate: Date, preset: string | null) => void;
   onRefresh?: () => void;
   /** Page-specific download options (e.g. CSV, report). Rendered as single button or dropdown. */
   downloadActions?: DownloadAction[];
@@ -63,22 +72,26 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   onDateRangeChange,
   onDateRangePreset,
   onDateMenuClose,
+  onDateChange,
   onRefresh,
   downloadActions = [],
   isLoading = false,
 }) => {
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
   const [downloadAnchorEl, setDownloadAnchorEl] = useState<HTMLElement | null>(null);
+  const firstClickDoneRef = useRef(false);
 
   // Minimal pages (settings/about) don't need a toolbar — sidebar handles navigation
   if (variant === 'minimal') return null;
 
   const handleDateClick = (event: React.MouseEvent<HTMLElement>) => {
     setDateAnchorEl(event.currentTarget);
+    firstClickDoneRef.current = false;
   };
 
   const handleDateClose = () => {
     setDateAnchorEl(null);
+    firstClickDoneRef.current = false;
     onDateMenuClose?.();
   };
 
@@ -113,89 +126,98 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
           minHeight: 44,
         }}
       >
-        {/* ── Unified date stepper ── */}
-        <Box
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            height: BTN_H,
-            border: '1px solid var(--card-border)',
-            borderRadius: 1,
-            overflow: 'hidden',
-            flexShrink: 0,
-          }}
-        >
-          {/* Prev */}
-          <Tooltip title="上一天">
-            <ButtonBase
-              disableRipple
-              onClick={() => shiftDate(-1)}
-              sx={{
-                width: 26,
-                height: '100%',
-                color: 'var(--muted)',
-                fontSize: 16,
-                fontWeight: 300,
-                borderRight: '1px solid var(--card-border)',
-                transition: 'all 0.12s',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
-              }}
-            >
-              ‹
-            </ButtonBase>
-          </Tooltip>
-
-          {/* Date display / open picker */}
-          <ButtonBase
-            disableRipple
-            onClick={handleDateClick}
+        {/* ── Date stepper: new split picker OR legacy range picker ── */}
+        {onDateChange ? (
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={onDateChange}
+            isLoading={isLoading}
+          />
+        ) : (
+          <Box
             sx={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 0.625,
-              px: 1.25,
-              height: '100%',
-              transition: 'background 0.12s',
-              '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
+              height: BTN_H,
+              border: '1px solid var(--card-border)',
+              borderRadius: 1,
+              overflow: 'hidden',
+              flexShrink: 0,
             }}
           >
-            <CalendarTodayIcon sx={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }} />
-            <Typography
-              sx={{
-                fontSize: 12,
-                color: 'var(--foreground)',
-                fontFamily: 'monospace',
-                fontVariantNumeric: 'tabular-nums',
-                whiteSpace: 'nowrap',
-                letterSpacing: 0.3,
-              }}
-            >
-              {startDate ? format(startDate, 'MM/dd') : '--/--'}
-              <Box component="span" sx={{ color: 'var(--muted)', mx: 0.5 }}>–</Box>
-              {endDate ? format(endDate, 'MM/dd') : '--/--'}
-            </Typography>
-          </ButtonBase>
+            {/* Prev */}
+            <Tooltip title="上一天">
+              <ButtonBase
+                disableRipple
+                onClick={() => shiftDate(-1)}
+                sx={{
+                  width: 26,
+                  height: '100%',
+                  color: 'var(--muted)',
+                  fontSize: 16,
+                  fontWeight: 300,
+                  borderRight: '1px solid var(--card-border)',
+                  transition: 'all 0.12s',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
+                }}
+              >
+                ‹
+              </ButtonBase>
+            </Tooltip>
 
-          {/* Next */}
-          <Tooltip title="下一天">
+            {/* Date display / open picker */}
             <ButtonBase
               disableRipple
-              onClick={() => shiftDate(1)}
+              onClick={handleDateClick}
               sx={{
-                width: 26,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.625,
+                px: 1.25,
                 height: '100%',
-                color: 'var(--muted)',
-                fontSize: 16,
-                fontWeight: 300,
-                borderLeft: '1px solid var(--card-border)',
-                transition: 'all 0.12s',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
+                transition: 'background 0.12s',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
               }}
             >
-              ›
+              <CalendarTodayIcon sx={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }} />
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: 'var(--foreground)',
+                  fontFamily: 'monospace',
+                  fontVariantNumeric: 'tabular-nums',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: 0.3,
+                }}
+              >
+                {startDate ? format(startDate, 'MM/dd') : '--/--'}
+                <Box component="span" sx={{ color: 'var(--muted)', mx: 0.5 }}>–</Box>
+                {endDate ? format(endDate, 'MM/dd') : '--/--'}
+              </Typography>
             </ButtonBase>
-          </Tooltip>
-        </Box>
+
+            {/* Next */}
+            <Tooltip title="下一天">
+              <ButtonBase
+                disableRipple
+                onClick={() => shiftDate(1)}
+                sx={{
+                  width: 26,
+                  height: '100%',
+                  color: 'var(--muted)',
+                  fontSize: 16,
+                  fontWeight: 300,
+                  borderLeft: '1px solid var(--card-border)',
+                  transition: 'all 0.12s',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--foreground)' },
+                }}
+              >
+                ›
+              </ButtonBase>
+            </Tooltip>
+          </Box>
+        )}
 
         {/* ── Preset chips ── */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
@@ -390,7 +412,15 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
             onChange={(ranges) => {
               const { startDate: s, endDate: e } = ranges.selection;
               onDateRangeChange?.(ranges);
-              if (s && e && s.getTime() !== e.getTime()) handleDateClose();
+              if (s && e) {
+                if (s.getTime() !== e.getTime()) {
+                  handleDateClose();
+                } else if (firstClickDoneRef.current) {
+                  handleDateClose();
+                } else {
+                  firstClickDoneRef.current = true;
+                }
+              }
             }}
             moveRangeOnFirstSelection={false}
             ranges={[{ startDate: startDate || new Date(), endDate: endDate || new Date(), key: 'selection' }]}

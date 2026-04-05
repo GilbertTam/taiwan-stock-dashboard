@@ -28,7 +28,7 @@ export const DEFAULT_BATTERY_CONFIG: BatteryConfig = {
     E_loss: 0.2,
     SoC_min_pct: 0.01,
     SoC_max_pct: 1.0,
-    SoC_init_pct: 0.02,
+    SoC_init_pct: 0.5,
     SoC_end_pct: 0.01,
     Cycle_limit: 1.0,
     Cost_cycle: 0,
@@ -61,7 +61,7 @@ export interface GanttOperation {
     timeStep: number;
     timeCode: number; // 1-48
     datetime: string;
-    action: 'Charge' | 'Spot' | 'Balance' | 'Idle' | null;
+    action: 'Charge' | 'Spot' | 'Balance' | 'Idle' | 'Discharge' | null;
     power: number | null;
     soc: number | null;
     price: number | null;
@@ -69,13 +69,28 @@ export interface GanttOperation {
     // New fields for Actual vs Predicted
     priceActual?: number | null;
     pricePredicted?: number | null;
-    revenueRealized?: number | null;
+    revenueRealized?: number | null;  // Revenue at actual prices
+    revenueEstimated?: number | null; // Revenue at predicted prices (model only)
+    // Manual schedule clamping info
+    requestedPower?: number | null;   // User-specified power before SoC clamping
+    wasClamped?: boolean;             // True if SoC clamping reduced the actual power
 }
 
 export interface GanttChartData {
     optimal: GanttOperation[];
     models: Record<string, GanttOperation[]>;
+    manual?: GanttOperation[];
     dateRange: { start: string; end: string };
 }
+
+// Manual schedule types
+export interface ManualSlot {
+    timeStep: number;       // 0-based index (0..47)
+    action: 'Charge' | 'Discharge' | 'Idle';
+    power: number | null;   // MW; null = use P_max from config
+}
+
+// Keyed by date string "YYYY-MM-DD"
+export type ManualSchedule = Record<string, ManualSlot[]>;
 
 

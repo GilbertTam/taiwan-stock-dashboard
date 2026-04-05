@@ -805,10 +805,10 @@ export const useChartSeries = ({
                     const hasPriceSeries = actualData.length > 0 || selectedModels.length > 0;
                     if (hasPriceSeries && startDate && endDate) {
                         const startJst = dateToJstTimestamp(startDate);
-                        const endJst = dateToJstTimestamp(endDate);
+                        const endOfDay = new Date(endDate); endOfDay.setHours(23, 59, 59, 999);
+                        const endJst = dateToJstTimestamp(endOfDay);
                         if (startJst && endJst) {
                             const fromTime = toChartTime(startJst, timezone) as Time;
-                            // End of day is handled by dateToJstTimestamp preserving the time part if it's already 23:59:59
                             const toTime = toChartTime(endJst, timezone) as Time;
                             chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
                         } else {

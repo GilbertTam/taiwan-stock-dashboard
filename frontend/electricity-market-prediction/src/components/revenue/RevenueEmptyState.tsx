@@ -1,18 +1,17 @@
 import React from 'react';
-import { Box, Typography, Button, Paper, useTheme as useMuiTheme, Stepper, Step, StepLabel, StepContent } from '@mui/material';
-import { PlayArrow, Assessment, Settings, Storage } from '@mui/icons-material';
+import { Box, Typography, Stepper, Step, StepLabel, StepContent } from '@mui/material';
+import { Assessment, Settings, Storage, AutoMode } from '@mui/icons-material';
 import { useTheme } from '@/app/ThemeProvider';
 
-/** 
- * 案場收益空白狀態 | Site revenue empty state 
+/**
+ * 案場收益說明面板 | Site revenue info panel (shown in the "說明" tab)
  */
 interface RevenueEmptyStateProps {
-    onRunSimulation: () => void;
+    onRunSimulation?: () => void;
 }
 
-export const RevenueEmptyState: React.FC<RevenueEmptyStateProps> = ({ onRunSimulation }) => {
+export const RevenueEmptyState: React.FC<RevenueEmptyStateProps> = ({ onRunSimulation: _onRunSimulation } = {}) => {
     const { darkMode } = useTheme();
-    const muiTheme = useMuiTheme();
 
     const steps = [
         {
@@ -31,28 +30,14 @@ export const RevenueEmptyState: React.FC<RevenueEmptyStateProps> = ({ onRunSimul
             icon: <Settings />,
         },
         {
-            label: '點擊「執行模擬」 (Click Run Simulation)',
-            description: '依據上述設定，計算最適排程與預估收益。',
-            icon: <PlayArrow />,
+            label: '系統自動計算 (Auto Simulation)',
+            description: '資料載入完成後，系統自動計算最適排程與收益，無需手動執行。',
+            icon: <AutoMode />,
         },
     ];
 
     return (
-        <Paper
-            elevation={0}
-            sx={{
-                p: { xs: 4, md: 8 },
-                flex: 1,
-                backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : 'white',
-                border: '1px solid',
-                borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%'
-            }}
-        >
+        <Box sx={{ p: { xs: 2, md: 4 }, display: 'flex', justifyContent: 'center' }}>
             <Box sx={{ maxWidth: 600, width: '100%' }}>
                 <Typography variant="h5" fontWeight="600" gutterBottom align="center" sx={{ mb: 4, color: 'text.primary' }}>
                     案場收益模擬分析
@@ -93,24 +78,11 @@ export const RevenueEmptyState: React.FC<RevenueEmptyStateProps> = ({ onRunSimul
                 </Stepper>
 
                 <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <Button
-                        variant="contained"
-                        size="large"
-                        startIcon={<PlayArrow />}
-                        onClick={onRunSimulation}
-                        sx={{
-                            px: 4,
-                            py: 1.5,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontSize: '1rem',
-                            fontWeight: 600,
-                        }}
-                    >
-                        開始執行模擬 (Start Simulation)
-                    </Button>
+                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic' }}>
+                        請在左側選擇區域與模型，資料載入後將自動開始計算。
+                    </Typography>
                 </Box>
             </Box>
-        </Paper>
+        </Box>
     );
 };

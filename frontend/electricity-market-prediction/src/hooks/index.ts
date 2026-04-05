@@ -23,3 +23,6 @@ export type { UseDataLayerTogglesReturn } from './useDataLayerToggles';
 
 export { useModelSelection } from './useModelSelection';
 export type { UseModelSelectionReturn, SelectedModelConfig } from './useModelSelection';
+
+export { useRevenuePageData } from './useRevenuePageData';
+export type { UseRevenuePageDataParams, UseRevenuePageDataReturn } from './useRevenuePageData';

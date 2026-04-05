@@ -1,7 +1,8 @@
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from app.services.optimization import optimize_battery
-from app.schemas.revenue import OptimizationRequest, OptimizationResponse
+from app.services.manual_simulation import simulate_battery_manual
+from app.schemas.revenue import OptimizationRequest, OptimizationResponse, ManualSimulationRequest
 from app.api.v1.auth import get_current_user
 from app.core.logging import logger
 import math
@@ -56,4 +57,35 @@ async def optimize_revenue(
         
     except Exception as e:
         logger.error(f"Optimization failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/manual", response_model=OptimizationResponse)
+async def simulate_manual_revenue(
+    request: ManualSimulationRequest,
+    current_user = Depends(get_current_user)
+):
+    try:
+        config = request.config.model_dump()
+        data = [row.model_dump() for row in request.data]
+        schedule = [entry.model_dump() for entry in request.schedule]
+
+        df = pd.DataFrame(data)
+        config['T'] = len(df)
+
+        result_df = simulate_battery_manual(df, schedule, config)
+
+        results = result_df.to_dict(orient='records')
+        total_revenue = result_df['revenue'].sum() if 'revenue' in result_df.columns else 0
+
+        response_data = {
+            "status": "success",
+            "summary": {"total_revenue": total_revenue},
+            "results": results
+        }
+
+        return sanitize_for_json(response_data)
+
+    except Exception as e:
+        logger.error(f"Manual simulation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

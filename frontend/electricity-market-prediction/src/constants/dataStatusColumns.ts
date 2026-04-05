@@ -16,19 +16,13 @@ export interface RecordColumn {
 // Static source column definitions
 export const SOURCE_RECORD_COLUMNS: Record<string, RecordColumn[]> = {
     spot_price: [
-        { field: 'price',            label: '地區現貨價',   unit: '¥/kWh' },
-        { field: 'system_price',     label: '系統現貨價',   unit: '¥/kWh' },
-        { field: 'avoidable_cost',   label: '迴避可能費用', unit: '¥/kWh' },
-        { field: 'sell_quantity',    label: '賣出量',       unit: 'kWh'    },
-        { field: 'buy_quantity',     label: '買入量',       unit: 'kWh'    },
-        { field: 'contract_quantity',label: '成交量',       unit: 'kWh'    },
+        { field: 'area_price', label: '地區現貨價', unit: '¥/kWh' },
     ],
     jepx_system: [
-        { field: 'system_price',         label: '系統現貨價',   unit: '¥/kWh' },
-        { field: 'avoidable_cost',       label: '迴避可能費用', unit: '¥/kWh' },
-        { field: 'sell_quantity',        label: '賣出量',       unit: 'kWh'    },
-        { field: 'buy_quantity',         label: '買入量',       unit: 'kWh'    },
-        { field: 'contract_quantity',    label: '成交量',       unit: 'kWh'    },
+        { field: 'system_price',           label: '系統現貨價', unit: '¥/kWh' },
+        { field: 'sell_bid_volume',        label: '賣出申告量', unit: 'kWh'    },
+        { field: 'buy_bid_volume',         label: '買入申告量', unit: 'kWh'    },
+        { field: 'contracted_total_volume',label: '成交量',     unit: 'kWh'    },
     ],
     intraday: [
         { field: 'opening_price',            label: '開盤價',   unit: '¥/kWh' },
@@ -69,19 +63,17 @@ export const SOURCE_RECORD_COLUMNS: Record<string, RecordColumn[]> = {
 
 // Columns for all tdgc_* sources (commodity_category varies but fields are the same)
 export const TDGC_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'CorrectedUnitPriceAve', label: '補正後單價 (Ave)', unit: '¥/kWh' },
-    { field: 'TsoPriceAve',           label: 'TSO 價格 (Ave)',   unit: '¥/kWh' },
-    { field: 'InAreaQuantity',        label: '地區需求量',       unit: 'kWh'    },
-    { field: 'TotalContractQuantity', label: '總成交量',         unit: 'kWh'    },
+    { field: 'corrected_unit_price_ave', label: '補正後單價 (Ave)', unit: '¥/kWh' },
+    { field: 'tso_price_ave',            label: 'TSO 價格 (Ave)',   unit: '¥/kWh' },
+    { field: 'in_area_quantity',         label: '地區需求量',       unit: 'kWh'    },
+    { field: 'total_contract_quantity',  label: '總成交量',         unit: 'kWh'    },
 ];
 
 // Columns for all prediction_* sources (P50 is stored as forecast_price after expansion)
 // calculate_time is intentionally first so users can distinguish multiple forecasting runs
 export const PREDICTION_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'calculate_time', label: '計算日',        unit: ''       },
-    { field: 'forecast_price', label: 'P50 (中位數)',  unit: '¥/kWh' },
-    { field: 'price_5',        label: 'P5  (低估)',    unit: '¥/kWh' },
-    { field: 'price_95',       label: 'P95 (高估)',    unit: '¥/kWh' },
+    { field: 'calculate_time', label: '計算日',       unit: ''       },
+    { field: 'forecast_price', label: 'P50 (中位數)', unit: '¥/kWh' },
 ];
 
 // Key weather fields to display (subset of the full schema — keeps table readable)

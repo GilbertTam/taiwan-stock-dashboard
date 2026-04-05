@@ -20,7 +20,6 @@ import { LoginOverlay } from '@/components/overlay/LoginOverlay';
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import type { Area, HjksOutage } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -36,8 +35,7 @@ export default function Dashboard() {
     endDate,
     dateRangePreset,
     handleDateRangePreset,
-    setStartDate,
-    setEndDate,
+    commitDateSelection,
   } = useMarketDataContext();
 
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
@@ -49,14 +47,6 @@ export default function Dashboard() {
   const [hoveredTimestamp, setHoveredTimestamp] = useState<number | null>(null);
   const [outages, setOutages] = useState<HjksOutage[]>([]);
   const [outagesLoading, setOutagesLoading] = useState(true);
-
-  const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
-    startDate,
-    endDate,
-    setStartDate,
-    setEndDate,
-    clearPreset: () => handleDateRangePreset(null),
-  });
 
   const handleRefresh = useCallback(() => {
     if (!startDate || !endDate) return;
@@ -295,15 +285,13 @@ export default function Dashboard() {
       {/* Toolbar - same style as forecast page, with nav / date range / refresh / CSV */}
       <Box sx={{ flexShrink: 0, p: 0.5 }}>
         <DashboardToolbar
-          startDate={tempStartDate}
-          endDate={tempEndDate}
+          startDate={startDate}
+          endDate={endDate}
           dateRangePreset={dateRangePreset}
-          onDateRangeChange={onDateRangeChange}
+          onDateChange={commitDateSelection}
           onDateRangePreset={handleDateRangePreset}
-          onDateMenuClose={onDateMenuClose}
           onRefresh={handleRefresh}
           downloadActions={[{ label: '下載目前檢視區域 CSV', onClick: handleDownloadCsv }]}
-          currentTab="home"
         />
       </Box>
 

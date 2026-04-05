@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { Box, Typography, Alert, Chip } from '@mui/material';
+import { Box, Typography, Alert, Skeleton } from '@mui/material';
 import * as echarts from 'echarts/core';
 import { BaseChart } from '@/components/charts/BaseChart';
 import { MetricConfig } from './DailyCompareControls';
@@ -66,13 +66,17 @@ function hslToRgb(h: number, s: number, l: number): string {
 }
 
 /**
- * index 0 = newest (L=45%, vivid), index = total-1 = oldest (L=72%, faded).
- * Keeps original hue & saturation; only lightness varies.
+ * index 0 = newest (vivid: L=46%, full saturation)
+ * index n-1 = oldest (very pale: L=82%, nearly desaturated)
+ * Both lightness AND saturation vary widely for an obvious gradient.
  */
 function seriesColor(baseHex: string, index: number, total: number): string {
     const [h, s] = hexToHsl(baseHex);
-    const l = (45 + (index / Math.max(total - 1, 1)) * 27) / 100;
-    return hslToRgb(h, Math.max(s, 0.55), l);
+    const t = total <= 1 ? 0 : index / (total - 1); // 0=newest, 1=oldest
+    const satStart = Math.max(s, 0.72);
+    const l = 0.46 + t * 0.36;                       // 46% → 82%
+    const sat = satStart * (1 - t) + 0.15 * t;       // full saturation → nearly grey
+    return hslToRgb(h, sat, l);
 }
 
 /** Line width: newest = 2.5px, oldest = 1px */
@@ -85,6 +89,7 @@ function seriesWidth(index: number, total: number): number {
 function buildSeries(metric: MetricConfig, date: string, data: (number | null)[], index: number, total: number): any {
     const color = seriesColor(metric.baseColor, index, total);
     const zOrder = total - index;
+    const isNewest = index === 0;
 
     if (metric.chartType === 'bar') {
         return {
@@ -94,12 +99,15 @@ function buildSeries(metric: MetricConfig, date: string, data: (number | null)[]
             barGap: '-100%',
             barCategoryGap: '30%',
             z: zOrder,
-            itemStyle: { color },
+            itemStyle: {
+                color,
+                ...(isNewest ? { borderWidth: 1, borderColor: color } : {}),
+            },
             emphasis: { itemStyle: { opacity: 1 } },
         };
     }
 
-    return {
+    const baseLine = {
         name: date,
         type: 'line',
         step: metric.chartType === 'step' ? 'end' : undefined,
@@ -108,9 +116,22 @@ function buildSeries(metric: MetricConfig, date: string, data: (number | null)[]
         connectNulls: false,
         data,
         z: zOrder,
-        lineStyle: { color, width: seriesWidth(index, total) },
+        lineStyle: { color, width: isNewest ? 3 : seriesWidth(index, total) },
         itemStyle: { color },
-        emphasis: { lineStyle: { width: 3 } },
+        emphasis: { lineStyle: { width: isNewest ? 4 : 3 } },
+    };
+
+    if (!isNewest) return baseLine;
+
+    return {
+        ...baseLine,
+        markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color, type: 'dashed', width: 1, opacity: 0.5 },
+            label: { show: false },
+            data: [{ type: 'average' }],
+        },
     };
 }
 
@@ -228,6 +249,23 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
         echarts.connect(groupId);
     }, [groupId]);
 
+    // Compute panel stats from all series data
+    const panelStats = useMemo(() => {
+        const allValues: number[] = [];
+        for (const slots of seriesData.values()) {
+            for (const v of slots) {
+                if (v != null) allValues.push(v);
+            }
+        }
+        if (allValues.length === 0) return null;
+        const avg = allValues.reduce((s, v) => s + v, 0) / allValues.length;
+        const peak = Math.max(...allValues);
+        const min = Math.min(...allValues);
+        return { avg, peak, min };
+    }, [seriesData]);
+
+    const CHART_TYPE_LABELS: Record<string, string> = { line: '折線', step: '梯線', bar: '長條' };
+
     if (!isLoading && total === 0) {
         return (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -240,31 +278,81 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
         );
     }
 
-    return (
-        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {areaLabel && (
-                <Box sx={{ px: 1.5, pt: 0.75, pb: 0.25, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip
-                        label={areaLabel}
-                        size="small"
-                        sx={{
-                            height: 20,
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            backgroundColor: `${metric.baseColor}22`,
-                            color: metric.baseColor,
-                            border: `1px solid ${metric.baseColor}55`,
-                        }}
-                    />
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                        {metric.label} · {metric.unit}
-                    </Typography>
+    // Panel header strip — always shown (even during loading)
+    const panelHeader = areaLabel ? (
+        <Box sx={{
+            px: 1.5, pt: 1, pb: 0.5, flexShrink: 0,
+            borderBottom: '1px solid var(--card-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+            {/* Left: area badge + metric */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: metric.baseColor, flexShrink: 0 }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {areaLabel}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap', fontSize: '0.7rem' }}>
+                    {metric.label}
+                </Typography>
+                <Box sx={{
+                    fontSize: '0.6rem', px: 0.5, py: 0.1, borderRadius: 0.5,
+                    backgroundColor: `${metric.baseColor}20`,
+                    color: metric.baseColor,
+                    border: `1px solid ${metric.baseColor}40`,
+                    flexShrink: 0,
+                }}>
+                    {CHART_TYPE_LABELS[metric.chartType] ?? metric.chartType}
+                </Box>
+            </Box>
+            {/* Right: stats */}
+            {panelStats && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, ml: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>均</Typography>
+                        <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600 }}>{panelStats.avg.toFixed(1)}</Typography>
+                    </Box>
+                    <Box sx={{ width: '1px', height: 10, backgroundColor: 'var(--card-border)' }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>峰</Typography>
+                        <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600, color: metric.baseColor }}>{panelStats.peak.toFixed(1)}</Typography>
+                    </Box>
+                    <Box sx={{ width: '1px', height: 10, backgroundColor: 'var(--card-border)' }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>谷</Typography>
+                        <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600 }}>{panelStats.min.toFixed(1)}</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: 9, color: 'text.disabled' }}>{metric.unit}</Typography>
                 </Box>
             )}
+        </Box>
+    ) : null;
+
+    if (isLoading) {
+        return (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                {panelHeader}
+                <Box sx={{ flex: 1, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {[90, 65, 80, 55, 75, 45, 70].map((w, i) => (
+                        <Skeleton
+                            key={i}
+                            variant="rectangular"
+                            animation="wave"
+                            width={`${w}%`}
+                            height={8}
+                            sx={{ borderRadius: 1 }}
+                        />
+                    ))}
+                </Box>
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {panelHeader}
             <BaseChart
                 option={option}
                 height="100%"
-                showLoading={isLoading}
                 onChartReady={handleChartReady}
                 sx={{ flex: 1, minHeight: 0 }}
             />

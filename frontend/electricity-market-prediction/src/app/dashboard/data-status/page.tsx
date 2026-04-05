@@ -17,7 +17,6 @@ import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { fetchDataCoverage, fetchCoverageSources, CoverageRow } from '@/services/dataStatusApi';
 import {
     DataStatusControls,
@@ -39,19 +38,10 @@ export default function DataStatusPage() {
         startDate,
         endDate,
         dateRangePreset,
-        setStartDate,
-        setEndDate,
+        commitDateSelection,
         handleDateRangePreset,
         isLoading: ctxLoading,
     } = useMarketDataContext();
-
-    const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
-        startDate,
-        endDate,
-        setStartDate,
-        setEndDate,
-        clearPreset: () => handleDateRangePreset(null),
-    });
 
     // ── Dynamic sources (prediction models + TDGC categories) ────────────────
     const [dynamicSources, setDynamicSources] = useState<SourceConfig[]>([]);
@@ -155,12 +145,11 @@ export default function DataStatusPage() {
             {/* Shared toolbar */}
             <Box sx={{ flexShrink: 0, p: 0.5 }}>
                 <DashboardToolbar
-                    startDate={tempStartDate}
-                    endDate={tempEndDate}
+                    startDate={startDate}
+                    endDate={endDate}
                     dateRangePreset={dateRangePreset}
-                    onDateRangeChange={onDateRangeChange}
+                    onDateChange={commitDateSelection}
                     onDateRangePreset={handleDateRangePreset}
-                    onDateMenuClose={onDateMenuClose}
                     onRefresh={loadData}
                     isLoading={isLoading || ctxLoading}
                 />

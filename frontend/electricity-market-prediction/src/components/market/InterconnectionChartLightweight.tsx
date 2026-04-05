@@ -6,7 +6,7 @@ import { createChart, LineSeries, AreaSeries, LineStyle, ColorType, type IChartA
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 import type { InterconnectionFlow } from '@/types';
-import { createFullChartOptions } from '@/utils/chartUtils';
+import { createFullChartOptions, parseToTimestamp, toChartTime } from '@/utils/chartUtils';
 
 interface InterconnectionChartLightweightProps {
   data: InterconnectionFlow[];
@@ -18,8 +18,9 @@ const downsampleData = (data: any[], threshold = 500) => {
   return data.filter((_, i) => i % rate === 0);
 };
 
+// Convert JST datetime string to LWC-compatible UTCTimestamp (fake-UTC so the axis shows JST wall time).
 const toTime = (datetime: string): UTCTimestamp =>
-  Math.floor(new Date(datetime).getTime() / 1000) as UTCTimestamp;
+  toChartTime(parseToTimestamp(datetime) ?? 0, 'Asia/Tokyo') as UTCTimestamp;
 
 export const InterconnectionChartLightweight: React.FC<InterconnectionChartLightweightProps> = ({ data }) => {
   const { darkMode } = useTheme();

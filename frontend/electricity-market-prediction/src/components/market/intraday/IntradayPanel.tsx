@@ -12,15 +12,16 @@ import {
 } from 'lightweight-charts';
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
-import { createFullChartOptions } from '@/utils/chartUtils';
+import { createFullChartOptions, parseToTimestamp, toChartTime } from '@/utils/chartUtils';
 import type { IntradayData } from '@/types';
 
 interface IntradayPanelProps {
   data: IntradayData[];
 }
 
+// Convert JST datetime string to LWC-compatible UTCTimestamp (fake-UTC so the axis shows JST wall time).
 const toTime = (datetime: string): UTCTimestamp =>
-  Math.floor(new Date(datetime).getTime() / 1000) as UTCTimestamp;
+  toChartTime(parseToTimestamp(datetime) ?? 0, 'Asia/Tokyo') as UTCTimestamp;
 
 /** 日內市場 OHLC K 線圖 + 成交量直方圖 */
 export const IntradayPanel: React.FC<IntradayPanelProps> = ({ data }) => {

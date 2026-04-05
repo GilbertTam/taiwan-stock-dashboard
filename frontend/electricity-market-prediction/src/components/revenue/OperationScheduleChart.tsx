@@ -40,6 +40,7 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
                 case 'Charge': return 1;
                 case 'Spot': return 2;
                 case 'Balance': return 3;
+                case 'Discharge': return 2; // Manual discharge — same red color as Spot
                 default: return 0;
             }
         };
@@ -77,6 +78,18 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
             rowIdx++;
         });
 
+        // Manual schedule row
+        if (data.manual && data.manual.length > 0) {
+            names.push('Manual');
+            const sorted = [...data.manual].sort(sortByDatetime);
+            sorted.forEach((op, t) => {
+                if (op.action != null) {
+                    heatData.push([t, rowIdx, getActionCode(op.action)]);
+                }
+            });
+            rowIdx++;
+        }
+
         return { rowNames: names, heatmapData: heatData };
     }, [data, selectedModels]);
 
@@ -85,12 +98,13 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
 
         const dataZoom = [
             { type: 'inside' as const, xAxisIndex: 0, group: groupId },
-            { type: 'slider' as const, xAxisIndex: 0, group: groupId }
+            { type: 'slider' as const, xAxisIndex: 0, group: groupId, height: 18, bottom: 4 }
         ];
 
         return {
             tooltip: {
                 trigger: 'axis',
+                confine: true,
                 backgroundColor: darkMode ? 'rgba(40,40,40,0.96)' : 'rgba(255,255,255,0.98)',
                 borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                 borderWidth: 1,
@@ -121,7 +135,7 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
                 left: '3%',
                 right: '4%',
                 top: 40,
-                bottom: 48,
+                bottom: 56,
                 containLabel: true
             },
             xAxis: {
@@ -139,7 +153,7 @@ export const OperationScheduleChart = forwardRef<OperationScheduleChartRef, Oper
                     show: true,
                     lineStyle: { color: darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', width: 1 }
                 },
-                axisLabel: { color: darkMode ? '#ccc' : '#666' }
+                axisLabel: { color: darkMode ? '#ccc' : '#666', width: 55, overflow: 'truncate' }
             },
             visualMap: {
                 type: 'piecewise',

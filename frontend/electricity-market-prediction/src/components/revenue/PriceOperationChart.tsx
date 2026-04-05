@@ -47,6 +47,12 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
         getInstance: () => chartRef.current?.getEchartsInstance?.()
     }), []);
 
+    // Resolve CSS variable to a real hex so ECharts canvas can compute emphasis styles
+    const manualColor = useMemo(() => {
+        if (typeof window === 'undefined') return '#29b6f6';
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#29b6f6';
+    }, []);
+
     const { schedules, times, markAreaSource } = useMemo(() => {
         const result: { schedules: ScheduleItem[]; times: string[]; markAreaSource: GanttOperation[] } = {
             schedules: [],
@@ -111,8 +117,21 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
             });
         });
 
+        // If no schedules/times derived yet, use manual data as fallback source for axes and tooltip
+        if (result.times.length === 0 && ganttData.manual?.length) {
+            const manualSorted = [...ganttData.manual].sort(sortByDatetime);
+            result.times = externalTimes ?? manualSorted.map(d => (d.datetime ? d.datetime.substring(5, 16).replace('T', ' ') : ''));
+            result.markAreaSource = manualSorted;
+            result.schedules.push({
+                id: 'manual',
+                name: 'Manual',
+                color: manualColor,
+                data: manualSorted
+            });
+        }
+
         return result;
-    }, [legacyData, ganttData, selectedModels, colors.actual, externalTimes]);
+    }, [legacyData, ganttData, selectedModels, colors.actual, externalTimes, manualColor]);
 
     const actualColor = colors.actual || '#2196f3';
 
@@ -121,22 +140,24 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
 
         const actualPrices = schedules[0] ? schedules[0].data.map(d => d.priceActual) : [];
 
-        const optimalName = schedules[0]?.id === 'optimal' ? 'Optimal' : 'Actual Price';
-        const legendData: string[] = [optimalName];
+        const firstId = schedules[0]?.id;
+        const firstColor = firstId === 'manual' ? manualColor : actualColor;
+        const firstLabel = firstId === 'optimal' ? 'Optimal' : firstId === 'manual' ? 'Manual (Actual)' : 'Actual Price';
+        const legendData: string[] = [firstLabel];
         const priceSeries: any[] = [
             {
-                name: optimalName,
+                name: firstLabel,
                 type: 'line',
                 data: actualPrices,
-                itemStyle: { color: actualColor },
+                itemStyle: { color: firstColor },
                 lineStyle: { width: 2 },
-                areaStyle: schedules.length > 1 ? { opacity: 0.08, color: actualColor } : undefined,
+                areaStyle: schedules.length > 1 ? { opacity: 0.08, color: firstColor } : undefined,
                 showSymbol: false
             }
         ];
 
         schedules.forEach((s, idx) => {
-            if (s.id === 'optimal') return;
+            if (s.id === 'optimal' || s.id === 'manual') return;
             const predData = s.data.map(d => (d.pricePredicted != null ? d.pricePredicted : null));
             const seriesName = `Pred: ${s.name}`;
             legendData.push(seriesName);
@@ -153,12 +174,13 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
 
         const dataZoom = groupId ? [
             { type: 'inside' as const, xAxisIndex: 0, group: groupId },
-            { type: 'slider' as const, xAxisIndex: 0, group: groupId }
+            { type: 'slider' as const, xAxisIndex: 0, group: groupId, height: 18, bottom: 4 }
         ] : undefined;
 
         return {
             tooltip: {
                 trigger: 'axis',
+                confine: true,
                 backgroundColor: darkMode ? 'rgba(40,40,40,0.96)' : 'rgba(255,255,255,0.98)',
                 borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                 borderWidth: 1,
@@ -167,14 +189,19 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                 formatter: (params: any[]) => {
                     const idx = params[0].dataIndex;
                     const item = schedules[0]?.data[idx] ?? markAreaSource[idx];
-                    if (!item) return '';
+                    if (!item) return null as any;
                     const sep = darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
                     let html = `<div style="font-weight:600;font-size:13px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid ${sep}">${times[idx]}</div>`;
-                    const firstLabel = schedules[0]?.id === 'optimal' ? 'Optimal' : 'Actual Price';
+                    const firstId = schedules[0]?.id;
+                    const firstLabel = firstId === 'optimal' ? 'Optimal' : firstId === 'manual' ? 'Manual' : 'Actual Price';
                     const firstVal = item.priceActual != null ? item.priceActual.toFixed(2) : '-';
                     html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">${firstLabel}</span><b>${firstVal} JPY</b></div>`;
+                    if (firstId === 'manual') {
+                        const action = item.action ?? 'Idle';
+                        html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">操作</span><b>${action}</b></div>`;
+                    }
                     schedules.forEach(s => {
-                        if (s.id === 'optimal') return;
+                        if (s.id === 'optimal' || s.id === 'manual') return;
                         const d = s.data[idx];
                         const pred = d?.pricePredicted != null ? d.pricePredicted.toFixed(2) : '-';
                         html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">Pred ${s.name}</span><b>${pred} ${pred === '-' ? '' : 'JPY'}</b></div>`;
@@ -191,10 +218,10 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                 textStyle: { color: darkMode ? '#fff' : '#000' }
             },
             grid: {
-                left: '3%',
+                left: '6%',
                 right: '4%',
                 top: 64,
-                bottom: groupId ? 48 : '12%',
+                bottom: groupId ? 58 : '12%',
                 containLabel: true
             },
             dataZoom,

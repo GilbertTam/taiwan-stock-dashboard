@@ -9,12 +9,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Alert } from '@mui/material';
+import { Box, Alert, Chip, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
-import { ResizableLayout } from '@/components/layout/ResizableLayout';
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { fetchActualPrices } from '@/services/marketApi';
 import { fetchImbalance, fetchOcctoArea, fetchIntraday, fetchJepxSystem } from '@/services/gridOperationsApi';
 import { DailyCompareControls, MetricKey, MetricConfig, METRIC_CONFIGS } from '@/components/daily-compare/DailyCompareControls';
@@ -110,19 +108,10 @@ export default function DailyComparePage() {
         startDate,
         endDate,
         dateRangePreset,
-        setStartDate,
-        setEndDate,
+        commitDateSelection,
         handleDateRangePreset,
         isLoading: ctxLoading,
     } = useMarketDataContext();
-
-    const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
-        startDate,
-        endDate,
-        setStartDate,
-        setEndDate,
-        clearPreset: () => handleDateRangePreset(null),
-    });
 
     // Local state — multiple areas
     const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
@@ -188,56 +177,68 @@ export default function DailyComparePage() {
     };
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-            <Box sx={{ flexShrink: 0, p: 0.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative', gap: 0.5, p: 0.5 }}>
+            <Box sx={{ flexShrink: 0 }}>
                 <DashboardToolbar
-                    startDate={tempStartDate}
-                    endDate={tempEndDate}
+                    startDate={startDate}
+                    endDate={endDate}
                     dateRangePreset={dateRangePreset}
-                    onDateRangeChange={onDateRangeChange}
+                    onDateChange={commitDateSelection}
                     onDateRangePreset={handleDateRangePreset}
-                    onDateMenuClose={onDateMenuClose}
                     onRefresh={handleRefresh}
                     isLoading={isLoading || ctxLoading}
                 />
             </Box>
 
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
-                <ResizableLayout
-                    direction="horizontal"
-                    defaultSizes={[22, 78]}
-                    minSizes={[16, 50]}
-                    storageKey="daily-compare-layout"
-                >
-                    {/* Left: controls */}
-                    <Box sx={{ height: '100%', overflow: 'hidden', borderRight: '1px solid var(--card-border)', backgroundColor: 'var(--card-bg)' }}>
-                        <DailyCompareControls
-                            areas={areas}
-                            selectedAreas={selectedAreas}
-                            onAreasChange={setSelectedAreas}
-                            selectedMetric={selectedMetric}
-                            onMetricChange={setSelectedMetric}
-                        />
-                    </Box>
+            <DailyCompareControls
+                areas={areas}
+                selectedAreas={selectedAreas}
+                onAreasChange={setSelectedAreas}
+                selectedMetric={selectedMetric}
+                onMetricChange={setSelectedMetric}
+            />
 
-                    {/* Right: grid of charts */}
-                    <Box sx={{ height: '100%', p: 1.5, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        {error ? (
-                            <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>
-                        ) : (
-                            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                                <DailyCompareGrid
-                                    selectedAreas={selectedAreas}
-                                    areas={areas}
-                                    rawDataMap={rawDataMap}
-                                    metric={currentMetricConfig}
-                                    isLoading={isLoading}
-                                    groupId={ECHARTS_GROUP_ID}
-                                />
-                            </Box>
+            {/* Context strip + chart grid */}
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {selectedAreas.length > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexShrink: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 3, height: 16, backgroundColor: currentMetricConfig.baseColor, borderRadius: 1, flexShrink: 0 }} />
+                            <Typography variant="subtitle2" fontWeight={700}>{currentMetricConfig.label}</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{currentMetricConfig.unit}</Typography>
+                            <Chip
+                                size="small"
+                                label={{ line: '折線', step: '梯線', bar: '長條' }[currentMetricConfig.chartType] ?? currentMetricConfig.chartType}
+                                sx={{
+                                    height: 18,
+                                    fontSize: '0.65rem',
+                                    backgroundColor: `${currentMetricConfig.baseColor}20`,
+                                    color: currentMetricConfig.baseColor,
+                                    border: `1px solid ${currentMetricConfig.baseColor}40`,
+                                }}
+                            />
+                        </Box>
+                        {startDate && endDate && (
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', flexShrink: 0 }}>
+                                {format(startDate, 'MM/dd')} – {format(endDate, 'MM/dd')}
+                            </Typography>
                         )}
                     </Box>
-                </ResizableLayout>
+                )}
+                {error ? (
+                    <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>
+                ) : (
+                    <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                        <DailyCompareGrid
+                            selectedAreas={selectedAreas}
+                            areas={areas}
+                            rawDataMap={rawDataMap}
+                            metric={currentMetricConfig}
+                            isLoading={isLoading}
+                            groupId={ECHARTS_GROUP_ID}
+                        />
+                    </Box>
+                )}
             </Box>
         </Box>
     );

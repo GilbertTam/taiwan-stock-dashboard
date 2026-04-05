@@ -939,17 +939,7 @@ class ESService:
                     {
                         'id': 'prices', 'label': '現貨價格',
                         'fields': [
-                            {'field': 'price',          'name': '地區現貨價',   'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
-                            {'field': 'system_price',   'name': '系統現貨價',   'unit': '¥/kWh', 'type': 'line', 'color': '#ffa000'},
-                            {'field': 'avoidable_cost', 'name': '迴避可能費用', 'unit': '¥/kWh', 'type': 'line', 'color': '#ffcc80'},
-                        ],
-                    },
-                    {
-                        'id': 'quantities', 'label': '交易量',
-                        'fields': [
-                            {'field': 'sell_quantity',     'name': '賣出量', 'unit': 'kWh', 'type': 'bar', 'color': '#ef5350'},
-                            {'field': 'buy_quantity',      'name': '買入量', 'unit': 'kWh', 'type': 'bar', 'color': '#42a5f5'},
-                            {'field': 'contract_quantity', 'name': '成交量', 'unit': 'kWh', 'type': 'bar', 'color': '#66bb6a'},
+                            {'field': 'area_price', 'name': '地區現貨價', 'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
                         ],
                     },
                 ],
@@ -961,16 +951,15 @@ class ESService:
                     {
                         'id': 'prices', 'label': '系統現貨價格',
                         'fields': [
-                            {'field': 'system_price',   'name': '系統現貨價',   'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
-                            {'field': 'avoidable_cost', 'name': '迴避可能費用', 'unit': '¥/kWh', 'type': 'line', 'color': '#ffa000'},
+                            {'field': 'system_price', 'name': '系統現貨價', 'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
                         ],
                     },
                     {
                         'id': 'quantities', 'label': '交易量',
                         'fields': [
-                            {'field': 'sell_quantity',     'name': '賣出量', 'unit': 'kWh', 'type': 'bar', 'color': '#ef5350'},
-                            {'field': 'buy_quantity',      'name': '買入量', 'unit': 'kWh', 'type': 'bar', 'color': '#42a5f5'},
-                            {'field': 'contract_quantity', 'name': '成交量', 'unit': 'kWh', 'type': 'bar', 'color': '#66bb6a'},
+                            {'field': 'sell_bid_volume',         'name': '賣出申告量', 'unit': 'kWh', 'type': 'bar', 'color': '#ef5350'},
+                            {'field': 'buy_bid_volume',          'name': '買入申告量', 'unit': 'kWh', 'type': 'bar', 'color': '#42a5f5'},
+                            {'field': 'contracted_total_volume', 'name': '成交量',     'unit': 'kWh', 'type': 'bar', 'color': '#66bb6a'},
                         ],
                     },
                 ],

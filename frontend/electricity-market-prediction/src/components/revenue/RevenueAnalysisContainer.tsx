@@ -16,8 +16,15 @@ interface RevenueAnalysisContainerProps {
     }>;
     colors: any;
     dt: number;
+    batteryECap?: number;
+    cycleLimit?: number;
     isSimulating: boolean;
+    isDataLoading?: boolean;
+    isInitializing?: boolean;
     onRunSimulation: () => void;
+    manualResult?: { optimization: OptimizationResult; realizedRevenue: number } | null;
+    priceBasis?: string;
+    onPriceBasisChange?: (basis: string) => void;
 }
 
 /** 
@@ -30,13 +37,20 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
     selectedModels,
     colors,
     dt,
+    batteryECap,
+    cycleLimit,
     isSimulating,
-    onRunSimulation
+    isDataLoading = false,
+    isInitializing = false,
+    onRunSimulation,
+    manualResult,
+    priceBasis,
+    onPriceBasisChange,
 }) => {
     const { darkMode } = useTheme();
 
     if (!ganttData) {
-        if (isSimulating) {
+        if (isSimulating || isDataLoading || isInitializing) {
             return (
                 <Paper
                     elevation={0}
@@ -56,7 +70,7 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
                 >
                     <CircularProgress size={48} sx={{ mb: 3 }} />
                     <Typography variant="h6" color="text.primary" gutterBottom>
-                        正在計算收益模擬... (Calculating revenue simulation...)
+                        {isDataLoading && !isSimulating ? '載入市場資料中...' : isInitializing && !isSimulating ? '準備模擬中...' : '正在計算收益模擬...'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         依據您設定的參數，這可能需要幾秒鐘的時間。
@@ -91,6 +105,11 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
                 selectedModels={selectedModels}
                 colors={colors}
                 dt={dt}
+                batteryECap={batteryECap}
+                cycleLimit={cycleLimit}
+                manualResult={manualResult}
+                priceBasis={priceBasis}
+                onPriceBasisChange={onPriceBasisChange}
             />
         </Paper>
     );

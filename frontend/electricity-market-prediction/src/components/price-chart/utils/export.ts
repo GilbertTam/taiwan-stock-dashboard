@@ -14,7 +14,9 @@ export const handleDownloadCsv = (
 
     // Filter by date range if provided (in JST)
     const startTs = startDate ? dateToJstTimestamp(startDate) : null;
-    const endTs = endDate ? dateToJstTimestamp(endDate) : null;
+    const endOfDay = endDate ? new Date(endDate) : null;
+    if (endOfDay) endOfDay.setHours(23, 59, 59, 999);
+    const endTs = endOfDay ? dateToJstTimestamp(endOfDay) : null;
 
     const filteredData = processedChartData.filter(p => {
         if (!startTs || !endTs) return true;

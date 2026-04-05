@@ -27,13 +27,18 @@ import {
   StackedBarSeries,
   type StackedBarData,
 } from '@/components/price-chart/plugins/StackedBarSeries';
-import { createFullChartOptions, useChartColors } from '@/utils/chartUtils';
+import { createFullChartOptions, useChartColors, parseToTimestamp, toChartTime } from '@/utils/chartUtils';
 import {
   OutageRangePrimitive,
   outageStopTypeColors,
   type OutageRangeZone,
 } from './OutageRangePrimitive';
 import type { OcctoAreaData, HjksOutage } from '@/types';
+
+const JST = 'Asia/Tokyo';
+/** Convert a JST datetime string to a LWC-compatible UTCTimestamp (fake-UTC so the chart axis shows JST wall time). */
+const toDisplayTime = (datetime: string): UTCTimestamp =>
+  toChartTime(parseToTimestamp(datetime) ?? 0, JST) as UTCTimestamp;
 
 // ─── Generation source colour map (must match page.tsx GEN_SOURCES order) ────
 export const GEN_SOURCES: { key: keyof OcctoAreaData; label: string; color: string }[] = [
@@ -75,8 +80,8 @@ function outagesToZones(outages: HjksOutage[]): OutageRangeZone[] {
   return outages
     .filter((o) => o.start_datetime && o.end_datetime)
     .map((o) => {
-      const startTime = Math.floor(new Date(o.start_datetime).getTime() / 1000);
-      const endTime = Math.floor(new Date(o.end_datetime).getTime() / 1000);
+      const startTime: number = Number(toDisplayTime(o.start_datetime));
+      const endTime: number = Number(toDisplayTime(o.end_datetime));
       if (!isFinite(startTime) || !isFinite(endTime) || endTime <= startTime) return null;
       const { fillColor, edgeColor } = outageStopTypeColors(o.stop_type ?? '');
       const capText = o.down_capacity != null ? ` ↓${Math.round(o.down_capacity)}MW` : '';
@@ -123,7 +128,7 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
   const chartData: StackedBarData[] = useMemo(() => {
     if (mode === 'timeseries') {
       return timeseriesData.map((d) => ({
-        time: Math.floor(new Date(d.datetime).getTime() / 1000) as UTCTimestamp,
+        time: toDisplayTime(d.datetime),
         items: GEN_SOURCES.map((s) => ({
           value: Math.max(0, Number((d as any)[s.key]) || 0),
           color: s.color,
@@ -229,8 +234,8 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
       const t = param.time as number;
       const active = outagesRef.current.filter((o) => {
         if (!o.start_datetime || !o.end_datetime) return false;
-        const start = Math.floor(new Date(o.start_datetime).getTime() / 1000);
-        const end   = Math.floor(new Date(o.end_datetime).getTime() / 1000);
+        const start = toDisplayTime(o.start_datetime);
+        const end   = toDisplayTime(o.end_datetime);
         return start <= t && t <= end;
       });
       onHoverOutagesRef.current?.(active);
@@ -246,8 +251,8 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
       const t = param.time as number;
       const active = outagesRef.current.filter((o) => {
         if (!o.start_datetime || !o.end_datetime) return false;
-        const start = Math.floor(new Date(o.start_datetime).getTime() / 1000);
-        const end   = Math.floor(new Date(o.end_datetime).getTime() / 1000);
+        const start = toDisplayTime(o.start_datetime);
+        const end   = toDisplayTime(o.end_datetime);
         return start <= t && t <= end;
       });
       onClickRef.current?.(idx >= 0 ? idx : null, t, active);

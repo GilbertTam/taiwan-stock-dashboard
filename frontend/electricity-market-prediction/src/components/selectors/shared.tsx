@@ -25,12 +25,14 @@ export function SectionHeader({
     expanded,
     step,
     description,
+    icon,
 }: {
     children: React.ReactNode;
     onClick?: () => void;
     expanded?: boolean;
     step?: number;
     description?: string;
+    icon?: React.ReactNode;
 }) {
     return (
         <Box
@@ -64,6 +66,11 @@ export function SectionHeader({
                             transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
                         }}>
                             <ExpandMore sx={{ fontSize: '1.2rem' }} />
+                        </Box>
+                    )}
+                    {icon && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: expanded ? 'var(--primary)' : 'text.secondary' }}>
+                            {icon}
                         </Box>
                     )}
                     <Typography

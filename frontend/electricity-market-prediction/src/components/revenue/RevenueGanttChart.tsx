@@ -6,10 +6,9 @@
 'use client';
 
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { GanttChartData } from '@/types/revenueAnalysis';
 import { OperationScheduleChart } from './OperationScheduleChart';
-import { SocLineChart } from './SocLineChart';
 
 interface RevenueGanttChartProps {
     data: GanttChartData;
@@ -18,20 +17,16 @@ interface RevenueGanttChartProps {
     colors?: { actual?: string };
     height?: number;
     opChartRef?: React.RefObject<{ getInstance: () => any } | null>;
-    socChartRef?: React.RefObject<{ getInstance: () => any } | null>;
 }
 
 export const RevenueGanttChart: React.FC<RevenueGanttChartProps> = ({
     data,
     selectedModels,
     timeCategories,
-    colors = {},
-    height = 400,
     opChartRef,
-    socChartRef
 }) => {
     return (
-        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ width: '100%', height: '100%' }}>
             <OperationScheduleChart
                 ref={opChartRef}
                 data={data}
@@ -40,19 +35,6 @@ export const RevenueGanttChart: React.FC<RevenueGanttChartProps> = ({
                 height={260}
                 groupId="revenue-time-group"
             />
-
-            <Box>
-                <Typography variant="subtitle2" fontWeight="600" gutterBottom>Battery State of Charge</Typography>
-                <SocLineChart
-                    ref={socChartRef}
-                    data={data}
-                    selectedModels={selectedModels}
-                    timeCategories={timeCategories}
-                    colors={colors}
-                    height={220}
-                    groupId="revenue-time-group"
-                />
-            </Box>
         </Box>
     );
 };

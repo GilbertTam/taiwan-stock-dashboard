@@ -66,26 +66,32 @@ export const RecordsTab: React.FC<Props> = ({
     const [page, setPage]       = useState(0);
     const [perPage, setPerPage] = useState(20);
     const [loading, setLoading] = useState(false);
+    const [fetchError, setFetchError] = useState(false);
 
     // ── Calculate-time filter (prediction sources only) ───────────────────────
     const isPrediction = sourceKey.startsWith('prediction_');
     const [calcTimes,     setCalcTimes]     = useState<string[]>([]);
     const [calcTimeFilter, setCalcTimeFilter] = useState<string>('');   // '' = all
+    // True while calculate_times are being fetched — suppress records fetch until ready
+    const [calcTimesReady, setCalcTimesReady] = useState(!sourceKey.startsWith('prediction_'));
 
     // Fetch available calculate_times when source/area/date changes
     useEffect(() => {
         if (!isPrediction || !sourceKey || !area || !date) {
             setCalcTimes([]);
             setCalcTimeFilter('');
+            setCalcTimesReady(true);
             return;
         }
+        setCalcTimesReady(false);
         fetchPredictionCalculateTimes(sourceKey, area, date)
             .then(times => {
                 setCalcTimes(times);
                 // Auto-select the most recent run as default
                 setCalcTimeFilter(times[0] ?? '');
             })
-            .catch(() => { setCalcTimes([]); setCalcTimeFilter(''); });
+            .catch(() => { setCalcTimes([]); setCalcTimeFilter(''); })
+            .finally(() => setCalcTimesReady(true));
     }, [isPrediction, sourceKey, area, date]);
 
     const isEventSource = sourceKey === 'occto_event';
@@ -95,18 +101,21 @@ export const RecordsTab: React.FC<Props> = ({
     useEffect(() => { setPage(0); }, [slotFilter, calcTimeFilter, sourceKey, area, date]);
 
     useEffect(() => {
-        if (!sourceKey || !area || !date) return;
+        if (!sourceKey || !area || !date || !calcTimesReady) return;
+        let cancelled = false;
         setLoading(true);
+        setFetchError(false);
         fetchCoverageRecords(
             sourceKey, area, date,
             slotFilter ?? undefined,
             calcTimeFilter || undefined,
             page, perPage,
         )
-            .then(r => { setRows(r.rows); setTotal(r.total); })
-            .catch(() => { setRows([]); setTotal(0); })
-            .finally(() => setLoading(false));
-    }, [sourceKey, area, date, slotFilter, calcTimeFilter, page, perPage]);
+            .then(r => { if (!cancelled) { setRows(r.rows); setTotal(r.total); } })
+            .catch(() => { if (!cancelled) { setRows([]); setTotal(0); setFetchError(true); } })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, [sourceKey, area, date, slotFilter, calcTimeFilter, calcTimesReady, page, perPage]);
 
     // ── Theme ─────────────────────────────────────────────────────────────────
     const border    = darkMode ? '#2d2f3e' : '#e0e0e0';
@@ -200,6 +209,12 @@ export const RecordsTab: React.FC<Props> = ({
                             Array.from({ length: skeletonCount }).map((_, i) => (
                                 <Skeleton key={i} variant="rounded" height={64} />
                             ))
+                        ) : fetchError ? (
+                            <Box sx={{ py: 4, textAlign: 'center' }}>
+                                <Typography sx={{ fontSize: '0.82rem', color: '#ff4d4f' }}>
+                                    載入失敗，請確認後端服務狀態
+                                </Typography>
+                            </Box>
                         ) : rows.length === 0 ? (
                             <Box sx={{ py: 4, textAlign: 'center' }}>
                                 <Typography sx={{ fontSize: '0.82rem', color: textSec }}>
@@ -287,7 +302,15 @@ export const RecordsTab: React.FC<Props> = ({
                                         ))}
                                     </TableRow>
                                 ))
-                            ) : rows.length === 0 ? (
+                            ) : fetchError ? (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 4 }}>
+                                        <Typography sx={{ fontSize: '0.82rem', color: '#ff4d4f' }}>
+                                            載入失敗，請確認後端服務狀態
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                        ) : rows.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 4 }}>
                                         <Typography sx={{ fontSize: '0.82rem', color: textSec }}>

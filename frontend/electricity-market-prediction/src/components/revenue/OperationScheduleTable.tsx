@@ -13,7 +13,8 @@ import {
     TablePagination,
     Typography,
     Chip,
-    TableSortLabel
+    TableSortLabel,
+    Tooltip,
 } from '@mui/material';
 import { GanttOperation } from '@/types/revenueAnalysis';
 import { format } from 'date-fns';
@@ -21,8 +22,15 @@ import { useTheme } from '@/app/ThemeProvider';
 
 interface OperationScheduleTableProps {
     data: GanttOperation[];
-    title?: string;
     height?: number;
+    /** When true, show action/power/revenue even if pricePredicted is null (Manual schedule) */
+    isManualSchedule?: boolean;
+    /** When true, show action/power/revenue even if pricePredicted is null (Optimal schedule uses actual prices, pricePredicted is always null) */
+    isOptimalSchedule?: boolean;
+    /** 'actual' | modelKey — when not 'actual', show revenueEstimated instead of revenueRealized */
+    priceBasis?: string;
+    /** Per-row revenue override keyed by op.datetime (cross-model: model Y's ops at model X's prices). */
+    revenueOverrides?: Record<string, number> | null;
 }
 
 type Order = 'asc' | 'desc';
@@ -34,9 +42,13 @@ type OrderBy = keyof GanttOperation | 'timeCode';
  */
 export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
     data,
-    title = "詳細操作排程 (Detailed Operation Schedule)",
-    height = 400
+    height = 400,
+    isManualSchedule = false,
+    isOptimalSchedule = false,
+    priceBasis = 'actual',
+    revenueOverrides = null,
 }) => {
+    const isEstimated = priceBasis !== 'actual';
     const { darkMode } = useTheme();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -63,6 +75,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
         switch (action) {
             case 'Charge': return 'success';
             case 'Spot': return 'error';
+            case 'Discharge': return 'error';
             case 'Balance': return 'warning';
             default: return 'default';
         }
@@ -86,10 +99,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
     );
 
     return (
-        <Paper sx={{ width: '100%', overflow: 'hidden', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
-            <Box sx={{ p: 2, borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
-                <Typography variant="h6">{title}</Typography>
-            </Box>
+        <Paper sx={{ width: '100%', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
             <TableContainer sx={{ maxHeight: height }}>
                 <Table stickyHeader aria-label="operation table" size="small">
                     <TableHead>
@@ -121,6 +131,9 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     操作 (Action)
                                 </TableSortLabel>
                             </TableCell>
+                            {isManualSchedule && (
+                                <TableCell align="center">SoC限縮</TableCell>
+                            )}
                             <TableCell align="right">
                                 <TableSortLabel
                                     active={orderBy === 'power'}
@@ -154,7 +167,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'revenueRealized' ? order : 'asc'}
                                     onClick={() => handleRequestSort('revenueRealized' as any)}
                                 >
-                                    實現收益 (Realized JPY)
+                                    {isEstimated ? '預測收益 (Est. JPY)' : '實現收益 (Realized JPY)'}
                                 </TableSortLabel>
                             </TableCell>
                         </TableRow>
@@ -181,7 +194,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                         {timeCode != null && Number.isFinite(timeCode) ? timeCode : '-'}
                                     </TableCell>
                                     <TableCell align="center">
-                                        {row.pricePredicted == null ? '-' : row.action ? (
+                                        {(!isManualSchedule && !isOptimalSchedule && row.pricePredicted == null) ? '-' : row.action ? (
                                             <Chip
                                                 label={row.action}
                                                 color={getActionColor(row.action) as any}
@@ -192,8 +205,26 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                             '-'
                                         )}
                                     </TableCell>
+                                    {isManualSchedule && (
+                                        <TableCell align="center">
+                                            {row.wasClamped ? (
+                                                <Tooltip title={`要求: ${row.requestedPower != null ? row.requestedPower.toFixed(2) : '-'} MW → 實際: ${row.power != null ? row.power.toFixed(2) : '0'} MW`}>
+                                                    <Chip
+                                                        label={row.power != null && row.power < 1e-3 ? '無效' : '縮減'}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 16, fontSize: '0.58rem',
+                                                            bgcolor: row.power != null && row.power < 1e-3 ? 'rgba(249,115,22,0.2)' : 'rgba(250,204,21,0.2)',
+                                                            color: row.power != null && row.power < 1e-3 ? '#f97316' : '#facc15',
+                                                            '& .MuiChip-label': { px: 0.75 },
+                                                        }}
+                                                    />
+                                                </Tooltip>
+                                            ) : '-'}
+                                        </TableCell>
+                                    )}
                                     <TableCell align="right">
-                                        {row.pricePredicted == null ? '-' : (row.power != null && Number.isFinite(row.power) ? row.power.toFixed(2) : '-')}
+                                        {(!isManualSchedule && !isOptimalSchedule && row.pricePredicted == null) ? '-' : (row.power != null && Number.isFinite(row.power) ? row.power.toFixed(2) : '-')}
                                     </TableCell>
                                     <TableCell align="right">
                                         {row.priceActual != null && Number.isFinite(row.priceActual)
@@ -206,9 +237,20 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                             : '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        {row.pricePredicted == null ? '-' : (row.revenueRealized != null && Number.isFinite(row.revenueRealized)
-                                            ? row.revenueRealized.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                                            : '-')}
+                                        {(() => {
+                                            if (!isManualSchedule && !isOptimalSchedule && row.pricePredicted == null) return '-';
+                                            // Cross-model override takes priority
+                                            const override = revenueOverrides?.[row.datetime];
+                                            if (override != null && Number.isFinite(override)) {
+                                                return override.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                            }
+                                            const rev = isEstimated
+                                                ? (row.revenueEstimated ?? row.revenueRealized)
+                                                : row.revenueRealized;
+                                            return rev != null && Number.isFinite(rev)
+                                                ? rev.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                                : '-';
+                                        })()}
                                     </TableCell>
                                 </TableRow>
                             );
@@ -227,7 +269,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
             />
             <Box sx={{ p: 1, borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
                 <Typography variant="caption" color="text.secondary">
-                    * Realized Revenue is calculated using Actual Prices. Power is in kW.
+                    * {isEstimated ? 'Estimated Revenue uses predicted prices. ' : 'Realized Revenue uses actual prices. '}Power is in kW.
                 </Typography>
             </Box>
         </Paper >

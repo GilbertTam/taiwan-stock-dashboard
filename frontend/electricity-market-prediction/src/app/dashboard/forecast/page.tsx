@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Box, LinearProgress } from '@mui/material';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { downloadSpotCsv } from '@/services/api';
@@ -17,12 +17,10 @@ import { PriceChartProvider } from '@/components/price-chart/context/PriceChartC
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 
 // Feature Components
-import { PricePredictionSidebar } from '@/components/forecast/PricePredictionSidebar';
+import { ForecastControlBar } from '@/components/forecast/ForecastControlBar';
 import { MainPriceChartTab } from '@/components/forecast/tabs/MainPriceChartTab';
-import { ResizableLayout } from '@/components/layout/ResizableLayout';
 
 // Hooks
-import { useBufferedDateRange } from '@/hooks/useBufferedDateRange';
 import { usePricePredictionData } from '@/components/forecast/hooks/usePricePredictionData';
 
 function ForecastContent() {
@@ -35,7 +33,7 @@ function ForecastContent() {
     weatherActual, weatherForecast, imbalanceData, intradayData,
     interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading, isFetchingPredictions,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
-    handleDateRangePreset, setStartDate, setEndDate, refreshData, registerPageNeeds, unregisterPageNeeds,
+    handleDateRangePreset, commitDateSelection, refreshData, registerPageNeeds, unregisterPageNeeds,
     selectedWeatherModelActual, selectedWeatherModelForecast,
   } = useMarketDataContext();
 
@@ -44,11 +42,6 @@ function ForecastContent() {
     registerPageNeeds('forecast', new Set(['price', 'weather', 'grid', 'batteryBid']), true);
     return () => unregisterPageNeeds('forecast');
   }, [registerPageNeeds, unregisterPageNeeds]);
-
-  const { tempStartDate, tempEndDate, onDateRangeChange, onDateMenuClose } = useBufferedDateRange({
-    startDate, endDate, setStartDate, setEndDate,
-    clearPreset: () => handleDateRangePreset(null),
-  });
 
   const defaultPanelMarketInfo = false; // panel param removed, defaulting to standard view logic if needed, or just relying on internal state.
 
@@ -115,15 +108,13 @@ function ForecastContent() {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
           <Box sx={{ flexShrink: 0 }}>
             <DashboardToolbar
-              startDate={tempStartDate}
-              endDate={tempEndDate}
+              startDate={startDate}
+              endDate={endDate}
               dateRangePreset={dateRangePreset}
-              onDateRangeChange={onDateRangeChange}
+              onDateChange={commitDateSelection}
               onDateRangePreset={handleDateRangePreset}
-              onDateMenuClose={onDateMenuClose}
               onRefresh={handleRefresh}
               downloadActions={[{ label: '下載價差 CSV', onClick: handleDownloadCsv }]}
-              currentTab="price"
               isLoading={isLoading || isFetchingPredictions}
             />
             {isFetchingPredictions && !isLoading && (
@@ -131,49 +122,22 @@ function ForecastContent() {
             )}
           </Box>
 
+          <ForecastControlBar onModelToggle={handleModelToggle} />
+
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <ResizableLayout
-              direction="horizontal"
-              defaultSizes={[25, 75]}
-              minSizes={[20, 50]}
-              storageKey="forecast-page-layout"
-            >
-              <Box
-                sx={{
-                  height: '100%',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  borderRight: '1px solid var(--card-border)',
-                  backgroundColor: 'var(--card-bg)',
-                }}
-              >
-                <PricePredictionSidebar
-                  areas={areas}
-                  selectedArea={selectedArea}
-                  onAreaChange={handleAreaChange}
-                  models={models}
-                  selectedModels={selectedModels}
-                  calculatingDatesByModel={calculatingDatesByModel}
-                  onModelToggle={handleModelToggle}
-                  onModelCalculatingDateChange={handleModelCalculatingDateChange}
-                />
-              </Box>
-              <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <MainPriceChartTab
-                  areaName={selectedArea}
-                  chartData={chartData}
-                  selectedModels={selectedModels}
-                  isLoading={isLoading}
-                  startDate={startDate}
-                  endDate={endDate}
-                  weatherActual={weatherActual}
-                  weatherForecast={weatherForecast}
-                  marketInfoWeatherChartData={marketInfoWeatherChartData}
-                  intradayData={intradayData}
-                  defaultPanelMarketInfo={defaultPanelMarketInfo}
-                />
-              </Box>
-            </ResizableLayout>
+            <MainPriceChartTab
+              areaName={selectedArea}
+              chartData={chartData}
+              selectedModels={selectedModels}
+              isLoading={isLoading}
+              startDate={startDate}
+              endDate={endDate}
+              weatherActual={weatherActual}
+              weatherForecast={weatherForecast}
+              marketInfoWeatherChartData={marketInfoWeatherChartData}
+              intradayData={intradayData}
+              defaultPanelMarketInfo={defaultPanelMarketInfo}
+            />
           </Box>
         </Box>
       </PriceChartProvider>
