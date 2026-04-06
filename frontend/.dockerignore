@@ -2,3 +2,11 @@
 # In Docker, apiConfig.ts falls through to same-origin /api, which nginx routes to the backend.
 electricity-market-prediction/.env.local
 electricity-market-prediction/.env*.local
+
+# Exclude build artifacts and local installs from build context.
+# These are rebuilt inside the container; sending them wastes ~1.75 GB per build.
+electricity-market-prediction/node_modules
+electricity-market-prediction/.next
+electricity-market-prediction/.turbo
+electricity-market-prediction/coverage
+electricity-market-prediction/*.tsbuildinfo
