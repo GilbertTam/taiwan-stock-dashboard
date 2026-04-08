@@ -174,7 +174,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
     function getIsActive(key: SourceKey): boolean {
         switch (key) {
             case 'actual':          return showActualPrice;
-            case 'intraday':        return showIntraday;
+            case 'intraday':        return showIntraday || showIntradayAverage;
             case 'imbalance':       return showImbalance;
             case 'interconnection': return selectedInterconnectionFields.size > 0;
             case 'battery':         return selectedBatteryFields.size > 0;
@@ -200,7 +200,14 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
     function handleToggle(key: SourceKey) {
         switch (key) {
             case 'actual':    setShowActualPrice(!showActualPrice); break;
-            case 'intraday':  setShowIntraday(!showIntraday); break;
+            case 'intraday':
+                if (showIntraday || showIntradayAverage) {
+                    setShowIntraday(false);
+                    setShowIntradayAverage(false);
+                } else {
+                    setShowIntraday(true);
+                }
+                break;
             case 'imbalance':
                 if (showImbalance) {
                     setShowImbalance(false);
