@@ -147,6 +147,37 @@ See `data-mapping.md` for full index schema documentation.
 
 Frontend uses `@/*` → `src/*`. Example: `import { useMarketData } from '@/hooks/useMarketData'`.
 
+### I18n Conventions
+
+**Library:** i18next + react-i18next. **Languages:** zh-TW (fallback), en, ja. **Detection:** localStorage key `hdjp-language`, then browser navigator.
+
+**Namespace → Feature mapping:**
+
+| Namespace | Scope |
+|-----------|-------|
+| `common` | Shared UI (buttons, toolbar, areas, error display, auth aria-labels) |
+| `navigation` | Sidebar items, user menu, mobile menu |
+| `settings` | Settings page |
+| `auth` | Login form, setup form, dev-tool quick setup |
+| `dashboard` | Spot overview, quick-access cards, metrics cards, outage badge/drawer |
+| `forecast` | Market analysis, data sources, weather fields, axis controls, axis validation |
+| `siteRevenue` | Battery simulation, scenario generators, KPIs |
+| `generationMix` | Generation sources, outage info |
+| `dataStatus` | Data monitoring, Gantt, column labels |
+| `weather` | Weather sidebar, data table |
+| `dailyCompare` | Daily overlay metrics |
+
+**How to add a new translatable string:**
+1. Add the key to all 3 locale files (`locales/zh-TW/<ns>.json`, `locales/en/<ns>.json`, `locales/ja/<ns>.json`)
+2. In the component: `const { t } = useTranslation('<namespace>')` then `t('key')` or `t('key', { var: value })`
+3. For multiple namespaces: `const { t } = useTranslation('primary'); const { t: tOther } = useTranslation('other')`
+
+**Non-React code (classes, utilities):** Use the `labelKey` pattern — return i18n key strings from the function, resolve with `t()` in the consuming React component. See `AxisRangeValidator.ts` → `SecondaryAxisControls.tsx` for the pattern.
+
+**Area names:** Use `getAreaName(t, areaCode)` from `utils/areaI18n.ts` or `useAreaName()` hook. Resolves via `common:areas.<code>`.
+
+**CRITICAL: Never hardcode user-facing CJK text in components.** All display strings must go through `t()`.
+
 ### Lightweight Charts (LWC) — Datetime Handling Rule
 
 **CRITICAL: Always use `parseToTimestamp` + `toChartTime` for LWC data, never `new Date(str).getTime() / 1000` directly.**
