@@ -728,7 +728,9 @@ class ESService:
                 {
                     "key": f"prediction_{b['key']}",
                     "label": self._PREDICTION_SOURCE_LABELS.get(b['key'], b['key'].replace('_', ' ').title()),
+                    "labelKey": f"sources.prediction_{b['key']}",
                     "category": "價格預測",
+                    "categoryKey": "categories.priceForecast",
                     "interval": "30m",
                     "validation_type": "fixed",
                     "expected_per_day": 48,
@@ -747,7 +749,9 @@ class ESService:
                 {
                     "key": f"tdgc_{b['key']}",
                     "label": self._TDGC_CATEGORY_LABELS.get(b['key'], b['key']),
+                    "labelKey": f"sources.tdgc_{b['key']}",
                     "category": "調整市場",
+                    "categoryKey": "categories.adjustmentMarket",
                     "interval": "30m",
                     "validation_type": "fixed",
                     "expected_per_day": 48,
@@ -1169,6 +1173,7 @@ class ESService:
                     if data_pts:
                         series_list.append({
                             'name':  line_name,
+                            'field': field,
                             'unit':  grp.get('unit', ''),
                             'type':  'line',
                             'color': LINE_COLORS[idx % len(LINE_COLORS)],
@@ -1198,6 +1203,7 @@ class ESService:
                 if data_pts:
                     series_list.append({
                         'name':  fcfg['name'],
+                        'field': fcfg['field'],
                         'unit':  fcfg['unit'],
                         'type':  fcfg.get('type', 'line'),
                         'color': fcfg['color'],
