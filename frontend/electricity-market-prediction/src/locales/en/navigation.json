@@ -1,0 +1,27 @@
+{
+  "sidebar": {
+    "overview": "Spot Overview",
+    "forecast": "Market Analysis",
+    "generationMix": "Generation Mix",
+    "siteRevenue": "Site Revenue",
+    "weather": "Weather",
+    "dailyCompare": "Daily Compare",
+    "dataStatus": "Data Status",
+    "settings": "Settings",
+    "logout": "Logout",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Settings",
+    "apiDocs": "API Docs",
+    "about": "About",
+    "logout": "Logout",
+    "accountMenu": "Account Menu"
+  },
+  "mobileMenu": {
+    "guest": "Guest",
+    "marketInfo": "Market Info"
+  }
+}

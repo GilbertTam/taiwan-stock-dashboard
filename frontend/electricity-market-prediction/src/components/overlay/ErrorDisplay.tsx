@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useTranslation } from 'react-i18next';
 
 interface ErrorDisplayProps {
     message?: string;
@@ -10,10 +11,12 @@ interface ErrorDisplayProps {
 }
 
 export function ErrorDisplay({
-    message = '發生未知的錯誤',
+    message,
     onRetry,
     height = '100%'
 }: ErrorDisplayProps) {
+    const { t } = useTranslation('common');
+
     return (
         <Box
             sx={{
@@ -38,10 +41,10 @@ export function ErrorDisplay({
             >
                 <ErrorOutlineIcon sx={{ fontSize: 48, color: 'var(--error-main, #f44336)', mb: 2 }} />
                 <Typography variant="h6" color="text.primary" gutterBottom>
-                    資料載入失敗
+                    {t('errorDisplay.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    {message}
+                    {message || t('errorDisplay.defaultMessage')}
                 </Typography>
                 {onRetry && (
                     <Button
@@ -51,7 +54,7 @@ export function ErrorDisplay({
                         onClick={onRetry}
                         size="small"
                     >
-                        重新試一次
+                        {t('errorDisplay.retry')}
                     </Button>
                 )}
             </Paper>

@@ -1,0 +1,27 @@
+{
+  "sidebar": {
+    "overview": "スポット概況",
+    "forecast": "市場分析",
+    "generationMix": "発電構成",
+    "siteRevenue": "サイト収益",
+    "weather": "気象情報",
+    "dailyCompare": "日別比較",
+    "dataStatus": "データ状態",
+    "settings": "設定",
+    "logout": "ログアウト",
+    "lightMode": "ライトモード",
+    "darkMode": "ダークモード",
+    "admin": "管理者"
+  },
+  "userMenu": {
+    "settings": "設定",
+    "apiDocs": "API ドキュメント",
+    "about": "バージョン情報",
+    "logout": "ログアウト",
+    "accountMenu": "アカウントメニュー"
+  },
+  "mobileMenu": {
+    "guest": "ゲスト",
+    "marketInfo": "市場情報"
+  }
+}

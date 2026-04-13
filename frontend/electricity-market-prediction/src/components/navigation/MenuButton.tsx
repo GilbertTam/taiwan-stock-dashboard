@@ -23,6 +23,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface MenuButtonProps {
   onDrawerToggle: () => void;
@@ -50,6 +51,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { t } = useTranslation('navigation');
 
   const handleLogout = () => {
     logout();
@@ -90,10 +92,10 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
           </Avatar>
           <Box>
             <Typography variant="subtitle1" fontWeight="bold">
-              {user || 'Guest'}
+              {user || t('mobileMenu.guest')}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Admin
+              {t('sidebar.admin', { defaultValue: 'Admin' })}
             </Typography>
           </Box>
         </Box>
@@ -107,7 +109,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemIcon>
                 <DashboardIcon />
               </ListItemIcon>
-              <ListItemText primary="總覽" />
+              <ListItemText primary={t('sidebar.overview')} />
             </ListItemButton>
           </ListItem>
 
@@ -116,7 +118,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemIcon>
                 <TrendingUpIcon />
               </ListItemIcon>
-              <ListItemText primary="預測分析" />
+              <ListItemText primary={t('sidebar.forecast')} />
             </ListItemButton>
           </ListItem>
 
@@ -125,7 +127,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemIcon>
                 <InfoIcon />
               </ListItemIcon>
-              <ListItemText primary="市場資訊" />
+              <ListItemText primary={t('mobileMenu.marketInfo')} />
             </ListItemButton>
           </ListItem>
 
@@ -134,7 +136,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemIcon>
                 <WbSunnyIcon />
               </ListItemIcon>
-              <ListItemText primary="天氣分析" />
+              <ListItemText primary={t('sidebar.weather')} />
             </ListItemButton>
           </ListItem>
 
@@ -143,7 +145,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
               <ListItemIcon>
                 <TrendingUpIcon />
               </ListItemIcon>
-              <ListItemText primary="案場收益" />
+              <ListItemText primary={t('sidebar.siteRevenue')} />
             </ListItemButton>
           </ListItem>
         </List>
@@ -156,7 +158,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
             <ListItemIcon>
               <LogoutIcon sx={{ color: '#ff4d4d' }} />
             </ListItemIcon>
-            <ListItemText primary="登出" />
+            <ListItemText primary={t('sidebar.logout')} />
           </ListItemButton>
         </ListItem>
       </Box>

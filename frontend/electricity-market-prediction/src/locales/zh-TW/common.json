@@ -1,0 +1,97 @@
+{
+  "confirm": "確認",
+  "cancel": "取消",
+  "close": "關閉",
+  "back": "返回",
+  "loading": "載入中...",
+  "noData": "無資料",
+  "error": "發生錯誤",
+  "retry": "重試",
+  "comingSoon": "即將推出",
+  "admin": "管理員",
+  "toolbar": {
+    "zoomIn": "放大 (Ctrl +)",
+    "zoomOut": "縮小 (Ctrl -)",
+    "fitScreen": "適應螢幕",
+    "download": "下載",
+    "downloadAsPng": "下載為 PNG",
+    "downloadAsSvg": "下載為 SVG",
+    "downloadAsCsv": "下載為 CSV",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "退出全螢幕",
+    "settings": "設定"
+  },
+  "nav": {
+    "prevDay": "上一天",
+    "nextDay": "下一天",
+    "refreshData": "刷新數據"
+  },
+  "dateRangePicker": {
+    "selectStartDate": "選擇開始日期",
+    "selectEndDate": "選擇結束日期"
+  },
+  "auth": {
+    "loginFailed": "登入失敗，請檢查帳號密碼",
+    "hidePassword": "隱藏密碼",
+    "showPassword": "顯示密碼"
+  },
+  "about": {
+    "title": "關於網站",
+    "heroTitle": "日本電力現貨市場資料視覺化",
+    "heroDesc": "即時價格、預測與儲能收益分析。",
+    "dataSources": "資料來源",
+    "dataSourcesDesc": "本系統資料經由後端 API 提供，主要包含以下類別：",
+    "dataSourcesFooter": "以上資料源自日本電力市場相關公開資訊。",
+    "dataItems": {
+      "spotPrice": "區域與現貨價格（各區域即時與歷史價格）",
+      "forecast": "預測模型與預測結果（自訂模型預測資料）",
+      "imbalance": "不平衡（imbalance）",
+      "interconnection": "連線流量（interconnection flow）",
+      "outage": "停機資訊（HJKS）",
+      "occto": "OCCTO（區域／連線／事件）",
+      "weather": "天氣實測與預報",
+      "earthquake": "地震資訊"
+    },
+    "chartTools": "圖表與前端工具來源",
+    "chartToolsDesc": "本系統圖表與介面使用以下開源與第三方工具：",
+    "tools": {
+      "echarts": "圖表庫",
+      "lwc": "金融圖表元件",
+      "mui": "UI 元件庫",
+      "nextjs": "React 框架"
+    },
+    "techStack": "技術架構",
+    "techStackDesc": "本專案技術棧與 README 對齊：",
+    "stack": {
+      "frontend": "前端",
+      "backend": "後端",
+      "database": "資料庫",
+      "optimization": "優化",
+      "infrastructure": "基礎設施"
+    },
+    "dbItems": {
+      "sqlite": "SQLite（使用者資料）",
+      "elasticsearch": "Elasticsearch（市場與預測資料）"
+    }
+  },
+  "selectArea": "選擇地區",
+  "selectAreaDescription": "選擇要分析的地區",
+  "currentSelection": "目前選擇",
+  "errorDisplay": {
+    "title": "資料載入失敗",
+    "defaultMessage": "發生未知的錯誤",
+    "retry": "重新試一次"
+  },
+  "areas": {
+    "hokkaido": "北海道",
+    "tohoku": "東北",
+    "tokyo": "東京",
+    "chubu": "中部",
+    "hokuriku": "北陸",
+    "kansai": "關西",
+    "chugoku": "中國",
+    "shikoku": "四國",
+    "kyushu": "九州",
+    "system": "全域"
+  }
+}
