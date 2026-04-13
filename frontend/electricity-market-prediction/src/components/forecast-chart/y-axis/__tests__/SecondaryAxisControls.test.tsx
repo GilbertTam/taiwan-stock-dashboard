@@ -57,7 +57,7 @@ describe('SecondaryAxisControls', () => {
                 />
             );
 
-            const resetBtn = screen.getByRole('button', { name: /^重置$/i });
+            const resetBtn = screen.getByRole('button', { name: /重置|Reset|リセット|axisControl\.reset/i });
             fireEvent.click(resetBtn);
 
             expect(mockReset).toHaveBeenCalled();

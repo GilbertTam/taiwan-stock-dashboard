@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, TextField, Button, Typography, Stack, Alert } from '@mui/material';
 import { YAxisRange, ValidationResult } from './types';
 import { AxisRangeValidator } from './AxisRangeValidator';
+import { useTranslation } from 'react-i18next';
 
 interface SecondaryAxisControlsProps {
     currentRange: YAxisRange | null;
@@ -14,6 +15,7 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
     onRangeChange,
     onReset,
 }) => {
+    const { t } = useTranslation('forecast');
     const [minInput, setMinInput] = useState<string>('');
     const [maxInput, setMaxInput] = useState<string>('');
     const [validation, setValidation] = useState<ValidationResult | null>(null);
@@ -75,7 +77,7 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
             setTimeout(() => setFeedback(null), 2000);
         } catch (err) {
             setFeedback('error');
-            setErrorMsg(err instanceof Error ? err.message : '无法更新副轴范围，请稍后重试');
+            setErrorMsg(err instanceof Error ? err.message : t('axisControl.updateFailed'));
 
             // Revert to current range if available
             if (currentRange) {
@@ -95,10 +97,10 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
         onReset();
     };
 
-    // Determine field errors internally based on message contents (heuristic for UX)
-    const isMinError = validation?.errors.some(e => e.includes('最小值'));
-    const isMaxError = validation?.errors.some(e => e.includes('最大值'));
-    const isFormatError = validation?.errors.some(e => e.includes('格式'));
+    // Determine field errors based on i18n key contents
+    const isMinError = validation?.errors.some(e => e.includes('min') || e.includes('Min'));
+    const isMaxError = validation?.errors.some(e => e.includes('max') || e.includes('Max'));
+    const isFormatError = validation?.errors.some(e => e.includes('Invalid') || e.includes('Format'));
 
     return (
         <Box
@@ -112,13 +114,13 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
             }}
         >
             <Typography variant="subtitle2" gutterBottom>
-                Y2軸範圍控制
+                {t('axisControl.title')}
             </Typography>
 
             <Stack spacing={2} direction="column">
                 <Stack spacing={2} direction="row">
                     <TextField
-                        label="最小值"
+                        label={t('axisControl.min')}
                         size="small"
                         value={minInput}
                         onChange={handleMinChange}
@@ -128,7 +130,7 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
                         inputProps={{ 'data-testid': 'min-input' }}
                     />
                     <TextField
-                        label="最大值"
+                        label={t('axisControl.max')}
                         size="small"
                         value={maxInput}
                         onChange={handleMaxChange}
@@ -141,13 +143,13 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
 
                 {validation && !validation.isValid && validation.errors.length > 0 && (
                     <Alert severity="error" icon={false} sx={{ py: 0 }}>
-                        {validation.errors.map((err, i) => React.createElement('div', { key: i }, err))}
+                        {validation.errors.map((key, i) => React.createElement('div', { key: i }, t(key)))}
                     </Alert>
                 )}
 
                 {validation && validation.isValid && validation.warnings.length > 0 && (
                     <Alert severity="warning" icon={false} sx={{ py: 0 }}>
-                        {validation.warnings.map((warn, i) => React.createElement('div', { key: i }, warn))}
+                        {validation.warnings.map((key, i) => React.createElement('div', { key: i }, t(key)))}
                     </Alert>
                 )}
 
@@ -162,7 +164,7 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
                         onClick={handleReset}
                         disabled={isUpdating}
                     >
-                        重置
+                        {t('axisControl.reset')}
                     </Button>
                     <Button
                         variant="contained"
@@ -171,7 +173,7 @@ export const SecondaryAxisControls: React.FC<SecondaryAxisControlsProps> = ({
                         disabled={isUpdating || (validation !== null && !validation.isValid)}
                         data-testid="apply-button"
                     >
-                        套用
+                        {t('axisControl.apply')}
                     </Button>
                 </Stack>
             </Stack>
