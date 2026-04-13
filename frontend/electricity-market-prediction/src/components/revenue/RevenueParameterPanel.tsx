@@ -3,6 +3,7 @@ import { Box, TextField, Typography, Paper, Grid, Tooltip, Divider } from '@mui/
 import { BatteryConfig } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useTranslation } from 'react-i18next';
 
 interface RevenueParameterPanelProps {
     config: BatteryConfig;
@@ -11,6 +12,7 @@ interface RevenueParameterPanelProps {
 
 export const RevenueParameterPanel: React.FC<RevenueParameterPanelProps> = ({ config, onChange }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation('siteRevenue');
 
     const handleChange = (key: keyof BatteryConfig, value: string) => {
         const numValue = parseFloat(value);
@@ -78,49 +80,49 @@ export const RevenueParameterPanel: React.FC<RevenueParameterPanelProps> = ({ co
         >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    系統參數
+                    {t('paramPanel.systemParams')}
                 </Typography>
-                <Tooltip title="本演算法以日為單位執行最佳化，實際值（Optimal）與各預測模型皆逐日計算後合併結果。" arrow placement="top">
+                <Tooltip title={t('paramPanel.systemParamsHint')} arrow placement="top">
                     <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
                 </Tooltip>
             </Box>
 
-            {renderSection('容量與功率', (
+            {renderSection(t('paramPanel.capacityPower'), (
                 <>
-                    {renderField('E_cap', 'Capacity', 'MWh', 1, '儲能總容量（MWh）')}
-                    {renderField('P_max_dis', 'Max Discharge', 'MW', 1, '最大放電功率（MW）')}
-                    {renderField('P_max_ch', 'Max Charge', 'MW', 1, '最大充電功率（MW）')}
-                    {renderField('Min_bid', 'Min Bid', 'MW', 0.1, '最小投標量（MW）')}
+                    {renderField('E_cap', t('paramPanel.fields.capacity'), t('paramPanel.units.mwh'), 1, t('paramPanel.eCap'))}
+                    {renderField('P_max_dis', t('paramPanel.fields.maxDischarge'), t('paramPanel.units.mw'), 1, t('paramPanel.pMaxDis'))}
+                    {renderField('P_max_ch', t('paramPanel.fields.maxCharge'), t('paramPanel.units.mw'), 1, t('paramPanel.pMaxCh'))}
+                    {renderField('Min_bid', t('paramPanel.fields.minBid'), t('paramPanel.units.mw'), 0.1, t('paramPanel.minBid'))}
                 </>
             ))}
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('效率與損耗', (
+            {renderSection(t('paramPanel.efficiencyLoss'), (
                 <>
-                    {renderField('eff_ch', 'Charge Eff.', '%', 0.001, '充電效率（0–1 或 %）')}
-                    {renderField('eff_dis', 'Discharge Eff.', '%', 0.001, '放電效率')}
-                    {renderField('E_loss', 'Self Loss', 'MWh', 0.01, '每時段自放電損失（MWh）')}
+                    {renderField('eff_ch', t('paramPanel.fields.chargeEff'), t('paramPanel.units.percent'), 0.001, t('paramPanel.effCh'))}
+                    {renderField('eff_dis', t('paramPanel.fields.dischargeEff'), t('paramPanel.units.percent'), 0.001, t('paramPanel.effDis'))}
+                    {renderField('E_loss', t('paramPanel.fields.selfLoss'), t('paramPanel.units.mwh'), 0.01, t('paramPanel.eLoss'))}
                 </>
             ))}
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('SoC 限制', (
+            {renderSection(t('paramPanel.socLimits'), (
                 <>
-                    {renderField('SoC_min_pct', 'SoC Min', '%', 0.01)}
-                    {renderField('SoC_max_pct', 'SoC Max', '%', 0.01)}
-                    {renderField('SoC_init_pct', 'Initial SoC', '%', 0.01)}
-                    {renderField('SoC_end_pct', 'Final SoC', '%', 0.01)}
+                    {renderField('SoC_min_pct', t('paramPanel.fields.socMin'), t('paramPanel.units.percent'), 0.01)}
+                    {renderField('SoC_max_pct', t('paramPanel.fields.socMax'), t('paramPanel.units.percent'), 0.01)}
+                    {renderField('SoC_init_pct', t('paramPanel.fields.initialSoc'), t('paramPanel.units.percent'), 0.01)}
+                    {renderField('SoC_end_pct', t('paramPanel.fields.finalSoc'), t('paramPanel.units.percent'), 0.01)}
                 </>
             ))}
 
             <Divider sx={{ my: 1, opacity: 0.5 }} />
 
-            {renderSection('經濟參數', (
+            {renderSection(t('paramPanel.economicParams'), (
                 <>
-                    {renderField('beta_bal', 'Balance Coeff', '', 0.01)}
-                    {renderField('Cycle_limit', 'Cycle Limit', 'times', 0.1, '整段區間內最大等效滿循環次數（總放電量 ≤ 此值 × 容量）。愈大允許愈多充放電。')}
+                    {renderField('beta_bal', t('paramPanel.fields.balanceCoeff'), '', 0.01)}
+                    {renderField('Cycle_limit', t('paramPanel.fields.cycleLimit'), t('paramPanel.units.times'), 0.1, t('paramPanel.cycleLimit'))}
                 </>
             ))}
         </Paper>

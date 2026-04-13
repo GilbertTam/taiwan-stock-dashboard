@@ -15,6 +15,8 @@ import ClearAllIcon from '@mui/icons-material/ClearAll';
 import BoltIcon from '@mui/icons-material/Bolt';
 import { ManualSlot, BatteryConfig } from '@/types/revenueAnalysis';
 import { simulateManualClient, ManualSimPreviewSlot } from '@/utils/manualSimulationClient';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '@/app/ThemeProvider';
 
 // Time labels for 48 slots
 const TIME_LABELS: string[] = [];
@@ -23,11 +25,6 @@ for (let h = 0; h < 24; h++) {
     TIME_LABELS.push(`${String(h).padStart(2, '0')}:30`);
 }
 
-const ACTION_COLORS = {
-    Idle:      'rgba(128, 128, 128, 0.18)',
-    Charge:    'rgba(46, 125, 50, 0.78)',
-    Discharge: 'rgba(198, 40, 40, 0.78)',
-};
 const CLAMPED_BORDER = '#facc15';
 
 interface ManualScheduleEditorProps {
@@ -45,6 +42,15 @@ export default function ManualScheduleEditor({
     spotPrices,
     initialSocMwh,
 }: ManualScheduleEditorProps) {
+    const { t } = useTranslation('siteRevenue');
+    const { darkMode } = useTheme();
+
+    const ACTION_COLORS = useMemo(() => ({
+        Idle:      darkMode ? 'rgba(128, 128, 128, 0.18)' : 'rgba(128, 128, 128, 0.18)',
+        Charge:    darkMode ? 'rgba(46, 125, 50, 0.78)'   : 'rgba(46, 125, 50, 0.45)',
+        Discharge: darkMode ? 'rgba(198, 40, 40, 0.78)'   : 'rgba(198, 40, 40, 0.45)',
+    }), [darkMode]);
+
     const [activeAction, setActiveAction] = useState<'Idle' | 'Charge' | 'Discharge'>('Charge');
     const [activePower, setActivePower] = useState<string>(''); // '' = P_max
     // Batch range
@@ -158,14 +164,14 @@ export default function ManualScheduleEditor({
                             border: '1px solid var(--card-border)',
                             color: 'text.secondary',
                         },
-                        '& .MuiToggleButton-root.Mui-selected[value="Idle"]':    { bgcolor: 'rgba(128,128,128,0.3)', color: '#ccc' },
-                        '& .MuiToggleButton-root.Mui-selected[value="Charge"]':    { bgcolor: ACTION_COLORS.Charge,    color: '#a5d6a7', borderColor: '#388e3c' },
-                        '& .MuiToggleButton-root.Mui-selected[value="Discharge"]': { bgcolor: ACTION_COLORS.Discharge, color: '#ef9a9a', borderColor: '#c62828' },
+                        '& .MuiToggleButton-root.Mui-selected[value="Idle"]':    { bgcolor: darkMode ? 'rgba(128,128,128,0.3)' : 'rgba(128,128,128,0.2)', color: darkMode ? '#ccc' : '#555' },
+                        '& .MuiToggleButton-root.Mui-selected[value="Charge"]':    { bgcolor: ACTION_COLORS.Charge, color: darkMode ? '#a5d6a7' : '#1b5e20', borderColor: '#388e3c' },
+                        '& .MuiToggleButton-root.Mui-selected[value="Discharge"]': { bgcolor: ACTION_COLORS.Discharge, color: darkMode ? '#ef9a9a' : '#b71c1c', borderColor: '#c62828' },
                     }}
                 >
-                    <ToggleButton value="Idle">待機</ToggleButton>
-                    <ToggleButton value="Charge">充電</ToggleButton>
-                    <ToggleButton value="Discharge">放電</ToggleButton>
+                    <ToggleButton value="Idle">{t('manualEditor.idle')}</ToggleButton>
+                    <ToggleButton value="Charge">{t('manualEditor.charge')}</ToggleButton>
+                    <ToggleButton value="Discharge">{t('manualEditor.discharge')}</ToggleButton>
                 </ToggleButtonGroup>
 
                 {/* Power input for active mode */}
@@ -176,7 +182,7 @@ export default function ManualScheduleEditor({
                         value={activePower}
                         onChange={e => setActivePower(e.target.value)}
                         placeholder={`${maxPower} MW`}
-                        label="功率 MW"
+                        label={t('manualEditor.powerMw')}
                         inputProps={{ min: 0, max: maxPower, step: 0.1 }}
                         sx={{
                             width: 110,
@@ -187,7 +193,7 @@ export default function ManualScheduleEditor({
                     />
                 )}
                 <Box sx={{ flex: 1 }} />
-                <Tooltip title="清除全部">
+                <Tooltip title={t('manualEditor.clearAll')}>
                     <IconButton size="small" onClick={handleClearAll} sx={{ color: 'text.secondary', p: 0.25 }}>
                         <ClearAllIcon sx={{ fontSize: '1rem' }} />
                     </IconButton>
@@ -198,11 +204,11 @@ export default function ManualScheduleEditor({
             <Box sx={{
                 display: 'flex', alignItems: 'center', gap: 0.75, mb: 1,
                 p: 0.75, borderRadius: 1,
-                bgcolor: 'rgba(255,255,255,0.04)',
+                bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
                 border: '1px solid var(--card-border)',
             }}>
                 <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                    批次填入
+                    {t('manualEditor.batchFill')}
                 </Typography>
                 <TextField
                     type="number"
@@ -238,7 +244,7 @@ export default function ManualScheduleEditor({
                         color: activeAction === 'Charge' ? '#a5d6a7' : activeAction === 'Discharge' ? '#ef9a9a' : 'text.secondary',
                     }}
                 >
-                    套用
+                    {t('manualEditor.apply')}
                 </Button>
             </Box>
 
@@ -253,9 +259,9 @@ export default function ManualScheduleEditor({
                     gap: 1,
                 }}>
                     <Typography sx={{ fontSize: '0.65rem', color: '#f97316', flex: 1 }}>
-                        {clampStats.fullyClamped > 0 && `${clampStats.fullyClamped} 個無效操作`}
+                        {clampStats.fullyClamped > 0 && t('manualEditor.invalidOps', { count: clampStats.fullyClamped })}
                         {clampStats.fullyClamped > 0 && clampStats.partiallyClamped > 0 && '、'}
-                        {clampStats.partiallyClamped > 0 && `${clampStats.partiallyClamped} 個功率縮減`}
+                        {clampStats.partiallyClamped > 0 && t('manualEditor.powerReduced', { count: clampStats.partiallyClamped })}
                     </Typography>
                     {clampStats.fullyClamped > 0 && (
                         <Button
@@ -268,7 +274,7 @@ export default function ManualScheduleEditor({
                                 '&:hover': { bgcolor: 'rgba(249,115,22,0.12)', borderColor: '#f97316' },
                             }}
                         >
-                            清除無效排程
+                            {t('manualEditor.clearInvalid')}
                         </Button>
                     )}
                 </Box>
@@ -276,31 +282,31 @@ export default function ManualScheduleEditor({
 
             {/* ── 4×12 Cell Grid (12 cols = 6 h/row) ── */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '2px', mb: 1 }}>
-                {fullSlots.map((slot, t) => {
-                    const prev = preview[t];
+                {fullSlots.map((slot, si) => {
+                    const prev = preview[si];
                     const isFullyClamped = prev?.wasClamped && slot.action !== 'Idle' && (prev?.effectivePower ?? 0) < 1e-6;
                     const isPartiallyClamped = prev?.wasClamped && slot.action !== 'Idle' && (prev?.effectivePower ?? 0) >= 1e-6;
                     const isClamped = isFullyClamped || isPartiallyClamped;
                     const hasPower = slot.power != null && slot.action !== 'Idle';
                     return (
                         <Tooltip
-                            key={t}
+                            key={si}
                             title={
                                 <Box sx={{ fontSize: '0.7rem', lineHeight: 1.5 }}>
-                                    <b>{TIME_LABELS[t]}</b><br />
-                                    操作：{slot.action}<br />
-                                    {hasPower ? `設定功率：${slot.power} MW` : `功率：${prev?.effectivePower.toFixed(1) ?? '-'} MW`}<br />
-                                    SoC：{prev ? `${prev.socPct.toFixed(1)}%` : '-'}
-                                    {isFullyClamped && <><br /><span style={{ color: '#f97316' }}>✕ 無效操作（SoC已達上/下限，實際功率=0）</span></>}
-                                    {isPartiallyClamped && <><br /><span style={{ color: CLAMPED_BORDER }}>⚠ 功率已縮減（SoC限制）實際：{prev?.effectivePower.toFixed(1)} MW</span></>}
+                                    <b>{TIME_LABELS[si]}</b><br />
+                                    {t('manualEditor.tooltipAction')}{slot.action}<br />
+                                    {hasPower ? `${t('manualEditor.tooltipSetPower')}${slot.power} MW` : `${t('manualEditor.tooltipPower')}${prev?.effectivePower.toFixed(1) ?? '-'} MW`}<br />
+                                    {t('manualEditor.tooltipSoc')}{prev ? `${prev.socPct.toFixed(1)}%` : '-'}
+                                    {isFullyClamped && <><br /><span style={{ color: '#f97316' }}>{t('manualEditor.tooltipInvalid')}</span></>}
+                                    {isPartiallyClamped && <><br /><span style={{ color: CLAMPED_BORDER }}>{t('manualEditor.tooltipReduced')}{prev?.effectivePower.toFixed(1)} MW</span></>}
                                 </Box>
                             }
                             placement="top"
                             enterDelay={150}
                         >
                             <Box
-                                onMouseDown={e => handleMouseDown(e, t)}
-                                onMouseEnter={() => handleMouseEnter(t)}
+                                onMouseDown={e => handleMouseDown(e, si)}
+                                onMouseEnter={() => handleMouseEnter(si)}
                                 sx={{
                                     height: 30,
                                     borderRadius: '2px',
@@ -309,7 +315,9 @@ export default function ManualScheduleEditor({
                                         ? `2px solid #f97316`
                                         : isPartiallyClamped
                                             ? `1.5px solid ${CLAMPED_BORDER}`
-                                            : `1px solid ${slot.action === 'Idle' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.15)'}`,
+                                            : `1px solid ${slot.action === 'Idle'
+                                                ? (darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)')
+                                                : (darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)')}`,
                                     cursor: 'pointer',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -322,11 +330,13 @@ export default function ManualScheduleEditor({
                                     px: 0.25,
                                 }}
                             >
-                                <Typography sx={{ fontSize: '0.48rem', lineHeight: 1, fontWeight: 600, color: slot.action === 'Idle' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap' }}>
-                                    {TIME_LABELS[t]}
+                                <Typography sx={{ fontSize: '0.48rem', lineHeight: 1, fontWeight: 600, color: slot.action === 'Idle'
+                                    ? (darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)')
+                                    : (darkMode ? 'rgba(255,255,255,0.9)' : '#fff'), whiteSpace: 'nowrap' }}>
+                                    {TIME_LABELS[si]}
                                 </Typography>
                                 {hasPower && (
-                                    <Typography sx={{ fontSize: '0.42rem', lineHeight: 1, color: 'rgba(255,255,255,0.65)' }}>
+                                    <Typography sx={{ fontSize: '0.42rem', lineHeight: 1, color: darkMode ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.85)' }}>
                                         {slot.power}MW
                                     </Typography>
                                 )}
@@ -343,15 +353,15 @@ export default function ManualScheduleEditor({
             <Box sx={{ mb: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
                     <Typography variant="caption" sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-                        SoC 預覽
+                        {t('manualEditor.socPreview')}
                     </Typography>
                     <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>
-                        {socMin.toFixed(0)}%–{socMax.toFixed(0)}%  (初始 {socInit.toFixed(0)}%)
+                        {socMin.toFixed(0)}%–{socMax.toFixed(0)}%  ({t('manualEditor.initPct', { val: socInit.toFixed(0) })})
                     </Typography>
                 </Box>
                 <Box sx={{
                     width: '100%', height: 28, position: 'relative',
-                    bgcolor: 'rgba(255,255,255,0.04)',
+                    bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
                     borderRadius: 1,
                     border: '1px solid var(--card-border)',
                     overflow: 'hidden',
@@ -387,19 +397,19 @@ export default function ManualScheduleEditor({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 {(['Charge', 'Discharge', 'Idle'] as const).map(a => (
                     <Box key={a} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: ACTION_COLORS[a], border: '1px solid rgba(255,255,255,0.1)' }} />
+                        <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: ACTION_COLORS[a], border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }} />
                         <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>
-                            {a === 'Charge' ? '充電' : a === 'Discharge' ? '放電' : '待機'}
+                            {a === 'Charge' ? t('manualEditor.charge') : a === 'Discharge' ? t('manualEditor.discharge') : t('manualEditor.idle')}
                         </Typography>
                     </Box>
                 ))}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '2px', border: '2px solid #f97316', bgcolor: 'transparent' }} />
-                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>無效操作</Typography>
+                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>{t('manualEditor.invalidOp')}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CLAMPED_BORDER }} />
-                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>SoC限縮</Typography>
+                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>{t('manualEditor.socClamped')}</Typography>
                 </Box>
             </Box>
         </Box>

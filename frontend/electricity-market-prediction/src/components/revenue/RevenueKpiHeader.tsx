@@ -3,6 +3,7 @@
 import React from 'react';
 import { Box, Typography, Divider, Tooltip, Chip } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useTranslation } from 'react-i18next';
 
 function formatJPY(value: number | null): string {
     if (value === null) return '—';
@@ -71,6 +72,7 @@ interface KpiBlockProps {
 }
 
 function KpiBlock({ label, description, value, sub, accentColor, badge, tooltip, children }: KpiBlockProps) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{
             flex: 1,
@@ -99,7 +101,7 @@ function KpiBlock({ label, description, value, sub, accentColor, badge, tooltip,
                 </Typography>
                 {badge && (
                     <Chip
-                        label={badge === 'actual' ? '實際值' : '預測值'}
+                        label={badge === 'actual' ? t('kpi.actualValue') : t('kpi.estimatedValue')}
                         size="small"
                         sx={{
                             height: 14,
@@ -218,6 +220,8 @@ export default function RevenueKpiHeader({
     manualEffectiveCycles,
     cycleLimit,
 }: RevenueKpiHeaderProps) {
+    const { t } = useTranslation('siteRevenue');
+
     const effColor = efficiency !== null
         ? (efficiency > 90 ? '#66bb6a' : '#ffa726')
         : '#aaa';
@@ -247,42 +251,42 @@ export default function RevenueKpiHeader({
 
     // ── Block 1: Optimal / Reference ─────────────────────────────────
     const optimalLabel = isReferenceMode
-        ? `Reference (${referenceName})`
-        : 'Optimal (Realized)';
+        ? t('kpi.optimal.labelReference', { name: referenceName })
+        : t('kpi.optimal.labelRealized');
 
     const optimalDescription = isReferenceMode
-        ? `${referenceName} 依自身預測排程所得收益（視為 100% 基準）`
-        : '依實際成交價，事後計算之理論最大收益';
+        ? t('kpi.optimal.descReference', { name: referenceName })
+        : t('kpi.optimal.descRealized');
 
     const optimalTooltip = isReferenceMode
-        ? `計算方式：\n以「${referenceName}」的預測排程為基準，並以其自身預測價格計算收益，作為其他模型的比較基準（= 100%）。\n\n注意：此模式在無實際成交價資料時啟用。`
-        : `計算方式：\n最優排程 × 實際成交價\n\n在已知實際成交價的條件下，以線性規劃求出最大收益排程並回算，是理論上無法超越的上限。`;
+        ? t('kpi.optimal.tooltipReference', { name: referenceName })
+        : t('kpi.optimal.tooltipRealized');
 
     // ── Block 2: Best Model ───────────────────────────────────────────
     const bestModelLabel = isReferenceMode
-        ? 'Best Competing Model'
-        : isEstimated ? 'Best Model (Estimated)' : 'Best Model (Realized)';
+        ? t('kpi.bestModel.labelReference')
+        : isEstimated ? t('kpi.bestModel.labelEstimated') : t('kpi.bestModel.labelRealized');
 
     const bestModelDescription = isReferenceMode
-        ? `排除基準模型後，以 ${referenceName} 預測價結算之最高收益模型`
+        ? t('kpi.bestModel.descReference', { name: referenceName })
         : isEstimated
-            ? '依各模型預測排程，以基準模型預測價格估算的最高收益'
-            : '依各模型預測排程，以實際成交價結算後收益最高的模型';
+            ? t('kpi.bestModel.descEstimated')
+            : t('kpi.bestModel.descRealized');
 
     const bestModelTooltip = isReferenceMode
-        ? `計算方式：\n各競爭模型 × ${referenceName} 預測排程 → 以 ${referenceName} 預測價計算收益 → 取最高者\n\n此模式下基準模型本身排除在外。`
+        ? t('kpi.bestModel.tooltipReference', { name: referenceName })
         : isEstimated
-            ? `計算方式：\n各模型依自身預測排程 → 以「${priceBasis}」預測價計算估算收益 → 取最高者\n\n主值為估算收益，展開項顯示同排程在實際成交價下的結算結果。`
-            : `計算方式：\n各模型依預測排程 → 以實際成交價結算 → 取最高者\n\n主值為實際結算收益；展開項中另列模型自身預測收益供對照。`;
+            ? t('kpi.bestModel.tooltipEstimated', { priceBasis })
+            : t('kpi.bestModel.tooltipRealized');
 
     // ── Block 3: Strategy Efficiency ─────────────────────────────────
     const effDescription = isReferenceMode
-        ? `競爭模型收益 ÷ ${referenceName} 基準收益 × 100%`
-        : '最佳模型實際收益 ÷ 最優收益 × 100%';
+        ? t('kpi.efficiency.descReference', { name: referenceName })
+        : t('kpi.efficiency.descNormal');
 
     const effTooltip = isReferenceMode
-        ? `計算方式：\n最佳競爭模型收益 ÷ ${referenceName} 基準收益 × 100%\n\n100% 表示某競爭模型與基準模型收益相同。`
-        : `計算方式：\n最佳模型收益 ÷ 最優收益 × 100%\n\n「最優收益」是以實際成交價計算的理論上限。\n\n展開項說明：\n• 以實際價結算效率：最佳模型實際收益 ÷ 最優收益\n• 以預測估算效率：最佳模型依自身預測的預期收益 ÷ 最優收益\n  （分子與分母使用不同價格基準，故通常小於 100%）`;
+        ? t('kpi.efficiency.tooltipReference', { name: referenceName })
+        : t('kpi.efficiency.tooltipNormal');
 
     return (
         <Box sx={{
@@ -320,15 +324,15 @@ export default function RevenueKpiHeader({
                     <>
                         <MetricRow
                             dotColor="#42a5f5"
-                            label="以實際成交價結算"
-                            hint={`${bestModelName} 排程 × 實際價`}
+                            label={t('kpi.bestModel.actualRow')}
+                            hint={t('kpi.bestModel.actualRowHint', { name: bestModelName })}
                             value={formatJPY(bestModelRevActual!)}
                             valueColor="#42a5f5"
                         />
                         <MetricRow
                             dotColor="#ff9800"
-                            label="依自身預測估算"
-                            hint={`${bestModelName} 排程 × ${bestModelName} 預測價`}
+                            label={t('kpi.bestModel.estimatedRow')}
+                            hint={t('kpi.bestModel.estimatedRowHint', { name: bestModelName })}
                             value={formatJPY(bestModelRevEstimated!)}
                             valueColor="#ff9800"
                         />
@@ -340,7 +344,7 @@ export default function RevenueKpiHeader({
 
             {/* ── 3. Strategy Efficiency ────────────────────────────── */}
             <KpiBlock
-                label="Strategy Efficiency"
+                label={t('kpi.efficiency.label')}
                 description={effDescription}
                 value={efficiency !== null ? `${efficiency.toFixed(1)}%` : '—'}
                 accentColor={effColor}
@@ -352,8 +356,8 @@ export default function RevenueKpiHeader({
                         {efficiencyActual != null && (
                             <MetricRow
                                 dotColor="#42a5f5"
-                                label="以實際價結算效率"
-                                hint="最佳模型實際收益 ÷ 最優收益"
+                                label={t('kpi.efficiency.actualRow')}
+                                hint={t('kpi.efficiency.actualHint')}
                                 value={formatPct(efficiencyActual)}
                                 valueColor="#42a5f5"
                             />
@@ -361,8 +365,8 @@ export default function RevenueKpiHeader({
                         {efficiencyEstimated != null && (
                             <MetricRow
                                 dotColor="#ff9800"
-                                label="以預測估算效率"
-                                hint="最佳模型預測收益 ÷ 最優收益"
+                                label={t('kpi.efficiency.estimatedRow')}
+                                hint={t('kpi.efficiency.estimatedHint')}
                                 value={formatPct(efficiencyEstimated)}
                                 valueColor="#ff9800"
                             />
@@ -376,28 +380,28 @@ export default function RevenueKpiHeader({
                 <>
                     <Divider orientation="vertical" flexItem sx={{ borderColor: 'var(--card-border)' }} />
                     <KpiBlock
-                        label="Manual Schedule"
-                        description="手動排程執行後的預期收益"
+                        label={t('kpi.manual.label')}
+                        description={t('kpi.manual.desc')}
                         value={formatJPY(manualRev)}
                         accentColor="var(--primary)"
                         badge={isEstimated && manualRevEstimated != null ? 'estimated' : 'actual'}
                         tooltip={[
-                            '手動排程收益說明：',
+                            t('kpi.manual.tooltipHeader'),
                             '',
-                            '• 以實際成交價結算\n  手動設定的排程，以實際成交價計算實現收益（最真實的結果）',
+                            t('kpi.manual.tooltipActualLine'),
                             ...(manualRevEstimated != null
-                                ? [`• 以預測基準價估算\n  相同排程以「${priceBasis}」預測價格計算的預估收益`]
+                                ? [t('kpi.manual.tooltipEstimatedLine', { priceBasis })]
                                 : []),
                             '',
-                            '注意：若手動排程未受 Cycle_limit 約束，收益可能高於模型最優，僅供參考。',
+                            t('kpi.manual.tooltipNote'),
                         ].join('\n')}
                     >
                         {/* Revenue at actual prices */}
                         {manualRevActual != null && (
                             <MetricRow
                                 dotColor="#42a5f5"
-                                label="以實際成交價結算"
-                                hint="手動排程 × 實際價"
+                                label={t('kpi.manual.actualRow')}
+                                hint={t('kpi.manual.actualRowHint')}
                                 value={formatJPY(manualRevActual)}
                                 valueColor="#42a5f5"
                             />
@@ -406,8 +410,8 @@ export default function RevenueKpiHeader({
                         {manualRevEstimated != null && (
                             <MetricRow
                                 dotColor="#ff9800"
-                                label="以預測基準價估算"
-                                hint={`手動排程 × ${isEstimated ? priceBasis.split('|').pop() : '基準'} 預測價`}
+                                label={t('kpi.manual.estimatedRow')}
+                                hint={t('kpi.manual.estimatedRowHint', { basis: isEstimated ? priceBasis.split('|').pop() : t('kpi.manual.basisDefault') })}
                                 value={formatJPY(manualRevEstimated)}
                                 valueColor="#ff9800"
                             />
@@ -416,13 +420,13 @@ export default function RevenueKpiHeader({
                         {showManualEff && (
                             <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
                                 <Typography sx={{ fontSize: '0.6rem', color: 'text.disabled', mb: 0.25 }}>
-                                    對比最優收益
+                                    {t('kpi.manual.vsOptimal')}
                                 </Typography>
                                 {manualEfficiencyActual != null && (
                                     <MetricRow
                                         dotColor="#42a5f5"
-                                        label="以實際價結算效率"
-                                        hint="手動實際收益 ÷ 最優收益"
+                                        label={t('kpi.manual.actualEffRow')}
+                                        hint={t('kpi.manual.actualEffHint')}
                                         value={formatPct(manualEfficiencyActual)}
                                         valueColor="#42a5f5"
                                     />
@@ -430,8 +434,8 @@ export default function RevenueKpiHeader({
                                 {manualEfficiencyEstimated != null && (
                                     <MetricRow
                                         dotColor="#ff9800"
-                                        label="以預測估算效率"
-                                        hint="手動預測收益 ÷ 最優收益"
+                                        label={t('kpi.manual.estimatedEffRow')}
+                                        hint={t('kpi.manual.estimatedEffHint')}
                                         value={formatPct(manualEfficiencyEstimated)}
                                         valueColor="#ff9800"
                                     />
@@ -442,8 +446,8 @@ export default function RevenueKpiHeader({
                         {optimalRev !== null && manualRev > optimalRev && (
                             <Box sx={{ mt: 0.6, px: 0.75, py: 0.4, bgcolor: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.35)', borderRadius: 1 }}>
                                 <Typography sx={{ fontSize: '0.62rem', color: '#f97316', lineHeight: 1.5 }}>
-                                    ⚠ 未受 Cycle_limit ({cycleLimit ?? '?'}) 約束，比較僅供參考
-                                    {manualEffectiveCycles != null && `（等效 ${manualEffectiveCycles.toFixed(2)} 次循環）`}
+                                    {t('kpi.manual.cycleLimitWarning', { limit: cycleLimit ?? '?' })}
+                                    {manualEffectiveCycles != null && t('kpi.manual.effectiveCycles', { cycles: manualEffectiveCycles.toFixed(2) })}
                                 </Typography>
                             </Box>
                         )}

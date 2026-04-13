@@ -2,9 +2,11 @@
 
 import React, { useMemo, useRef, useCallback } from 'react';
 import { Box, Typography, Alert } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { BaseChart } from '@/components/charts/BaseChart';
 import { CoverageRow } from '@/services/dataStatusApi';
-import { SourceConfig, AREA_JP, AREA_ORDER } from './DataStatusControls';
+import { SourceConfig, AREA_ORDER } from './DataStatusControls';
+import { getAreaName } from '@/utils/areaI18n';
 import { useTheme } from '@/app/ThemeProvider';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -28,6 +30,8 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
     selectedAreas,
     onCellClick,
 }) => {
+    const { t } = useTranslation('dataStatus');
+
     // Build a lookup of validation config per source key
     const configByKey = useMemo(() => {
         const m = new Map<string, { validationType: 'fixed' | 'variable' | 'event'; expectedPerDay: number | null }>();
@@ -64,11 +68,14 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
             if (!selectedSources.has(src.key)) continue;
 
             if (src.isSystem) {
-                yRows.push({ label: `${src.label}  全域`, sourceKey: src.key, area: 'system', sourceLabel: src.label });
+                const srcLabel = src.labelKey ? t(src.labelKey) : src.label;
+                yRows.push({ label: `${srcLabel}  ${t('areas.system')}`, sourceKey: src.key, area: 'system', sourceLabel: srcLabel });
             } else {
                 const filteredAreas = AREA_ORDER.filter(a => selectedAreas.has(a));
+                const srcLabel = src.labelKey ? t(src.labelKey) : src.label;
                 for (const area of filteredAreas) {
-                    yRows.push({ label: `${src.label}  ${AREA_JP[area] ?? area}`, sourceKey: src.key, area, sourceLabel: src.label });
+                    const areaLabel = getAreaName(t, area);
+                    yRows.push({ label: `${srcLabel}  ${areaLabel}`, sourceKey: src.key, area, sourceLabel: srcLabel });
                 }
             }
         }
@@ -198,12 +205,12 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
                     const isVariable = cfg?.validationType === 'variable';
                     const isEvent    = cfg?.validationType === 'event';
                     const docCount = lookup.get(`${srcKey}||${yRows[yi]?.area}||${date}`);
-                    const countStr = docCount !== undefined ? `　${docCount} 筆` : '';
+                    const countStr = docCount !== undefined ? `　${docCount} ${t('gantt.tooltipRecords')}` : '';
                     const status =
-                        val === 1   ? (isEvent ? '✅ 有事件' : '✅ 完整')
-                      : val === 0.5 ? `⚠️ 不完整${isVariable ? '（依中位值判定）' : ''}${countStr}`
-                      : val === 0   ? (isEvent ? '─ 無事件' : '❌ 缺失')
-                      :               '─ N/A';
+                        val === 1   ? (isEvent ? `✅ ${t('gantt.tooltipHasEvent')}` : `✅ ${t('gantt.tooltipComplete')}`)
+                      : val === 0.5 ? `⚠️ ${isVariable ? t('gantt.tooltipIncompleteMedian') : t('gantt.tooltipIncomplete')}${countStr}`
+                      : val === 0   ? (isEvent ? `─ ${t('gantt.tooltipNoEvent')}` : `❌ ${t('gantt.tooltipMissing')}`)
+                      :               `─ ${t('gantt.tooltipNA')}`;
                     return `<div style="font-size:12px;"><b>${rowLabel}</b><br/>${date}<br/>${status}${val >= 0 && !isEvent ? countStr : ''}</div>`;
                 },
             },
@@ -222,7 +229,7 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
                 },
             ],
         };
-    }, [rows, sourceConfigs, selectedSources, selectedAreas, axisColor, configByKey]);
+    }, [rows, sourceConfigs, selectedSources, selectedAreas, axisColor, configByKey, t]);
 
     const handleCellClick = useCallback((params: any) => {
         if (!onCellClick || !params?.value) return;
@@ -241,7 +248,7 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Alert severity="info" sx={{ maxWidth: 400 }}>
                     <Typography variant="body2">
-                        點擊「重新整理」以載入資料覆蓋狀態。
+                        {t('gantt.emptyRefresh')}
                     </Typography>
                 </Alert>
             </Box>
@@ -253,7 +260,7 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Alert severity="info" sx={{ maxWidth: 400 }}>
                     <Typography variant="body2">
-                        目前篩選條件下無資料可顯示，請調整來源或地區篩選。
+                        {t('gantt.emptyFilter')}
                     </Typography>
                 </Alert>
             </Box>
@@ -265,10 +272,10 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
             {/* Legend */}
             <Box sx={{ px: 1, pb: 0.5, flexShrink: 0, display: 'flex', gap: 2, alignItems: 'center' }}>
                 {[
-                    { color: '#52c41a', label: '完整' },
-                    { color: '#fa8c16', label: '不完整' },
-                    { color: '#ff4d4f', label: '缺失' },
-                    { color: '#374151', label: 'N/A' },
+                    { color: '#52c41a', label: t('gantt.complete') },
+                    { color: '#fa8c16', label: t('gantt.incomplete') },
+                    { color: '#ff4d4f', label: t('gantt.missing') },
+                    { color: '#374151', label: t('gantt.na') },
                 ].map(({ color, label }) => (
                     <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Box sx={{ width: 12, height: 12, borderRadius: 0.5, backgroundColor: color }} />
@@ -278,7 +285,7 @@ export const DataStatusGantt: React.FC<DataStatusGanttProps> = ({
                     </Box>
                 ))}
                 <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', ml: 'auto' }}>
-                    X軸: 日期 | Y軸: 資料來源 × 地區
+                    {t('gantt.axisDescription')}
                 </Typography>
             </Box>
 

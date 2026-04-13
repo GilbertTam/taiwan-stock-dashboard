@@ -35,7 +35,8 @@ import {
     weatherColors,
 } from '@/constants/weatherCategories';
 import { BaseChart }  from '@/components/charts/BaseChart';
-import { AREA_JP }    from './DataStatusControls';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 import type { SelectedCell } from './DataStatusDetailDrawer';
 import { RecordsTab } from './RecordsTab';
 import type { EChartsOption } from 'echarts';
@@ -81,6 +82,7 @@ function buildWeatherMiniOption(
     isDaily: boolean,
     axisColor: string,
     darkMode: boolean,
+    t?: (key: string) => string,
 ): EChartsOption | null {
     const series: any[] = [];
     for (const field of fields) {
@@ -94,7 +96,7 @@ function buildWeatherMiniOption(
         }
         if (values.length === 0) continue;
         const display = WEATHER_FIELD_DISPLAY[field];
-        const label   = display?.shortLabel ?? field;
+        const label   = display?.shortLabelKey && t ? t(`forecast:${display.shortLabelKey}`) : field;
         const unit    = display?.unit ?? '';
         const color   = getWeatherFieldColor(field, isForecast);
         const isBar   = BAR_FIELDS.has(field);
@@ -308,6 +310,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
     onOpenRecords,
 }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation(['dataStatus', 'forecast']);
 
     // ── Tab state ─────────────────────────────────────────────────────────────
     const [activeTab,   setActiveTab]   = useState<0 | 1 | 2>(0);
@@ -451,23 +454,31 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                 const visibleFields = cat.fields.filter(
                     f => !SKIP_FIELDS.has(f) && dedupedWeatherData.some(d => d[f] != null),
                 );
-                const option = buildWeatherMiniOption(cat.fields, dedupedWeatherData, isForecast, isDaily, axisColor, darkMode);
+                const option = buildWeatherMiniOption(cat.fields, dedupedWeatherData, isForecast, isDaily, axisColor, darkMode, t);
                 if (option === null || visibleFields.length === 0) return [];
                 return [{ ...cat, option, visibleFields }];
             });
-    }, [dedupedWeatherData, categories, isForecast, isDaily, darkMode]);
+    }, [dedupedWeatherData, categories, isForecast, isDaily, darkMode, t]);
 
     // ── Market chart memos ────────────────────────────────────────────────────
     const isPrediction = selectedCell?.sourceKey.startsWith('prediction_') ?? false;
+    // Translate series names for chart tooltips
+    const translatedGroups = useMemo(() => groups.map(g => ({
+        ...g,
+        series: g.series.map(s => ({
+            ...s,
+            name: s.field ? t(`columns.${s.field}`, { defaultValue: s.name }) : s.name,
+        })),
+    })), [groups, t]);
     const chartOptions = useMemo(() => {
         const axisColor = darkMode ? '#b8bfc9' : '#4b5563';
-        return groups.map(g => ({
+        return translatedGroups.map(g => ({
             group: g,
             option: isPrediction
                 ? buildPredictionMiniOption(g, axisColor, darkMode)
                 : buildMarketMiniOption(g, axisColor, darkMode),
         }));
-    }, [groups, darkMode, isPrediction]);
+    }, [translatedGroups, darkMode, isPrediction]);
 
     // ── Theme colors ──────────────────────────────────────────────────────────
     const bg         = darkMode ? '#16171e' : '#ffffff';
@@ -501,17 +512,17 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
         slotsMissing === 0       ? 'ok' :
         slotsMissing === totalSlots ? 'missing' : 'partial';
     const STATUS = {
-        ok:      { label: '✅  資料完整', color: '#52c41a', bg: 'rgba(82,196,26,0.18)'  },
-        partial: { label: '⚠️  部分缺失', color: '#fa8c16', bg: 'rgba(250,140,22,0.18)' },
-        missing: { label: '❌  資料缺失', color: '#ff4d4f', bg: 'rgba(255,77,79,0.18)'  },
-    } as const;
+        ok:      { label: t('status.complete'), color: '#52c41a', bg: 'rgba(82,196,26,0.18)'  },
+        partial: { label: t('status.partial'),  color: '#fa8c16', bg: 'rgba(250,140,22,0.18)' },
+        missing: { label: t('status.missing'),  color: '#ff4d4f', bg: 'rgba(255,77,79,0.18)'  },
+    };
     const sm = STATUS[status];
 
     const areaLabel   = selectedCell
-        ? (selectedCell.area === 'system' ? '全域' : (AREA_JP[selectedCell.area] ?? selectedCell.area))
+        ? getAreaName(t, selectedCell.area)
         : '';
-    const granularity = interval === '30m' ? '30分/コマ' : interval === 'day' ? '毎日' : '毎時';
-    const slotUnit    = interval === 'day' ? '日' : interval === '30m' ? 'コマ' : 'hr';
+    const granularity = interval === '30m' ? t('intervals.30min') : interval === 'day' ? t('intervals.daily') : t('intervals.hourly');
+    const slotUnit    = interval === 'day' ? t('intervals.dayUnit') : interval === '30m' ? t('intervals.30minSlot') : t('intervals.hourUnit');
 
     // Compact slot grid columns
     const gridCols = interval === 'day' ? 1 : interval === '30m' ? 8 : 12;
@@ -619,9 +630,9 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                 onChange={(_, v) => setActiveTab(v)}
                 sx={tabsSx}
             >
-                <Tab label="狀態" value={0} />
-                <Tab label="預覽" value={1} />
-                <Tab label="明細" value={2} />
+                <Tab label={t('drawer.tabStatus')} value={0} />
+                <Tab label={t('drawer.tabPreview')} value={1} />
+                <Tab label={t('drawer.tabDetail')} value={2} />
             </Tabs>
 
             {/* ── Tab 0: Status ────────────────────────────────────────────────── */}
@@ -630,9 +641,9 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                     {/* KPI row */}
                     <Box sx={{ px: 2, py: 1.25, flexShrink: 0, display: 'flex', gap: 1 }}>
                         {[
-                            { label: '總筆數',   value: coverageLoading ? '…' : totalDocs.toLocaleString(), accent: undefined },
-                            { label: '有資料',   value: coverageLoading ? '…' : `${slotsOk} / ${totalSlots} ${slotUnit}`, accent: cellOk },
-                            { label: '缺失時段', value: coverageLoading ? '…' : `${slotsMissing} ${slotUnit}`, accent: slotsMissing > 0 ? cellErr : cellOk },
+                            { label: t('drawer.totalRecords'),   value: coverageLoading ? '…' : totalDocs.toLocaleString(), accent: undefined },
+                            { label: t('drawer.hasData'),        value: coverageLoading ? '…' : `${slotsOk} / ${totalSlots} ${slotUnit}`, accent: cellOk },
+                            { label: t('drawer.missingSlots'),   value: coverageLoading ? '…' : `${slotsMissing} ${slotUnit}`, accent: slotsMissing > 0 ? cellErr : cellOk },
                         ].map(({ label, value, accent }) => (
                             <Box key={label} sx={{
                                 flex: 1, px: 1, py: 0.75,
@@ -650,10 +661,10 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                     {/* Slot grid */}
                     <Box sx={{ px: 2, pb: 2, flex: 1 }}>
                         <Typography sx={{ fontSize: '0.68rem', color: textSec, mb: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            {interval === 'day' ? '日別資料狀態' : interval === '30m' ? '各コマ状態（30分）' : '每小時狀態'}
+                            {interval === 'day' ? t('drawer.slotStatusDaily') : interval === '30m' ? t('drawer.slotStatus30m') : t('drawer.slotStatusHourly')}
                             {' '}
                             <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
-                                · 點擊格子可查看明細記錄
+                                · {t('drawer.slotClickHint')}
                             </Box>
                         </Typography>
                         {coverageLoading ? (
@@ -665,20 +676,21 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                         ) : coverageError ? (
                             <Box sx={{ py: 2, px: 1.5, borderRadius: 1, backgroundColor: 'rgba(255,77,79,0.1)', border: '1px solid #ff4d4f' }}>
                                 <Typography sx={{ fontSize: '0.8rem', color: '#ff4d4f', fontWeight: 600 }}>
-                                    ❌ 明細資料載入失敗
+                                    {t('drawer.detailLoadError')}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.5 }}>
-                                    無法取得此時段的明細資料，請確認後端服務狀態。
+                                    {t('drawer.detailLoadErrorHint')}
                                 </Typography>
                             </Box>
                         ) : (
                             <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: '3px' }}>
                                 {slotRows.map(({ slot, label, doc_count }) => {
                                     const hasData = doc_count > 0;
+                                    const displayLabel = interval === 'day' ? t('intervals.fullDay') : label;
                                     return (
                                         <Box
                                             key={slot}
-                                            title={`${label} — ${doc_count} 筆（點擊查看明細）`}
+                                            title={t('drawer.slotTitle', { label: displayLabel, count: doc_count })}
                                             onClick={() => handleSlotClick(slot)}
                                             sx={{
                                                 display: 'flex',
@@ -698,7 +710,7 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                                 fontWeight: 600,
                                                 color: hasData ? cellOk : cellErr,
                                             }}>
-                                                {label}
+                                                {displayLabel}
                                             </Typography>
                                         </Box>
                                     );
@@ -714,15 +726,15 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                 <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 2, pt: 1.25, pb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, mb: 1.25, flexWrap: 'wrap' }}>
                         <Typography sx={{ fontSize: '0.72rem', color: textSec, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            資料預覽
+                            {t('drawer.previewTitle')}
                             {' '}
                             <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
-                                · 點擊圖表資料點可跳至明細
+                                · {t('drawer.previewClickHint')}
                             </Box>
                         </Typography>
                         {calcTimeLabel && (
                             <Typography sx={{ fontSize: '0.68rem', color: textSec, fontFamily: 'monospace' }}>
-                                計算日: {calcTimeLabel}
+                                {t('drawer.calcDate')}: {calcTimeLabel}
                             </Typography>
                         )}
                     </Box>
@@ -741,19 +753,19 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                             </Box>
                         ) : categoryCharts.length === 0 ? (
                             <Box sx={{ py: 3, textAlign: 'center', border: `1px solid ${border}`, borderRadius: 1 }}>
-                                <Typography sx={{ fontSize: '0.82rem', color: textSec }}>該日無天氣資料可顯示</Typography>
+                                <Typography sx={{ fontSize: '0.82rem', color: textSec }}>{t('drawer.noWeatherData')}</Typography>
                             </Box>
                         ) : (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                                 {categoryCharts.map(cat => (
                                     <Box key={cat.id}>
                                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: textPri, mb: 0.5 }}>
-                                            {cat.label}
+                                            {t(`forecast:${cat.labelKey}`)}
                                         </Typography>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 0.75 }}>
                                             {cat.visibleFields.map((f: string) => {
                                                 const d = WEATHER_FIELD_DISPLAY[f];
-                                                const lbl = d?.shortLabel ?? f;
+                                                const lbl = d?.shortLabelKey ? t(`forecast:${d.shortLabelKey}`) : f;
                                                 const unit = d?.unit ?? '';
                                                 return (
                                                     <Box key={f} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
@@ -784,18 +796,18 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                             </Box>
                         ) : events.length === 0 ? (
                             <Box sx={{ py: 3, textAlign: 'center', border: `1px solid ${border}`, borderRadius: 1 }}>
-                                <Typography sx={{ fontSize: '0.82rem', color: textSec }}>當日無事件記錄</Typography>
+                                <Typography sx={{ fontSize: '0.82rem', color: textSec }}>{t('drawer.noEventRecords')}</Typography>
                             </Box>
                         ) : (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 {events.map((ev, i) => (
                                     <Box key={i} sx={{ px: 1.5, py: 1, borderRadius: 1, border: `1px solid ${border}`, backgroundColor: eventBg }}>
                                         <Typography sx={{ fontSize: '0.7rem', color: textSec, fontFamily: 'monospace', mb: 0.25 }}>
-                                            {ev.datetime.slice(0, 16).replace('T', ' ')}&nbsp;&nbsp;{AREA_JP[ev.area] ?? ev.area}
+                                            {ev.datetime.slice(0, 16).replace('T', ' ')}&nbsp;&nbsp;{getAreaName(t, ev.area)}
                                         </Typography>
-                                        <Typography sx={{ fontSize: '0.8rem', color: textPri }}>{ev.description || '（無描述）'}</Typography>
+                                        <Typography sx={{ fontSize: '0.8rem', color: textPri }}>{ev.description || t('drawer.noDescription')}</Typography>
                                         {ev.value !== null && (
-                                            <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.25 }}>值：{ev.value}</Typography>
+                                            <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.25 }}>{t('drawer.valueLabel')}: {ev.value}</Typography>
                                         )}
                                     </Box>
                                 ))}
@@ -819,14 +831,14 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                 {previewHitCount !== null && previewHitCount > 0 ? (
                                     <>
                                         <Typography sx={{ fontSize: '0.82rem', color: textSec }}>
-                                            此來源圖表欄位值均為空值
+                                            {t('drawer.sourceFieldsEmpty')}
                                         </Typography>
                                         <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.5 }}>
-                                            ({previewHitCount} 筆資料，數值欄位尚無資料)
+                                            {t('drawer.sourceFieldsEmptyHint', { count: previewHitCount })}
                                         </Typography>
                                     </>
                                 ) : (
-                                    <Typography sx={{ fontSize: '0.82rem', color: textSec }}>該日無資料可顯示</Typography>
+                                    <Typography sx={{ fontSize: '0.82rem', color: textSec }}>{t('drawer.noDataForDay')}</Typography>
                                 )}
                             </Box>
                         ) : (
@@ -834,10 +846,12 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                 {chartOptions.map(({ group, option }) => (
                                     <Box key={group.id}>
                                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: textPri, mb: 0.5 }}>
-                                            {group.label}
+                                            {t(`chartGroups.${group.id}`, { defaultValue: group.label })}
                                         </Typography>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 0.75 }}>
-                                            {group.series.map(s => (
+                                            {group.series.map(s => {
+                                                const seriesLabel = s.field ? t(`columns.${s.field}`, { defaultValue: s.name }) : s.name;
+                                                return (
                                                 <Box key={s.name} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                                                     <Box sx={{
                                                         width: 18, height: s.type === 'bar' ? 8 : 3,
@@ -845,10 +859,11 @@ export const DataStatusUnifiedDrawer: React.FC<Props> = ({
                                                         backgroundColor: s.color, flexShrink: 0,
                                                     }} />
                                                     <Typography sx={{ fontSize: '0.62rem', color: textSec, whiteSpace: 'nowrap' }}>
-                                                        {s.name}{s.unit ? ` (${s.unit})` : ''}
+                                                        {seriesLabel}{s.unit ? ` (${s.unit})` : ''}
                                                     </Typography>
                                                 </Box>
-                                            ))}
+                                                );
+                                            })}
                                         </Box>
                                         <BaseChart
                                             option={option}

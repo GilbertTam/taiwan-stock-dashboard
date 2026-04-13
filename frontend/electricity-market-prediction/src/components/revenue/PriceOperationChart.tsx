@@ -29,6 +29,8 @@ interface PriceOperationChartProps {
     height?: number;
     /** ECharts group id for axis linking */
     groupId?: string;
+    /** Pre-translated tooltip labels for i18n */
+    tooltipLabels?: { action?: string };
 }
 
 export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOperationChartProps>(({
@@ -39,7 +41,8 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
     timeCategories: externalTimes,
     title = 'Price & Operation Analysis',
     height = 350,
-    groupId = 'revenue-time-group'
+    groupId = 'revenue-time-group',
+    tooltipLabels = {},
 }, ref) => {
     const { darkMode } = useTheme();
     const chartRef = useRef<ReactECharts>(null);
@@ -198,7 +201,7 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                     html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">${firstLabel}</span><b>${firstVal} JPY</b></div>`;
                     if (firstId === 'manual') {
                         const action = item.action ?? 'Idle';
-                        html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">操作</span><b>${action}</b></div>`;
+                        html += `<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span style="color:${darkMode ? '#aaa' : '#666'}">${tooltipLabels.action ?? 'Action'}</span><b>${action}</b></div>`;
                     }
                     schedules.forEach(s => {
                         if (s.id === 'optimal' || s.id === 'manual') return;
@@ -261,7 +264,7 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                 return [dayBgSeries, ...priceSeries];
             })()
         };
-    }, [schedules, times, markAreaSource, darkMode, groupId, actualColor]);
+    }, [schedules, times, markAreaSource, darkMode, groupId, actualColor, tooltipLabels]);
 
     if (times.length === 0 && !legacyData?.length) {
         return (

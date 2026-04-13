@@ -22,6 +22,7 @@ import {
 import ArrowBackIcon    from '@mui/icons-material/ArrowBack';
 import CloseIcon        from '@mui/icons-material/Close';
 import ContentCopyIcon  from '@mui/icons-material/ContentCopy';
+import { useTranslation } from 'react-i18next';
 import { fetchCoverageRecords, RecordRow } from '@/services/dataStatusApi';
 import { useTheme } from '@/app/ThemeProvider';
 
@@ -64,6 +65,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
     sourceKey, area, date, slot, onClose,
 }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation('dataStatus');
 
     const [rows,    setRows]    = useState<RecordRow[]>([]);
     const [total,   setTotal]   = useState(0);
@@ -81,7 +83,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
         setError(null);
         fetchCoverageRecords(sourceKey, area, date, slot, undefined, page, perPage)
             .then(r => { setRows(r.rows); setTotal(r.total); })
-            .catch(() => setError('資料載入失敗，請確認來源參數後重試'))
+            .catch(() => setError(t('rawView.loadError')))
             .finally(() => setLoading(false));
     }, [sourceKey, area, date, slot, page, perPage]);
 
@@ -139,7 +141,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                 </IconButton>
 
                 <Typography sx={{ fontSize: '0.8rem', color: textSec }}>
-                    原始資料
+                    {t('rawView.rawData')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: textPri, fontWeight: 600 }}>
                     {sourceKey} / {area} / {dateDisplay}
@@ -149,13 +151,13 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                     {slotLabel && (
                         <Chip
                             size="small"
-                            label={`時段: ${slotLabel}`}
+                            label={t('records.slotLabel', { label: slotLabel })}
                             variant="outlined"
                             sx={{ fontSize: '0.7rem', height: 22, borderColor: '#ff7043', color: '#ff7043' }}
                         />
                     )}
                     <Typography sx={{ fontSize: '0.72rem', color: textSec }}>
-                        {loading ? '…' : `共 ${total.toLocaleString()} 筆`}
+                        {loading ? '…' : t('rawView.totalRecords', { count: total.toLocaleString() })}
                     </Typography>
                 </Box>
             </Box>
@@ -179,7 +181,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                                     px: 1.5, py: 0.75, whiteSpace: 'nowrap',
                                     position: 'sticky', left: 0, zIndex: 3,
                                 }}>
-                                    時間
+                                    {t('rawView.tableHeaderTime')}
                                 </TableCell>
                                 {orderedKeys.map(k => (
                                     <TableCell key={k} sx={{
@@ -215,7 +217,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                                 <TableRow>
                                     <TableCell colSpan={orderedKeys.length + 2} align="center" sx={{ py: 6 }}>
                                         <Typography sx={{ fontSize: '0.85rem', color: textSec }}>
-                                            {slotLabel ? `${slotLabel} 時段無資料` : '當日無資料'}
+                                            {slotLabel ? t('rawView.noDataForSlot', { slot: slotLabel }) : t('rawView.noDataForDay')}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -331,7 +333,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                     borderBottom: `1px solid ${border}`,
                 }}>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: textPri }}>
-                        文件詳情
+                        {t('rawView.documentDetail')}
                         {viewedRow && (
                             <Box component="span" sx={{ fontSize: '0.75rem', fontWeight: 400, color: textSec, ml: 1 }}>
                                 {viewedRow.slot_label}
@@ -342,7 +344,7 @@ export const DataStatusRawView: React.FC<DataStatusRawViewProps> = ({
                         <IconButton
                             size="small"
                             onClick={handleCopy}
-                            title="複製 JSON"
+                            title={t('rawView.copyJson')}
                             sx={{ color: copied ? '#52c41a' : textSec }}
                         >
                             <ContentCopyIcon sx={{ fontSize: '0.9rem' }} />

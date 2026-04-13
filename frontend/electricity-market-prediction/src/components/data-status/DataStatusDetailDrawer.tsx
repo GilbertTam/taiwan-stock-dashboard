@@ -10,9 +10,10 @@ import {
     Skeleton,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/app/ThemeProvider';
 import { fetchCoverageDetail, DetailHourRow } from '@/services/dataStatusApi';
-import { AREA_JP } from './DataStatusControls';
+import { getAreaName } from '@/utils/areaI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ const formatDate = (d: string) =>
 
 export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation('dataStatus');
     const [slotRows, setSlotRows] = useState<DetailHourRow[]>([]);
     const [interval, setInterval] = useState<'hour' | '30m' | 'day'>('hour');
     const [isLoading, setIsLoading] = useState(false);
@@ -68,9 +70,9 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
         slotsMissing === totalSlots ? 'missing' : 'partial';
 
     const STATUS: Record<Status, { label: string; color: string; bg: string }> = {
-        ok:      { label: '✅  資料完整',  color: '#52c41a', bg: 'rgba(82,196,26,0.18)'  },
-        partial: { label: '⚠️  部分缺失',  color: '#fa8c16', bg: 'rgba(250,140,22,0.18)' },
-        missing: { label: '❌  資料缺失',  color: '#ff4d4f', bg: 'rgba(255,77,79,0.18)'  },
+        ok:      { label: t('status.complete'),  color: '#52c41a', bg: 'rgba(82,196,26,0.18)'  },
+        partial: { label: t('status.partial'),   color: '#fa8c16', bg: 'rgba(250,140,22,0.18)' },
+        missing: { label: t('status.missing'),   color: '#ff4d4f', bg: 'rgba(255,77,79,0.18)'  },
     };
     const sm = STATUS[status];
 
@@ -85,7 +87,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
     const cellErrDim = darkMode ? 'rgba(255,77,79,0.18)'  : 'rgba(255,77,79,0.14)';
 
     const areaLabel = selectedCell
-        ? (selectedCell.area === 'system' ? '全域' : (AREA_JP[selectedCell.area] ?? selectedCell.area))
+        ? getAreaName(t, selectedCell.area)
         : '';
 
     // Grid layout: 6 cols for hourly; 8 cols for 30m; 1 col for daily
@@ -93,7 +95,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
     const cellHeight = interval === '30m' ? 34 : interval === 'day' ? 72 : 40;
 
     // Label unit for KPI display
-    const slotUnit = interval === '30m' ? 'コマ' : interval === 'day' ? '日' : 'hr';
+    const slotUnit = interval === '30m' ? t('intervals.30minSlot') : interval === 'day' ? t('intervals.dayUnit') : t('intervals.hourUnit');
 
     return (
         <Drawer
@@ -130,7 +132,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
                             {selectedCell && <>&nbsp;·&nbsp;{formatDate(selectedCell.date)}</>}
                             {!isLoading && (
                                 <>&nbsp;·&nbsp;<span style={{ fontFamily: 'monospace', fontSize: '0.72rem' }}>
-                                    {interval === '30m' ? '30分/コマ' : interval === 'day' ? '毎日' : '毎時'}
+                                    {interval === '30m' ? t('intervals.30min') : interval === 'day' ? t('intervals.daily') : t('intervals.hourly')}
                                 </span></>
                             )}
                         </Typography>
@@ -165,9 +167,9 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
             {/* ── KPI row ─────────────────────────────────────────────────── */}
             <Box sx={{ px: 2, py: 1.25, flexShrink: 0, display: 'flex', gap: 1 }}>
                 {[
-                    { label: '總筆數',   value: isLoading ? '…' : totalDocs, accent: undefined },
-                    { label: '有資料',   value: isLoading ? '…' : `${slotsOk} / ${totalSlots} ${slotUnit}`, accent: cellOk },
-                    { label: '缺失時段', value: isLoading ? '…' : `${slotsMissing} ${slotUnit}`, accent: slotsMissing > 0 ? cellErr : cellOk },
+                    { label: t('drawer.totalRecords'),   value: isLoading ? '…' : totalDocs, accent: undefined },
+                    { label: t('drawer.hasData'),        value: isLoading ? '…' : `${slotsOk} / ${totalSlots} ${slotUnit}`, accent: cellOk },
+                    { label: t('drawer.missingSlots'),   value: isLoading ? '…' : `${slotsMissing} ${slotUnit}`, accent: slotsMissing > 0 ? cellErr : cellOk },
                 ].map(({ label, value, accent }) => (
                     <Box
                         key={label}
@@ -192,7 +194,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
             {/* ── Slot grid ───────────────────────────────────────────────── */}
             <Box sx={{ px: 2, pt: 1.25, flexShrink: 0 }}>
                 <Typography sx={{ fontSize: '0.72rem', color: textSec, mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    {interval === '30m' ? '各コマ状態（30分粒度）' : interval === 'day' ? '日別資料狀態' : '每小時狀態'}
+                    {interval === '30m' ? t('drawer.slotStatus30m') : interval === 'day' ? t('drawer.slotStatusDaily') : t('drawer.slotStatusHourly')}
                 </Typography>
 
                 {isLoading ? (
@@ -205,10 +207,11 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
                     <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: '3px' }}>
                         {slotRows.map(({ slot, label, doc_count }) => {
                             const hasData = doc_count > 0;
+                            const displayLabel = interval === 'day' ? t('intervals.fullDay') : label;
                             return (
                                 <Box
                                     key={slot}
-                                    title={`${label} — ${doc_count} 筆`}
+                                    title={t('drawer.slotTitle', { label: displayLabel, count: doc_count })}
                                     sx={{
                                         display: 'flex',
                                         flexDirection: 'column',
@@ -222,7 +225,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
                                     }}
                                 >
                                     <Typography sx={{ fontSize: interval === '30m' ? '0.52rem' : interval === 'day' ? '0.82rem' : '0.6rem', fontWeight: 700, color: hasData ? cellOk : cellErr, lineHeight: 1 }}>
-                                        {label}
+                                        {displayLabel}
                                     </Typography>
                                     <Typography sx={{ fontSize: '0.52rem', color: textSec, lineHeight: 1.2 }}>
                                         {doc_count > 0 ? doc_count : '─'}
@@ -235,7 +238,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
 
                 {/* Legend */}
                 <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 0.5 }}>
-                    {[{ color: cellOk, label: '有資料' }, { color: cellErr, label: '缺失' }].map(({ color, label }) => (
+                    {[{ color: cellOk, label: t('drawer.legendHasData') }, { color: cellErr, label: t('drawer.legendMissing') }].map(({ color, label }) => (
                         <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Box sx={{ width: 10, height: 10, borderRadius: '3px', backgroundColor: color }} />
                             <Typography sx={{ fontSize: '0.65rem', color: textSec }}>{label}</Typography>
@@ -249,14 +252,14 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
             {/* ── Missing slots list ──────────────────────────────────────── */}
             <Box sx={{ flex: 1, overflowY: 'auto', px: 2, pt: 1.25, pb: 2 }}>
                 <Typography sx={{ fontSize: '0.72rem', color: textSec, mb: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    缺失時段清單
+                    {t('drawer.missingSlotsList')}
                 </Typography>
 
                 {isLoading ? (
                     <Skeleton variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
                 ) : missingList.length === 0 ? (
                     <Box sx={{ py: 1.5, px: 1.5, borderRadius: 1, backgroundColor: cellOkDim, border: `1px solid ${cellOk}` }}>
-                        <Typography sx={{ fontSize: '0.8rem', color: cellOk, fontWeight: 600 }}>✅ 無缺失時段</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', color: cellOk, fontWeight: 600 }}>{t('drawer.noMissingSlots')}</Typography>
                     </Box>
                 ) : (
                     <Box>
@@ -279,7 +282,7 @@ export const DataStatusDetailDrawer: React.FC<Props> = ({ selectedCell, onClose 
                             ))}
                         </Box>
                         <Typography sx={{ fontSize: '0.68rem', color: textSec }}>
-                            共 {missingList.length} 個{slotUnit}無資料
+                            {t('drawer.totalMissing', { count: missingList.length, unit: slotUnit })}
                         </Typography>
                     </Box>
                 )}

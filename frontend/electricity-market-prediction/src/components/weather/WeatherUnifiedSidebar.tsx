@@ -32,6 +32,8 @@ import {
     WEATHER_FIELD_DISPLAY,
 } from '@/constants/weatherCategories';
 import type { WeatherModelBasicInfo } from '@/services/weatherApi';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // =============================================================================
 // Types
@@ -82,21 +84,12 @@ export interface WeatherUnifiedSidebarProps {
 }
 
 // =============================================================================
-// Shortcut Presets
+// Shortcut Presets (fields — labels are computed in component via useTranslation)
 // =============================================================================
-const PRESETS = [
-    {
-        label: '常用 (溫/降水/風)',
-        fields: ['temperature_2m', 'precipitation', 'wind_speed_10m']
-    },
-    {
-        label: '溫濕度',
-        fields: ['temperature_2m', 'relative_humidity_2m']
-    },
-    {
-        label: '日資料 (高溫/降水/日照)',
-        fields: ['temperature_2m_max', 'precipitation_sum', 'sunshine_duration']
-    }
+const PRESET_FIELDS = [
+    ['temperature_2m', 'precipitation', 'wind_speed_10m'],
+    ['temperature_2m', 'relative_humidity_2m'],
+    ['temperature_2m_max', 'precipitation_sum', 'sunshine_duration'],
 ];
 
 // =============================================================================
@@ -192,9 +185,16 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
     availableHeights,
     onHeightChange,
 }) => {
+    const { t } = useTranslation(['weather', 'forecast']);
     const [fieldTab, setFieldTab] = useState<0 | 1>(0);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
     const [fieldsExpanded, setFieldsExpanded] = useState(true);
+
+    const presets = React.useMemo(() => [
+        { label: t('sidebar.presetCommon'),    fields: PRESET_FIELDS[0] },
+        { label: t('sidebar.presetTempHumid'), fields: PRESET_FIELDS[1] },
+        { label: t('sidebar.presetDaily'),     fields: PRESET_FIELDS[2] },
+    ], [t]);
 
     const handleApplyPreset = (presetFields: string[]) => {
         const target = new Set(presetFields);
@@ -227,7 +227,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
         }}>
 
             {/* ── Area (always visible, compact toggle buttons) ── */}
-            <SidebarLabel>地區</SidebarLabel>
+            <SidebarLabel>{t('sidebar.area')}</SidebarLabel>
             <Box sx={{ px: 1, py: 1, borderBottom: '1px solid var(--card-border)' }}>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
                     {areas.map(area => {
@@ -249,7 +249,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
                                     '&:hover': { borderColor: 'var(--primary)', color: 'var(--primary)' },
                                 }}
                             >
-                                {area.name_ch}
+                                {getAreaName(t, area.name)}
                             </Box>
                         );
                     })}
@@ -257,34 +257,34 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
             </Box>
 
             {/* ── Data Sources (always expanded) ── */}
-            <SidebarLabel>資料來源</SidebarLabel>
+            <SidebarLabel>{t('sidebar.dataSources')}</SidebarLabel>
 
             {/* Actual Section */}
             <Box sx={{ px: 1, pt: 0.75, pb: 0.5, borderBottom: '1px solid var(--card-border)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
                     <SunIcon sx={{ fontSize: 14, color: '#ff7043' }} />
                     <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: hasActual ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                        實際觀測
+                        {t('sidebar.actualObs')}
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75 }}>
-                    <DatasetToggle label="時" active={showActualHourly} color="#ffc107" onChange={onShowActualHourlyChange} />
-                    <DatasetToggle label="日" active={showActualDaily} color="#ff9800" onChange={onShowActualDailyChange} />
+                    <DatasetToggle label={t('sidebar.hourly')} active={showActualHourly} color="#ffc107" onChange={onShowActualHourlyChange} />
+                    <DatasetToggle label={t('sidebar.daily')} active={showActualDaily} color="#ff9800" onChange={onShowActualDailyChange} />
                 </Box>
                 {showActualHourly && (
                     <Box sx={{ mb: 0.5 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>時資料模型</Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>{t('sidebar.hourlyModel')}</Typography>
                         <Select size="small" fullWidth value={selectedModelActualHourly || ''} onChange={(e) => onModelActualHourlyChange(e.target.value || null)} sx={{ fontSize: '0.73rem', '& .MuiSelect-select': { py: 0.4 }, bgcolor: 'var(--background)' }} displayEmpty>
-                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>全部</MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>{t('sidebar.allModels')}</MenuItem>
                             {modelsActualHourly.map(m => <MenuItem key={m.model} value={m.model} sx={{ fontSize: '0.73rem' }}>{m.model}</MenuItem>)}
                         </Select>
                     </Box>
                 )}
                 {showActualDaily && (
                     <Box>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>日資料模型</Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>{t('sidebar.dailyModel')}</Typography>
                         <Select size="small" fullWidth value={selectedModelActualDaily || ''} onChange={(e) => onModelActualDailyChange(e.target.value || null)} sx={{ fontSize: '0.73rem', '& .MuiSelect-select': { py: 0.4 }, bgcolor: 'var(--background)' }} displayEmpty>
-                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>全部</MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>{t('sidebar.allModels')}</MenuItem>
                             {modelsActualDaily.map(m => <MenuItem key={m.model} value={m.model} sx={{ fontSize: '0.73rem' }}>{m.model}</MenuItem>)}
                         </Select>
                     </Box>
@@ -296,27 +296,27 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
                     <CloudIcon sx={{ fontSize: 14, color: '#42a5f5' }} />
                     <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: hasForecast ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                        預報資料
+                        {t('sidebar.forecastData')}
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75 }}>
-                    <DatasetToggle label="時" active={showForecastHourly} color="#42a5f5" onChange={onShowForecastHourlyChange} />
-                    <DatasetToggle label="日" active={showForecastDaily} color="#1976d2" onChange={onShowForecastDailyChange} />
+                    <DatasetToggle label={t('sidebar.hourly')} active={showForecastHourly} color="#42a5f5" onChange={onShowForecastHourlyChange} />
+                    <DatasetToggle label={t('sidebar.daily')} active={showForecastDaily} color="#1976d2" onChange={onShowForecastDailyChange} />
                 </Box>
                 {showForecastHourly && (
                     <Box sx={{ mb: 0.5 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>時資料模型</Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>{t('sidebar.hourlyModel')}</Typography>
                         <Select size="small" fullWidth value={selectedModelForecastHourly || ''} onChange={(e) => onModelForecastHourlyChange(e.target.value || null)} sx={{ fontSize: '0.73rem', '& .MuiSelect-select': { py: 0.4 }, bgcolor: 'var(--background)' }} displayEmpty>
-                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>全部</MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>{t('sidebar.allModels')}</MenuItem>
                             {modelsForecastHourly.map(m => <MenuItem key={m.model} value={m.model} sx={{ fontSize: '0.73rem' }}>{m.model}</MenuItem>)}
                         </Select>
                     </Box>
                 )}
                 {showForecastDaily && (
                     <Box>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>日資料模型</Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block', mb: 0.25 }}>{t('sidebar.dailyModel')}</Typography>
                         <Select size="small" fullWidth value={selectedModelForecastDaily || ''} onChange={(e) => onModelForecastDailyChange(e.target.value || null)} sx={{ fontSize: '0.73rem', '& .MuiSelect-select': { py: 0.4 }, bgcolor: 'var(--background)' }} displayEmpty>
-                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>全部</MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.73rem' }}>{t('sidebar.allModels')}</MenuItem>
                             {modelsForecastDaily.map(m => <MenuItem key={m.model} value={m.model} sx={{ fontSize: '0.73rem' }}>{m.model}</MenuItem>)}
                         </Select>
                     </Box>
@@ -338,7 +338,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
                 }}
             >
                 <Typography variant="caption" sx={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'text.secondary' }}>
-                    天氣變數 {selectedFields.size > 0 && `(${selectedFields.size})`}
+                    {t('sidebar.weatherVariables')} {selectedFields.size > 0 && `(${selectedFields.size})`}
                 </Typography>
                 <ExpandMore sx={{ fontSize: '1rem', color: 'text.secondary', transform: fieldsExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }} />
             </Box>
@@ -346,20 +346,20 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
             <Collapse in={fieldsExpanded}>
                 {/* Presets */}
                 <Box sx={{ px: 1.5, pt: 1, pb: 0.5, borderBottom: '1px solid var(--card-border)' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.68rem' }}>快捷組合</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.68rem' }}>{t('sidebar.quickPresets')}</Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {PRESETS.map((preset, idx) => (
+                        {presets.map((preset, idx) => (
                             <Chip key={idx} label={preset.label} size="small" onClick={() => handleApplyPreset(preset.fields)} sx={{ fontSize: '0.68rem', height: 22, bgcolor: 'var(--background)' }} />
                         ))}
-                        <Chip label="清除" size="small" onClick={handleClearFields} variant="outlined" sx={{ fontSize: '0.68rem', height: 22 }} />
+                        <Chip label={t('sidebar.clear')} size="small" onClick={handleClearFields} variant="outlined" sx={{ fontSize: '0.68rem', height: 22 }} />
                     </Box>
                 </Box>
 
                 {/* Tabs */}
                 <Box sx={{ borderBottom: '1px solid var(--card-border)' }}>
                     <Tabs value={fieldTab} onChange={(_, val) => setFieldTab(val)} sx={{ minHeight: 32, '& .MuiTab-root': { minHeight: 32, px: 1.5, fontSize: '0.75rem', py: 0 } }}>
-                        <Tab label="時資料" />
-                        <Tab label="日資料" />
+                        <Tab label={t('sidebar.hourlyTab')} />
+                        <Tab label={t('sidebar.dailyTab')} />
                     </Tabs>
                 </Box>
 
@@ -374,7 +374,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
                                         onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
                                         sx={{ py: 0.25, px: 1, borderRadius: 1, bgcolor: isExpanded ? 'var(--hover-bg)' : 'transparent' }}
                                     >
-                                        <ListItemText primary={cat.label} primaryTypographyProps={{ fontSize: '0.78rem', fontWeight: 600, color: someSelected ? 'var(--primary)' : 'text.primary' }} />
+                                        <ListItemText primary={t(`forecast:${cat.labelKey}`)} primaryTypographyProps={{ fontSize: '0.78rem', fontWeight: 600, color: someSelected ? 'var(--primary)' : 'text.primary' }} />
                                         {isExpanded ? <ExpandLess fontSize="small" color="action" /> : <ExpandMore fontSize="small" color="action" />}
                                     </ListItemButton>
                                 </ListItem>
@@ -405,7 +405,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
                                                         <ListItem disablePadding>
                                                             <ListItemButton onClick={() => onFieldToggle(fieldToToggle)} sx={{ py: 0.15, px: 1, borderRadius: 1 }}>
                                                                 <ListItemIcon sx={{ minWidth: 28 }}><Checkbox checked={isSelected} size="small" sx={{ p: 0.5 }} /></ListItemIcon>
-                                                                <ListItemText primary={display?.shortLabel || fieldKey} secondary={display?.unit ? `(${display.unit})` : undefined} primaryTypographyProps={{ fontSize: '0.78rem' }} secondaryTypographyProps={{ fontSize: '0.65rem' }} />
+                                                                <ListItemText primary={display?.shortLabelKey ? t(`forecast:${display.shortLabelKey}`) : fieldKey} secondary={display?.unit ? `(${display.unit})` : undefined} primaryTypographyProps={{ fontSize: '0.78rem' }} secondaryTypographyProps={{ fontSize: '0.65rem' }} />
                                                             </ListItemButton>
                                                         </ListItem>
                                                         {isSelected && heights && heights.length > 1 && group && (

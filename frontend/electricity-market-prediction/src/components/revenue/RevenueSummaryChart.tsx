@@ -14,6 +14,7 @@ import { OperationScheduleTable } from './OperationScheduleTable';
 import { PriceOperationChart } from './PriceOperationChart';
 import RevenueKpiHeader from './RevenueKpiHeader';
 import { RevenueEmptyState } from './RevenueEmptyState';
+import { useTranslation } from 'react-i18next';
 
 /** Resolve revenue for an operation based on the current price basis (own-model only). */
 function resolveRevenue(op: GanttOperation, basis: string): number {
@@ -70,6 +71,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
 }) => {
     const theme = useTheme();
     const darkMode = theme.palette.mode === 'dark';
+    const { t } = useTranslation('siteRevenue');
     const [activeTab, setActiveTab] = useState(0);
     const [selectedScheduleId, setSelectedScheduleId] = useState<string>('optimal');
     // Internal fallback when not controlled from outside
@@ -100,7 +102,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
 
     // Price basis options: 'actual' + each model that has predictions
     const priceBasisOptions = useMemo(() => {
-        const options: { id: string; label: string }[] = [{ id: 'actual', label: '實際值' }];
+        const options: { id: string; label: string }[] = [{ id: 'actual', label: t('summary.priceBasisActual') }];
         if (ganttData?.models) {
             selectedModels.forEach(m => {
                 const key = `${m.id}|${m.name}`;
@@ -111,7 +113,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
             });
         }
         return options;
-    }, [ganttData, selectedModels]);
+    }, [ganttData, selectedModels, t]);
 
     // When ganttData changes, reset priceBasis to 'actual' if current basis is no longer available
     useEffect(() => {
@@ -578,11 +580,11 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
     const PriceBasisSelector = () => (
         priceBasisOptions.length > 1 ? (
             <FormControl size="small" sx={{ minWidth: 160 }}>
-                <InputLabel id="price-basis-label" sx={{ fontSize: '0.8rem' }}>價格參考來源</InputLabel>
+                <InputLabel id="price-basis-label" sx={{ fontSize: '0.8rem' }}>{t('summary.priceBasisLabel')}</InputLabel>
                 <Select
                     labelId="price-basis-label"
                     value={priceBasis}
-                    label="價格參考來源"
+                    label={t('summary.priceBasisLabel')}
                     onChange={(e) => setPriceBasis(e.target.value)}
                     sx={{ fontSize: '0.8rem' }}
                 >
@@ -590,11 +592,11 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: '0.8rem' }}>
                             {opt.id === 'actual'
                                 ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Chip label="實際" size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#1976d244', color: '#42a5f5' }} />
+                                    <Chip label={t('summary.chipActual')} size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#1976d244', color: '#42a5f5' }} />
                                     {opt.label}
                                 </Box>
                                 : <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Chip label="預測" size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
+                                    <Chip label={t('summary.chipForecast')} size="small" sx={{ height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
                                     {opt.label}
                                 </Box>
                             }
@@ -635,13 +637,13 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     bgcolor: 'var(--card-bg)', flexShrink: 0,
                 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
-                        {(ganttData?.optimal?.length ?? 0) > 0 ? '收益計算基準' : '假設實際值（價格參考）'}
+                        {(ganttData?.optimal?.length ?? 0) > 0 ? t('summary.revenueBasis') : t('summary.assumedActual')}
                     </Typography>
                     <PriceBasisSelector />
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', opacity: 0.7 }}>
                         {priceBasis === 'actual'
-                            ? '以實際成交價計算各模型回測收益'
-                            : `以「${priceBasisOptions.find(o => o.id === priceBasis)?.label}」預測價格為基準，評估其他模型收益`
+                            ? t('summary.basisDescActual')
+                            : t('summary.basisDescModel', { model: priceBasisOptions.find(o => o.id === priceBasis)?.label })
                         }
                     </Typography>
                 </Box>
@@ -659,10 +661,10 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         '& .MuiTabs-indicator': { bgcolor: 'var(--primary)' },
                     }}
                 >
-                    <Tab label="概覽 Overview" />
-                    <Tab label="分析 Analysis" />
-                    <Tab label="操作明細 Details" />
-                    <Tab label="說明 Info" />
+                    <Tab label={t('summary.tabOverview')} />
+                    <Tab label={t('summary.tabAnalysis')} />
+                    <Tab label={t('summary.tabDetails')} />
+                    <Tab label={t('summary.tabInfo')} />
                 </Tabs>
             </Box>
 
@@ -685,7 +687,8 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                             colors={colors}
                             timeCategories={timeCategories}
                             height={294}
-                            title="價格與操作分析"
+                            title={t('summary.priceOperationTitle')}
+                            tooltipLabels={{ action: t('chart.tooltipAction') }}
                             groupId="revenue-time-group"
                         />
                     </Box>
@@ -701,7 +704,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         </Box>
                     ) : (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
-                            <Typography color="text.secondary" variant="caption">執行模擬後顯示排程圖</Typography>
+                            <Typography color="text.secondary" variant="caption">{t('summary.ganttPlaceholder')}</Typography>
                         </Box>
                     )}
                     {ganttData ? (
@@ -718,7 +721,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         </Box>
                     ) : (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
-                            <Typography color="text.secondary" variant="caption">SoC 顯示於模擬後</Typography>
+                            <Typography color="text.secondary" variant="caption">{t('summary.socPlaceholder')}</Typography>
                         </Box>
                     )}
                 </Box>
@@ -732,7 +735,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                             {/* Header row: title */}
                             <Box sx={{ flexShrink: 0 }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    每日收益分析
+                                    {t('summary.dailyRevenueAnalysis')}
                                 </Typography>
                             </Box>
 
@@ -747,9 +750,9 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                     <Divider sx={{ flexShrink: 0, borderColor: 'var(--card-border)' }} />
                                     <Box sx={{ flexShrink: 0 }}>
                                         <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            每日收益明細
+                                            {t('summary.dailyRevenueDetails')}
                                             {priceBasis !== 'actual' && (
-                                                <Chip label="預測值" size="small" sx={{ ml: 1, height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
+                                                <Chip label={t('summary.chipEstimated')} size="small" sx={{ ml: 1, height: 16, fontSize: '0.62rem', bgcolor: '#ed6c0222', color: '#ff9800' }} />
                                             )}
                                         </Typography>
                                         <TableContainer component={Paper} elevation={0} sx={{ maxHeight: 260, border: `1px solid ${borderColor}`, borderRadius: 1, overflowX: 'auto' }}>
@@ -757,7 +760,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                                 <TableHead>
                                                     {/* Row 1: series name headers (colspan 2 each) */}
                                                     <TableRow>
-                                                        <TableCell rowSpan={2} sx={{ fontWeight: 700, fontSize: '0.72rem', py: 0.75, bgcolor: 'var(--card-bg)', verticalAlign: 'bottom' }}>日期</TableCell>
+                                                        <TableCell rowSpan={2} sx={{ fontWeight: 700, fontSize: '0.72rem', py: 0.75, bgcolor: 'var(--card-bg)', verticalAlign: 'bottom' }}>{t('summary.dateColumn')}</TableCell>
                                                         {allModelDailyData.series.map(s => (
                                                             <TableCell key={s.id} colSpan={2} align="center" sx={{ fontWeight: 700, fontSize: '0.72rem', py: 0.5, bgcolor: 'var(--card-bg)', borderLeft: `3px solid ${s.color}`, color: s.color, whiteSpace: 'nowrap' }}>
                                                                 {s.name}
@@ -768,8 +771,8 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                                     <TableRow>
                                                         {allModelDailyData.series.map(s => (
                                                             <React.Fragment key={s.id}>
-                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', borderLeft: `3px solid ${s.color}`, whiteSpace: 'nowrap' }}>日收益</TableCell>
-                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', whiteSpace: 'nowrap' }}>累積收益</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', borderLeft: `3px solid ${s.color}`, whiteSpace: 'nowrap' }}>{t('summary.dailyRevenue')}</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.68rem', py: 0.5, bgcolor: 'var(--card-bg)', whiteSpace: 'nowrap' }}>{t('summary.cumulativeRevenue')}</TableCell>
                                                             </React.Fragment>
                                                         ))}
                                                     </TableRow>
@@ -802,7 +805,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         </>
                     ) : (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
-                            <Typography color="text.secondary" variant="caption">執行模擬後顯示每日收益分析</Typography>
+                            <Typography color="text.secondary" variant="caption">{t('summary.analysisPlaceholder')}</Typography>
                         </Box>
                     )}
                 </Box>
@@ -815,15 +818,15 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         <>
                             <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    操作明細表
+                                    {t('summary.operationDetailsTable')}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                     <FormControl size="small" sx={{ minWidth: 180 }}>
-                                        <InputLabel id="schedule-select-label" sx={{ fontSize: '0.8rem' }}>排程類型</InputLabel>
+                                        <InputLabel id="schedule-select-label" sx={{ fontSize: '0.8rem' }}>{t('summary.scheduleTypeLabel')}</InputLabel>
                                         <Select
                                             labelId="schedule-select-label"
                                             value={selectedScheduleId}
-                                            label="排程類型"
+                                            label={t('summary.scheduleTypeLabel')}
                                             onChange={(e) => setSelectedScheduleId(e.target.value)}
                                             sx={{ fontSize: '0.8rem' }}
                                         >
@@ -846,7 +849,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                         </>
                     ) : (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, border: `1px dashed ${borderColor}`, borderRadius: 1 }}>
-                            <Typography color="text.secondary" variant="caption">執行模擬後顯示操作明細</Typography>
+                            <Typography color="text.secondary" variant="caption">{t('summary.detailsPlaceholder')}</Typography>
                         </Box>
                     )}
                 </Box>

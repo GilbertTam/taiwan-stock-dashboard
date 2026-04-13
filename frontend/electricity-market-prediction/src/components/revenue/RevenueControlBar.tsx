@@ -12,11 +12,12 @@ import { useMarketDataContext } from '@/context/MarketDataContext';
 import { calculateModelMAE, prepareChartData } from '@/utils/chartUtils';
 import type { CalculatingDate } from '@/types';
 import type { ChartDataPoint } from '@/utils/chartUtils';
+import { useTranslation } from 'react-i18next';
 
 // ─── Calculating date label helper ───────────────────────────────────────────
 
-function formatCalcDate(dateVal: string): string {
-    if (!dateVal || dateVal === 'latest') return '最新';
+function formatCalcDate(dateVal: string, latestLabel: string): string {
+    if (!dateVal || dateVal === 'latest') return latestLabel;
     if (dateVal.length === 8 && !isNaN(Number(dateVal))) {
         return `${dateVal.slice(0, 4)}-${dateVal.slice(4, 6)}-${dateVal.slice(6, 8)}`;
     }
@@ -40,6 +41,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
     onOpenBatteryConfig,
     batteryConfigOpen,
 }) => {
+    const { t } = useTranslation('siteRevenue');
     const {
         areas, selectedArea, handleAreaChange,
         models, selectedModels, calculatingDatesByModel,
@@ -98,7 +100,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
                     const modelKey = `${m.id}|${m.name}`;
                     const color = m.color || '#cccccc';
                     const mae = calculateModelMAE(chartData, m.id, m.name);
-                    const dateLabel = formatCalcDate(m.calculatingDate);
+                    const dateLabel = formatCalcDate(m.calculatingDate, t('controlBar.latest'));
                     return (
                         <Chip
                             key={modelKey}
@@ -138,7 +140,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
                     );
                 })}
 
-                <Tooltip title="追加 / 管理模型">
+                <Tooltip title={t('controlBar.addManageModels')}>
                     <IconButton
                         size="small"
                         onClick={(e) => setModelPopoverAnchor(e.currentTarget)}
@@ -159,7 +161,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
             <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
 
             {/* ── Battery Config Button ────────────────────────────────────── */}
-            <Tooltip title="電池參數設定" arrow>
+            <Tooltip title={t('controlBar.batteryConfigTooltip')} arrow>
                 <Button
                     size="small"
                     startIcon={<SettingsIcon sx={{ fontSize: '0.85rem' }} />}
@@ -181,7 +183,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
                         },
                     }}
                 >
-                    電池參數
+                    {t('controlBar.batteryParamsBtn')}
                 </Button>
             </Tooltip>
 
@@ -205,7 +207,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
             >
                 <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid var(--card-border)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                        選擇模型
+                        {t('controlBar.selectModel')}
                     </Typography>
                 </Box>
                 <List dense sx={{ py: 0.5, maxHeight: 280, overflowY: 'auto' }}>
@@ -244,11 +246,11 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
             >
                 <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid var(--card-border)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem' }}>
-                        計算日
+                        {t('controlBar.calcDate')}
                     </Typography>
                 </Box>
                 <MenuItem onClick={() => dateMenuState && handleDateSelect(dateMenuState.modelIndex, 'latest')} dense sx={{ fontSize: '0.8rem' }}>
-                    最新預測
+                    {t('controlBar.latestForecast')}
                 </MenuItem>
                 {activeDateDates.map((d) => (
                     <MenuItem
@@ -257,7 +259,7 @@ export const RevenueControlBar: React.FC<RevenueControlBarProps> = ({
                         dense
                         sx={{ fontSize: '0.8rem', fontFamily: 'monospace' }}
                     >
-                        {formatCalcDate(String(d.calculating_date))}
+                        {formatCalcDate(String(d.calculating_date), t('controlBar.latest'))}
                     </MenuItem>
                 ))}
             </Menu>

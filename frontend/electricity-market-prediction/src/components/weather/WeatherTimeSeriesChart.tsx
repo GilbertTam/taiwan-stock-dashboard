@@ -5,6 +5,7 @@ import { Box, Typography } from '@mui/material';
 import type { EChartsOption } from 'echarts';
 import { BaseChart } from '@/components/charts/BaseChart';
 import { createTimeAxis, createValueAxis, createGrid, createTooltip } from '@/utils/echartsHelpers';
+import { useTranslation } from 'react-i18next';
 import { WEATHER_FIELD_DISPLAY, weatherColors } from '@/constants/weatherCategories';
 import { parseToTimestamp, formatInTimezone, formatDateTimeJST } from '@/utils/chart/dates';
 
@@ -78,6 +79,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
     darkMode = false,
     colors,
 }) => {
+    const { t } = useTranslation('forecast');
     const activeFields = useMemo(() => Array.from(selectedFields), [selectedFields]);
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const [tooltipContent, setTooltipContent] = useState<string>('');
@@ -92,13 +94,14 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
             const isLeft = index % 2 === 1; // 0: Right, 1: Left, 2: Right, 3: Left
             const sideIndex = Math.floor(index / 2);
             const offset = sideIndex * axisOffsetSpacing;
-            const fieldInfo = WEATHER_FIELD_DISPLAY[field] || { shortLabel: field, unit: '' };
+            const fieldInfo = WEATHER_FIELD_DISPLAY[field] || { shortLabelKey: '', unit: '' };
+            const fieldLabel = fieldInfo.shortLabelKey ? t(fieldInfo.shortLabelKey) : field;
             const fieldColors = getFieldColors(field);
 
             const baseAxis = createValueAxis(colors, {
                 position: isLeft ? 'left' : 'right',
                 offset: offset,
-                name: `${fieldInfo.shortLabel}${fieldInfo.unit ? ` (${fieldInfo.unit})` : ''}`,
+                name: `${fieldLabel}${fieldInfo.unit ? ` (${fieldInfo.unit})` : ''}`,
                 alignTicks: true,
                 nameLocation: 'middle',
                 nameRotate: isLeft ? 90 : -90,
@@ -130,7 +133,8 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
 
         activeFields.forEach((field, index) => {
             const yAxisIndex = index;
-            const fieldInfo = WEATHER_FIELD_DISPLAY[field] || { shortLabel: field, unit: '' };
+            const fieldInfo = WEATHER_FIELD_DISPLAY[field] || { shortLabelKey: '', unit: '' };
+            const fieldLabel = fieldInfo.shortLabelKey ? t(fieldInfo.shortLabelKey) : field;
             const isPrecipitation = field.includes('precipitation') || field.includes('rain') || field.includes('snow');
             const isDaily = field.includes('_max') || field.includes('_min') || field.includes('_mean') || field.includes('_sum') || field === 'sunshine_duration' || field === 'daylight_duration';
             const isWindDirection = field.includes('wind_direction');
@@ -169,7 +173,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
                     .filter(Boolean) as any[];
             };
 
-            const suffix = isDaily ? '・日' : '・時';
+            const suffix = isDaily ? t('chartPanel.dailySuffix') : t('chartPanel.hourlySuffix');
             const windArrowSVG = 'path://M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z';
 
             const actualPoints = processPoints(actualData);
@@ -177,7 +181,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
                 // Label dynamic resolving including the applied height directly inside legend
                 const heightTitleSuffix = (fieldToFetch !== field && fieldToFetch.includes('100m')) ? ' (100m)' : '';
                 series.push({
-                    name: `${fieldInfo.shortLabel}${heightTitleSuffix} (實際${suffix})`,
+                    name: `${fieldLabel}${heightTitleSuffix} (${t('weatherCategories.actual')}${suffix})`,
                     type: isPrecipitation ? 'bar' : isWindDirection ? 'scatter' : 'line',
                     step: (isPrecipitation || isWindDirection) ? undefined : 'end',
                     yAxisIndex,
@@ -196,7 +200,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
             if (forecastPoints.length > 0) {
                 const heightTitleSuffix = (fieldToFetch !== field && fieldToFetch.includes('100m')) ? ' (100m)' : '';
                 series.push({
-                    name: `${fieldInfo.shortLabel}${heightTitleSuffix} (預報${suffix})`,
+                    name: `${fieldLabel}${heightTitleSuffix} (${t('weatherCategories.forecast')}${suffix})`,
                     type: isPrecipitation ? 'bar' : isWindDirection ? 'scatter' : 'line',
                     step: (isPrecipitation || isWindDirection) ? undefined : 'end',
                     yAxisIndex,
@@ -318,8 +322,8 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
                     const num = Number(params[0].value[0]);
                     const ms = (num > 0 && num < 1e12) ? num * 1000 : num;
 
-                    const isDailyOnly = params.every((p: any) => p.seriesName === 'DayBackground' || (p.seriesName && p.seriesName.includes('・日')));
-                    const timeStr = isDailyOnly ? formatDateTimeJST(ms).split(' ')[0] + ' (日)' : formatDateTimeJST(ms);
+                    const isDailyOnly = params.every((p: any) => p.seriesName === 'DayBackground' || (p.seriesName && p.seriesName.includes(t('chartPanel.dailySuffix'))));
+                    const timeStr = isDailyOnly ? formatDateTimeJST(ms).split(' ')[0] + t('chartPanel.dailyDateMarker') : formatDateTimeJST(ms);
 
                     // Build the custom fixed tooltip content (HTML)
                     let html = `<div style="display:flex;align-items:center;gap:12px;font-size:12px;overflow-x:auto;">`;
@@ -336,12 +340,15 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
                         let unit = '';
                         for (const field of activeFields) {
                             const fieldInfo = WEATHER_FIELD_DISPLAY[field];
-                            if (fieldInfo && seriesNameStr.includes(fieldInfo.shortLabel)) {
-                                unit = fieldInfo.unit || '';
-                                if (field === 'sunshine_duration' && unit === 'h') {
-                                    unit = 's'; // Force "s" rendering for sunshine_duration since values are in seconds
+                            if (fieldInfo) {
+                                const translatedLabel = fieldInfo.shortLabelKey ? t(fieldInfo.shortLabelKey) : field;
+                                if (seriesNameStr.includes(translatedLabel)) {
+                                    unit = fieldInfo.unit || '';
+                                    if (field === 'sunshine_duration' && unit === 'h') {
+                                        unit = 's'; // Force "s" rendering for sunshine_duration since values are in seconds
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
 
@@ -370,7 +377,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
             yAxis,
             series
         };
-    }, [actualData, forecastData, activeFields, colors, darkMode]);
+    }, [actualData, forecastData, activeFields, colors, darkMode, t]);
 
     // Use onEvents to handle mouseout which clears the tooltip
     const onEvents = useMemo(() => ({
@@ -410,7 +417,7 @@ export const WeatherTimeSeriesChart: React.FC<WeatherTimeSeriesChartProps> = ({
                 </>
             ) : (
                 <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Typography color="text.secondary">請在左側選擇欲顯示的天氣變數</Typography>
+                    <Typography color="text.secondary">{t('chartPanel.selectWeatherVars')}</Typography>
                 </Box>
             )}
         </Box>

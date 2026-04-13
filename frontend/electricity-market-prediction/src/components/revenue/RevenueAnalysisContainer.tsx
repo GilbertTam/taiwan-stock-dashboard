@@ -4,6 +4,7 @@ import { RevenueSummaryChart } from './RevenueSummaryChart';
 import { RevenueEmptyState } from './RevenueEmptyState';
 import { OptimizationResult, GanttChartData } from '@/types/revenueAnalysis';
 import { useTheme } from '@/app/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 interface RevenueAnalysisContainerProps {
     actualResult: OptimizationResult | null;
@@ -48,6 +49,7 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
     onPriceBasisChange,
 }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation('siteRevenue');
 
     if (!ganttData) {
         if (isSimulating || isDataLoading || isInitializing) {
@@ -70,10 +72,10 @@ export const RevenueAnalysisContainer: React.FC<RevenueAnalysisContainerProps> =
                 >
                     <CircularProgress size={48} sx={{ mb: 3 }} />
                     <Typography variant="h6" color="text.primary" gutterBottom>
-                        {isDataLoading && !isSimulating ? '載入市場資料中...' : isInitializing && !isSimulating ? '準備模擬中...' : '正在計算收益模擬...'}
+                        {isDataLoading && !isSimulating ? t('container.loadingMarketData') : isInitializing && !isSimulating ? t('container.preparingSimulation') : t('container.calculatingRevenue')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        依據您設定的參數，這可能需要幾秒鐘的時間。
+                        {t('container.simulationParamsNote')}
                     </Typography>
                 </Paper>
             );

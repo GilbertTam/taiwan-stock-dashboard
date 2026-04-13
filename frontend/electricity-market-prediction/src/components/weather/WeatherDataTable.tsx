@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { WEATHER_FIELD_DISPLAY, DAILY_CATEGORIES } from '@/constants/weatherCategories';
 import { formatInTimezone, dateToJstTimestamp } from '@/utils/chart/dates';
 import { weatherFields } from '../price-chart/constants';
+import { useTranslation } from 'react-i18next';
 
 interface WeatherDataTableProps {
     data: any[];
@@ -37,11 +38,13 @@ export const WeatherDataTable: React.FC<WeatherDataTableProps> = ({
     startDate,
     endDate
 }) => {
+    const { t } = useTranslation(['weather', 'forecast']);
+
     if (!data || data.length === 0) {
         return (
             <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                    無資料可顯示 (No data to display)
+                    {t('table.noData')}
                 </Typography>
             </Box>
         );
@@ -53,9 +56,9 @@ export const WeatherDataTable: React.FC<WeatherDataTableProps> = ({
 
     const getFieldLabel = (field: string, isForecast: boolean) => {
         const display = WEATHER_FIELD_DISPLAY[field];
-        const baseLabel = display?.shortLabel || field;
-        const typeStr = isForecast ? '預測' : '實測';
-        const freqStr = isDailyField(field) ? '日' : '時';
+        const baseLabel = display?.shortLabelKey ? t(`forecast:${display.shortLabelKey}`) : field;
+        const typeStr = isForecast ? t('table.forecast') : t('table.actual');
+        const freqStr = isDailyField(field) ? t('table.dailyFreq') : t('table.hourlyFreq');
         return `[${typeStr}·${freqStr}] ${baseLabel} (${display?.unit || ''})`;
     };
 
@@ -80,7 +83,7 @@ export const WeatherDataTable: React.FC<WeatherDataTableProps> = ({
         return (
             <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                    請在左側勾選欲顯示的天氣項目 (Please select weather items to display)
+                    {t('table.selectFields')}
                 </Typography>
             </Box>
         );
@@ -98,7 +101,7 @@ export const WeatherDataTable: React.FC<WeatherDataTableProps> = ({
                 borderRadius: 1,
                 '&::-webkit-scrollbar': { width: 8, height: 8 },
                 '&::-webkit-scrollbar-thumb': {
-                    bgcolor: alpha(colors.subText || '#888', 0.2),
+                    bgcolor: 'var(--scrollbar-thumb)',
                     borderRadius: 4
                 }
             }}
@@ -107,7 +110,7 @@ export const WeatherDataTable: React.FC<WeatherDataTableProps> = ({
                 <TableHead>
                     <TableRow>
                         <TableCell sx={{ bgcolor: 'var(--card-bg)', fontWeight: 'bold', borderBottom: `2px solid ${colors.grid}` }}>
-                            時間 (Time)
+                            {t('table.time')}
                         </TableCell>
                         {activeActual.map(field => {
                             const scalePattern = /_(\d+m?|0_to_7cm|7_to_28cm|28_to_100cm|100_to_255cm|0_to_100cm|max|min|mean|sum)$/;

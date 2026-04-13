@@ -19,6 +19,7 @@ import { format, subDays, parseISO } from 'date-fns';
 import { fetchActualPrices } from '@/services/marketApi';
 import { fetchPredictions } from '@/services/predictionsApi';
 import { ManualSlot, BatteryConfig } from '@/types/revenueAnalysis';
+import { useTranslation } from 'react-i18next';
 import {
     ScenarioType,
     NDayAvgParams,
@@ -52,35 +53,10 @@ function stepToTime(step: number): string {
     return `${h}:${m}`;
 }
 
-const SCENARIO_LABELS: Record<ScenarioType, string> = {
-    'nday-avg':          'N日均價',
-    'percentile':        '百分位閾值',
-    'fixed-window':      '固定時段',
-    'cycle-target':      '指定循環次數',
-    'spread-threshold':  '價差閾值',
-    'peak-valley':       '朝夕峰谷',
-    'price-momentum':    '歷史均值偏離',
-    'conservative':      '保守低風險',
-};
-
-const SCENARIO_DESCRIPTIONS: Record<ScenarioType, string> = {
-    'nday-avg':
-        '參考過去 N 天同時段的平均電價，將最便宜的時段設為充電、最貴的時段設為放電。適合電價走勢穩定、波動不大的日子。充放電格數受電池容量與設定循環次數限制。',
-    'percentile':
-        '以當日電價的分位數作為閾值，低於下限分位的時段充電、高於上限分位的時段放電。活用當日市場的相對高低，不依賴歷史資料。',
-    'fixed-window':
-        '以時刻為基準的固定排程，不看市場價格，在指定時間範圍內強制充放電。適合有固定運轉合約或設備排程需求的場所。充放電次數由電池容量自動決定上限。',
-    'cycle-target':
-        '指定每天目標循環次數（1–3），自動根據電池容量計算所需格數，並從當日電價中選出最便宜（充電）與最貴（放電）的時段。',
-    'spread-threshold':
-        '僅在充放電平均價差超過設定門檻時才執行，否則全天待機。避免在電價平坦日做低利潤或虧損交易，適合重視每次操作獲利的保守運用。',
-    'peak-valley':
-        '依照日本電力市場常見的「深夜谷、早晚峰」模式，於凌晨低需求時段（0:00–7:30）充電，分別在早高峰（~7:30–11:30）與晚高峰（~16:30–21:30）選擇最高價時段放電。',
-    'price-momentum':
-        '針對每個時段計算過去 N 天的歷史價格分布，當今日電價低於歷史分位下限時充電、高於上限時放電。只在電價相對歷史偏低或偏高時才操作，適合電價具均值回歸特性的市場。',
-    'conservative':
-        '只取當日最高價的前 X% 時段放電、最低價的前 X% 時段充電，強制大價差操作。每循環獲利最大但操作機會較少，適合重視電池壽命或折舊成本高的場景。',
-};
+const SCENARIO_TYPES: ScenarioType[] = [
+    'nday-avg', 'percentile', 'fixed-window', 'cycle-target',
+    'spread-threshold', 'peak-valley', 'price-momentum', 'conservative',
+];
 
 // ---------------------------------------------------------------------------
 // Mini slot preview bar
@@ -163,57 +139,60 @@ function SliderRow({ label, tooltip, value, min, max, step = 1, format, onChange
 // ---------------------------------------------------------------------------
 
 function NDayAvgPanel({ params, onChange, config }: { params: NDayAvgParams; onChange: (p: NDayAvgParams) => void; config: BatteryConfig }) {
+    const { t } = useTranslation('siteRevenue');
     const { slotsPerCharge, slotsPerDischarge } = calcPhysicsSlots(config);
     const maxCharge = slotsPerCharge * params.cycleCount;
     const maxDischarge = slotsPerDischarge * params.cycleCount;
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="歷史天數" tooltip="參考幾天前的同時段電價來計算平均值，天數越多越穩定但越落後" value={params.nDays} min={1} max={30}
-                format={v => `${v} 天`}
+            <SliderRow label={t('scenario.params.ndays')} tooltip={t('scenario.params.ndaysTooltip')} value={params.nDays} min={1} max={30}
+                format={v => `${v} ${t('scenario.params.unitDays')}`}
                 onChange={v => onChange({ ...params, nDays: v })} />
-            <SliderRow label="充電格數" tooltip={`每格 30 分鐘，最多受電池容量限制（目前上限 ${maxCharge} 格）`} value={Math.min(params.chargeSlotCount, maxCharge)} min={1} max={Math.max(1, maxCharge)}
-                format={v => `${v} 格`}
+            <SliderRow label={t('scenario.params.chargeSlotCount')} tooltip={t('scenario.params.chargeSlotCountTooltip', { max: maxCharge })} value={Math.min(params.chargeSlotCount, maxCharge)} min={1} max={Math.max(1, maxCharge)}
+                format={v => `${v} ${t('scenario.params.unitSlots')}`}
                 onChange={v => onChange({ ...params, chargeSlotCount: v })} />
-            <SliderRow label="放電格數" tooltip={`每格 30 分鐘，最多受電池容量限制（目前上限 ${maxDischarge} 格）`} value={Math.min(params.dischargeSlotCount, maxDischarge)} min={1} max={Math.max(1, maxDischarge)}
-                format={v => `${v} 格`}
+            <SliderRow label={t('scenario.params.dischargeSlotCount')} tooltip={t('scenario.params.dischargeSlotCountTooltip', { max: maxDischarge })} value={Math.min(params.dischargeSlotCount, maxDischarge)} min={1} max={Math.max(1, maxDischarge)}
+                format={v => `${v} ${t('scenario.params.unitSlots')}`}
                 onChange={v => onChange({ ...params, dischargeSlotCount: v })} />
-            <SliderRow label="循環次數" tooltip="目標每天充放電幾個循環，決定充放電格數上限" value={params.cycleCount} min={1} max={3}
-                format={v => `${v} 次`}
+            <SliderRow label={t('scenario.params.cycleCount')} tooltip={t('scenario.params.cycleCountTooltip')} value={params.cycleCount} min={1} max={3}
+                format={v => `${v} ${t('scenario.params.unitCycles')}`}
                 onChange={v => onChange({ ...params, cycleCount: v })} />
         </Box>
     );
 }
 
 function PercentilePanel({ params, onChange, config }: { params: PercentileParams; onChange: (p: PercentileParams) => void; config: BatteryConfig }) {
+    const { t } = useTranslation('siteRevenue');
     const { slotsPerCharge, slotsPerDischarge } = calcPhysicsSlots(config);
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="充電門檻" tooltip="當日電價低於此百分位的時段才充電，數字越小選到的時段越少但越便宜" value={Math.round(params.chargeThresholdPct * 100)} min={5} max={50}
+            <SliderRow label={t('scenario.params.chargeThreshold')} tooltip={t('scenario.params.chargeThresholdTooltip')} value={Math.round(params.chargeThresholdPct * 100)} min={5} max={50}
                 format={v => `≤ ${v}%`}
                 onChange={v => onChange({ ...params, chargeThresholdPct: v / 100 })} />
-            <SliderRow label="放電門檻" tooltip="當日電價高於此百分位的時段才放電，數字越大選到的時段越少但越貴" value={Math.round(params.dischargeThresholdPct * 100)} min={50} max={95}
+            <SliderRow label={t('scenario.params.dischargeThreshold')} tooltip={t('scenario.params.dischargeThresholdTooltip')} value={Math.round(params.dischargeThresholdPct * 100)} min={50} max={95}
                 format={v => `≥ ${v}%`}
                 onChange={v => onChange({ ...params, dischargeThresholdPct: v / 100 })} />
-            <SliderRow label="循環次數" tooltip={`決定充放電格數上限（每循環約需充電 ${slotsPerCharge} 格、放電 ${slotsPerDischarge} 格）`} value={params.cycleCount} min={1} max={3}
-                format={v => `${v} 次`}
+            <SliderRow label={t('scenario.params.cycleCount')} tooltip={t('scenario.params.cycleCountPhysicsTooltip', { ch: slotsPerCharge, dis: slotsPerDischarge })} value={params.cycleCount} min={1} max={3}
+                format={v => `${v} ${t('scenario.params.unitCycles')}`}
                 onChange={v => onChange({ ...params, cycleCount: v })} />
         </Box>
     );
 }
 
 function FixedWindowPanel({ params, onChange }: { params: FixedWindowParams; onChange: (p: FixedWindowParams) => void }) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="充電開始" tooltip="充電時段的起始時刻" value={params.chargeStart} min={0} max={47}
+            <SliderRow label={t('scenario.params.chargeStart')} tooltip={t('scenario.params.chargeStartTooltip')} value={params.chargeStart} min={0} max={47}
                 format={stepToTime}
                 onChange={v => onChange({ ...params, chargeStart: Math.min(v, params.chargeEnd) })} />
-            <SliderRow label="充電結束" tooltip="充電時段的結束時刻（含）" value={params.chargeEnd} min={0} max={47}
+            <SliderRow label={t('scenario.params.chargeEnd')} tooltip={t('scenario.params.chargeEndTooltip')} value={params.chargeEnd} min={0} max={47}
                 format={stepToTime}
                 onChange={v => onChange({ ...params, chargeEnd: Math.max(v, params.chargeStart) })} />
-            <SliderRow label="放電開始" tooltip="放電時段的起始時刻" value={params.dischargeStart} min={0} max={47}
+            <SliderRow label={t('scenario.params.dischargeStart')} tooltip={t('scenario.params.dischargeStartTooltip')} value={params.dischargeStart} min={0} max={47}
                 format={stepToTime}
                 onChange={v => onChange({ ...params, dischargeStart: Math.min(v, params.dischargeEnd) })} />
-            <SliderRow label="放電結束" tooltip="放電時段的結束時刻（含）" value={params.dischargeEnd} min={0} max={47}
+            <SliderRow label={t('scenario.params.dischargeEnd')} tooltip={t('scenario.params.dischargeEndTooltip')} value={params.dischargeEnd} min={0} max={47}
                 format={stepToTime}
                 onChange={v => onChange({ ...params, dischargeEnd: Math.max(v, params.dischargeStart) })} />
         </Box>
@@ -221,76 +200,83 @@ function FixedWindowPanel({ params, onChange }: { params: FixedWindowParams; onC
 }
 
 function CycleTargetPanel({ params, onChange, config }: { params: CycleTargetParams; onChange: (p: CycleTargetParams) => void; config: BatteryConfig }) {
+    const { t } = useTranslation('siteRevenue');
     const { slotsPerCharge, slotsPerDischarge } = calcPhysicsSlots(config);
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="循環次數" tooltip="目標每天完整充放電幾個循環，系統自動計算所需格數" value={params.cycleCount} min={1} max={3}
-                format={v => `${v} 次`}
+            <SliderRow label={t('scenario.params.cycleCount')} tooltip={t('scenario.params.cycleCountTargetTooltip')} value={params.cycleCount} min={1} max={3}
+                format={v => `${v} ${t('scenario.params.unitCycles')}`}
                 onChange={v => onChange({ cycleCount: v })} />
             <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-                充電 {Math.min(24, slotsPerCharge * params.cycleCount)} 格 ·
-                放電 {Math.min(24, slotsPerDischarge * params.cycleCount)} 格（依電池容量自動計算）
+                {t('scenario.params.autoCalcSlots', {
+                    ch: Math.min(24, slotsPerCharge * params.cycleCount),
+                    dis: Math.min(24, slotsPerDischarge * params.cycleCount),
+                })}
             </Typography>
         </Box>
     );
 }
 
 function SpreadThresholdPanel({ params, onChange }: { params: SpreadThresholdParams; onChange: (p: SpreadThresholdParams) => void }) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="最小價差" tooltip="充放電平均價差須超過此門檻才執行，否則全天待機。單位：¥/kWh" value={params.minSpread} min={0} max={30} step={0.5}
+            <SliderRow label={t('scenario.params.minSpread')} tooltip={t('scenario.params.minSpreadTooltip')} value={params.minSpread} min={0} max={30} step={0.5}
                 format={v => `${v} ¥/kWh`}
                 onChange={v => onChange({ ...params, minSpread: v })} />
-            <SliderRow label="循環次數" tooltip="在價差足夠時，目標執行幾個充放電循環" value={params.cycleCount} min={1} max={2}
-                format={v => `${v} 次`}
+            <SliderRow label={t('scenario.params.cycleCount')} tooltip={t('scenario.params.cycleCountSpreadTooltip')} value={params.cycleCount} min={1} max={2}
+                format={v => `${v} ${t('scenario.params.unitCycles')}`}
                 onChange={v => onChange({ ...params, cycleCount: v })} />
         </Box>
     );
 }
 
 function PeakValleyPanel({ params, onChange }: { params: PeakValleyParams; onChange: (p: PeakValleyParams) => void }) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="早峰放電格" tooltip="早高峰（~7:30–11:30）選幾格最高價時段放電，不足該窗口格數則從中取最貴的" value={params.morningPeakSlots} min={1} max={8}
-                format={v => `${v} 格`}
+            <SliderRow label={t('scenario.params.morningPeakSlots')} tooltip={t('scenario.params.morningPeakSlotsTooltip')} value={params.morningPeakSlots} min={1} max={8}
+                format={v => `${v} ${t('scenario.params.unitSlots')}`}
                 onChange={v => onChange({ ...params, morningPeakSlots: v })} />
-            <SliderRow label="晚峰放電格" tooltip="晚高峰（~16:30–21:30）選幾格最高價時段放電，不足該窗口格數則從中取最貴的" value={params.eveningPeakSlots} min={1} max={8}
-                format={v => `${v} 格`}
+            <SliderRow label={t('scenario.params.eveningPeakSlots')} tooltip={t('scenario.params.eveningPeakSlotsTooltip')} value={params.eveningPeakSlots} min={1} max={8}
+                format={v => `${v} ${t('scenario.params.unitSlots')}`}
                 onChange={v => onChange({ ...params, eveningPeakSlots: v })} />
             <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-                充電窗口：0:00–7:30（深夜低需求）
+                {t('scenario.params.chargeWindow')}
             </Typography>
         </Box>
     );
 }
 
 function PriceMomentumPanel({ params, onChange }: { params: PriceMomentumParams; onChange: (p: PriceMomentumParams) => void }) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="參照天數" tooltip="計算歷史分布所用的天數，天數越多基準越穩定" value={params.nDays} min={1} max={14}
-                format={v => `${v} 天`}
+            <SliderRow label={t('scenario.params.refDays')} tooltip={t('scenario.params.refDaysTooltip')} value={params.nDays} min={1} max={14}
+                format={v => `${v} ${t('scenario.params.unitDays')}`}
                 onChange={v => onChange({ ...params, nDays: v })} />
-            <SliderRow label="充電分位" tooltip="今日電價低於歷史同期此分位時充電（例如 25% 表示比歷史便宜四分之三的情況才充電）" value={Math.round(params.chargeBelow * 100)} min={10} max={40}
+            <SliderRow label={t('scenario.params.chargePct')} tooltip={t('scenario.params.chargePctTooltip')} value={Math.round(params.chargeBelow * 100)} min={10} max={40}
                 format={v => `< ${v}%`}
                 onChange={v => onChange({ ...params, chargeBelow: v / 100 })} />
-            <SliderRow label="放電分位" tooltip="今日電價高於歷史同期此分位時放電（例如 75% 表示比歷史貴四分之三才放電）" value={Math.round(params.dischargeAbove * 100)} min={60} max={90}
+            <SliderRow label={t('scenario.params.dischargePct')} tooltip={t('scenario.params.dischargePctTooltip')} value={Math.round(params.dischargeAbove * 100)} min={60} max={90}
                 format={v => `> ${v}%`}
                 onChange={v => onChange({ ...params, dischargeAbove: v / 100 })} />
-            <SliderRow label="循環次數" tooltip="最多執行幾個充放電循環" value={params.cycleCount} min={1} max={2}
-                format={v => `${v} 次`}
+            <SliderRow label={t('scenario.params.cycleCount')} tooltip={t('scenario.params.cycleCountMomentumTooltip')} value={params.cycleCount} min={1} max={2}
+                format={v => `${v} ${t('scenario.params.unitCycles')}`}
                 onChange={v => onChange({ ...params, cycleCount: v })} />
         </Box>
     );
 }
 
 function ConservativePanel({ params, onChange }: { params: ConservativeParams; onChange: (p: ConservativeParams) => void }) {
+    const { t } = useTranslation('siteRevenue');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <SliderRow label="極端價帶%" tooltip="只使用最高/最低電價中的前 X% 時段，比例越小選到的時段越少、價差越大" value={params.topPct} min={5} max={25}
+            <SliderRow label={t('scenario.params.extremePct')} tooltip={t('scenario.params.extremePctTooltip')} value={params.topPct} min={5} max={25}
                 format={v => `${v}%`}
                 onChange={v => onChange({ ...params, topPct: v })} />
             <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-                固定 1 個循環，最大化每循環收益
+                {t('scenario.params.fixedOneCycle')}
             </Typography>
         </Box>
     );
@@ -307,6 +293,7 @@ function CycleIndicator({
     slots: ManualSlot[];
     config: BatteryConfig;
 }) {
+    const { t } = useTranslation('siteRevenue');
     const dischargeCount = slots.filter(s => s.action === 'Discharge').length;
     const estimatedCycles = config.E_cap > 0
         ? (dischargeCount * config.P_max_dis * config.dt) / (config.eff_dis * config.E_cap)
@@ -319,11 +306,11 @@ function CycleIndicator({
                 fontSize: '0.62rem',
                 color: overLimit ? 'warning.main' : 'text.secondary',
             }}>
-                預估循環：{estimatedCycles.toFixed(2)} 次 / 上限：{config.Cycle_limit} 次
+                {t('scenario.estCycles', { est: estimatedCycles.toFixed(2), limit: config.Cycle_limit })}
             </Typography>
             {overLimit && (
                 <Typography sx={{ fontSize: '0.60rem', color: 'warning.main' }}>
-                    ⚠ 超過上限，模擬將自動截停
+                    {t('scenario.overLimit')}
                 </Typography>
             )}
         </Box>
@@ -407,14 +394,37 @@ export default function ScenarioGenerator({
     availableDates,
     onApplyAll,
 }: ScenarioGeneratorProps) {
+    const { t } = useTranslation('siteRevenue');
     const [open, setOpen] = useState(false);
     const [scenarioType, setScenarioType] = useState<ScenarioType>('nday-avg');
     const [appliedLabel, setAppliedLabel] = useState<string | null>(null);
 
+    const scenarioLabels = useMemo<Record<ScenarioType, string>>(() => ({
+        'nday-avg':         t('scenario.labels.ndayAvg'),
+        'percentile':       t('scenario.labels.percentile'),
+        'fixed-window':     t('scenario.labels.fixedWindow'),
+        'cycle-target':     t('scenario.labels.cycleTarget'),
+        'spread-threshold': t('scenario.labels.spreadThreshold'),
+        'peak-valley':      t('scenario.labels.peakValley'),
+        'price-momentum':   t('scenario.labels.priceMomentum'),
+        'conservative':     t('scenario.labels.conservative'),
+    }), [t]);
+
+    const scenarioDescriptions = useMemo<Record<ScenarioType, string>>(() => ({
+        'nday-avg':         t('scenario.descriptions.ndayAvg'),
+        'percentile':       t('scenario.descriptions.percentile'),
+        'fixed-window':     t('scenario.descriptions.fixedWindow'),
+        'cycle-target':     t('scenario.descriptions.cycleTarget'),
+        'spread-threshold': t('scenario.descriptions.spreadThreshold'),
+        'peak-valley':      t('scenario.descriptions.peakValley'),
+        'price-momentum':   t('scenario.descriptions.priceMomentum'),
+        'conservative':     t('scenario.descriptions.conservative'),
+    }), [t]);
+
     // Historical price cache — keyed by `area|priceSource` to auto-invalidate on source change
     const historicalCacheRef = useRef<{ key: string; data: Record<string, number[]> } | null>(null);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-    const [historyFetchError, setHistoryFetchError] = useState<string | null>(null);
+    const [hasHistoryError, setHasHistoryError] = useState(false);
 
     // Model-fill cache — stores model predictions for missing historical dates
     const modelFillCacheRef = useRef<{ key: string; data: Record<string, number[]> } | null>(null);
@@ -463,7 +473,7 @@ export default function ScenarioGenerator({
 
         let cancelled = false;
         setIsHistoryLoading(true);
-        setHistoryFetchError(null);
+        setHasHistoryError(false);
 
         fetchHistoricalPrices(area, priceSource ?? 'actual', targetDate)
             .then(data => {
@@ -473,7 +483,7 @@ export default function ScenarioGenerator({
             })
             .catch(() => {
                 if (cancelled) return;
-                setHistoryFetchError('歷史價格載入失敗，情境建議可能不準確。');
+                setHasHistoryError(true);
                 setIsHistoryLoading(false);
             });
         return () => { cancelled = true; };
@@ -640,14 +650,14 @@ export default function ScenarioGenerator({
 
     function getPriceLabel() {
         return !priceSource || priceSource === 'actual'
-            ? '實際值'
+            ? t('scenario.actualJepx')
             : priceSource.split('|')[1] ?? priceSource;
     }
 
     function handleApply() {
         if (!targetDate || !previewSlots) return;
         onApply(previewSlots);
-        setAppliedLabel(`${SCENARIO_LABELS[scenarioType]}（${getPriceLabel()}）`);
+        setAppliedLabel(t('scenario.applied', { label: `${scenarioLabels[scenarioType]}（${getPriceLabel()}）` }));
     }
 
     function handleReset() {
@@ -665,7 +675,7 @@ export default function ScenarioGenerator({
         }
         if (Object.keys(result).length === 0) return;
         onApplyAll(result);
-        setAppliedLabel(`${SCENARIO_LABELS[scenarioType]}（${getPriceLabel()}，共 ${Object.keys(result).length} 天）`);
+        setAppliedLabel(t('scenario.applied', { label: `${scenarioLabels[scenarioType]}（${getPriceLabel()}）` }));
     }
 
     return (
@@ -688,11 +698,11 @@ export default function ScenarioGenerator({
                     ▶
                 </Typography>
                 <Typography sx={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500, userSelect: 'none' }}>
-                    劇本快速套用
+                    {t('scenario.header')}
                 </Typography>
                 {appliedLabel && !open && (
                     <Chip
-                        label={`已套用: ${appliedLabel}`}
+                        label={appliedLabel}
                         size="small"
                         sx={{
                             height: 16, fontSize: '0.58rem',
@@ -722,8 +732,8 @@ export default function ScenarioGenerator({
                             border: '1px solid var(--card-border)',
                         }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="caption" sx={{ fontSize: '0.68rem', color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>
-                                    排程參照
+                                <Typography variant="caption" sx={{ fontSize: '0.68rem', color: 'text.secondary', flexShrink: 0, minWidth: 56 }}>
+                                    {t('scenario.scheduleRef')}
                                 </Typography>
                                 <FormControl size="small" sx={{ flex: 1 }}>
                                     <Select
@@ -736,17 +746,17 @@ export default function ScenarioGenerator({
                                             color: (!priceSource || priceSource === 'actual') ? 'text.primary' : 'var(--primary)',
                                         }}
                                     >
-                                        <MenuItem value="actual" sx={{ fontSize: '0.72rem' }}>實際值（JEPX）</MenuItem>
+                                        <MenuItem value="actual" sx={{ fontSize: '0.72rem' }}>{t('scenario.actualJepx')}</MenuItem>
                                         {availableModels.map(m => (
                                             <MenuItem key={`${m.id}|${m.name}`} value={`${m.id}|${m.name}`} sx={{ fontSize: '0.72rem' }}>
-                                                {m.name}（預測值）
+                                                {m.name}{t('scenario.estimatedSuffix')}
                                             </MenuItem>
                                         ))}
                                     </Select>
                                 </FormControl>
                             </Box>
                             <Typography sx={{ fontSize: '0.6rem', color: 'text.disabled', lineHeight: 1.4 }}>
-                                ※ 排程參照決定劇本建議充放電時段；收益計算基準與上方 KPI 相同。
+                                {t('scenario.refNote')}
                             </Typography>
                         </Box>
                     )}
@@ -759,7 +769,7 @@ export default function ScenarioGenerator({
                             border: '1px solid rgba(237,108,2,0.25)',
                         }}>
                             <Typography sx={{ fontSize: '0.62rem', color: 'warning.main', lineHeight: 1.5 }}>
-                                ⚠ 此日期無實際價格資料。以「實際值」為參照套用劇本，所有格子將為 Idle。建議改選模型預測作為排程參照。
+                                {t('scenario.noActualWarning')}
                             </Typography>
                         </Box>
                     )}
@@ -775,7 +785,7 @@ export default function ScenarioGenerator({
                             '& .MuiToggleButtonGroup-grouped': { border: 'none !important', borderRadius: '4px !important' },
                         }}
                     >
-                        {(Object.keys(SCENARIO_LABELS) as ScenarioType[]).map(type => (
+                        {SCENARIO_TYPES.map(type => (
                             <ToggleButton
                                 key={type}
                                 value={type}
@@ -791,7 +801,7 @@ export default function ScenarioGenerator({
                                     },
                                 }}
                             >
-                                {SCENARIO_LABELS[type]}
+                                {scenarioLabels[type]}
                             </ToggleButton>
                         ))}
                     </ToggleButtonGroup>
@@ -801,7 +811,7 @@ export default function ScenarioGenerator({
                         fontSize: '0.62rem', color: 'text.secondary', lineHeight: 1.5,
                         borderLeft: '2px solid var(--primary)', pl: 0.75,
                     }}>
-                        {SCENARIO_DESCRIPTIONS[scenarioType]}
+                        {scenarioDescriptions[scenarioType]}
                     </Typography>
 
                     {/* Parameter panel */}
@@ -838,8 +848,8 @@ export default function ScenarioGenerator({
                             <SlotPreviewBar slots={previewSlots} />
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography sx={{ fontSize: '0.60rem', color: 'text.disabled' }}>
-                                    {previewSlots.filter(s => s.action === 'Charge').length} 格充電 ·{' '}
-                                    {previewSlots.filter(s => s.action === 'Discharge').length} 格放電
+                                    {t('scenario.chargeSlots', { count: previewSlots.filter(s => s.action === 'Charge').length })}{' '}
+                                    {t('scenario.dischargeSlots', { count: previewSlots.filter(s => s.action === 'Discharge').length })}
                                 </Typography>
                                 <CycleIndicator slots={previewSlots} config={config} />
                             </Box>
@@ -851,13 +861,13 @@ export default function ScenarioGenerator({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
                             <CircularProgress size={12} sx={{ color: 'var(--primary)' }} />
                             <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-                                載入歷史價格…
+                                {t('scenario.historyLoading')}
                             </Typography>
                         </Box>
                     )}
-                    {historyFetchError && (
+                    {hasHistoryError && (
                         <Typography sx={{ fontSize: '0.62rem', color: 'warning.main', lineHeight: 1.4 }}>
-                            {historyFetchError}
+                            {t('scenario.historyFetchError')}
                         </Typography>
                     )}
 
@@ -870,11 +880,11 @@ export default function ScenarioGenerator({
                                     color: historicalAvailability.available < historicalAvailability.requested
                                         ? 'warning.main' : 'success.main',
                                 }}>
-                                    {historicalAvailability.available}/{historicalAvailability.requested} 天有歷史資料
+                                    {t('scenario.histDays', { available: historicalAvailability.available, requested: historicalAvailability.requested })}
                                 </Typography>
                                 {historicalAvailability.available < historicalAvailability.requested && (
                                     <Typography sx={{ fontSize: '0.60rem', color: 'text.disabled' }}>
-                                        （缺失天以當日或鄰近資料填補）
+                                        {t('scenario.histGapNote')}
                                     </Typography>
                                 )}
                             </Box>
@@ -883,7 +893,7 @@ export default function ScenarioGenerator({
                             {historicalAvailability.available < historicalAvailability.requested && availableModels.length > 0 && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                     <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary', flexShrink: 0 }}>
-                                        以模型預測補充：
+                                        {t('scenario.fillGaps')}
                                     </Typography>
                                     <FormControl size="small" sx={{ flex: 1 }}>
                                         <Select
@@ -895,7 +905,7 @@ export default function ScenarioGenerator({
                                                 '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--card-border)' },
                                             }}
                                         >
-                                            <MenuItem value="none" sx={{ fontSize: '0.62rem' }}>不補充</MenuItem>
+                                            <MenuItem value="none" sx={{ fontSize: '0.62rem' }}>{t('scenario.noFill')}</MenuItem>
                                             {availableModels.map(m => (
                                                 <MenuItem key={`${m.id}|${m.name}`} value={`${m.id}|${m.name}`} sx={{ fontSize: '0.62rem' }}>
                                                     {m.name}
@@ -910,7 +920,7 @@ export default function ScenarioGenerator({
                             {/* Confirmation of model fill */}
                             {fillGapsWithModel && !isModelFillLoading && modelFillCount > 0 && (
                                 <Typography sx={{ fontSize: '0.60rem', color: 'info.main', lineHeight: 1.4 }}>
-                                    ✓ 補充 {modelFillCount} 天模型預測資料（{fillGapsWithModel.split('|')[1]}）
+                                    {t('scenario.fillConfirm', { count: modelFillCount, model: fillGapsWithModel.split('|')[1] })}
                                 </Typography>
                             )}
                         </Box>
@@ -920,8 +930,8 @@ export default function ScenarioGenerator({
                     {(needsPriceWarning || needsHistoryWarning) && (
                         <Typography sx={{ fontSize: '0.62rem', color: 'warning.main', lineHeight: 1.4 }}>
                             {needsHistoryWarning
-                                ? '無歷史價格資料，將以當天價格替代（若有）。'
-                                : '當天價格尚未載入，套用後所有格子為 Idle。'}
+                                ? t('scenario.noHistoryWarning')
+                                : t('scenario.noPriceWarning')}
                         </Typography>
                     )}
 
@@ -929,7 +939,7 @@ export default function ScenarioGenerator({
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                             {/* Reset current day */}
-                            <Tooltip title="清除當天所有排程，恢復為全部待機（Idle）" placement="top">
+                            <Tooltip title={t('scenario.resetTodayTooltip')} placement="top">
                                 <span>
                                     <Button
                                         variant="text"
@@ -944,7 +954,7 @@ export default function ScenarioGenerator({
                                             '&.Mui-disabled': { opacity: 0.35 },
                                         }}
                                     >
-                                        恢復到預設
+                                        {t('scenario.resetToday')}
                                     </Button>
                                 </span>
                             </Tooltip>
@@ -952,7 +962,7 @@ export default function ScenarioGenerator({
                             <Box sx={{ flex: 1 }} />
 
                             {/* Apply to current day */}
-                            <Tooltip title={!targetDate ? '請先選擇日期' : '套用到目前選取的日期'} placement="top">
+                            <Tooltip title={!targetDate ? t('scenario.applyNoDateTooltip') : t('scenario.applyDateTooltip')} placement="top">
                                 <span>
                                     <Button
                                         variant="outlined"
@@ -967,14 +977,14 @@ export default function ScenarioGenerator({
                                             '&.Mui-disabled': { opacity: 0.4 },
                                         }}
                                     >
-                                        套用到當天
+                                        {t('scenario.applyToday')}
                                     </Button>
                                 </span>
                             </Tooltip>
 
                             {/* Apply to all days — shown only when multiple dates are available */}
                             {(availableDates?.length ?? 0) > 1 && onApplyAll && (
-                                <Tooltip title="以當前劇本設定，為每一天分別依其當日價格計算最佳排程並批次套用" placement="top">
+                                <Tooltip title={t('scenario.applyAllTooltip')} placement="top">
                                     <span>
                                         <Button
                                             variant="outlined"
@@ -989,7 +999,7 @@ export default function ScenarioGenerator({
                                                 '&.Mui-disabled': { opacity: 0.4 },
                                             }}
                                         >
-                                            套用到每一天
+                                            {t('scenario.applyAll')}
                                         </Button>
                                     </span>
                                 </Tooltip>
@@ -1000,7 +1010,7 @@ export default function ScenarioGenerator({
                         {appliedLabel && (
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                                 <Chip
-                                    label={`已套用: ${appliedLabel}`}
+                                    label={appliedLabel}
                                     size="small"
                                     onDelete={() => setAppliedLabel(null)}
                                     sx={{

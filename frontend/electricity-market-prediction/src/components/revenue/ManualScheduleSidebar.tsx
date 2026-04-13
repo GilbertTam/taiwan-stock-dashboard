@@ -6,6 +6,7 @@ import {
     Typography,
     Chip,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { SectionHeader } from '@/components/selectors/shared';
 import ManualScheduleEditor from './ManualScheduleEditor';
 import ScenarioGenerator from './ScenarioGenerator';
@@ -45,6 +46,8 @@ export default function ManualScheduleSidebar({
     availableModels = [],
     area,
 }: ManualScheduleSidebarProps) {
+    const { t } = useTranslation('siteRevenue');
+
     const [selectedDate, setSelectedDate] = useState<string | null>(
         availableDates[0] ?? null
     );
@@ -92,9 +95,9 @@ export default function ManualScheduleSidebar({
             <SectionHeader
                 expanded={expanded}
                 onClick={onToggleExpanded}
-                description="手動設定充放電排程"
+                description={t('manualSidebar.description')}
             >
-                手動排程
+                {t('manualSidebar.title')}
                 {totalActiveSlots > 0 && (
                     <Box component="span" sx={{
                         ml: 1, fontSize: '0.6rem',
@@ -143,7 +146,7 @@ export default function ManualScheduleSidebar({
                     {availableDates.length > 1 && (
                         <Box>
                             <Typography variant="caption" sx={{ fontSize: '0.68rem', color: 'text.secondary', mb: 0.5, display: 'block' }}>
-                                選擇日期
+                                {t('manualSidebar.selectDate')}
                             </Typography>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                 {availableDates.map(d => (
@@ -168,7 +171,7 @@ export default function ManualScheduleSidebar({
 
                     {availableDates.length === 0 && (
                         <Typography variant="caption" sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
-                            請先載入市場資料
+                            {t('manualSidebar.noDataHint')}
                         </Typography>
                     )}
 
@@ -183,7 +186,7 @@ export default function ManualScheduleSidebar({
                     )}
 
                     <Typography variant="caption" sx={{ fontSize: '0.62rem', color: 'text.secondary', lineHeight: 1.4 }}>
-                        排程變更後圖表即時更新（含 SoC 限制與收益計算）。
+                        {t('manualSidebar.realtimeHint')}
                     </Typography>
                 </Box>
             </Box>

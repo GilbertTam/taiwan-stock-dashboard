@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { CoverageRow } from '@/services/dataStatusApi';
 
 interface DataStatusKPIProps {
@@ -19,6 +20,7 @@ interface KPICard {
 }
 
 export const DataStatusKPI: React.FC<DataStatusKPIProps> = ({ rows, startDate, endDate, checkedAt }) => {
+    const { t } = useTranslation('dataStatus');
     const stats = React.useMemo(() => {
         if (rows.length === 0) return { total: 0, ok: 0, missing: 0, pct: 0 };
 
@@ -38,21 +40,21 @@ export const DataStatusKPI: React.FC<DataStatusKPIProps> = ({ rows, startDate, e
 
     const cards: KPICard[] = [
         {
-            label: '監控組合',
+            label: t('kpi.monitorCombinations'),
             value: stats.total,
-            sub: `(來源 × 地區，今日)`,
+            sub: t('kpi.monitorCombinationsSub'),
             color: 'var(--primary)',
         },
         {
-            label: '今日正常',
+            label: t('kpi.todayNormal'),
             value: `${stats.ok} / ${stats.total}`,
-            sub: `${stats.pct}% 資料完整`,
+            sub: t('kpi.dataComplete', { pct: stats.pct }),
             color: '#52c41a',
         },
         {
-            label: '今日缺失',
+            label: t('kpi.todayMissing'),
             value: stats.missing,
-            sub: stats.missing > 0 ? '需要確認' : '一切正常',
+            sub: stats.missing > 0 ? t('kpi.needsConfirmation') : t('kpi.allNormal'),
             color: stats.missing > 0 ? '#ff4d4f' : '#52c41a',
         },
     ];
@@ -88,13 +90,13 @@ export const DataStatusKPI: React.FC<DataStatusKPIProps> = ({ rows, startDate, e
             {/* Date range info */}
             <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', ml: 'auto', textAlign: 'right' }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                    查詢範圍：{startDate.slice(0,4)}/{startDate.slice(4,6)}/{startDate.slice(6,8)}
+                    {t('kpi.queryRange')}{': '}{startDate.slice(0,4)}/{startDate.slice(4,6)}/{startDate.slice(6,8)}
                     {' '}～{' '}
                     {endDate.slice(0,4)}/{endDate.slice(4,6)}/{endDate.slice(6,8)}
                 </Typography>
                 {checkedAt && (
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                        更新於：{new Date(checkedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                        {t('kpi.updatedAt')}{': '}{new Date(checkedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
                     </Typography>
                 )}
             </Box>

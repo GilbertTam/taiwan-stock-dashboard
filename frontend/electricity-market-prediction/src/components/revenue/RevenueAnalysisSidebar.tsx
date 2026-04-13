@@ -9,6 +9,7 @@ import {
     SelectChangeEvent,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { useTranslation } from 'react-i18next';
 
 import { Area, PredictionModel, CalculatingDate } from '@/types';
 import { BatteryConfig, DEFAULT_BATTERY_CONFIG } from '@/types/revenueAnalysis';
@@ -57,6 +58,8 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
     onConfigChange,
     chartData,
 }) => {
+    const { t } = useTranslation('siteRevenue');
+
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         area: true,
         models: true,
@@ -90,7 +93,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                 expanded={expandedSections.area}
                 onToggle={() => toggle('area')}
                 step={1}
-                description="區域選擇"
+                description={t('analysisSidebar.areaSection')}
             />
 
             <Divider sx={{ borderColor: 'var(--card-border)' }} />
@@ -106,7 +109,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                 expanded={expandedSections.models}
                 onToggle={() => toggle('models')}
                 step={2}
-                description="模型比較"
+                description={t('analysisSidebar.modelSection')}
             />
 
             <Divider sx={{ borderColor: 'var(--card-border)' }} />
@@ -116,9 +119,9 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                 expanded={expandedSections.params}
                 onClick={() => toggle('params')}
                 step={3}
-                description="電池系統規格與限制條件"
+                description={t('analysisSidebar.batterySpec')}
             >
-                電池參數
+                {t('analysisSidebar.batteryParamsTitle')}
             </SectionHeader>
             <Collapse in={expandedSections.params}>
                 <Box sx={{ p: 1.5 }}>
@@ -135,7 +138,7 @@ export const RevenueAnalysisSidebar: React.FC<RevenueAnalysisSidebarProps> = ({
                             '&:hover': { color: 'text.primary' },
                         }}
                     >
-                        恢復預設值
+                        {t('analysisSidebar.resetDefaults')}
                     </Button>
                 </Box>
             </Collapse>

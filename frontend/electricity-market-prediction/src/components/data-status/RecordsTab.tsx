@@ -20,7 +20,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@/app/ThemeProvider';
 import { fetchCoverageRecords, fetchPredictionCalculateTimes, RecordRow } from '@/services/dataStatusApi';
 import { getRecordColumns } from '@/constants/dataStatusColumns';
-import { AREA_JP } from './DataStatusControls';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -44,8 +45,8 @@ function formatNumeric(v: unknown): string {
     return n.toFixed(4);
 }
 
-function slotIndexToLabel(slot: number, interval: 'hour' | '30m' | 'day'): string {
-    if (interval === 'day') return '全日';
+function slotIndexToLabel(slot: number, interval: 'hour' | '30m' | 'day', fullDayLabel = '全日'): string {
+    if (interval === 'day') return fullDayLabel;
     if (interval === '30m') {
         const h = Math.floor(slot / 2);
         const m = slot % 2 === 0 ? '00' : '30';
@@ -60,6 +61,7 @@ export const RecordsTab: React.FC<Props> = ({
     sourceKey, area, date, interval, slotFilter, onSlotFilterChange, onOpenFullPage,
 }) => {
     const { darkMode } = useTheme();
+    const { t } = useTranslation(['dataStatus', 'common']);
 
     const [rows, setRows]       = useState<RecordRow[]>([]);
     const [total, setTotal]     = useState(0);
@@ -141,7 +143,7 @@ export const RecordsTab: React.FC<Props> = ({
                 {isPrediction && calcTimes.length > 0 && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Typography sx={{ fontSize: '0.68rem', color: textSec, whiteSpace: 'nowrap' }}>
-                            計算日:
+                            {t('records.calcDate')}
                         </Typography>
                         <Select
                             size="small"
@@ -155,12 +157,12 @@ export const RecordsTab: React.FC<Props> = ({
                                 '& .MuiOutlinedInput-notchedOutline': { borderColor: border },
                             }}
                         >
-                            <MenuItem value="" sx={{ fontSize: '0.72rem' }}>全部 ({calcTimes.length} 筆計算)</MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.72rem' }}>{t('records.allCalcTimes', { count: calcTimes.length })}</MenuItem>
                             {calcTimes.map(ct => (
                                 <MenuItem key={ct} value={ct} sx={{ fontSize: '0.72rem' }}>
                                     {ct}
                                     {ct === calcTimes[0] && (
-                                        <Box component="span" sx={{ ml: 0.75, fontSize: '0.62rem', color: textSec }}>（最新）</Box>
+                                        <Box component="span" sx={{ ml: 0.75, fontSize: '0.62rem', color: textSec }}>{t('records.latest')}</Box>
                                     )}
                                 </MenuItem>
                             ))}
@@ -171,7 +173,7 @@ export const RecordsTab: React.FC<Props> = ({
                 {slotFilter !== null && (
                     <Chip
                         size="small"
-                        label={`時段: ${slotIndexToLabel(slotFilter, interval)}`}
+                        label={t('records.slotLabel', { label: slotIndexToLabel(slotFilter, interval, t('intervals.fullDay')) })}
                         onDelete={() => onSlotFilterChange(null)}
                         variant="outlined"
                         sx={{
@@ -185,13 +187,13 @@ export const RecordsTab: React.FC<Props> = ({
                 )}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
                     <Typography sx={{ fontSize: '0.72rem', color: textSec }}>
-                        {loading ? '…' : `共 ${total.toLocaleString()} 筆`}
+                        {loading ? '…' : t('records.totalRecords', { count: total.toLocaleString() })}
                     </Typography>
                     {onOpenFullPage && (
                         <IconButton
                             size="small"
                             onClick={onOpenFullPage}
-                            title="在完整頁面開啟原始資料"
+                            title={t('records.openFullPage')}
                             sx={{ color: textSec, p: 0.4 }}
                         >
                             <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
@@ -212,20 +214,20 @@ export const RecordsTab: React.FC<Props> = ({
                         ) : fetchError ? (
                             <Box sx={{ py: 4, textAlign: 'center' }}>
                                 <Typography sx={{ fontSize: '0.82rem', color: '#ff4d4f' }}>
-                                    載入失敗，請確認後端服務狀態
+                                    {t('records.loadFailed')}
                                 </Typography>
                             </Box>
                         ) : rows.length === 0 ? (
                             <Box sx={{ py: 4, textAlign: 'center' }}>
                                 <Typography sx={{ fontSize: '0.82rem', color: textSec }}>
-                                    {slotFilter !== null ? '該時段無事件記錄' : '當日無事件記錄'}
+                                    {slotFilter !== null ? t('records.noEventForSlot') : t('records.noEventForDay')}
                                 </Typography>
                             </Box>
                         ) : (
                             rows.map((row, i) => {
                                 const f = row.fields;
                                 const areaVal = String(f.area ?? area);
-                                const desc    = String(f.description ?? f.Description ?? '（無描述）');
+                                const desc    = String(f.description ?? f.Description ?? t('drawer.noDescription'));
                                 const val     = f.value !== null && f.value !== undefined ? f.value : null;
                                 return (
                                     <Box key={i} sx={{
@@ -236,12 +238,12 @@ export const RecordsTab: React.FC<Props> = ({
                                         <Typography sx={{ fontSize: '0.7rem', color: textSec, fontFamily: 'monospace', mb: 0.25 }}>
                                             {row.timestamp.slice(0, 16).replace('T', ' ')}
                                             &nbsp;&nbsp;
-                                            {AREA_JP[areaVal] ?? areaVal}
+                                            {getAreaName(t, areaVal)}
                                         </Typography>
                                         <Typography sx={{ fontSize: '0.8rem', color: textPri }}>{desc}</Typography>
                                         {val !== null && (
                                             <Typography sx={{ fontSize: '0.72rem', color: textSec, mt: 0.25 }}>
-                                                值：{String(val)}
+                                                {t('drawer.valueLabel')}: {String(val)}
                                             </Typography>
                                         )}
                                     </Box>
@@ -254,7 +256,7 @@ export const RecordsTab: React.FC<Props> = ({
                     /* ── No column definition (unsupported source) ───────── */
                     <Box sx={{ py: 4, textAlign: 'center' }}>
                         <Typography sx={{ fontSize: '0.82rem', color: textSec }}>
-                            此資料來源不支援明細查詢
+                            {t('records.unsupportedSource')}
                         </Typography>
                     </Box>
 
@@ -269,7 +271,7 @@ export const RecordsTab: React.FC<Props> = ({
                                     fontSize: '0.68rem', fontWeight: 700,
                                     px: 1, py: 0.75,
                                 }}>
-                                    時間
+                                    {t('rawView.tableHeaderTime')}
                                 </TableCell>
                                 {columns.map(col => (
                                     <TableCell key={col.field} align={col.text ? 'left' : 'right'} sx={{
@@ -277,7 +279,7 @@ export const RecordsTab: React.FC<Props> = ({
                                         fontSize: '0.68rem', fontWeight: 700,
                                         px: 1, py: 0.75, whiteSpace: 'nowrap',
                                     }}>
-                                        {col.label}
+                                        {t(col.labelKey)}
                                         {col.unit && (
                                             <Box component="span" sx={{ display: 'block', fontSize: '0.6rem', opacity: 0.7 }}>
                                                 {col.unit}
@@ -306,7 +308,7 @@ export const RecordsTab: React.FC<Props> = ({
                                 <TableRow>
                                     <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 4 }}>
                                         <Typography sx={{ fontSize: '0.82rem', color: '#ff4d4f' }}>
-                                            載入失敗，請確認後端服務狀態
+                                            {t('records.loadFailed')}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -314,7 +316,7 @@ export const RecordsTab: React.FC<Props> = ({
                                 <TableRow>
                                     <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 4 }}>
                                         <Typography sx={{ fontSize: '0.82rem', color: textSec }}>
-                                            {slotFilter !== null ? '該時段無資料' : '當日無資料'}
+                                            {slotFilter !== null ? t('records.noDataForSlot') : t('records.noDataForDay')}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -325,7 +327,7 @@ export const RecordsTab: React.FC<Props> = ({
                                             px: 1, fontFamily: 'monospace',
                                             fontSize: '0.72rem', color: textSec, whiteSpace: 'nowrap',
                                         }}>
-                                            {row.slot_label}
+                                            {interval === 'day' ? t('intervals.fullDay') : row.slot_label}
                                         </TableCell>
                                         {columns.map(col => {
                                             const v = row.fields[col.field];

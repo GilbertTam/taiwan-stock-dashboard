@@ -19,6 +19,7 @@ import {
 import { GanttOperation } from '@/types/revenueAnalysis';
 import { format } from 'date-fns';
 import { useTheme } from '@/app/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 interface OperationScheduleTableProps {
     data: GanttOperation[];
@@ -50,6 +51,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
 }) => {
     const isEstimated = priceBasis !== 'actual';
     const { darkMode } = useTheme();
+    const { t } = useTranslation('siteRevenue');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [order, setOrder] = useState<Order>('asc');
@@ -110,7 +112,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'datetime' ? order : 'asc'}
                                     onClick={() => handleRequestSort('datetime')}
                                 >
-                                    時間 (Time)
+                                    {t('table.time')}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="center">
@@ -119,7 +121,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'timeCode' ? order : 'asc'}
                                     onClick={() => handleRequestSort('timeCode')}
                                 >
-                                    時段 (Time Code)
+                                    {t('table.timeCode')}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="center">
@@ -128,11 +130,11 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'action' ? order : 'asc'}
                                     onClick={() => handleRequestSort('action')}
                                 >
-                                    操作 (Action)
+                                    {t('table.action')}
                                 </TableSortLabel>
                             </TableCell>
                             {isManualSchedule && (
-                                <TableCell align="center">SoC限縮</TableCell>
+                                <TableCell align="center">{t('table.socClamped')}</TableCell>
                             )}
                             <TableCell align="right">
                                 <TableSortLabel
@@ -140,7 +142,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'power' ? order : 'asc'}
                                     onClick={() => handleRequestSort('power')}
                                 >
-                                    功率 (Power) (kW)
+                                    {t('table.powerKw')}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -149,7 +151,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'priceActual' ? order : 'asc'}
                                     onClick={() => handleRequestSort('priceActual' as any)}
                                 >
-                                    實際價格 (Act. Price)
+                                    {t('table.actualPrice')}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -158,7 +160,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'pricePredicted' ? order : 'asc'}
                                     onClick={() => handleRequestSort('pricePredicted' as any)}
                                 >
-                                    預測價格 (Pred. Price)
+                                    {t('table.predictedPrice')}
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="right">
@@ -167,7 +169,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     direction={orderBy === 'revenueRealized' ? order : 'asc'}
                                     onClick={() => handleRequestSort('revenueRealized' as any)}
                                 >
-                                    {isEstimated ? '預測收益 (Est. JPY)' : '實現收益 (Realized JPY)'}
+                                    {isEstimated ? t('table.estimatedRevenue') : t('table.realizedRevenue')}
                                 </TableSortLabel>
                             </TableCell>
                         </TableRow>
@@ -208,9 +210,9 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
                                     {isManualSchedule && (
                                         <TableCell align="center">
                                             {row.wasClamped ? (
-                                                <Tooltip title={`要求: ${row.requestedPower != null ? row.requestedPower.toFixed(2) : '-'} MW → 實際: ${row.power != null ? row.power.toFixed(2) : '0'} MW`}>
+                                                <Tooltip title={t('table.clampedTooltip', { requested: row.requestedPower != null ? row.requestedPower.toFixed(2) : '-', actual: row.power != null ? row.power.toFixed(2) : '0' })}>
                                                     <Chip
-                                                        label={row.power != null && row.power < 1e-3 ? '無效' : '縮減'}
+                                                        label={row.power != null && row.power < 1e-3 ? t('table.chipInvalid') : t('table.chipReduced')}
                                                         size="small"
                                                         sx={{
                                                             height: 16, fontSize: '0.58rem',
@@ -269,7 +271,7 @@ export const OperationScheduleTable: React.FC<OperationScheduleTableProps> = ({
             />
             <Box sx={{ p: 1, borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
                 <Typography variant="caption" color="text.secondary">
-                    * {isEstimated ? 'Estimated Revenue uses predicted prices. ' : 'Realized Revenue uses actual prices. '}Power is in kW.
+                    * {isEstimated ? t('table.footnoteEstimated') : t('table.footnoteRealized')}
                 </Typography>
             </Box>
         </Paper >
