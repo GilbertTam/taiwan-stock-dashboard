@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Chip, Stack, Alert, Typography } from '@mui/material';
 import {
   createChart,
@@ -25,6 +26,7 @@ const toTime = (datetime: string): UTCTimestamp =>
 
 /** 日內市場 OHLC K 線圖 + 成交量直方圖 */
 export const IntradayPanel: React.FC<IntradayPanelProps> = ({ data }) => {
+  const { t } = useTranslation('forecast');
   const { darkMode } = useTheme();
   const colors = useChartColors();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -136,7 +138,7 @@ export const IntradayPanel: React.FC<IntradayPanelProps> = ({ data }) => {
   if (!data.length) {
     return (
       <Alert severity="info" sx={{ borderRadius: 1.5 }}>
-        該時段無日內市場資料 (No intraday market data available for this period)
+        {t('intradayTab.noData')}
       </Alert>
     );
   }
@@ -147,32 +149,32 @@ export const IntradayPanel: React.FC<IntradayPanelProps> = ({ data }) => {
         <Stack direction="row" spacing={0.75} sx={{ mb: 1.5, flexWrap: 'wrap', gap: 0.5 }}>
           <Chip
             size="small"
-            label={`最高 ${stats.allHigh.toFixed(2)} 円/kWh`}
+            label={t('intradayTab.highest', { value: stats.allHigh.toFixed(2) })}
             sx={{ backgroundColor: 'rgba(239,83,80,0.15)', color: '#ef5350', fontWeight: 600 }}
           />
           <Chip
             size="small"
-            label={`最低 ${stats.allLow.toFixed(2)} 円/kWh`}
+            label={t('intradayTab.lowest', { value: stats.allLow.toFixed(2) })}
             sx={{ backgroundColor: 'rgba(38,166,154,0.15)', color: '#26a69a', fontWeight: 600 }}
           />
           <Chip
             size="small"
-            label={`加重均價 ${stats.weightedAvg.toFixed(2)} 円/kWh`}
+            label={t('intradayTab.weightedAvg', { value: stats.weightedAvg.toFixed(2) })}
             sx={{ fontWeight: 600 }}
           />
           <Chip
             size="small"
-            label={`總成交量 ${(stats.totalVol / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} MWh`}
+            label={t('intradayTab.totalVolume', { value: (stats.totalVol / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') })}
           />
           <Chip
             size="small"
-            label={`${stats.totalContracts.toLocaleString()} 件成交`}
+            label={t('intradayTab.totalContracts', { count: stats.totalContracts.toLocaleString() })}
             sx={{ color: 'text.secondary' }}
           />
         </Stack>
       )}
       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-        紅色 = 漲、綠色 = 跌（日本市場慣例）
+        {t('intradayTab.colorHint')}
       </Typography>
       <Box ref={containerRef} sx={{ height: 360, width: '100%' }} />
     </Box>

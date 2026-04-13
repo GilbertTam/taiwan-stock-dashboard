@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   CircularProgress, Alert
@@ -21,6 +22,7 @@ interface InterconnectionPanelProps {
 }
 
 export default function InterconnectionPanel({ startDate, endDate, selectedArea }: InterconnectionPanelProps) {
+  const { t } = useTranslation('forecast');
   const [loading, setLoading] = useState(false);
   const [interconnectionData, setInterconnectionData] = useState<InterconnectionFlow[]>([]);
 
@@ -60,7 +62,7 @@ export default function InterconnectionPanel({ startDate, endDate, selectedArea 
   if (!startDate || !endDate) {
     return (
       <Alert severity="info">
-        請選擇日期範圍 (Please select a date range)
+        {t('interconnectionTab.selectDateRange')}
       </Alert>
     );
   }
@@ -79,7 +81,7 @@ export default function InterconnectionPanel({ startDate, endDate, selectedArea 
             <InterconnectionChartLightweight data={interconnectionData} />
           ) : (
             <Alert severity="info" sx={{ mt: 2 }}>
-              互連流量資料：該時段無資料 (Interconnection Flow: No data available for this period)
+              {t('interconnectionTab.noData')}
             </Alert>
           )}
         </>

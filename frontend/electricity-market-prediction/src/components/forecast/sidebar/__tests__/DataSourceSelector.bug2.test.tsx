@@ -71,7 +71,7 @@ describe('Bug 2: Weather Model Selector Missing - Exploration Test', () => {
 
       // If the field exists, it should have proper configuration
       if (sunshineDurationField) {
-        expect(sunshineDurationField.label).toBeDefined();
+        expect(sunshineDurationField.labelKey).toBeDefined();
         expect(sunshineDurationField.unit).toBeDefined();
         expect(sunshineDurationField.color).toBeDefined();
       } else {
@@ -94,7 +94,7 @@ describe('Bug 2: Weather Model Selector Missing - Exploration Test', () => {
 
       // If the field exists, it should have proper configuration
       if (radiationField) {
-        expect(radiationField.label).toBeDefined();
+        expect(radiationField.labelKey).toBeDefined();
         expect(radiationField.unit).toBeDefined();
         expect(radiationField.color).toBeDefined();
       } else {

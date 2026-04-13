@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UTCTimestamp } from 'lightweight-charts';
 import {
     convertToLineSeriesData,
@@ -52,6 +53,8 @@ export const useChartDataTransformers = ({
     showActualPrice,
 }: UseChartDataTransformersParams) => {
 
+    const { t } = useTranslation('forecast');
+
     const candleData = useMemo(() =>
         showIntraday ? convertToCandlestickData(processedChartData, timezone) : [],
         [processedChartData, showIntraday, timezone]);
@@ -82,11 +85,12 @@ export const useChartDataTransformers = ({
             if (!selectedInterconnectionFields.has(f.key)) return;
             const data = convertToLineSeriesData(processedChartData, p => (p as any)[f.pointKey] ?? null, timezone);
             if (data.length > 0) {
-                out.push({ fieldKey: f.key, data, label: f.label, color: f.color });
+                out.push({ fieldKey: f.key, data, label: t(f.labelKey), color: f.color });
             }
         });
         return out;
-    }, [processedChartData, selectedInterconnectionFields, timezone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [processedChartData, selectedInterconnectionFields, timezone, t]);
 
     const batterySeries = useMemo((): InterconnectionSeriesItem[] => {
         const out: InterconnectionSeriesItem[] = [];
@@ -94,11 +98,12 @@ export const useChartDataTransformers = ({
             if (!selectedBatteryFields.has(f.key)) return;
             const data = convertToLineSeriesData(processedChartData, p => (p as any)[f.pointKey] ?? null, timezone);
             if (data.length > 0) {
-                out.push({ fieldKey: f.key, data, label: f.label, color: f.color });
+                out.push({ fieldKey: f.key, data, label: t(f.labelKey), color: f.color });
             }
         });
         return out;
-    }, [processedChartData, selectedBatteryFields, timezone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [processedChartData, selectedBatteryFields, timezone, t]);
 
     const occtoData = useMemo(() =>
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),
@@ -129,7 +134,7 @@ export const useChartDataTransformers = ({
                     }, timezone);
 
                 if (data.length > 0) {
-                    out.push({ fieldKey: `spot_${fieldKeyWithoutPrefix}`, data, label: f.label, color: f.color });
+                    out.push({ fieldKey: `spot_${fieldKeyWithoutPrefix}`, data, label: t(f.labelPrefix) + t(f.labelKey), color: f.color });
                 }
             });
         }
@@ -155,13 +160,14 @@ export const useChartDataTransformers = ({
                     }, timezone);
 
                 if (data.length > 0) {
-                    out.push({ fieldKey: `intraday_${fieldKeyWithoutPrefix}`, data, label: f.label, color: f.color });
+                    out.push({ fieldKey: `intraday_${fieldKeyWithoutPrefix}`, data, label: t(f.labelPrefix) + t(f.labelKey), color: f.color });
                 }
             });
         }
 
         return out;
-    }, [processedChartData, selectedBidPlanFields, selectedBidPlanCategories, timezone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [processedChartData, selectedBidPlanFields, selectedBidPlanCategories, timezone, t]);
 
     return useMemo(() => ({
         candleData,

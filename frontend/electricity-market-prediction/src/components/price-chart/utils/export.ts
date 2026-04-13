@@ -1,5 +1,6 @@
 import { IChartApi } from 'lightweight-charts';
 import { format as formatDate } from 'date-fns';
+import i18n from '@/i18n/config';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
 import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS } from '../constants';
 import { hexToRgba } from '../utils';
@@ -137,7 +138,7 @@ export const generateChartImage = ({
 
     // Price Section
     if (showActualPrice && actualData.length > 0) {
-        ops.push({ type: 'item', label: '現貨實際價格', color: colors.actual, symbolType: 'line' });
+        ops.push({ type: 'item', label: i18n.t('legend.spotActualPrice', { ns: 'forecast' }), color: colors.actual, symbolType: 'line' });
     }
     selectedModels.forEach(model => {
         const modelKey = `${model.id}|${model.name}`;
@@ -146,15 +147,15 @@ export const generateChartImage = ({
 
     // Market Section
     if (showIntraday || showIntradayAverage || showImbalance || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0) {
-        if (ops.length > 0) ops.push({ type: 'separator', label: '市場' });
-        if (showIntraday) ops.push({ type: 'item', label: '即時', color: colors.intraday, symbolType: 'candlestick' });
-        if (showIntradayAverage) ops.push({ type: 'item', label: '即時(平均)', color: '#ffa726', symbolType: 'dashed' });
-        if (showImbalance) ops.push({ type: 'item', label: '不平衡值', color: colors.imbalance, symbolType: 'line' });
+        if (ops.length > 0) ops.push({ type: 'separator', label: i18n.t('legend.market', { ns: 'forecast' }) });
+        if (showIntraday) ops.push({ type: 'item', label: i18n.t('legend.intraday', { ns: 'forecast' }), color: colors.intraday, symbolType: 'candlestick' });
+        if (showIntradayAverage) ops.push({ type: 'item', label: i18n.t('legend.intradayAvg', { ns: 'forecast' }), color: '#ffa726', symbolType: 'dashed' });
+        if (showImbalance) ops.push({ type: 'item', label: i18n.t('chartPanel.imbalanceValue', { ns: 'forecast' }), color: colors.imbalance, symbolType: 'line' });
         INTERCONNECTION_FIELDS.filter(f => selectedInterconnectionFields.has(f.key)).forEach(f => {
-            ops.push({ type: 'item', label: f.label, color: f.color, symbolType: 'line' });
+            ops.push({ type: 'item', label: i18n.t(f.labelKey, { ns: 'forecast' }), color: f.color, symbolType: 'line' });
         });
         BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).forEach(f => {
-            ops.push({ type: 'item', label: f.label, color: f.color, symbolType: 'line' });
+            ops.push({ type: 'item', label: i18n.t(f.labelKey, { ns: 'forecast' }), color: f.color, symbolType: 'line' });
         });
     }
 
@@ -162,7 +163,7 @@ export const generateChartImage = ({
     if (showOcctoArea && selectedOcctoFields.size > 0) {
         ops.push({ type: 'separator', label: 'OCCTO' });
         occtoStackedFields.filter(f => selectedOcctoFields.has(f.key)).forEach(f => {
-            ops.push({ type: 'item', label: f.label, color: f.color, symbolType: 'box' });
+            ops.push({ type: 'item', label: i18n.t(f.labelKey, { ns: 'forecast' }), color: f.color, symbolType: 'box' });
         });
     }
 
@@ -172,12 +173,13 @@ export const generateChartImage = ({
         weatherFields.forEach(f => {
             const hasActual = showWeatherActual && selectedWeatherFieldsActual.has(f.value);
             const hasForecast = showWeatherForecast && selectedWeatherFieldsForecast.has(f.value);
-            if (hasActual) weatherOps.push({ type: 'item', label: f.label, color: f.color, symbolType: 'line' });
-            if (hasForecast) weatherOps.push({ type: 'item', label: `${f.label} (預)`, color: f.color, symbolType: 'dashed', opacity: 0.7 });
+            const weatherLabel = i18n.t(f.labelKey, { ns: 'forecast' });
+            if (hasActual) weatherOps.push({ type: 'item', label: weatherLabel, color: f.color, symbolType: 'line' });
+            if (hasForecast) weatherOps.push({ type: 'item', label: `${weatherLabel} ${i18n.t('legend.forecastSuffix', { ns: 'forecast' })}`, color: f.color, symbolType: 'dashed', opacity: 0.7 });
         });
 
         if (weatherOps.length > 0) {
-            ops.push({ type: 'separator', label: '天氣' });
+            ops.push({ type: 'separator', label: i18n.t('legend.weather', { ns: 'forecast' }) });
             ops.push(...weatherOps);
         }
     }

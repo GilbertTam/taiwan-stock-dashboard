@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Grid, Slider } from '@mui/material';
 
 interface ProfitControlsProps {
@@ -12,10 +13,12 @@ export const ProfitControls: React.FC<ProfitControlsProps> = ({
     setTopBottomPairs,
     colors
 }) => {
+    const { t } = useTranslation('forecast');
+
     return (
         <Box sx={{ mb: 2, p: 1.5, border: `1px solid ${colors.grid}`, borderRadius: 1.5 }}>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-                Top & Bottom Pairs (N): {topBottomPairs}
+                {t('profitAnalysis.pairsLabel', { count: topBottomPairs })}
             </Typography>
             <Grid container spacing={1.5} alignItems="center">
                 <Grid item xs>
@@ -30,11 +33,11 @@ export const ProfitControls: React.FC<ProfitControlsProps> = ({
                     />
                 </Grid>
                 <Grid item>
-                    <Typography variant="body2">{topBottomPairs} Pairs ({topBottomPairs * 0.5} h)</Typography>
+                    <Typography variant="body2">{t('profitAnalysis.pairsValue', { count: topBottomPairs, hours: topBottomPairs * 0.5 })}</Typography>
                 </Grid>
             </Grid>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Calculate profit by buying at the lowest {topBottomPairs} slots and selling at the highest {topBottomPairs} slots each day.
+                {t('profitAnalysis.pairsDescription', { count: topBottomPairs })}
             </Typography>
         </Box>
     );

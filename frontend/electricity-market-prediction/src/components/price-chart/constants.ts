@@ -1,84 +1,85 @@
 export const occtoFields = [
-    { value: 'area_demand', label: 'Area Demand' },
-    { value: 'nuclear_power', label: 'Nuclear' },
-    { value: 'thermal', label: 'Thermal' },
-    { value: 'hydropower', label: 'Hydro' },
-    { value: 'geothermal_power', label: 'Geothermal' },
-    { value: 'biomass', label: 'Biomass' },
-    { value: 'solar_power_generation_actual', label: 'Solar Actual' },
-    { value: 'wind_power_generation_actual', label: 'Wind Actual' },
-    { value: 'pumped_storage', label: 'Pumped Storage' },
-    { value: 'battery_storage', label: 'Battery' },
-    { value: 'interconnection_line', label: 'Interconnection' },
+    { value: 'area_demand', labelKey: 'fields.occto.areaDemand' },
+    { value: 'nuclear_power', labelKey: 'fields.occto.nuclear' },
+    { value: 'thermal', labelKey: 'fields.occto.thermal' },
+    { value: 'hydropower', labelKey: 'fields.occto.hydro' },
+    { value: 'geothermal_power', labelKey: 'fields.occto.geothermal' },
+    { value: 'biomass', labelKey: 'fields.occto.biomass' },
+    { value: 'solar_power_generation_actual', labelKey: 'fields.occto.solarActual' },
+    { value: 'wind_power_generation_actual', labelKey: 'fields.occto.windActual' },
+    { value: 'pumped_storage', labelKey: 'fields.occto.pumpedStorage' },
+    { value: 'battery_storage', labelKey: 'fields.occto.battery' },
+    { value: 'interconnection_line', labelKey: 'fields.occto.interconnection' },
 ];
 
 export const occtoStackedFields = [
-    { key: 'area_demand', color: '#6366f1', gradient: ['#818cf8', '#6366f1'], label: 'Area Demand' }, // 改為藍紫色，與solar區分
-    { key: 'nuclear_power', color: '#e6a23c', gradient: ['#f4d03f', '#e6a23c'], label: 'Nuclear' },
-    { key: 'thermal', color: '#f56c6c', gradient: ['#ff8787', '#f56c6c'], label: 'Thermal' },
-    { key: 'hydropower', color: '#409eff', gradient: ['#66b3ff', '#409eff'], label: 'Hydro' },
-    { key: 'geothermal_power', color: '#8e44ad', gradient: ['#bb8fce', '#8e44ad'], label: 'Geothermal' },
-    { key: 'biomass', color: '#27ae60', gradient: ['#58d68d', '#27ae60'], label: 'Biomass' },
-    { key: 'solar_power_generation_actual', color: '#f1c40f', gradient: ['#f7dc6f', '#f1c40f'], label: 'Solar' },
-    { key: 'wind_power_generation_actual', color: '#2ecc71', gradient: ['#58d68d', '#2ecc71'], label: 'Wind' },
-    { key: 'pumped_storage', color: '#3498db', gradient: ['#5dade2', '#3498db'], label: 'Pumped Storage' },
-    { key: 'battery_storage', color: '#909399', gradient: ['#bdc3c7', '#909399'], label: 'Battery' },
-    { key: 'interconnection_line', color: '#d35400', gradient: ['#e67e22', '#d35400'], label: 'Interconnection' },
-    { key: 'others', color: '#7f8c8d', gradient: ['#aab7b8', '#7f8c8d'], label: 'Others' },
+    { key: 'area_demand', color: '#6366f1', gradient: ['#818cf8', '#6366f1'], labelKey: 'fields.occto.areaDemand' },
+    { key: 'nuclear_power', color: '#e6a23c', gradient: ['#f4d03f', '#e6a23c'], labelKey: 'fields.occto.nuclear' },
+    { key: 'thermal', color: '#f56c6c', gradient: ['#ff8787', '#f56c6c'], labelKey: 'fields.occto.thermal' },
+    { key: 'hydropower', color: '#409eff', gradient: ['#66b3ff', '#409eff'], labelKey: 'fields.occto.hydro' },
+    { key: 'geothermal_power', color: '#8e44ad', gradient: ['#bb8fce', '#8e44ad'], labelKey: 'fields.occto.geothermal' },
+    { key: 'biomass', color: '#27ae60', gradient: ['#58d68d', '#27ae60'], labelKey: 'fields.occto.biomass' },
+    { key: 'solar_power_generation_actual', color: '#f1c40f', gradient: ['#f7dc6f', '#f1c40f'], labelKey: 'fields.occto.solar' },
+    { key: 'wind_power_generation_actual', color: '#2ecc71', gradient: ['#58d68d', '#2ecc71'], labelKey: 'fields.occto.wind' },
+    { key: 'pumped_storage', color: '#3498db', gradient: ['#5dade2', '#3498db'], labelKey: 'fields.occto.pumpedStorage' },
+    { key: 'battery_storage', color: '#909399', gradient: ['#bdc3c7', '#909399'], labelKey: 'fields.occto.battery' },
+    { key: 'interconnection_line', color: '#d35400', gradient: ['#e67e22', '#d35400'], labelKey: 'fields.occto.interconnection' },
+    { key: 'others', color: '#7f8c8d', gradient: ['#aab7b8', '#7f8c8d'], labelKey: 'fields.occto.others' },
 ];
 
 /** 互連 (occto_inter) 可選欄位：對應 ProcessedDataPoint 上的屬性 */
 export const INTERCONNECTION_FIELDS = [
-    { key: 'flow_diff', label: '計畫流量差（順向－逆向）', pointKey: 'interconnection_flow_diff' as const, color: '#00bcd4' },
-    { key: 'forward_planned_flow', label: '順向計畫流量', pointKey: 'interconnection_forward' as const, color: '#26a69a' },
-    { key: 'reverse_planned_flow', label: '逆向計畫流量', pointKey: 'interconnection_reverse' as const, color: '#78909c' },
-    { key: 'actual_flow', label: '實際流量', pointKey: 'interconnection_actual_flow' as const, color: '#ff7043' },
-    { key: 'forward_available_capacity', label: '順向可用容量', pointKey: 'interconnection_forward_available_capacity' as const, color: '#66bb6a' },
-    { key: 'reverse_available_capacity', label: '逆向可用容量', pointKey: 'interconnection_reverse_available_capacity' as const, color: '#ab47bc' },
-    { key: 'forward_margin', label: '順向餘裕', pointKey: 'interconnection_forward_margin' as const, color: '#42a5f5' },
-    { key: 'reverse_margin', label: '逆向餘裕', pointKey: 'interconnection_reverse_margin' as const, color: '#ef5350' },
+    { key: 'flow_diff', labelKey: 'fields.interconnection.flowDiff', pointKey: 'interconnection_flow_diff' as const, color: '#00bcd4' },
+    { key: 'forward_planned_flow', labelKey: 'fields.interconnection.forwardPlannedFlow', pointKey: 'interconnection_forward' as const, color: '#26a69a' },
+    { key: 'reverse_planned_flow', labelKey: 'fields.interconnection.reversePlannedFlow', pointKey: 'interconnection_reverse' as const, color: '#78909c' },
+    { key: 'actual_flow', labelKey: 'fields.interconnection.actualFlow', pointKey: 'interconnection_actual_flow' as const, color: '#ff7043' },
+    { key: 'forward_available_capacity', labelKey: 'fields.interconnection.forwardAvailableCapacity', pointKey: 'interconnection_forward_available_capacity' as const, color: '#66bb6a' },
+    { key: 'reverse_available_capacity', labelKey: 'fields.interconnection.reverseAvailableCapacity', pointKey: 'interconnection_reverse_available_capacity' as const, color: '#ab47bc' },
+    { key: 'forward_margin', labelKey: 'fields.interconnection.forwardMargin', pointKey: 'interconnection_forward_margin' as const, color: '#42a5f5' },
+    { key: 'reverse_margin', labelKey: 'fields.interconnection.reverseMargin', pointKey: 'interconnection_reverse_margin' as const, color: '#ef5350' },
 ];
 
 /** 電池 (battery_data) 可選欄位：負=充電、正=放電 */
 export const BATTERY_FIELDS = [
-    { key: 'spot_value', label: '現貨電量', pointKey: 'battery_spot_value' as const, color: '#7e57c2' },
-    { key: 'intraday_value', label: '日前電量', pointKey: 'battery_intraday_value' as const, color: '#5c6bc0' },
-    { key: 'primary_value', label: '一次調整力', pointKey: 'battery_primary_value' as const, color: '#7986cb' },
-    { key: 'soc_kwh', label: '虛擬 SOC (kWh)', pointKey: 'battery_soc_kwh' as const, color: '#26a69a' },
-    { key: 'actual_soc_kwh', label: '實測 SOC (kWh)', pointKey: 'battery_actual_soc_kwh' as const, color: '#66bb6a' },
+    { key: 'spot_value', labelKey: 'fields.battery.spotValue', pointKey: 'battery_spot_value' as const, color: '#7e57c2' },
+    { key: 'intraday_value', labelKey: 'fields.battery.intradayValue', pointKey: 'battery_intraday_value' as const, color: '#5c6bc0' },
+    { key: 'primary_value', labelKey: 'fields.battery.primaryValue', pointKey: 'battery_primary_value' as const, color: '#7986cb' },
+    { key: 'soc_kwh', labelKey: 'fields.battery.socKwh', pointKey: 'battery_soc_kwh' as const, color: '#26a69a' },
+    { key: 'actual_soc_kwh', labelKey: 'fields.battery.actualSocKwh', pointKey: 'battery_actual_soc_kwh' as const, color: '#66bb6a' },
 ];
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [
-    { value: 'temperature_2m', label: '氣溫', unit: '°C', color: '#ff9800' },
-    { value: 'apparent_temperature', label: '體感', unit: '°C', color: '#ffcc80' },
-    { value: 'precipitation', label: '降水', unit: 'mm', color: '#2196f3' },
-    { value: 'rain', label: '雨量', unit: 'mm', color: '#42a5f5' },
-    { value: 'snowfall', label: '降雪', unit: 'cm', color: '#b3e5fc' },
-    { value: 'wind_speed_10m', label: '風速', unit: 'm/s', color: '#4caf50' },
-    { value: 'wind_gusts_10m', label: '陣風', unit: 'm/s', color: '#81c784' },
-    { value: 'relative_humidity_2m', label: '濕度', unit: '%', color: '#9c27b0' },
-    { value: 'cloud_cover', label: '雲量', unit: '%', color: '#607d8b' },
-    { value: 'sunshine_duration', label: '日照', unit: 'h', color: '#ffd700' },
-    { value: 'shortwave_radiation', label: '輻射', unit: 'W/m²', color: '#ff8c00' },
-    { value: 'soil_temperature', label: '土溫', unit: '°C', color: '#795548' },
-    { value: 'soil_moisture', label: '土濕', unit: 'm³/m³', color: '#009688' },
-    { value: 'pressure_msl', label: '氣壓', unit: 'hPa', color: '#e91e63' },
+    { value: 'temperature_2m', labelKey: 'fields.weather.temperature', unit: '°C', color: '#ff9800' },
+    { value: 'apparent_temperature', labelKey: 'fields.weather.apparentTemp', unit: '°C', color: '#ffcc80' },
+    { value: 'precipitation', labelKey: 'fields.weather.precipitation', unit: 'mm', color: '#2196f3' },
+    { value: 'rain', labelKey: 'fields.weather.rain', unit: 'mm', color: '#42a5f5' },
+    { value: 'snowfall', labelKey: 'fields.weather.snowfall', unit: 'cm', color: '#b3e5fc' },
+    { value: 'wind_speed_10m', labelKey: 'fields.weather.windSpeed', unit: 'm/s', color: '#4caf50' },
+    { value: 'wind_gusts_10m', labelKey: 'fields.weather.windGusts', unit: 'm/s', color: '#81c784' },
+    { value: 'relative_humidity_2m', labelKey: 'fields.weather.humidity', unit: '%', color: '#9c27b0' },
+    { value: 'cloud_cover', labelKey: 'fields.weather.cloudCover', unit: '%', color: '#607d8b' },
+    { value: 'sunshine_duration', labelKey: 'fields.weather.sunshine', unit: 'h', color: '#ffd700' },
+    { value: 'shortwave_radiation', labelKey: 'fields.weather.radiation', unit: 'W/m²', color: '#ff8c00' },
+    { value: 'soil_temperature', labelKey: 'fields.weather.soilTemp', unit: '°C', color: '#795548' },
+    { value: 'soil_moisture', labelKey: 'fields.weather.soilMoisture', unit: 'm³/m³', color: '#009688' },
+    { value: 'pressure_msl', labelKey: 'fields.weather.pressure', unit: 'hPa', color: '#e91e63' },
 ];
 
 /** 投標計畫 (bid_plans) 基礎欄位定義 */
 export const BID_PLAN_BASE_FIELDS = [
-    { key: 'bid_buy_price', label: '買入價格', color: '#fbc02d' },
-    { key: 'bid_buy_volume', label: '買入電量', color: '#00897b' },
-    { key: 'bid_sell_price', label: '賣出價格', color: '#fb8c00' },
-    { key: 'bid_sell_volume', label: '賣出電量', color: '#8e24aa' },
+    { key: 'bid_buy_price', labelKey: 'fields.bidPlan.buyPrice', color: '#fbc02d' },
+    { key: 'bid_buy_volume', labelKey: 'fields.bidPlan.buyVolume', color: '#00897b' },
+    { key: 'bid_sell_price', labelKey: 'fields.bidPlan.sellPrice', color: '#fb8c00' },
+    { key: 'bid_sell_volume', labelKey: 'fields.bidPlan.sellVolume', color: '#8e24aa' },
 ];
 
 /** 投標計畫 (bid_plans) 可選欄位 - 現貨市場 (spot) */
 export const BID_PLAN_SPOT_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
     ...f,
     pointKey: `bid_spot_${f.key.replace('bid_', '')}` as const,
-    label: `現貨-${f.label}`,
+    labelKey: f.labelKey,
+    labelPrefix: 'fields.bidPlan.spotPrefix' as const,
     category: 'spot' as const,
 }));
 
@@ -86,7 +87,8 @@ export const BID_PLAN_SPOT_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
 export const BID_PLAN_INTRADAY_FIELDS = BID_PLAN_BASE_FIELDS.map(f => ({
     ...f,
     pointKey: `bid_intraday_${f.key.replace('bid_', '')}` as const,
-    label: `日內-${f.label}`,
+    labelKey: f.labelKey,
+    labelPrefix: 'fields.bidPlan.intradayPrefix' as const,
     category: 'intraday' as const,
     // 使用稍微不同的颜色以区分
     color: f.key === 'bid_buy_price' ? '#ffc107' :

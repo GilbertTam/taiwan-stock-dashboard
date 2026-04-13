@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography } from '@mui/material';
 import { createChart, LineSeries, AreaSeries, LineStyle, ColorType, type IChartApi, type UTCTimestamp } from 'lightweight-charts';
 import { useTheme } from '@/app/ThemeProvider';
@@ -23,6 +24,7 @@ const toTime = (datetime: string): UTCTimestamp =>
   toChartTime(parseToTimestamp(datetime) ?? 0, 'Asia/Tokyo') as UTCTimestamp;
 
 export const InterconnectionChartLightweight: React.FC<InterconnectionChartLightweightProps> = ({ data }) => {
+  const { t } = useTranslation('forecast');
   const { darkMode } = useTheme();
   const colors = useChartColors();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,7 +101,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
         color: colors.rainActual ?? '#2196f3',
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
-        title: 'Reverse 容量',
+        title: t('fields.interconnection.reverseCapacity'),
       });
       s.setData(reverseCapacityData);
       seriesRefs.current.push(s);
@@ -109,7 +111,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
         color: colors.imbalance ?? '#f44336',
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
-        title: 'Forward 容量',
+        title: t('fields.interconnection.forwardCapacity'),
       });
       s.setData(forwardCapacityData);
       seriesRefs.current.push(s);
@@ -120,7 +122,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
         bottomColor: (colors.rainActual ?? '#2196f3') + '00',
         lineColor: colors.rainActual ?? '#2196f3',
         lineWidth: 2,
-        title: 'Reverse 流進',
+        title: t('fields.interconnection.reverseFlow'),
       });
       s.setData(reverseFlowData);
       seriesRefs.current.push(s);
@@ -131,7 +133,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
         bottomColor: (colors.imbalance ?? '#f44336') + '00',
         lineColor: colors.imbalance ?? '#f44336',
         lineWidth: 2,
-        title: 'Forward 流出',
+        title: t('fields.interconnection.forwardFlow'),
       });
       s.setData(forwardFlowData);
       seriesRefs.current.push(s);
@@ -170,7 +172,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
   if (processedData.length === 0) {
     return (
       <Box sx={{ width: '100%', height: 350, mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-        無互連流量資料
+        {t('fields.interconnection.noData')}
       </Box>
     );
   }
@@ -178,7 +180,7 @@ export const InterconnectionChartLightweight: React.FC<InterconnectionChartLight
   return (
     <Box sx={{ width: '100%', height: 350, mt: 2 }}>
       <Typography variant="subtitle1" gutterBottom fontWeight="bold">
-        連系線流量與容量分析
+        {t('fields.interconnection.chartTitle')}
       </Typography>
       <div ref={containerRef} style={{ height: 320, width: '100%' }} />
     </Box>

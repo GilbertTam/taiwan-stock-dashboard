@@ -12,6 +12,7 @@ import {
 import {
   HjksOutage
 } from '@/types';
+import { useTranslation } from 'react-i18next';
 import OutageGanttChart from './OutageGanttChart';
 import OutageTable from './OutageTable';
 
@@ -22,6 +23,7 @@ interface OutagesPanelProps {
 }
 
 export default function OutagesPanel({ startDate, endDate, selectedArea }: OutagesPanelProps) {
+  const { t } = useTranslation('generationMix');
   const [loading, setLoading] = useState(false);
   const [outagesData, setOutagesData] = useState<HjksOutage[]>([]);
 
@@ -61,7 +63,7 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
   if (!startDate || !endDate) {
     return (
       <Alert severity="info">
-        請選擇日期範圍 (Please select a date range)
+        {t('outages.selectDateRange')}
       </Alert>
     );
   }
@@ -79,7 +81,7 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
           {outagesData.length > 0 ? (
             <>
               <Typography variant="subtitle1" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
-                電廠停機資訊 (Power Plant Outage) - {selectedArea}
+                {t('outages.panelTitle')} - {selectedArea}
               </Typography>
 
               {/* Gantt Chart */}
@@ -93,7 +95,7 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
 
               {/* Outages Table */}
               <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
-                詳細資訊 (Detailed Information)
+                {t('outages.detailedInfo')}
               </Typography>
 
               <OutageTable
@@ -102,7 +104,7 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
             </>
           ) : (
             <Alert severity="info" sx={{ mt: 2 }}>
-              電廠停機資料：該時段無資料 (Power Plant Outage: No data available for this period)
+              {t('outages.noDataForPeriod')}
             </Alert>
           )}
         </>

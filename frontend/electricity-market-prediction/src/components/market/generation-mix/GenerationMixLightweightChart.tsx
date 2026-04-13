@@ -18,6 +18,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import {
   createChart,
   type IChartApi,
@@ -41,17 +42,17 @@ const toDisplayTime = (datetime: string): UTCTimestamp =>
   toChartTime(parseToTimestamp(datetime) ?? 0, JST) as UTCTimestamp;
 
 // ─── Generation source colour map (must match page.tsx GEN_SOURCES order) ────
-export const GEN_SOURCES: { key: keyof OcctoAreaData; label: string; color: string }[] = [
-  { key: 'nuclear_power',                 label: '核能',     color: '#7b61ff' },
-  { key: 'thermal',                       label: '火力',     color: '#ff7043' },
-  { key: 'hydropower',                    label: '水力',     color: '#29b6f6' },
-  { key: 'geothermal_power',              label: '地熱',     color: '#a1887f' },
-  { key: 'biomass',                       label: '生質',     color: '#8bc34a' },
-  { key: 'solar_power_generation_actual', label: '太陽能',   color: '#ffca28' },
-  { key: 'wind_power_generation_actual',  label: '風力',     color: '#26c6da' },
-  { key: 'pumped_storage',                label: '抽蓄',     color: '#78909c' },
-  { key: 'battery_storage',              label: '電池儲能', color: '#00cc7a' },
-  { key: 'others',                        label: '其他',     color: '#bdbdbd' },
+export const GEN_SOURCES: { key: keyof OcctoAreaData; labelKey: string; color: string }[] = [
+  { key: 'nuclear_power',                 labelKey: 'sources.nuclear',        color: '#7b61ff' },
+  { key: 'thermal',                       labelKey: 'sources.thermal',        color: '#ff7043' },
+  { key: 'hydropower',                    labelKey: 'sources.hydro',          color: '#29b6f6' },
+  { key: 'geothermal_power',              labelKey: 'sources.geothermal',     color: '#a1887f' },
+  { key: 'biomass',                       labelKey: 'sources.biomass',        color: '#8bc34a' },
+  { key: 'solar_power_generation_actual', labelKey: 'sources.solar',          color: '#ffca28' },
+  { key: 'wind_power_generation_actual',  labelKey: 'sources.wind',           color: '#26c6da' },
+  { key: 'pumped_storage',                labelKey: 'sources.pumpedStorage',  color: '#78909c' },
+  { key: 'battery_storage',              labelKey: 'sources.batteryStorage', color: '#00cc7a' },
+  { key: 'others',                        labelKey: 'sources.others',         color: '#bdbdbd' },
 ];
 
 // Fake-epoch base for comparison mode: each area index maps to EPOCH_BASE + index * 86400

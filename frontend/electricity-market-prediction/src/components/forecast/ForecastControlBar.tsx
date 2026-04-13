@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import StackedLineChartIcon from '@mui/icons-material/StackedLineChart';
+import { useTranslation } from 'react-i18next';
 import { AreaButtonGroup } from '@/components/selectors/AreaButtonGroup';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
@@ -26,34 +27,34 @@ type SourceKey = 'actual' | 'intraday' | 'imbalance' | 'interconnection' | 'batt
 
 interface SourceConfig {
     key: SourceKey;
-    label: string;
+    labelKey: string;
     color: string;
     hasSubOptions: boolean;
 }
 
 const SOURCES: SourceConfig[] = [
-    { key: 'actual',          label: '現貨實際', color: '#ef5350',                    hasSubOptions: false },
-    { key: 'intraday',        label: '日內市場', color: SOURCE_COLORS.intraday,        hasSubOptions: true  },
-    { key: 'imbalance',       label: '不平衡',   color: SOURCE_COLORS.imbalance,       hasSubOptions: true  },
-    { key: 'interconnection', label: '互連',     color: SOURCE_COLORS.interconnection, hasSubOptions: true  },
-    { key: 'battery',         label: '電池',     color: SOURCE_COLORS.battery,         hasSubOptions: true  },
-    { key: 'bidPlans',        label: '入標',     color: SOURCE_COLORS.bidPlans,        hasSubOptions: true  },
-    { key: 'weather',         label: '天氣',     color: SOURCE_COLORS.weather,         hasSubOptions: true  },
-    { key: 'occto',           label: 'OCCTO',    color: SOURCE_COLORS.occto,           hasSubOptions: true  },
+    { key: 'actual',          labelKey: 'controlBar.spotActual',       color: '#ef5350',                    hasSubOptions: false },
+    { key: 'intraday',        labelKey: 'controlBar.intradayMarket',   color: SOURCE_COLORS.intraday,        hasSubOptions: true  },
+    { key: 'imbalance',       labelKey: 'controlBar.imbalance',        color: SOURCE_COLORS.imbalance,       hasSubOptions: true  },
+    { key: 'interconnection', labelKey: 'controlBar.interconnection',  color: SOURCE_COLORS.interconnection, hasSubOptions: true  },
+    { key: 'battery',         labelKey: 'controlBar.battery',          color: SOURCE_COLORS.battery,         hasSubOptions: true  },
+    { key: 'bidPlans',        labelKey: 'controlBar.bidPlans',         color: SOURCE_COLORS.bidPlans,        hasSubOptions: true  },
+    { key: 'weather',         labelKey: 'controlBar.weather',          color: SOURCE_COLORS.weather,         hasSubOptions: true  },
+    { key: 'occto',           labelKey: 'controlBar.occto',            color: SOURCE_COLORS.occto,           hasSubOptions: true  },
 ];
 
 // OCCTO field groups
 const OCCTO_GROUPS = [
-    { label: '負載', keys: ['area_demand'] },
-    { label: '發電', keys: ['nuclear_power', 'thermal', 'hydropower', 'geothermal_power', 'biomass', 'solar_power_generation_actual', 'wind_power_generation_actual'] },
-    { label: '儲能', keys: ['pumped_storage', 'battery_storage'] },
-    { label: '其他', keys: ['interconnection_line', 'others'] },
+    { labelKey: 'controlBar.occtoGroups.load', keys: ['area_demand'] },
+    { labelKey: 'controlBar.occtoGroups.generation', keys: ['nuclear_power', 'thermal', 'hydropower', 'geothermal_power', 'biomass', 'solar_power_generation_actual', 'wind_power_generation_actual'] },
+    { labelKey: 'controlBar.occtoGroups.storage', keys: ['pumped_storage', 'battery_storage'] },
+    { labelKey: 'controlBar.occtoGroups.other', keys: ['interconnection_line', 'others'] },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatCalcDate(dateVal: string): string {
-    if (!dateVal || dateVal === 'latest') return '最新';
+function formatCalcDate(dateVal: string, latestLabel: string): string {
+    if (!dateVal || dateVal === 'latest') return latestLabel;
     if (dateVal.length === 8 && !isNaN(Number(dateVal))) {
         return `${dateVal.slice(0, 4)}-${dateVal.slice(4, 6)}-${dateVal.slice(6, 8)}`;
     }
@@ -81,6 +82,7 @@ interface ForecastControlBarProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelToggle }) => {
+    const { t } = useTranslation('forecast');
 
     // ── MarketDataContext ─────────────────────────────────────────────────────
     const {
@@ -271,10 +273,10 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'intraday':
                 return (
                     <Box sx={{ py: 0.75, minWidth: 190 }}>
-                        <PopoverLabel>顯示項目</PopoverLabel>
+                        <PopoverLabel>{t('controlBar.displayItems')}</PopoverLabel>
                         {[
-                            { label: '即時 K 線（開高低收）', active: showIntraday,        set: setShowIntraday,        color: SOURCE_COLORS.intraday },
-                            { label: '平均價格線',           active: showIntradayAverage, set: setShowIntradayAverage, color: '#ffa726' },
+                            { label: t('dataSources.intradayCandle'), active: showIntraday,        set: setShowIntraday,        color: SOURCE_COLORS.intraday },
+                            { label: t('dataSources.intradayAvgLine'), active: showIntradayAverage, set: setShowIntradayAverage, color: '#ffa726' },
                         ].map(({ label, active, set, color }) => (
                             <Box key={label} sx={rowSx} onClick={() => set(!active)}>
                                 <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: active ? color : 'transparent', border: `1.5px solid ${color}`, flexShrink: 0 }} />
@@ -287,11 +289,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'imbalance':
                 return (
                     <Box sx={{ py: 0.75, minWidth: 190 }}>
-                        <PopoverLabel>顯示項目</PopoverLabel>
+                        <PopoverLabel>{t('controlBar.displayItems')}</PopoverLabel>
                         {[
-                            { label: '不平衡量',   active: showImbalanceQuantity,    set: setShowImbalanceQuantity,    color: SOURCE_COLORS.imbalance, othersActive: showImbalanceSurplusRate || showImbalanceDeficitRate },
-                            { label: '剩餘單價',   active: showImbalanceSurplusRate, set: setShowImbalanceSurplusRate, color: '#4caf50',                othersActive: showImbalanceQuantity    || showImbalanceDeficitRate },
-                            { label: '不足單價',   active: showImbalanceDeficitRate, set: setShowImbalanceDeficitRate, color: '#e65100',                othersActive: showImbalanceQuantity    || showImbalanceSurplusRate },
+                            { label: t('dataSources.imbalanceQuantity'), active: showImbalanceQuantity,    set: setShowImbalanceQuantity,    color: SOURCE_COLORS.imbalance, othersActive: showImbalanceSurplusRate || showImbalanceDeficitRate },
+                            { label: t('dataSources.surplusRate'),       active: showImbalanceSurplusRate, set: setShowImbalanceSurplusRate, color: '#4caf50',                othersActive: showImbalanceQuantity    || showImbalanceDeficitRate },
+                            { label: t('dataSources.deficitRate'),       active: showImbalanceDeficitRate, set: setShowImbalanceDeficitRate, color: '#e65100',                othersActive: showImbalanceQuantity    || showImbalanceSurplusRate },
                         ].map(({ label, active, set, color, othersActive }) => (
                             <Box key={label} sx={rowSx} onClick={() => {
                                 set(!active);
@@ -308,7 +310,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'interconnection':
                 return (
                     <Box sx={{ py: 0.75, minWidth: 230 }}>
-                        <PopoverLabel>顯示欄位</PopoverLabel>
+                        <PopoverLabel>{t('controlBar.displayFields')}</PopoverLabel>
                         {INTERCONNECTION_FIELDS.map(f => {
                             const on = selectedInterconnectionFields.has(f.key);
                             return (
@@ -320,7 +322,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                     })
                                 }>
                                     <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
-                                    <Typography sx={{ fontSize: '0.75rem' }}>{f.label}</Typography>
+                                    <Typography sx={{ fontSize: '0.75rem' }}>{t(f.labelKey)}</Typography>
                                 </Box>
                             );
                         })}
@@ -330,7 +332,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'battery':
                 return (
                     <Box sx={{ py: 0.75, minWidth: 200 }}>
-                        <PopoverLabel>顯示欄位</PopoverLabel>
+                        <PopoverLabel>{t('controlBar.displayFields')}</PopoverLabel>
                         {BATTERY_FIELDS.map(f => {
                             const on = selectedBatteryFields.has(f.key);
                             return (
@@ -342,7 +344,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                     })
                                 }>
                                     <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
-                                    <Typography sx={{ fontSize: '0.75rem' }}>{f.label}</Typography>
+                                    <Typography sx={{ fontSize: '0.75rem' }}>{t(f.labelKey)}</Typography>
                                 </Box>
                             );
                         })}
@@ -354,11 +356,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     <Box sx={{ py: 0.75, minWidth: 240 }}>
                         {availableBidPlanCategories.length > 0 && (
                             <>
-                                <PopoverLabel>市場分類</PopoverLabel>
+                                <PopoverLabel>{t('dataSourceSections.marketCategory')}</PopoverLabel>
                                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
                                     {availableBidPlanCategories.map(cat => {
                                         const sel = selectedBidPlanCategories.has(cat);
-                                        const catLabels: Record<string, string> = { spot: '現貨市場', intraday: '日內市場', '1000': '一次調整力' };
+                                        const catLabels: Record<string, string> = { spot: t('dataSourceCategories.spotMarket'), intraday: t('dataSourceCategories.intradayMarket'), '1000': t('dataSourceCategories.primaryAdjustment') };
                                         return (
                                             <Chip key={cat} label={catLabels[cat] ?? cat} size="small"
                                                 onClick={() => setSelectedBidPlanCategories(prev => {
@@ -380,7 +382,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                         )}
                         {availableSiteIds.length > 0 && (
                             <>
-                                <PopoverLabel>案場</PopoverLabel>
+                                <PopoverLabel>{t('dataSourceSections.site')}</PopoverLabel>
                                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
                                     {availableSiteIds.map(id => {
                                         const sel = selectedSiteIds.has(id);
@@ -403,7 +405,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                 </Box>
                             </>
                         )}
-                        <PopoverLabel>欄位</PopoverLabel>
+                        <PopoverLabel>{t('controlBar.fields')}</PopoverLabel>
                         {BID_PLAN_BASE_FIELDS.map(f => {
                             const on = selectedBidPlanFields.has(f.key);
                             return (
@@ -415,7 +417,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                     })
                                 }>
                                     <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
-                                    <Typography sx={{ fontSize: '0.75rem' }}>{f.label}</Typography>
+                                    <Typography sx={{ fontSize: '0.75rem' }}>{t(f.labelKey)}</Typography>
                                 </Box>
                             );
                         })}
@@ -448,10 +450,10 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                         {/* Actual / Forecast source toggles */}
                         <Box sx={{ px: 1.5, pt: 1, pb: 0.75, borderBottom: '1px solid var(--card-border)', display: 'flex', gap: 0.75 }}>
                             {([
-                                { label: '實際', active: showWeatherActual,   set: setShowWeatherActual,   color: SOURCE_COLORS.weatherActual,   available: hasActual,   otherActive: showWeatherForecast },
-                                { label: '預報', active: showWeatherForecast, set: setShowWeatherForecast, color: SOURCE_COLORS.weatherForecast, available: hasForecast, otherActive: showWeatherActual   },
+                                { label: t('controlBar.actual'), active: showWeatherActual,   set: setShowWeatherActual,   color: SOURCE_COLORS.weatherActual,   available: hasActual,   otherActive: showWeatherForecast },
+                                { label: t('controlBar.forecast'), active: showWeatherForecast, set: setShowWeatherForecast, color: SOURCE_COLORS.weatherForecast, available: hasForecast, otherActive: showWeatherActual   },
                             ] as const).map(({ label, active, set, color, available, otherActive }) => (
-                                <Tooltip key={label} title={available ? '' : '目前無資料'}>
+                                <Tooltip key={label} title={available ? '' : t('controlBar.noDataAvailable')}>
                                     <Box onClick={() => {
                                         if (!available) return;
                                         set(!active);
@@ -478,7 +480,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             <Box>
                                 {weatherModelsActual && weatherModelsActual.length > 0 && (
                                     <>
-                                        <PopoverLabel>實際模型</PopoverLabel>
+                                        <PopoverLabel>{t('controlBar.actualModel')}</PopoverLabel>
                                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', px: 1.5, pb: 0.5 }}>
                                             {weatherModelsActual.map((m: { model: string }) => (
                                                 <Chip key={m.model} label={m.model} size="small"
@@ -494,10 +496,10 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                         </Box>
                                     </>
                                 )}
-                                <PopoverLabel>實際欄位</PopoverLabel>
+                                <PopoverLabel>{t('controlBar.actualFields')}</PopoverLabel>
                                 <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
                                     {weatherFields.map(f => (
-                                        <FieldPill key={f.value} value={f.value} label={f.label} color={f.color}
+                                        <FieldPill key={f.value} value={f.value} label={t(f.labelKey)} color={f.color}
                                             selected={selectedWeatherFieldsActual.has(f.value)}
                                             onToggle={() => setSelectedWeatherFieldsActual(prev => {
                                                 const next = new Set(prev);
@@ -516,7 +518,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             <Box sx={{ borderTop: hasActual ? '1px solid var(--card-border)' : 'none' }}>
                                 {weatherModelsForecast && weatherModelsForecast.length > 0 && (
                                     <>
-                                        <PopoverLabel>預報模型</PopoverLabel>
+                                        <PopoverLabel>{t('controlBar.forecastModel')}</PopoverLabel>
                                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', px: 1.5, pb: 0.5 }}>
                                             {weatherModelsForecast.map((m: { model: string }) => (
                                                 <Chip key={m.model} label={m.model} size="small"
@@ -532,10 +534,10 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                         </Box>
                                     </>
                                 )}
-                                <PopoverLabel>預報欄位</PopoverLabel>
+                                <PopoverLabel>{t('controlBar.forecastFields')}</PopoverLabel>
                                 <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
                                     {weatherFields.map(f => (
-                                        <FieldPill key={f.value} value={f.value} label={f.label} color={f.color}
+                                        <FieldPill key={f.value} value={f.value} label={t(f.labelKey)} color={f.color}
                                             selected={selectedWeatherFieldsForecast.has(f.value)}
                                             onToggle={() => setSelectedWeatherFieldsForecast(prev => {
                                                 const next = new Set(prev);
@@ -562,11 +564,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             borderBottom: '1px solid var(--card-border)',
                         }}>
                             <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', mr: 'auto', letterSpacing: '0.5px' }}>
-                                圖表型式
+                                {t('controlBar.chartType')}
                             </Typography>
                             {([
-                                { value: 'stacked', label: '堆疊', icon: <BarChartIcon sx={{ fontSize: '0.85rem' }} /> },
-                                { value: 'area',    label: '區域', icon: <StackedLineChartIcon sx={{ fontSize: '0.85rem' }} /> },
+                                { value: 'stacked', label: t('controlBar.stacked'), icon: <BarChartIcon sx={{ fontSize: '0.85rem' }} /> },
+                                { value: 'area',    label: t('controlBar.area'), icon: <StackedLineChartIcon sx={{ fontSize: '0.85rem' }} /> },
                             ] as const).map(opt => (
                                 <Box key={opt.value} onClick={() => setOcctoChartType(opt.value)} sx={{
                                     display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.3,
@@ -586,8 +588,8 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
 
                         {/* Field groups */}
                         {OCCTO_GROUPS.map(group => (
-                            <Box key={group.label}>
-                                <PopoverLabel>{group.label}</PopoverLabel>
+                            <Box key={group.labelKey}>
+                                <PopoverLabel>{t(group.labelKey)}</PopoverLabel>
                                 <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
                                     {group.keys.map(k => {
                                         const f = occtoStackedFields.find(x => x.key === k);
@@ -611,7 +613,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                                 transition: 'all 0.1s',
                                                 userSelect: 'none',
                                             }}>
-                                                {f.label}
+                                                {t(f.labelKey)}
                                             </Box>
                                         );
                                     })}
@@ -655,7 +657,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     const modelKey = `${m.id}|${m.name}`;
                     const color = modelColorMap[modelKey] || m.color || '#cccccc';
                     const mae = calculateModelMAE(chartData, m.id, m.name);
-                    const dateLabel = formatCalcDate(m.calculatingDate);
+                    const dateLabel = formatCalcDate(m.calculatingDate, t('controlBar.latest'));
                     return (
                         <Chip
                             key={modelKey}
@@ -695,7 +697,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     );
                 })}
 
-                <Tooltip title="追加 / 管理模型">
+                <Tooltip title={t('controlBar.addManageModels')}>
                     <IconButton
                         size="small"
                         onClick={(e) => setModelPopoverAnchor(e.currentTarget)}
@@ -717,11 +719,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
 
             {/* ── Data Source Chips ─────────────────────────────────────────── */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                {SOURCES.map(({ key, label, color, hasSubOptions }) => {
+                {SOURCES.map(({ key, labelKey, color, hasSubOptions }) => {
                     const isActive = getIsActive(key);
                     const hasData = getHasData(key);
                     return (
-                        <Tooltip key={key} title={hasData ? '' : '目前無資料'} arrow>
+                        <Tooltip key={key} title={hasData ? '' : t('controlBar.noDataAvailable')} arrow>
                             <Box sx={{
                                 display: 'flex', alignItems: 'stretch',
                                 height: 26,
@@ -756,7 +758,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                         lineHeight: 1,
                                         transition: 'color 0.12s',
                                     }}>
-                                        {label}
+                                        {t(labelKey)}
                                     </Typography>
                                 </Box>
 
@@ -803,7 +805,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             >
                 <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid var(--card-border)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                        選擇模型
+                        {t('controlBar.selectModels')}
                     </Typography>
                 </Box>
                 <List dense sx={{ py: 0.5, maxHeight: 280, overflowY: 'auto' }}>
@@ -839,18 +841,18 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             >
                 <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid var(--card-border)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem' }}>
-                        計算日
+                        {t('controlBar.calculationDate')}
                     </Typography>
                 </Box>
                 <MenuItem onClick={() => dateMenuState && handleDateSelect(dateMenuState.modelIndex, 'latest')} dense sx={{ fontSize: '0.8rem' }}>
-                    最新預測
+                    {t('controlBar.latestForecast')}
                 </MenuItem>
                 {activeDateDates.map((d) => (
                     <MenuItem key={d.calculating_date}
                         onClick={() => dateMenuState && handleDateSelect(dateMenuState.modelIndex, d.calculating_date)}
                         dense sx={{ fontSize: '0.8rem', fontFamily: 'monospace' }}
                     >
-                        {formatCalcDate(String(d.calculating_date))}
+                        {formatCalcDate(String(d.calculating_date), t('controlBar.latest'))}
                     </MenuItem>
                 ))}
             </Menu>
@@ -874,7 +876,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.75, borderBottom: '1px solid var(--card-border)' }}>
                                 <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: src.color, flexShrink: 0 }} />
                                 <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
-                                    {src.label}
+                                    {t(src.labelKey)}
                                 </Typography>
                             </Box>
                             {renderPopoverContent(sourcePopover.key)}

@@ -1,17 +1,11 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Paper } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { TimeSlot } from '@/types';
 import { getColumnStats, getCellStyle } from './utils';
-
-const SLOT_LABELS: Record<TimeSlot, string> = {
-  [TimeSlot.ALL]: 'Overall',
-  [TimeSlot.MORNING]: '8–10h',
-  [TimeSlot.EVENING]: '17–19h',
-  [TimeSlot.NIGHT]: '22–24h',
-};
 
 const LegendItem = ({
   color,
@@ -44,7 +38,15 @@ export const MaeSummaryTable: React.FC<MaeSummaryTableProps> = ({
   modelTimeSlotMAEs,
   modelColorMap,
 }) => {
+  const { t } = useTranslation('forecast');
   const { darkMode } = useTheme();
+
+  const slotLabels: Record<TimeSlot, string> = {
+    [TimeSlot.ALL]: t('maeAnalysis.slotLabels.all'),
+    [TimeSlot.MORNING]: t('maeAnalysis.slotLabels.morning'),
+    [TimeSlot.EVENING]: t('maeAnalysis.slotLabels.evening'),
+    [TimeSlot.NIGHT]: t('maeAnalysis.slotLabels.night'),
+  };
 
   const colors = useMemo(
     () => ({
@@ -76,7 +78,7 @@ export const MaeSummaryTable: React.FC<MaeSummaryTableProps> = ({
           variant="subtitle2"
           sx={{ color: colors.text, fontWeight: 'bold', mb: 1.25, textTransform: 'uppercase', letterSpacing: 0.5 }}
         >
-          MAE 依時段（數值越低越好）
+          {t('maeAnalysis.summaryTitle')}
         </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
@@ -125,7 +127,7 @@ export const MaeSummaryTable: React.FC<MaeSummaryTableProps> = ({
                       }}
                     >
                       <Typography variant="caption" sx={{ color: colors.subText }}>
-                        {SLOT_LABELS[slot]}
+                        {slotLabels[slot]}
                       </Typography>
                       <Typography variant="body2" fontWeight="600" sx={{ color: style.color }}>
                         {value != null ? value.toFixed(2) : '–'}
@@ -141,12 +143,12 @@ export const MaeSummaryTable: React.FC<MaeSummaryTableProps> = ({
         <Box sx={{ mt: 1.5, display: 'flex', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <LegendItem
             color={darkMode ? '#52c41a' : '#389e0d'}
-            label="最低 MAE（最佳）"
+            label={t('maeAnalysis.lowestMae')}
             colors={colors}
           />
           <LegendItem
             color={darkMode ? '#ff4d4f' : '#cf1322'}
-            label="最高 MAE（最差）"
+            label={t('maeAnalysis.highestMae')}
             colors={colors}
           />
         </Box>

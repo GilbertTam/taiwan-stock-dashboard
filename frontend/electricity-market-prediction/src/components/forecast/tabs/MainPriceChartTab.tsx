@@ -20,6 +20,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CloudIcon from '@mui/icons-material/Cloud';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
 import BalanceIcon from '@mui/icons-material/Balance';
+import { useTranslation } from 'react-i18next';
 import { PriceChartContainer } from '../charts/PriceChartContainer';
 import ProfitAnalysis from '../profit-analysis/ProfitAnalysis';
 import MaeAnalysis from '../mae-analysis/MaeAnalysis';
@@ -69,6 +70,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   defaultPanelMarketInfo = false,
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation(['forecast', 'common']);
   const [topBottomPairs, setTopBottomPairs] = useState(2);
   const [subTab, setSubTab] = useState<SubTabIndex>(defaultPanelMarketInfo ? 2 : 0); // 2 = 停機資訊
   const [collapsed, setCollapsed] = useState(!defaultPanelMarketInfo);
@@ -94,7 +96,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const cardBg = isDark ? alpha(theme.palette.background.paper, 0.6) : theme.palette.background.paper;
 
-  const emptyMessage = '請在左側選擇地區與預測模型，即可在此檢視收益分析與 MAE 指標。';
+  const emptyMessage = t('forecast:emptyState.selectAreaAndModel');
   const loadingNode = (
     <Box
       sx={{
@@ -118,7 +120,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
           '@keyframes spin': { to: { transform: 'rotate(360deg)' } },
         }}
       />
-      <Typography sx={{ mt: 1.5, fontSize: 13 }}>載入模型效能資料...</Typography>
+      <Typography sx={{ mt: 1.5, fontSize: 13 }}>{t('forecast:emptyState.loadingPerformance')}</Typography>
     </Box>
   );
 
@@ -161,43 +163,43 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
       <Tab
         icon={<TrendingUpIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="收益分析"
+        label={t('forecast:tabs.profitAnalysis')}
         onClick={() => handleTabClick(0)}
       />
       <Tab
         icon={<AssessmentIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="MAE 分析"
+        label={t('forecast:tabs.maeAnalysis')}
         onClick={() => handleTabClick(1)}
       />
       <Tab
         icon={<WarningAmberIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="停機資訊"
+        label={t('forecast:tabs.outageInfo')}
         onClick={() => handleTabClick(2)}
       />
       <Tab
         icon={<AccountTreeIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="互連流量"
+        label={t('forecast:tabs.interconnFlow')}
         onClick={() => handleTabClick(3)}
       />
       <Tab
         icon={<CloudIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="天氣資料"
+        label={t('forecast:tabs.weatherData')}
         onClick={() => handleTabClick(4)}
       />
       <Tab
         icon={<CandlestickChartIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="日内市場"
+        label={t('forecast:tabs.intradayMarketTab')}
         onClick={() => handleTabClick(5)}
       />
       <Tab
         icon={<BalanceIcon sx={{ fontSize: 18, mr: 0.5 }} />}
         iconPosition="start"
-        label="需給バランス"
+        label={t('forecast:tabs.supplyDemandBalance')}
         onClick={() => handleTabClick(6)}
       />
     </Tabs>
@@ -214,9 +216,9 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         px: 1.5,
         py: 1.5,
         '&::-webkit-scrollbar': { width: 8 },
-        '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
+        '&::-webkit-scrollbar-track': { backgroundColor: 'var(--scrollbar-track)' },
         '&::-webkit-scrollbar-thumb': {
-          backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+          backgroundColor: 'var(--scrollbar-thumb)',
           borderRadius: 4,
         },
       }}
@@ -245,7 +247,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         <>
           {!selectedModels.length ? (
             <Alert severity="info" sx={{ borderRadius: 1.5, py: 0.75 }}>
-              請在左側選擇地區與預測模型，即可在此檢視 MAE 指標。
+              {t('forecast:emptyState.selectModelForMae')}
             </Alert>
           ) : isLoading ? (
             <Box
@@ -257,7 +259,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
                 color: 'text.secondary',
               }}
             >
-              <Typography sx={{ fontSize: 13 }}>載入中...</Typography>
+              <Typography sx={{ fontSize: 13 }}>{t('common:loading')}</Typography>
             </Box>
           ) : (
             <MaeAnalysis chartData={chartData} selectedModels={selectedModels} embedded />
@@ -352,8 +354,8 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
             }
           }}
           sx={{ mr: 0.5, color: 'text.secondary' }}
-          title={collapsed ? '展開' : '收合'}
-          aria-label={collapsed ? '展開' : '收合'}
+          title={collapsed ? t('forecast:tabs.expand') : t('forecast:tabs.collapse')}
+          aria-label={collapsed ? t('forecast:tabs.expand') : t('forecast:tabs.collapse')}
         >
           {collapsed ? (
             <UnfoldMoreIcon sx={{ fontSize: 20 }} aria-hidden />

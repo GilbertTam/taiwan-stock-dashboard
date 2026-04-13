@@ -30,6 +30,7 @@ import {
     BatteryChargingFull,
     Settings
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
 import { occtoFields, occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS } from '@/components/price-chart/constants';
@@ -54,8 +55,9 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     expanded,
     onToggle,
     step = 3,
-    description = '勾選要在主圖上顯示的資料',
+    description = '',
 }) => {
+    const { t } = useTranslation('forecast');
     const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({
         weather: false,
         occto: true,
@@ -215,22 +217,22 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                 step={step}
                 description={description}
             >
-                圖表疊加資料
+                {t('sidebar.chartOverlayData')}
             </SectionHeader>
 
             {/* Collapsed summary: list selected data sources */}
             {!expanded && (() => {
                 const selected: string[] = [];
-                if (showActualPrice) selected.push('現貨實際價格');
-                if (showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate) selected.push('不平衡市場');
-                if (showIntraday || showIntradayAverage) selected.push('日前市場');
-                if (selectedInterconnectionFields.size > 0) selected.push('互連');
-                if (selectedBatteryFields.size > 0) selected.push('電池');
-                if (showWeather) selected.push('天氣');
-                if (showOcctoArea) selected.push('OCCTO 區域');
+                if (showActualPrice) selected.push(t('dataSources.spotActualPrice'));
+                if (showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate) selected.push(t('dataSources.imbalanceMarket'));
+                if (showIntraday || showIntradayAverage) selected.push(t('dataSources.intradayMarket'));
+                if (selectedInterconnectionFields.size > 0) selected.push(t('dataSources.interconnection'));
+                if (selectedBatteryFields.size > 0) selected.push(t('dataSources.battery'));
+                if (showWeather) selected.push(t('dataSources.weather'));
+                if (showOcctoArea) selected.push(t('dataSources.occtoArea'));
                 return (
                     <Box sx={{ px: 2, py: 1, borderLeft: '3px solid var(--primary)', ml: 0.5, bgcolor: 'var(--hover-bg)' }}>
-                        <Typography variant="caption" color="text.secondary">已選：</Typography>
+                        <Typography variant="caption" color="text.secondary">{t('sidebar.selected')}</Typography>
                         <Typography component="span" variant="caption" sx={{ fontWeight: 500 }}>
                             {selected.length > 0 ? selected.join('、') : '—'}
                         </Typography>
@@ -252,12 +254,12 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                 >
                     {dataFetchWarnings != null && dataFetchWarnings.length > 0 && (
                         <Alert severity="warning" sx={{ mb: 1, py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
-                            部分資料無法載入：{dataFetchWarnings.join('、')}
+                            {t('dataWarning')}{dataFetchWarnings.join('、')}
                         </Alert>
                     )}
                     <List dense sx={{ p: 0 }}>
 
-                        <SubHeader label="市場價格" />
+                        <SubHeader label={t('dataSourceSections.marketPrice')} />
 
                         {/* Actual Price Toggle */}
                         <ListItem disablePadding>
@@ -279,8 +281,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <ShowChart sx={{ fontSize: '1.1rem', color: showActualPrice ? '#ef5350' : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="現貨實際價格" primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="JEPX 現貨市場實際成交價格（每 30 分鐘），依所選區域顯示。" />
+                                <ListItemText primary={t('dataSources.spotActualPrice')} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.spotActualPriceDesc')} />
                             </ListItemButton>
                         </ListItem>
 
@@ -297,8 +299,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <SwapHoriz sx={{ fontSize: '1.1rem', color: (showIntraday || showIntradayAverage) ? SOURCE_COLORS.intraday : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="日前市場" secondary={!hasIntradayData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="JEPX 日前市場的 K 線（開高低收）與平均價，可分別勾選疊加於圖表。" />
+                                <ListItemText primary={t('dataSources.intradayMarket')} secondary={!hasIntradayData ? t('dataSources.noData') : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.intradayMarketDesc')} />
                                 {focusedDataSource === 'intraday' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -311,8 +313,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             onChange={(e) => setShowIntraday(e.target.checked)}
                                             sx={{ p: 0.5, mr: 1, color: SOURCE_COLORS.intraday, '&.Mui-checked': { color: SOURCE_COLORS.intraday } }}
                                         />
-                                        <Typography variant="caption">即時 K 線（開高低收）</Typography>
-                                        <DataSourceInfo title="日前市場每 30 分鐘的 K 線（開盤、最高、最低、收盤價）。" />
+                                        <Typography variant="caption">{t('dataSources.intradayCandle')}</Typography>
+                                        <DataSourceInfo title={t('dataSources.intradayCandleDesc')} />
                                     </Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <Checkbox
@@ -321,14 +323,14 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             onChange={(e) => setShowIntradayAverage(e.target.checked)}
                                             sx={{ p: 0.5, mr: 1, color: '#ffa726', '&.Mui-checked': { color: '#ffa726' } }}
                                         />
-                                        <Typography variant="caption">平均價格線</Typography>
-                                        <DataSourceInfo title="日前市場該時段平均成交價的折線。" />
+                                        <Typography variant="caption">{t('dataSources.intradayAvgLine')}</Typography>
+                                        <DataSourceInfo title={t('dataSources.intradayAvgLineDesc')} />
                                     </Box>
                                 </Box>
                             </Collapse>
                         </ListItem>
 
-                        <SubHeader label="不平衡市場" />
+                        <SubHeader label={t('dataSourceSections.imbalanceMarket')} />
 
                         {/* Imbalance section: 不平衡量、剩餘單價、不足單價（與圖表同色） */}
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -343,8 +345,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <Balance sx={{ fontSize: '1.1rem', color: (showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate) ? SOURCE_COLORS.imbalance : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="不平衡市場" secondary={!hasImbalanceData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="電力系統不平衡量與不平衡單價（剩餘／不足），可分別勾選數量、剩餘單價、不足單價疊加於圖表。" />
+                                <ListItemText primary={t('dataSources.imbalanceMarket')} secondary={!hasImbalanceData ? t('dataSources.noData') : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.imbalanceMarketDesc')} />
                                 {focusedDataSource === 'imbalance' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -357,8 +359,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             onChange={(e) => setShowImbalanceQuantity(e.target.checked)}
                                             sx={{ p: 0.5, mr: 1, color: SOURCE_COLORS.imbalance, '&.Mui-checked': { color: SOURCE_COLORS.imbalance } }}
                                         />
-                                        <Typography variant="caption">不平衡量 (Quantity)</Typography>
-                                        <DataSourceInfo title="每 30 分鐘的不平衡電量（kWh），顯示於副軸。" />
+                                        <Typography variant="caption">{t('dataSources.imbalanceQuantity')}</Typography>
+                                        <DataSourceInfo title={t('dataSources.imbalanceQuantityDesc')} />
                                     </Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <Checkbox
@@ -367,8 +369,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             onChange={(e) => setShowImbalanceSurplusRate(e.target.checked)}
                                             sx={{ p: 0.5, mr: 1, color: '#4caf50', '&.Mui-checked': { color: '#4caf50' } }}
                                         />
-                                        <Typography variant="caption">剩餘單價 (Surplus Rate)</Typography>
-                                        <DataSourceInfo title="電力剩餘時的不平衡單價（円/kWh），疊加於主圖右軸。" />
+                                        <Typography variant="caption">{t('dataSources.surplusRate')}</Typography>
+                                        <DataSourceInfo title={t('dataSources.surplusRateDesc')} />
                                     </Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <Checkbox
@@ -377,14 +379,14 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                             onChange={(e) => setShowImbalanceDeficitRate(e.target.checked)}
                                             sx={{ p: 0.5, mr: 1, color: '#e65100', '&.Mui-checked': { color: '#e65100' } }}
                                         />
-                                        <Typography variant="caption">不足單價 (Deficit Rate)</Typography>
-                                        <DataSourceInfo title="電力不足時的不平衡單價（円/kWh），疊加於主圖右軸。" />
+                                        <Typography variant="caption">{t('dataSources.deficitRate')}</Typography>
+                                        <DataSourceInfo title={t('dataSources.deficitRateDesc')} />
                                     </Box>
                                 </Box>
                             </Collapse>
                         </ListItem>
 
-                        <SubHeader label="互連" />
+                        <SubHeader label={t('dataSourceSections.interconnection')} />
 
                         {/* Interconnection section: 可展開，多欄位預留 */}
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -399,8 +401,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <SwapHoriz sx={{ fontSize: '1.1rem', color: selectedInterconnectionFields.size > 0 ? SOURCE_COLORS.interconnection : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="互連" secondary={!hasInterconnectionData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="區域間互連線的計畫流量、實際流量、可用容量、餘裕等欄位，可勾選要疊加於圖表的項目。" />
+                                <ListItemText primary={t('dataSources.interconnection')} secondary={!hasInterconnectionData ? t('dataSources.noData') : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.interconnectionDesc')} />
                                 {focusedDataSource === 'interconnection' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -423,15 +425,15 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 }}
                                                 sx={{ p: 0.5, mr: 1, color: f.color, '&.Mui-checked': { color: f.color } }}
                                             />
-                                            <Typography variant="caption" sx={{ color: f.color }}>{f.label}</Typography>
-                                            <DataSourceInfo title={`${f.label}，單位 MW，顯示於互連副軸。`} />
+                                            <Typography variant="caption" sx={{ color: f.color }}>{t(f.labelKey)}</Typography>
+                                            <DataSourceInfo title={t('dataSources.interconnectionFieldDesc', { label: t(f.labelKey) })} />
                                         </Box>
                                     ))}
                                 </Box>
                             </Collapse>
                         </ListItem>
 
-                        <SubHeader label="電池" />
+                        <SubHeader label={t('dataSourceSections.battery')} />
 
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                             <ListItemButton
@@ -445,8 +447,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <BatteryChargingFull sx={{ fontSize: '1.1rem', color: selectedBatteryFields.size > 0 ? SOURCE_COLORS.battery : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="電池" secondary={!hasBatteryData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="電池現貨/日前/一次調整力、SOC 等，負=充電、正=放電，可勾選疊加於圖表。" />
+                                <ListItemText primary={t('dataSources.battery')} secondary={!hasBatteryData ? t('dataSources.noData') : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.batteryDesc')} />
                                 {focusedDataSource === 'battery' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -469,8 +471,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 }}
                                                 sx={{ p: 0.5, mr: 1, color: f.color, '&.Mui-checked': { color: f.color } }}
                                             />
-                                            <Typography variant="caption" sx={{ color: f.color }}>{f.label}</Typography>
-                                            <DataSourceInfo title={`${f.label}，顯示於電池副軸。負=充電、正=放電。`} />
+                                            <Typography variant="caption" sx={{ color: f.color }}>{t(f.labelKey)}</Typography>
+                                            <DataSourceInfo title={t('dataSources.batteryFieldDesc', { label: t(f.labelKey) })} />
                                         </Box>
                                     ))}
                                 </Box>
@@ -490,8 +492,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <ShowChart sx={{ fontSize: '1.1rem', color: selectedBidPlanFields.size > 0 ? SOURCE_COLORS.bidPlans : 'text.disabled' }} />
                                 </ListItemIcon>
-                                <ListItemText primary="投標計畫" secondary={!hasBidPlansData ? '無資料' : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                <DataSourceInfo title="各市場入標結果資料。以盲標單一價格競標方式約定之買入/賣出入標價格與電力量。可透過市場分類晶片切換不同市場（現貨、當日等）。" />
+                                <ListItemText primary={t('dataSources.bidPlans')} secondary={!hasBidPlansData ? t('dataSources.noData') : undefined} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                                <DataSourceInfo title={t('dataSources.bidPlansDesc')} />
                                 {focusedDataSource === 'bidPlans' ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -501,12 +503,12 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                     {availableBidPlanCategories.length > 0 && (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
                                             <Typography variant="caption" sx={{ width: '100%', color: 'text.secondary', fontSize: '0.7rem', mb: 0.25 }}>
-                                                市場分類
+                                                {t('dataSourceSections.marketCategory')}
                                             </Typography>
                                             {availableBidPlanCategories.map((cat) => (
                                                 <Chip
                                                     key={cat}
-                                                    label={cat === 'spot' ? '現貨市場' : cat === 'intraday' ? '日內市場' : cat === '1000' ? '一次調整力市場' : cat}
+                                                    label={cat === 'spot' ? t('dataSourceCategories.spotMarket') : cat === 'intraday' ? t('dataSourceCategories.intradayMarket') : cat === '1000' ? t('dataSourceCategories.primaryAdjustment') : cat}
                                                     size="small"
                                                     variant={selectedBidPlanCategories.has(cat) ? 'filled' : 'outlined'}
                                                     color={selectedBidPlanCategories.has(cat) ? 'primary' : 'default'}
@@ -529,7 +531,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                     {availableSiteIds.length > 0 && (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
                                             <Typography variant="caption" sx={{ width: '100%', color: 'text.secondary', fontSize: '0.7rem', mb: 0.25 }}>
-                                                案場
+                                                {t('dataSourceSections.site')}
                                             </Typography>
                                             {availableSiteIds.map((siteId) => (
                                                 <Chip
@@ -573,8 +575,8 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                     }}
                                                     sx={{ p: 0.5, mr: 1, color: f.color, '&.Mui-checked': { color: f.color } }}
                                                 />
-                                                <Typography variant="caption" sx={{ color: f.color }}>{f.label}</Typography>
-                                                <DataSourceInfo title={f.key === 'bid_buy_price' ? '買入入標價格（圓/kWh）。需求方所提出「此價格以下才購買」的入標價格。' : f.key === 'bid_buy_volume' ? '買入入標電力量（kWh）。需求方希望購買的電力量。' : f.key === 'bid_sell_price' ? '賣出入標價格（圓/kWh）。供給方所提出「此價格以上才出售」的入標價格。' : f.key === 'bid_sell_volume' ? '賣出入標電力量（kWh）。供給方希望出售的電力量。' : f.label} />
+                                                <Typography variant="caption" sx={{ color: f.color }}>{t(f.labelKey)}</Typography>
+                                                <DataSourceInfo title={f.key === 'bid_buy_price' ? '買入入標價格（圓/kWh）。需求方所提出「此價格以下才購買」的入標價格。' : f.key === 'bid_buy_volume' ? '買入入標電力量（kWh）。需求方希望購買的電力量。' : f.key === 'bid_sell_price' ? '賣出入標價格（圓/kWh）。供給方所提出「此價格以上才出售」的入標價格。' : f.key === 'bid_sell_volume' ? '賣出入標電力量（kWh）。供給方希望出售的電力量。' : t(f.labelKey)} />
                                             </Box>
                                         );
                                     })}
@@ -582,7 +584,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                             </Collapse>
                         </ListItem>
 
-                        <SubHeader label="環境" />
+                        <SubHeader label={t('dataSourceSections.environment')} />
 
                         {/* Weather (Blue/Amber) */}
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -601,12 +603,12 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                     <Cloud sx={{ fontSize: '1.1rem', color: showWeather ? SOURCE_COLORS.weather : 'text.disabled' }} />
                                 </ListItemIcon>
                                 <ListItemText
-                                    primary="天氣"
-                                    secondary={!hasWeatherData ? '無資料' : '含實際值與預測值'}
+                                    primary={t('dataSources.weather')}
+                                    secondary={!hasWeatherData ? t('dataSources.noData') : t('dataSources.weatherSecondary')}
                                     primaryTypographyProps={{ fontSize: '0.85rem' }}
                                     secondaryTypographyProps={{ fontSize: '0.7rem' }}
                                 />
-                                <DataSourceInfo title="氣溫、降雨、風速等氣象資料，可選實際觀測或預測值，疊加於副軸。" />
+                                <DataSourceInfo title={t('dataSources.weatherDesc')} />
                                 {expandedGroups.weather ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -616,13 +618,13 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
 
                                     {/* Actual Weather Model Selector */}
                                     <Box sx={{ mb: 1.5 }}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>實際觀測模型</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>{t('weatherLabels.actualObsModel')}</Typography>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                             {(() => {
                                                 if (!weatherModelsActual || weatherModelsActual.length === 0) {
                                                     return (
                                                         <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
-                                                            無可用模型
+                                                            {t('dataSources.noModels')}
                                                         </Typography>
                                                     );
                                                 }
@@ -639,7 +641,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 return weatherModelsActual.map((m: any) => {
                                                     const isAvailable = checkModelAvailability(m.model, 'actual');
                                                     const isSelected = selectedWeatherModelActual === m.model;
-                                                    const tooltipTitle = isAvailable ? m.model : '此模型在所選時間範圍內無資料';
+                                                    const tooltipTitle = isAvailable ? m.model : t('dataSources.modelNoDataInRange');
 
                                                     return (
                                                         <Tooltip key={m.model} title={tooltipTitle} arrow placement="top">
@@ -680,13 +682,13 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
 
                                     {/* Forecast Weather Model Selector */}
                                     <Box sx={{ mb: 1.5 }}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>預報模型</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>{t('weatherLabels.forecastModel')}</Typography>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                             {(() => {
                                                 if (!weatherModelsForecast || weatherModelsForecast.length === 0) {
                                                     return (
                                                         <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
-                                                            無可用模型
+                                                            {t('dataSources.noModels')}
                                                         </Typography>
                                                     );
                                                 }
@@ -703,7 +705,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                 return weatherModelsForecast.map((m: any) => {
                                                     const isAvailable = checkModelAvailability(m.model, 'forecast');
                                                     const isSelected = selectedWeatherModelForecast === m.model;
-                                                    const tooltipTitle = isAvailable ? m.model : '此模型在所選時間範圍內無資料';
+                                                    const tooltipTitle = isAvailable ? m.model : t('dataSources.modelNoDataInRange');
 
                                                     return (
                                                         <Tooltip key={m.model} title={tooltipTitle} arrow placement="top">
@@ -791,16 +793,17 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                                 });
                                                             }}
                                                         />
-                                                        <Typography variant="caption" fontWeight="bold">實際觀測</Typography>
+                                                        <Typography variant="caption" fontWeight="bold">{t('weatherLabels.actualObs')}</Typography>
                                                     </Box>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>{t('weatherLabels.fields')}</Typography>
                                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                                                         {weatherFields.map((field) => {
                                                             const isSelected = selectedWeatherFieldsActual.has(field.value);
                                                             const isAvailable = isFieldAvailable(field.value, 'actual');
+                                                            const fieldLabel = t(field.labelKey);
                                                             const tooltipTitle = isAvailable
-                                                                ? `${field.label} (${field.unit})`
-                                                                : `${field.label} - 此模型無此欄位資料`;
+                                                                ? `${fieldLabel} (${field.unit})`
+                                                                : t('dataSources.fieldNoDataForModel', { label: fieldLabel });
 
                                                             return (
                                                                 <Tooltip key={`actual-${field.value}`} title={tooltipTitle} arrow placement="top">
@@ -821,7 +824,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                                             '&:hover': isAvailable ? { bgcolor: alpha(field.color, 0.25) } : {}
                                                                         }}
                                                                     >
-                                                                        {field.label}
+                                                                        {fieldLabel}
                                                                     </Box>
                                                                 </Tooltip>
                                                             )
@@ -843,16 +846,17 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                                 });
                                                             }}
                                                         />
-                                                        <Typography variant="caption" fontWeight="bold">預報</Typography>
+                                                        <Typography variant="caption" fontWeight="bold">{t('weatherLabels.forecast')}</Typography>
                                                     </Box>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>欄位</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mb: 0.5, display: 'block' }}>{t('weatherLabels.fields')}</Typography>
                                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                                                         {weatherFields.map((field) => {
                                                             const isSelected = selectedWeatherFieldsForecast.has(field.value);
                                                             const isAvailable = isFieldAvailable(field.value, 'forecast');
+                                                            const fieldLabel = t(field.labelKey);
                                                             const tooltipTitle = isAvailable
-                                                                ? `${field.label} (${field.unit})`
-                                                                : `${field.label} - 此模型無此欄位資料`;
+                                                                ? `${fieldLabel} (${field.unit})`
+                                                                : t('dataSources.fieldNoDataForModel', { label: fieldLabel });
 
                                                             return (
                                                                 <Tooltip key={`forecast-${field.value}`} title={tooltipTitle} arrow placement="top">
@@ -873,7 +877,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                                             '&:hover': isAvailable ? { bgcolor: alpha(field.color, 0.25) } : {}
                                                                         }}
                                                                     >
-                                                                        {field.label}
+                                                                        {fieldLabel}
                                                                     </Box>
                                                                 </Tooltip>
                                                             )
@@ -887,7 +891,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                             </Collapse>
                         </ListItem>
 
-                        <SubHeader label="供需與廣域" />
+                        <SubHeader label={t('dataSourceSections.supplyDemand')} />
 
                         {/* OCCTO (Teal) */}
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -913,12 +917,12 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                     <Map sx={{ fontSize: '1.1rem', color: showOcctoArea ? SOURCE_COLORS.occto : 'text.disabled' }} />
                                 </ListItemIcon>
                                 <ListItemText
-                                    primary="OCCTO 區域"
-                                    secondary={!hasOcctoData ? '無資料' : '廣域營運數據'}
+                                    primary={t('dataSources.occtoArea')}
+                                    secondary={!hasOcctoData ? t('dataSources.noData') : t('dataSources.occtoAreaSecondary')}
                                     primaryTypographyProps={{ fontSize: '0.85rem' }}
                                     secondaryTypographyProps={{ fontSize: '0.7rem' }}
                                 />
-                                <DataSourceInfo title="OCCTO 廣域營運的區域供需等數據（如需要電量、火力發電量等），可多選欄位疊加。" />
+                                <DataSourceInfo title={t('dataSources.occtoAreaDesc')} />
                                 {expandedGroups.occto ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                             </ListItemButton>
 
@@ -954,20 +958,20 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                         </Box>
                                     </Box>
 
-                                    {/* Fields by group: 負載 / 發電 / 儲能 / 其他 */}
+                                    {/* Fields by group */}
                                     {[
-                                        { label: '負載', keys: ['area_demand'] },
-                                        { label: '發電', keys: ['nuclear_power', 'thermal', 'hydropower', 'geothermal_power', 'biomass', 'solar_power_generation_actual', 'wind_power_generation_actual'] },
-                                        { label: '儲能', keys: ['pumped_storage', 'battery_storage'] },
-                                        { label: '其他', keys: ['interconnection_line', 'others'] },
+                                        { labelKey: 'controlBar.occtoGroups.load', keys: ['area_demand'] },
+                                        { labelKey: 'controlBar.occtoGroups.generation', keys: ['nuclear_power', 'thermal', 'hydropower', 'geothermal_power', 'biomass', 'solar_power_generation_actual', 'wind_power_generation_actual'] },
+                                        { labelKey: 'controlBar.occtoGroups.storage', keys: ['pumped_storage', 'battery_storage'] },
+                                        { labelKey: 'controlBar.occtoGroups.other', keys: ['interconnection_line', 'others'] },
                                     ].map((group) => {
                                         const fields = group.keys
                                             .map((key) => occtoStackedFields.find((f) => f.key === key))
                                             .filter((f): f is NonNullable<typeof f> => f != null);
                                         if (fields.length === 0) return null;
                                         return (
-                                            <Box key={group.label} sx={{ mb: 1.5 }}>
-                                                <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{group.label}</Typography>
+                                            <Box key={group.labelKey} sx={{ mb: 1.5 }}>
+                                                <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t(group.labelKey)}</Typography>
                                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                                                     {fields.map((fieldObj) => {
                                                         const isSelected = selectedOcctoFields.has(fieldObj.key);
@@ -984,7 +988,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                                                                     '&:hover': { bgcolor: alpha(fieldObj.color, 0.25) }
                                                                 }}
                                                             >
-                                                                {fieldObj.label}
+                                                                {t(fieldObj.labelKey)}
                                                             </Box>
                                                         );
                                                     })}

@@ -34,7 +34,7 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
 
       // Assert: Temperature field should exist and be properly configured
       expect(temperatureField).toBeDefined();
-      expect(temperatureField?.label).toBe('氣溫');
+      expect(temperatureField?.labelKey).toBe('fields.weather.temperature');
       expect(temperatureField?.unit).toBe('°C');
       expect(temperatureField?.color).toBeDefined();
 
@@ -52,7 +52,7 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
 
       // Assert: Clouds field should exist and be properly configured
       expect(cloudsField).toBeDefined();
-      expect(cloudsField?.label).toBe('雲量');
+      expect(cloudsField?.labelKey).toBe('fields.weather.cloudCover');
       expect(cloudsField?.unit).toBe('%');
       expect(cloudsField?.color).toBeDefined();
 
@@ -70,7 +70,7 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
 
       // Assert: Humidity field should exist and be properly configured
       expect(humidityField).toBeDefined();
-      expect(humidityField?.label).toBe('濕度');
+      expect(humidityField?.labelKey).toBe('fields.weather.humidity');
       expect(humidityField?.unit).toBe('%');
       expect(humidityField?.color).toBeDefined();
 
@@ -88,7 +88,7 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
 
       // Assert: Snowfall field should exist and be properly configured
       expect(snowfallField).toBeDefined();
-      expect(snowfallField?.label).toBe('降雪');
+      expect(snowfallField?.labelKey).toBe('fields.weather.snowfall');
       expect(snowfallField?.unit).toBe('cm');
       expect(snowfallField?.color).toBeDefined();
 
@@ -118,12 +118,12 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
             // Property: Field should exist and be properly configured
             expect(field).toBeDefined();
             expect(field?.value).toBe(fieldValue);
-            expect(field?.label).toBeDefined();
+            expect(field?.labelKey).toBeDefined();
             expect(field?.unit).toBeDefined();
             expect(field?.color).toBeDefined();
 
             // Property: All properties should be non-empty strings
-            expect(field?.label.length).toBeGreaterThan(0);
+            expect(field?.labelKey.length).toBeGreaterThan(0);
             expect(field?.unit.length).toBeGreaterThan(0);
             expect(field?.color.length).toBeGreaterThan(0);
           }
@@ -151,12 +151,12 @@ describe('Bug 3: Weather Tab Data Display Bug - Preservation Tests', () => {
       // Property: Every field in weatherFields should have the required structure
       weatherFields.forEach(field => {
         expect(field).toHaveProperty('value');
-        expect(field).toHaveProperty('label');
+        expect(field).toHaveProperty('labelKey');
         expect(field).toHaveProperty('unit');
         expect(field).toHaveProperty('color');
 
         expect(typeof field.value).toBe('string');
-        expect(typeof field.label).toBe('string');
+        expect(typeof field.labelKey).toBe('string');
         expect(typeof field.unit).toBe('string');
         expect(typeof field.color).toBe('string');
       });

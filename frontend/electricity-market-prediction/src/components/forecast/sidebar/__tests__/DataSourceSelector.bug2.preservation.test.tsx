@@ -43,7 +43,7 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
       existingFields.forEach(fieldValue => {
         const field = weatherFields.find(f => f.value === fieldValue);
         expect(field).toBeDefined();
-        expect(field?.label).toBeDefined();
+        expect(field?.labelKey).toBeDefined();
         expect(field?.unit).toBeDefined();
         expect(field?.color).toBeDefined();
       });
@@ -60,7 +60,7 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
       const temperatureField = weatherFields.find(f => f.value === 'temperature_2m');
 
       expect(temperatureField).toBeDefined();
-      expect(temperatureField?.label).toBe('氣溫');
+      expect(temperatureField?.labelKey).toBe('fields.weather.temperature');
       expect(temperatureField?.unit).toBe('°C');
       expect(temperatureField?.color).toBeDefined();
 
@@ -76,7 +76,7 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
       const rainfallField = weatherFields.find(f => f.value === 'precipitation');
 
       expect(rainfallField).toBeDefined();
-      expect(rainfallField?.label).toBe('降水');
+      expect(rainfallField?.labelKey).toBe('fields.weather.precipitation');
       expect(rainfallField?.unit).toBe('mm');
       expect(rainfallField?.color).toBeDefined();
 
@@ -92,7 +92,7 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
       const windSpeedField = weatherFields.find(f => f.value === 'wind_speed_10m');
 
       expect(windSpeedField).toBeDefined();
-      expect(windSpeedField?.label).toBe('風速');
+      expect(windSpeedField?.labelKey).toBe('fields.weather.windSpeed');
       expect(windSpeedField?.unit).toBe('m/s');
       expect(windSpeedField?.color).toBeDefined();
 
@@ -121,17 +121,17 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
         // Assert: Field should exist and have all required properties
         expect(field).toBeDefined();
         expect(field).toHaveProperty('value');
-        expect(field).toHaveProperty('label');
+        expect(field).toHaveProperty('labelKey');
         expect(field).toHaveProperty('unit');
         expect(field).toHaveProperty('color');
 
         // Assert: Properties should have valid values
         expect(typeof field?.value).toBe('string');
-        expect(typeof field?.label).toBe('string');
+        expect(typeof field?.labelKey).toBe('string');
         expect(typeof field?.unit).toBe('string');
         expect(typeof field?.color).toBe('string');
         expect(field?.value.length).toBeGreaterThan(0);
-        expect(field?.label.length).toBeGreaterThan(0);
+        expect(field?.labelKey.length).toBeGreaterThan(0);
         expect(field?.unit.length).toBeGreaterThan(0);
         expect(field?.color.length).toBeGreaterThan(0);
       });
@@ -164,12 +164,12 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
             // Property: Field should exist and be properly configured
             expect(field).toBeDefined();
             expect(field?.value).toBe(fieldValue);
-            expect(field?.label).toBeDefined();
+            expect(field?.labelKey).toBeDefined();
             expect(field?.unit).toBeDefined();
             expect(field?.color).toBeDefined();
 
             // Property: All properties should be non-empty strings
-            expect(field?.label.length).toBeGreaterThan(0);
+            expect(field?.labelKey.length).toBeGreaterThan(0);
             expect(field?.unit.length).toBeGreaterThan(0);
             expect(field?.color.length).toBeGreaterThan(0);
           }
@@ -196,12 +196,12 @@ describe('Bug 2: Weather Model Selector Missing - Preservation Tests', () => {
       // Property: Every field in weatherFields should have the required structure
       weatherFields.forEach(field => {
         expect(field).toHaveProperty('value');
-        expect(field).toHaveProperty('label');
+        expect(field).toHaveProperty('labelKey');
         expect(field).toHaveProperty('unit');
         expect(field).toHaveProperty('color');
 
         expect(typeof field.value).toBe('string');
-        expect(typeof field.label).toBe('string');
+        expect(typeof field.labelKey).toBe('string');
         expect(typeof field.unit).toBe('string');
         expect(typeof field.color).toBe('string');
       });

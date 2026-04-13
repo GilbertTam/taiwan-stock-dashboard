@@ -2,8 +2,9 @@
 
 import React, { useMemo } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { useTheme } from '@/app/ThemeProvider'; 
-import { HjksOutage } from '@/types'; 
+import { useTheme } from '@/app/ThemeProvider';
+import { HjksOutage } from '@/types';
+import { useTranslation } from 'react-i18next'; 
 import { 
   parse, 
   startOfDay, 
@@ -44,6 +45,7 @@ interface GroupedRow {
 
 const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate, endDate }) => {
   const { darkMode } = useTheme();
+  const { t } = useTranslation('generationMix');
 
   // === 設定參數 ===
   const DAY_WIDTH = 240; 
@@ -190,7 +192,7 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
           {/* Header (保持不變) */}
           <Box sx={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: colors.background, borderBottom: `1px solid ${colors.border}`, height: `${HEADER_HEIGHT}px`, display: 'flex' }}>
             <Box sx={{ width: '160px', flexShrink: 0, position: 'sticky', left: 0, zIndex: 30, backgroundColor: colors.background, borderRight: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '4px 0 8px -4px rgba(0,0,0,0.1)' }}>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: colors.textSecondary }}>発電所 / 機組</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: colors.textSecondary }}>{t('outages.plantUnit')}</Typography>
             </Box>
             <Box sx={{ display: 'flex' }}>
               {ganttData.days.map((day) => (
@@ -298,7 +300,7 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
                         title={
                           <Box sx={{ p: 0.5 }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>{outage.stop_type}</Typography>
-                            <Typography variant="caption" display="block">原因: {outage.factor || '無詳細'}</Typography>
+                            <Typography variant="caption" display="block">{t('outages.reason')}: {outage.factor || t('outages.noDetail')}</Typography>
                             <Typography variant="caption" display="block" sx={{ mt: 0.5, color: '#ccc' }}>
                                {format(outage.displayStart, 'MM/dd HH:mm')} ~ {format(outage.displayEnd, 'MM/dd HH:mm')}
                             </Typography>
@@ -337,7 +339,7 @@ const OutageGanttChart: React.FC<OutageGanttChartProps> = ({ outages, startDate,
             
             {ganttData.groupedRows.length === 0 && (
               <Box sx={{ p: 4, textAlign: 'center', color: colors.textSecondary, fontSize: '12px' }}>
-                此期間無資料
+                {t('outages.noDataInPeriod')}
               </Box>
             )}
           </Box>

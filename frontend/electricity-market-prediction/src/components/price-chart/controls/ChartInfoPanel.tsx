@@ -35,6 +35,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 // --- Constants ---
 import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, weatherFields } from '../constants';
+import { useTranslation } from 'react-i18next';
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -63,9 +64,10 @@ const OCCTO_COLOR_MAP: Record<string, string> = {
 
 // 1. 極簡數據膠囊 (Compact Data Chip)
 const DataChip = ({ icon: Icon, label, value, unit = '', color, isForecast = false, decimals = 0 }: any) => {
+    const { t: tChip } = useTranslation('forecast');
     if (value == null) return null;
     return (
-        <Tooltip title={`${label} ${isForecast ? '(Forecast)' : ''}`}>
+        <Tooltip title={`${label} ${isForecast ? tChip('chartPanel.forecastSuffix') : ''}`}>
             <Box sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -115,10 +117,11 @@ const DeltaBadge = ({ value, colors }: { value: number | null | undefined, color
 
 // 3. 操作按鈕 (Compact)
 const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggleRightAxisLabels }: any) => {
+    const { t: tBtn } = useTranslation('forecast');
     const [downloadAnchor, setDownloadAnchor] = useState<null | HTMLElement>(null);
     return (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title={showRightAxisLabels ? "Hide Right Axis Labels" : "Show Right Axis Labels"}>
+            <Tooltip title={showRightAxisLabels ? tBtn('chartPanel.hideRightAxis') : tBtn('chartPanel.showRightAxis')}>
                 <IconButton size="small" onClick={onToggleRightAxisLabels} sx={{ p: 0.5 }}>
                     {showRightAxisLabels ? (
                         <LabelOutlinedIcon sx={{ fontSize: '1.1rem', color: 'text.primary' }} />
@@ -127,7 +130,7 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
                     )}
                 </IconButton>
             </Tooltip>
-            <Tooltip title="Export">
+            <Tooltip title={tBtn('chartPanel.export')}>
                 <IconButton size="small" onClick={(e) => setDownloadAnchor(e.currentTarget)} sx={{ p: 0.5 }}>
                     <DownloadIcon sx={{ fontSize: '1.1rem' }} />
                 </IconButton>
@@ -148,7 +151,7 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
                     <ListItemText primary="PNG" primaryTypographyProps={{ variant: 'caption' }} />
                 </MenuItem>
             </Menu>
-            <Tooltip title="Fullscreen">
+            <Tooltip title={tBtn('chartPanel.fullscreen')}>
                 <IconButton size="small" onClick={onFullscreen} sx={{ p: 0.5 }}>
                     <FullscreenIcon sx={{ fontSize: '1.2rem' }} />
                 </IconButton>
@@ -173,6 +176,7 @@ export const ChartInfoPanel: React.FC<any> = ({
     showActualPrice, showIntradayAverage
 }) => {
 
+    const { t } = useTranslation('forecast');
     const PANEL_HEIGHT = 100;
 
     // 天氣欄位設定
@@ -200,9 +204,9 @@ export const ChartInfoPanel: React.FC<any> = ({
 
     const buildWeatherLabel = (field: string, isForecast: boolean) => {
         const display = WEATHER_FIELD_DISPLAY[field];
-        const baseLabel = display?.shortLabel || field;
-        const typeStr = isForecast ? '預測' : '實測';
-        const freqStr = isDailyField(field) ? '日' : '時';
+        const baseLabel = display?.shortLabelKey ? t(display.shortLabelKey) : field;
+        const typeStr = isForecast ? t('chartPanel.weatherForecast') : t('chartPanel.weatherActual');
+        const freqStr = isDailyField(field) ? t('chartPanel.daily') : t('chartPanel.hourly');
         return `[${typeStr}·${freqStr}] ${baseLabel}`;
     };
 
@@ -212,12 +216,11 @@ export const ChartInfoPanel: React.FC<any> = ({
         let icon = FactoryIcon;
         let label = field;
 
-        // 簡單的圖示/標籤映射優化
-        if (field.includes('solar')) { icon = WbSunnyIcon; label = 'Solar'; }
-        else if (field.includes('wind')) { icon = ModeFanOffIcon; label = 'Wind'; }
-        else if (field.includes('nuclear') || field.includes('thermal')) { icon = BoltIcon; label = field.includes('nuclear') ? 'Nucl' : 'Therm'; }
-        else if (field === 'area_demand') { label = 'Demand'; }
-        else if (field === 'interconnection_line') { label = 'Line'; }
+        if (field.includes('solar')) { icon = WbSunnyIcon; label = t('fields.occto.solar'); }
+        else if (field.includes('wind')) { icon = ModeFanOffIcon; label = t('fields.occto.wind'); }
+        else if (field.includes('nuclear') || field.includes('thermal')) { icon = BoltIcon; label = field.includes('nuclear') ? t('fields.occto.nuclear') : t('fields.occto.thermal'); }
+        else if (field === 'area_demand') { label = t('fields.occto.areaDemand'); }
+        else if (field === 'interconnection_line') { label = t('fields.occto.interconnection'); }
 
         return { icon, label, color, unit: 'MW' };
     };
@@ -263,7 +266,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                         bgcolor: alpha(colors.subText || '#000', 0.03),
                     }}>
                         <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.6, letterSpacing: 0.5, fontSize: '0.6rem', textAlign: 'center' }}>
-                            HOVER FOR DETAILS
+                            {t('chartPanel.hoverForDetails')}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <TuneIcon sx={{ fontSize: '0.8rem', color: colors.subText, opacity: 0.5 }} />
@@ -276,8 +279,8 @@ export const ChartInfoPanel: React.FC<any> = ({
                                     '& .MuiToggleButton-root': { py: 0.2, px: 1, fontSize: '0.6rem', height: 22 }
                                 }}
                             >
-                                <ToggleButton value="split">分層</ToggleButton>
-                                <ToggleButton value="overlay">疊圖</ToggleButton>
+                                <ToggleButton value="split">{t('chartPanel.split')}</ToggleButton>
+                                <ToggleButton value="overlay">{t('chartPanel.overlay')}</ToggleButton>
                             </ToggleButtonGroup>
                         </Box>
                     </Box>
@@ -287,20 +290,20 @@ export const ChartInfoPanel: React.FC<any> = ({
                         {/* Global Y1 info */}
                         <Box sx={{ minWidth: 80, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>Y1 主軸</Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>{t('chartPanel.y1Primary')}</Typography>
                                 <IconButton size="small" onClick={() => setGlobalPrimaryRange?.(null)} sx={{ p: 0.1, color: colors.actual }}>
                                     <RestartAltIcon sx={{ fontSize: '0.7rem' }} />
                                 </IconButton>
                             </Box>
                             <Typography variant="caption" sx={{ fontSize: '0.5rem', color: colors.text, opacity: 0.6 }}>
-                                {globalPrimaryRange ? `${globalPrimaryRange.min.toFixed(0)} – ${globalPrimaryRange.max.toFixed(0)}` : '自動'}
+                                {globalPrimaryRange ? `${globalPrimaryRange.min.toFixed(0)} – ${globalPrimaryRange.max.toFixed(0)}` : t('chartPanel.auto')}
                             </Typography>
                         </Box>
 
                         {/* Global Y2 info */}
                         <Box sx={{ minWidth: 80, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>Y2 副軸</Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.55rem', color: colors.subText, fontWeight: 700 }}>{t('chartPanel.y2Secondary')}</Typography>
                                 <IconButton size="small" onClick={() => setGlobalSecondaryRange?.(null)} sx={{ p: 0.1, color: colors.actual }}>
                                     <RestartAltIcon sx={{ fontSize: '0.7rem' }} />
                                 </IconButton>
@@ -308,7 +311,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                             <Box sx={{ display: 'flex', gap: 0.3 }}>
                                 <TextField
                                     size="small"
-                                    placeholder="Min"
+                                    placeholder={t('chartPanel.min')}
                                     value={globalSecondaryRange?.min ?? ''}
                                     onChange={e => {
                                         const val = e.target.value === '' ? undefined : Number(e.target.value);
@@ -320,7 +323,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 />
                                 <TextField
                                     size="small"
-                                    placeholder="Max"
+                                    placeholder={t('chartPanel.max')}
                                     value={globalSecondaryRange?.max ?? ''}
                                     onChange={e => {
                                         const val = e.target.value === '' ? undefined : Number(e.target.value);
@@ -345,18 +348,18 @@ export const ChartInfoPanel: React.FC<any> = ({
                             gap: 0.4,
                             pr: 0.5,
                             '&::-webkit-scrollbar': { width: 3 },
-                            '&::-webkit-scrollbar-thumb': { bgcolor: alpha(colors.subText || '#000', 0.2), borderRadius: 2 }
+                            '&::-webkit-scrollbar-thumb': { bgcolor: 'var(--scrollbar-thumb)', borderRadius: 2 }
                         }}>
                             {(() => {
                                 const activeItems: { key: string; label: string; color: string; hasRange?: boolean }[] = [];
-                                if (showActualPrice && !hideObsAndPriceRow) activeItems.push({ key: 'price', label: '實際價格', color: colors.actual, hasRange: true });
+                                if (showActualPrice && !hideObsAndPriceRow) activeItems.push({ key: 'price', label: t('chartPanel.actualPrice'), color: colors.actual, hasRange: true });
                                 selectedModels.forEach((m: any) => activeItems.push({ key: `model-${m.id}|${m.name}`, label: m.name, color: m.color, hasRange: true }));
 
                                 if (!hideObsAndPriceRow) {
-                                    if (showImbalanceSurplusRate) activeItems.push({ key: 'imbalance_surplus', label: '剩餘單價', color: '#4caf50' });
-                                    if (showImbalanceDeficitRate) activeItems.push({ key: 'imbalance_deficit', label: '不足單價', color: '#e65100' });
-                                    if (showIntraday) activeItems.push({ key: 'intraday', label: '日前 K 線', color: '#ffa726' });
-                                    if (showIntradayAverage) activeItems.push({ key: 'intraday_avg', label: '日前均線', color: '#ffa726' });
+                                    if (showImbalanceSurplusRate) activeItems.push({ key: 'imbalance_surplus', label: t('chartPanel.surplusRate'), color: '#4caf50' });
+                                    if (showImbalanceDeficitRate) activeItems.push({ key: 'imbalance_deficit', label: t('chartPanel.deficitRate'), color: '#e65100' });
+                                    if (showIntraday) activeItems.push({ key: 'intraday', label: t('chartPanel.intradayCandle'), color: '#ffa726' });
+                                    if (showIntradayAverage) activeItems.push({ key: 'intraday_avg', label: t('chartPanel.intradayAvgLine'), color: '#ffa726' });
                                 }
 
                                 const activeWeatherFieldsActual = Array.from(selectedWeatherFieldsActual) as string[];
@@ -384,7 +387,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 if (activeItems.length === 0) {
                                     return (
                                         <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.5, fontSize: '0.55rem', textAlign: 'center', py: 1 }}>
-                                            無可用資料源
+                                            {t('chartPanel.noDataSources')}
                                         </Typography>
                                     );
                                 }
@@ -421,7 +424,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                             <Box sx={{ display: 'flex', gap: 0.2, width: 52 }}>
                                                 <TextField
                                                     size="small"
-                                                    placeholder="Min"
+                                                    placeholder={t('chartPanel.min')}
                                                     value={seriesAxisConfig?.[item.key]?.scale?.min ?? ''}
                                                     onChange={e => {
                                                         const val = e.target.value === '' ? undefined : Number(e.target.value);
@@ -431,7 +434,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                                 />
                                                 <TextField
                                                     size="small"
-                                                    placeholder="Max"
+                                                    placeholder={t('chartPanel.max')}
                                                     value={seriesAxisConfig?.[item.key]?.scale?.max ?? ''}
                                                     onChange={e => {
                                                         const val = e.target.value === '' ? undefined : Number(e.target.value);
@@ -485,7 +488,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                         }}>
                             <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 2, pr: 2, borderRight: `1px dashed ${colors.tooltipBorder}` }}>
                                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colors.actual, mr: 0.5 }} />
-                                <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>Obs:</Typography>
+                                <Typography variant="caption" sx={{ color: colors.subText, mr: 0.5 }}>{t('chartPanel.obs')}</Typography>
                                 <Typography variant="body2" sx={{ color: colors.actual, fontWeight: 800, fontSize: '0.9rem' }}>
                                     {hoveredData.actualPrice != null ? `¥${hoveredData.actualPrice.toFixed(2)}` : '-'}
                                 </Typography>
@@ -523,18 +526,18 @@ export const ChartInfoPanel: React.FC<any> = ({
                     }}>
                         {/* 1. Market Data */}
                         {showIntraday && hoveredData.intraday_average != null && (
-                            <DataChip icon={TrendingUpIcon} label="Intra" value={hoveredData.intraday_average} unit="¥" color="#ffa726" />
+                            <DataChip icon={TrendingUpIcon} label={t('chartPanel.intradayAvgLine')} value={hoveredData.intraday_average} unit="¥" color="#ffa726" />
                         )}
                         {showImbalance && (
                             <>
                                 {showImbalanceQuantity && hoveredData.imbalance != null && (
-                                    <DataChip icon={ElectricBoltIcon} label="Imb" value={hoveredData.imbalance} unit="kWh" color="#ef5350" />
+                                    <DataChip icon={ElectricBoltIcon} label={t('chartPanel.imbalanceValue')} value={hoveredData.imbalance} unit="kWh" color="#ef5350" />
                                 )}
                                 {showImbalanceSurplusRate && hoveredData.imbalance_surplus_rate != null && (
-                                    <DataChip icon={ElectricBoltIcon} label="Surplus" value={hoveredData.imbalance_surplus_rate} unit="¥" color="#4caf50" />
+                                    <DataChip icon={ElectricBoltIcon} label={t('chartPanel.surplusRate')} value={hoveredData.imbalance_surplus_rate} unit="¥" color="#4caf50" />
                                 )}
                                 {showImbalanceDeficitRate && hoveredData.imbalance_deficit_rate != null && (
-                                    <DataChip icon={ElectricBoltIcon} label="Deficit" value={hoveredData.imbalance_deficit_rate} unit="¥" color="#e65100" />
+                                    <DataChip icon={ElectricBoltIcon} label={t('chartPanel.deficitRate')} value={hoveredData.imbalance_deficit_rate} unit="¥" color="#e65100" />
                                 )}
                             </>
                         )}
@@ -544,7 +547,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                             const val = (hoveredData as any)[f.pointKey];
                             if (val == null) return null;
                             return (
-                                <DataChip key={f.key} icon={CompareArrowsIcon} label={f.label} value={val} unit="MW" color={f.color} />
+                                <DataChip key={f.key} icon={CompareArrowsIcon} label={t(f.labelKey)} value={val} unit="MW" color={f.color} />
                             );
                         })}
                         {Array.from(selectedBatteryFields).map((fieldKey) => {
@@ -553,7 +556,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                             const val = (hoveredData as any)[f.pointKey];
                             if (val == null) return null;
                             return (
-                                <DataChip key={f.key} icon={ElectricBoltIcon} label={f.label} value={val} unit="" color={f.color} />
+                                <DataChip key={f.key} icon={ElectricBoltIcon} label={t(f.labelKey)} value={val} unit="" color={f.color} />
                             );
                         })}
                         {/* Bid Plan Fields - 根据选中的 category 显示 */}
@@ -564,7 +567,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                             const val = (hoveredData as any)[f.pointKey];
                             if (val == null) return null;
                             return (
-                                <DataChip key={`bp-spot-${fieldKey}`} icon={TrendingUpIcon} label={f.label} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
+                                <DataChip key={`bp-spot-${fieldKey}`} icon={TrendingUpIcon} label={t(f.labelPrefix) + t(f.labelKey)} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
                             );
                         })}
                         {selectedBidPlanCategories.has('intraday') && Array.from(selectedBidPlanFields as Set<string>).map((fieldKey) => {
@@ -574,7 +577,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                             const val = (hoveredData as any)[f.pointKey];
                             if (val == null) return null;
                             return (
-                                <DataChip key={`bp-intraday-${fieldKey}`} icon={TrendingUpIcon} label={f.label} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
+                                <DataChip key={`bp-intraday-${fieldKey}`} icon={TrendingUpIcon} label={t(f.labelPrefix) + t(f.labelKey)} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
                             );
                         })}
 

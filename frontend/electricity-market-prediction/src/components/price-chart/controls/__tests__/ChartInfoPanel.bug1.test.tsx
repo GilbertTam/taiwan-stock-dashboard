@@ -332,10 +332,10 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
       // Assert: Weather data should be present
       const text = container.textContent || '';
 
-      // Check for weather labels (using abbreviated labels from component)
-      expect(text).toContain('氣溫'); // Temperature label
-      expect(text).toContain('降水'); // Rainfall label
-      expect(text).toContain('風速'); // Wind speed label
+      // Check for weather labels (t() returns keys in test env)
+      expect(text).toContain('weatherDisplay.temperature_2m.short'); // Temperature label
+      expect(text).toContain('weatherDisplay.precipitation.short'); // Rainfall label
+      expect(text).toContain('weatherDisplay.wind_speed_10m.short'); // Wind speed label
 
       // Check for weather values (rounded to 0 decimals by default)
       expect(text).toContain('15.5'); // Temperature value (15.5)
@@ -387,8 +387,8 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
 
       // Assert
       const text = container.textContent || '';
-      expect(text).toContain('氣溫'); // Temperature label
-      expect(text).toContain('雲量'); // Cloud label
+      expect(text).toContain('weatherDisplay.temperature_2m.short'); // Temperature label
+      expect(text).toContain('weatherDisplay.cloud_cover.short'); // Cloud label
       expect(text).toContain('18.2'); // Temperature value (18.2)
       expect(text).toContain('75'); // Cloud value
       expect(text).toContain('(F)'); // Forecast indicator
@@ -462,15 +462,15 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
             const text = container.textContent || '';
 
             if (weatherData.temperature != null) {
-              expect(text).toContain('氣溫');
+              expect(text).toContain('weatherDisplay.temperature_2m.short');
               expect(text).toContain(weatherData.temperature.toFixed(1));
             }
             if (weatherData.rainfall != null) {
-              expect(text).toContain('降水');
+              expect(text).toContain('weatherDisplay.precipitation.short');
               expect(text).toContain(weatherData.rainfall.toFixed(0));
             }
             if (weatherData.wind_speed != null) {
-              expect(text).toContain('風速');
+              expect(text).toContain('weatherDisplay.wind_speed_10m.short');
               expect(text).toContain(weatherData.wind_speed.toFixed(1));
             }
 
@@ -530,10 +530,10 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
       // Assert: OCCTO data should be present
       const text = container.textContent || '';
 
-      // Check for OCCTO labels
-      expect(text).toContain('Demand'); // area_demand label
-      expect(text).toContain('Nucl'); // nuclear_power label
-      expect(text).toContain('Solar'); // solar label
+      // Check for OCCTO labels (t() returns keys in test env)
+      expect(text).toContain('fields.occto.areaDemand'); // area_demand label
+      expect(text).toContain('fields.occto.nuclear'); // nuclear_power label
+      expect(text).toContain('fields.occto.solar'); // solar label
 
       // Check for OCCTO values
       expect(text).toContain('5000'); // area_demand value
@@ -603,15 +603,15 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
             const text = container.textContent || '';
 
             if (occtoData.area_demand != null) {
-              expect(text).toContain('Demand');
+              expect(text).toContain('fields.occto.areaDemand');
               expect(text).toContain(occtoData.area_demand.toFixed(0));
             }
             if (occtoData.nuclear_power != null) {
-              expect(text).toContain('Nucl');
+              expect(text).toContain('fields.occto.nuclear');
               expect(text).toContain(occtoData.nuclear_power.toFixed(0));
             }
             if (occtoData.thermal != null) {
-              expect(text).toContain('Therm');
+              expect(text).toContain('fields.occto.thermal');
               expect(text).toContain(occtoData.thermal.toFixed(0));
             }
 
@@ -676,8 +676,8 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
       // Check for delta
       expect(text).toContain('+2.5');
 
-      // Check for "Obs" label (Observation)
-      expect(text).toContain('Obs');
+      // Check for "Obs" label (t() returns key in test env)
+      expect(text).toContain('chartPanel.obs');
 
       // EXPECTED: This should PASS on unfixed code
     });
@@ -781,9 +781,9 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
         />
       );
 
-      // Assert: Placeholder message should be present
+      // Assert: Placeholder message should be present (t() returns key in test env)
       const text = container.textContent || '';
-      expect(text).toContain('HOVER FOR DETAILS');
+      expect(text).toContain('chartPanel.hoverForDetails');
 
       // EXPECTED: This should PASS on unfixed code
     });
@@ -834,12 +834,12 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
         />
       );
 
-      // Assert 1: Only temperature should be present
+      // Assert 1: Only temperature should be present (t() returns keys in test env)
       const text1 = container1.textContent || '';
-      expect(text1).toContain('氣溫');
+      expect(text1).toContain('weatherDisplay.temperature_2m.short');
       expect(text1).toContain('15.5');
-      expect(text1).not.toContain('降水');
-      expect(text1).not.toContain('風速');
+      expect(text1).not.toContain('weatherDisplay.precipitation.short');
+      expect(text1).not.toContain('weatherDisplay.wind_speed_10m.short');
 
       // Act 2: Render with all fields selected
       const { container: container2 } = render(
@@ -870,13 +870,13 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
         />
       );
 
-      // Assert 2: All fields should be present
+      // Assert 2: All fields should be present (t() returns keys in test env)
       const text2 = container2.textContent || '';
-      expect(text2).toContain('氣溫');
+      expect(text2).toContain('weatherDisplay.temperature_2m.short');
       expect(text2).toContain('15.5');
-      expect(text2).toContain('降水');
+      expect(text2).toContain('weatherDisplay.precipitation.short');
       expect(text2).toContain('2'); // 2.3 rounded down to 2
-      expect(text2).toContain('風速');
+      expect(text2).toContain('weatherDisplay.wind_speed_10m.short');
       expect(text2).toContain('5.2');
 
       // EXPECTED: This should PASS on unfixed code
@@ -956,9 +956,9 @@ describe('Bug 1: IMB Tooltip Display Bug - Exploration Test', () => {
         />
       );
 
-      // Assert 2: Intraday should be present
+      // Assert 2: Intraday should be present (t() returns key in test env)
       const text2 = container2.textContent || '';
-      expect(text2).toContain('Intra');
+      expect(text2).toContain('chartPanel.intradayAvgLine');
       expect(text2).toContain('11'); // 11.2 rounded
 
       // EXPECTED: This should PASS on unfixed code

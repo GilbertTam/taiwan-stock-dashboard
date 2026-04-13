@@ -9,6 +9,7 @@ import {
   MenuItem,
   Divider
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import {
   ZoomIn,
   ZoomOut,
@@ -38,6 +39,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   onSettings,
   isFullscreen = false
 }) => {
+  const { t } = useTranslation('common');
   const [downloadMenuAnchor, setDownloadMenuAnchor] = React.useState<null | HTMLElement>(null);
 
   const handleDownloadMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -68,7 +70,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
       }}
     >
       {/* Zoom Controls */}
-      <Tooltip title="放大 (Ctrl +)">
+      <Tooltip title={t('toolbar.zoomIn')}>
         <span>
           <IconButton
             size="small"
@@ -81,7 +83,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         </span>
       </Tooltip>
 
-      <Tooltip title="縮小 (Ctrl -)">
+      <Tooltip title={t('toolbar.zoomOut')}>
         <span>
           <IconButton
             size="small"
@@ -94,7 +96,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         </span>
       </Tooltip>
 
-      <Tooltip title="適應螢幕">
+      <Tooltip title={t('toolbar.fitScreen')}>
         <span>
           <IconButton
             size="small"
@@ -110,7 +112,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
       <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24 }} />
 
       {/* Download */}
-      <Tooltip title="下載">
+      <Tooltip title={t('toolbar.download')}>
         <span>
           <IconButton
             size="small"
@@ -127,16 +129,16 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         open={Boolean(downloadMenuAnchor)}
         onClose={handleDownloadMenuClose}
       >
-        <MenuItem onClick={() => handleDownload('png')}>下載為 PNG</MenuItem>
-        <MenuItem onClick={() => handleDownload('svg')}>下載為 SVG</MenuItem>
-        <MenuItem onClick={() => handleDownload('csv')}>下載為 CSV</MenuItem>
+        <MenuItem onClick={() => handleDownload('png')}>{t('toolbar.downloadAsPng')}</MenuItem>
+        <MenuItem onClick={() => handleDownload('svg')}>{t('toolbar.downloadAsSvg')}</MenuItem>
+        <MenuItem onClick={() => handleDownload('csv')}>{t('toolbar.downloadAsCsv')}</MenuItem>
       </Menu>
 
       {/* Fullscreen */}
       {onFullscreen && (
         <>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24 }} />
-          <Tooltip title={isFullscreen ? '退出全螢幕' : '全螢幕'}>
+          <Tooltip title={isFullscreen ? t('toolbar.exitFullscreen') : t('toolbar.fullscreen')}>
             <span>
               <IconButton
                 size="small"
@@ -154,7 +156,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
       {onSettings && (
         <>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24 }} />
-          <Tooltip title="設定">
+          <Tooltip title={t('toolbar.settings')}>
             <span>
               <IconButton
                 size="small"

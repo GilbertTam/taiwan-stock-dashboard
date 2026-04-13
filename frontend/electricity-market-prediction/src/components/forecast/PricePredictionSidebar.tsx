@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, SelectChangeEvent } from '@mui/material';
 import { Area, PredictionModel, CalculatingDate } from '@/types';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -39,6 +40,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
   onModelToggle,
   onModelCalculatingDateChange,
 }) => {
+  const { t } = useTranslation('forecast');
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     area: false,
     models: false,
@@ -76,7 +78,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
         expanded={expandedSections.area}
         onToggle={() => setExpandedSections(prev => ({ ...prev, area: !prev.area }))}
         step={1}
-        description="選擇要分析的地區"
+        description={t('sidebar.selectArea')}
       />
 
       {/* Section 2: Models */}
@@ -93,7 +95,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
           setExpandedSections(prev => ({ ...prev, models: newState, modelDetails: newState }));
         }}
         step={2}
-        description="選擇要比較的預測模型"
+        description={t('sidebar.selectModels')}
       />
 
       {/* Section 3: Data sources (chart overlays) */}
@@ -101,7 +103,7 @@ export const PricePredictionSidebar: React.FC<PricePredictionSidebarProps> = ({
         expanded={expandedSections.dataSources}
         onToggle={() => setExpandedSections(prev => ({ ...prev, dataSources: !prev.dataSources }))}
         step={3}
-        description="勾選要在主圖上顯示的資料"
+        description={t('sidebar.selectDataOverlays')}
       />
     </Box>
   );

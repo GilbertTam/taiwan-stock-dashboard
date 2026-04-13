@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Paper } from '@mui/material';
 
 interface ProfitSummaryTableProps {
@@ -23,6 +24,7 @@ export const ProfitSummaryTable: React.FC<ProfitSummaryTableProps> = ({
   colors,
   darkMode,
 }) => {
+  const { t } = useTranslation('forecast');
   const optimal = totalProfits?.cumulativeActual ?? 0;
 
   return (
@@ -35,7 +37,7 @@ export const ProfitSummaryTable: React.FC<ProfitSummaryTableProps> = ({
       }}
     >
       <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.25, color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        總收益摘要
+        {t('profitAnalysis.summaryTitle')}
       </Typography>
 
       {/* Optimal 基準卡 */}
@@ -50,13 +52,13 @@ export const ProfitSummaryTable: React.FC<ProfitSummaryTableProps> = ({
       >
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" fontWeight="bold" sx={{ color: colors.actual }}>
-            Optimal（實際）
+            {t('profitAnalysis.optimalActual')}
           </Typography>
           <Typography variant="h6" fontWeight="bold" sx={{ color: colors.text }}>
             ¥{optimal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </Typography>
         </Box>
-        <Typography variant="caption" sx={{ color: colors.subText }}>基準 100%</Typography>
+        <Typography variant="caption" sx={{ color: colors.subText }}>{t('profitAnalysis.baseline100')}</Typography>
       </Box>
 
       {/* 各模型：條狀比較 */}

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EChartsOption } from 'echarts';
 import { Box, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
-import { TimeSlot, TimeSlotDescription } from '@/types';
+import { TimeSlot } from '@/types';
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
 import { BaseChart } from '@/components/charts/BaseChart';
@@ -56,6 +57,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
     onTimeSlotChange,
     embedded = false,
 }) => {
+    const { t } = useTranslation('forecast');
     const { darkMode } = useTheme();
     const colors = useChartColors();
     const style = useMemo(() => tradingViewStyle(colors, darkMode), [colors, darkMode]);
@@ -99,7 +101,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
         min-width:240px;
         pointer-events:none;
       ">
-        <div style="font-weight:800;margin-bottom:8px;">${axisLabel} MAE</div>
+        <div style="font-weight:800;margin-bottom:8px;">${t('maeAnalysis.tooltipTitle', { date: axisLabel })}</div>
         <table style="border-collapse:collapse;width:100%;font-size:12px;">
           <tbody>
             ${baseRows}
@@ -159,7 +161,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
             },
             yAxis: {
                 type: 'value' as const,
-                name: 'MAE (¥/kWh)',
+                name: t('maeAnalysis.yAxisLabel'),
                 nameTextStyle: { color: colors.text, fontSize: 11 },
                 ...style.axis,
             },
@@ -175,6 +177,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
         darkMode,
         xLabels,
         style,
+        t,
     ]);
 
     return (
@@ -189,7 +192,7 @@ export const MaeChart: React.FC<MaeChartProps> = ({
             >
                 {!embedded && (
                     <Typography variant="h6" component="h3" sx={{ color: colors.text, fontWeight: 'bold' }}>
-                        MAE Indicators
+                        {t('maeAnalysis.title')}
                     </Typography>
                 )}
 
@@ -215,16 +218,16 @@ export const MaeChart: React.FC<MaeChartProps> = ({
                     }}
                 >
                     <ToggleButton value={TimeSlot.ALL}>
-                        {TimeSlotDescription.ALL}
+                        {t('maeAnalysis.timeSlots.all')}
                     </ToggleButton>
                     <ToggleButton value={TimeSlot.MORNING}>
-                        {TimeSlotDescription.MORNING}
+                        {t('maeAnalysis.timeSlots.morning')}
                     </ToggleButton>
                     <ToggleButton value={TimeSlot.EVENING}>
-                        {TimeSlotDescription.EVENING}
+                        {t('maeAnalysis.timeSlots.evening')}
                     </ToggleButton>
                     <ToggleButton value={TimeSlot.NIGHT}>
-                        {TimeSlotDescription.NIGHT}
+                        {t('maeAnalysis.timeSlots.night')}
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>

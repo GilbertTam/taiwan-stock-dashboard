@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Alert, CircularProgress, Chip, Stack, Typography } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { fetchJepxSystem } from '@/services/api';
 import { useTheme } from '@/app/ThemeProvider';
 import type { JepxSystemData } from '@/types';
@@ -16,6 +17,7 @@ interface SupplyDemandChartProps {
 /** 需給バランス — JEPX 系統層賣出/買入量直方圖 + 系統價格折線 */
 export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandChartProps) {
   const { darkMode } = useTheme();
+  const { t } = useTranslation('forecast');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<JepxSystemData[]>([]);
 
@@ -73,13 +75,13 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
         textStyle: { color: isDark ? '#e2e8f0' : '#1a202c', fontSize: 12 },
         formatter: (params: any[]) => {
           const time = params[0]?.axisValue ?? '';
-          const sell = params.find((p: any) => p.seriesName === '賣出量');
-          const buy  = params.find((p: any) => p.seriesName === '買入量');
-          const price = params.find((p: any) => p.seriesName === '系統價格');
+          const sell = params.find((p: any) => p.seriesName === t('supplyDemandTab.sellVolume'));
+          const buy  = params.find((p: any) => p.seriesName === t('supplyDemandTab.buyVolume'));
+          const price = params.find((p: any) => p.seriesName === t('supplyDemandTab.systemPrice'));
           return `<div style="font-size:11px;font-family:monospace">${time}<br/>
-            ${sell?.marker ?? ''}賣出: <b>${Math.abs(sell?.value ?? 0).toFixed(1)} MWh</b><br/>
-            ${buy?.marker ?? ''}買入: <b>${Math.abs(buy?.value ?? 0).toFixed(1)} MWh</b><br/>
-            ${price?.marker ?? ''}系統價: <b>${(price?.value ?? 0).toFixed(2)} 円/kWh</b>
+            ${sell?.marker ?? ''}${t('supplyDemandTab.tooltipSell')}: <b>${Math.abs(sell?.value ?? 0).toFixed(1)} MWh</b><br/>
+            ${buy?.marker ?? ''}${t('supplyDemandTab.tooltipBuy')}: <b>${Math.abs(buy?.value ?? 0).toFixed(1)} MWh</b><br/>
+            ${price?.marker ?? ''}${t('supplyDemandTab.tooltipSystemPrice')}: <b>${(price?.value ?? 0).toFixed(2)} 円/kWh</b>
           </div>`;
         },
       },
@@ -127,7 +129,7 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
       ],
       series: [
         {
-          name: '賣出量',
+          name: t('supplyDemandTab.sellVolume'),
           type: 'bar',
           stack: 'vol',
           data: sellData,
@@ -135,7 +137,7 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
           barMaxWidth: 6,
         },
         {
-          name: '買入量',
+          name: t('supplyDemandTab.buyVolume'),
           type: 'bar',
           stack: 'vol',
           data: buyData,
@@ -143,7 +145,7 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
           barMaxWidth: 6,
         },
         {
-          name: '系統價格',
+          name: t('supplyDemandTab.systemPrice'),
           type: 'line',
           yAxisIndex: 1,
           data: priceData,
@@ -155,10 +157,10 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
       ],
       animation: false,
     };
-  }, [sorted, timeLabels, darkMode]);
+  }, [sorted, timeLabels, darkMode, t]);
 
   if (!startDate || !endDate) {
-    return <Alert severity="info">請選擇日期範圍</Alert>;
+    return <Alert severity="info">{t('supplyDemandTab.selectDateRange')}</Alert>;
   }
 
   if (loading) {
@@ -172,7 +174,7 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
   if (!data.length) {
     return (
       <Alert severity="info" sx={{ borderRadius: 1.5 }}>
-        該時段無 JEPX 系統資料 (No JEPX system data for this period)
+        {t('supplyDemandTab.noData')}
       </Alert>
     );
   }
@@ -183,16 +185,16 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
         <Stack direction="row" spacing={0.75} sx={{ mb: 1.5, flexWrap: 'wrap', gap: 0.5 }}>
           <Chip
             size="small"
-            label={`均價 ${stats.avgPrice.toFixed(2)} 円/kWh`}
+            label={t('supplyDemandTab.avgPrice', { value: stats.avgPrice.toFixed(2) })}
             sx={{ backgroundColor: 'rgba(255,202,40,0.15)', color: '#ffca28', fontWeight: 600 }}
           />
           <Chip
             size="small"
-            label={`成交量 ${(stats.totalVol / 1000).toFixed(0)} MWh`}
+            label={t('supplyDemandTab.totalVolume', { value: (stats.totalVol / 1000).toFixed(0) })}
           />
           <Chip
             size="small"
-            label={`賣超均值 ${stats.avgImbalance >= 0 ? '+' : ''}${(stats.avgImbalance / 1000).toFixed(0)} MWh`}
+            label={t('supplyDemandTab.excessAvg', { value: `${stats.avgImbalance >= 0 ? '+' : ''}${(stats.avgImbalance / 1000).toFixed(0)}` })}
             sx={{
               backgroundColor: stats.avgImbalance > 0
                 ? 'rgba(239,83,80,0.12)' : 'rgba(38,166,154,0.12)',
@@ -203,7 +205,7 @@ export default function SupplyDemandChart({ startDate, endDate }: SupplyDemandCh
         </Stack>
       )}
       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-        上方 = 賣出量、下方 = 買入量（MWh）、黃線 = 系統結清價格
+        {t('supplyDemandTab.chartHint')}
       </Typography>
       {option && <ReactECharts option={option} style={{ height: 360 }} notMerge />}
     </Box>

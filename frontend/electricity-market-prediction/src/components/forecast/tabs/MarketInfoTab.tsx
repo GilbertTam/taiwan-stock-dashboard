@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Paper, Typography, Chip } from '@mui/material';
 import PlaceIcon from '@mui/icons-material/Place';
 import { MarketInfoContent, MarketInfoContentProps } from './MarketInfoContent';
 
 export const MarketInfoTab: React.FC<MarketInfoContentProps> = (props) => {
+  const { t } = useTranslation('forecast');
   return (
     <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
       <Paper>
@@ -23,10 +25,10 @@ export const MarketInfoTab: React.FC<MarketInfoContentProps> = (props) => {
         >
           <PlaceIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
           <Typography variant="subtitle2" color="text.secondary">
-            目前地區：
+            {t('marketInfo.currentArea')}
           </Typography>
           <Chip
-            label={props.selectedArea || '未選擇地區'}
+            label={props.selectedArea || t('emptyState.noAreaSelected')}
             size="small"
             color={props.selectedArea ? 'primary' : 'default'}
             variant={props.selectedArea ? 'filled' : 'outlined'}

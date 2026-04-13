@@ -12,12 +12,14 @@
  * color indicators), this legend covers all data-source series on the price chart.
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography } from '@mui/material';
 import { usePriceChart } from './context/PriceChartContext';
 import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from './constants';
 import { WEATHER_FIELD_DISPLAY, DAILY_CATEGORIES } from '@/constants/weatherCategories';
 
 export const PriceChartSeriesLegend: React.FC = () => {
+    const { t } = useTranslation('forecast');
     const {
         modelColorMap,
         selectedModels,
@@ -131,7 +133,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
             {/* --- Price Section --- */}
             {!hideObsAndPriceRow && (
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <LegendItem color={colors.actual} label="現貨實際價格" />
+                    <LegendItem color={colors.actual} label={t('legend.spotActualPrice')} />
                     {selectedModels.map(model => (
                         <LegendItem
                             key={model.id}
@@ -145,30 +147,30 @@ export const PriceChartSeriesLegend: React.FC = () => {
             {/* --- Intraday Section --- */}
             {!hideObsAndPriceRow && (showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0 || selectedBidPlanFields.size > 0) && (
                 <>
-                    <GroupSeparator label="市場" />
-                    {showIntraday && <LegendItem color={colors.intraday} label="即時" type="candlestick" />}
-                    {showIntradayAverage && <LegendItem color="#ffa726" label="即時(平均)" type="dashed" />}
-                    {showImbalanceQuantity && <LegendItem color={colors.imbalance} label="不平衡(數量)" />}
-                    {showImbalanceSurplusRate && <LegendItem color="#4caf50" label="剩餘單價" />}
-                    {showImbalanceDeficitRate && <LegendItem color="#e65100" label="不足單價" />}
+                    <GroupSeparator label={t('legend.market')} />
+                    {showIntraday && <LegendItem color={colors.intraday} label={t('legend.intraday')} type="candlestick" />}
+                    {showIntradayAverage && <LegendItem color="#ffa726" label={t('legend.intradayAvg')} type="dashed" />}
+                    {showImbalanceQuantity && <LegendItem color={colors.imbalance} label={t('legend.imbalanceQty')} />}
+                    {showImbalanceSurplusRate && <LegendItem color="#4caf50" label={t('legend.surplusRate')} />}
+                    {showImbalanceDeficitRate && <LegendItem color="#e65100" label={t('legend.deficitRate')} />}
                     {INTERCONNECTION_FIELDS.filter(f => selectedInterconnectionFields.has(f.key)).map(f => (
-                        <LegendItem key={f.key} color={f.color} label={f.label} />
+                        <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} />
                     ))}
                     {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
-                        <LegendItem key={f.key} color={f.color} label={f.label} />
+                        <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} />
                     ))}
                     {/* Bid Plan Fields - 根据选中的 category 显示 */}
                     {selectedBidPlanCategories.has('spot') && BID_PLAN_SPOT_FIELDS.filter(f => {
                         const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
                         return selectedBidPlanFields.has(fieldKeyWithoutPrefix);
                     }).map(f => (
-                        <LegendItem key={`bp-spot-${f.key}`} color={f.color} label={f.label} />
+                        <LegendItem key={`bp-spot-${f.key}`} color={f.color} label={t(f.labelPrefix) + t(f.labelKey)} />
                     ))}
                     {selectedBidPlanCategories.has('intraday') && BID_PLAN_INTRADAY_FIELDS.filter(f => {
                         const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
                         return selectedBidPlanFields.has(fieldKeyWithoutPrefix);
                     }).map(f => (
-                        <LegendItem key={`bp-intraday-${f.key}`} color={f.color} label={f.label} />
+                        <LegendItem key={`bp-intraday-${f.key}`} color={f.color} label={t(f.labelPrefix) + t(f.labelKey)} />
                     ))}
                 </>
             )}
@@ -176,11 +178,11 @@ export const PriceChartSeriesLegend: React.FC = () => {
             {/* --- OCCTO Section --- */}
             {!hideObsAndPriceRow && showOcctoArea && selectedOcctoFields.size > 0 && (
                 <>
-                    <GroupSeparator label="OCCTO" />
+                    <GroupSeparator label={t('legend.occto')} />
                     {occtoStackedFields
                         .filter(f => selectedOcctoFields.has(f.key))
                         .map(f => (
-                            <LegendItem key={f.key} color={f.color} label={f.label} type="box" />
+                            <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} type="box" />
                         ))
                     }
                 </>
@@ -189,7 +191,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
             {/* --- Weather Section --- */}
             {(showWeather || showWeatherActual || showWeatherForecast) && (
                 <>
-                    <GroupSeparator label="天氣" />
+                    <GroupSeparator label={t('legend.weather')} />
                     {(() => {
                         const dailyFieldsSet = new Set(DAILY_CATEGORIES.flatMap(c => c.fields));
                         const allSelectedActual = Array.from(selectedWeatherFieldsActual);
@@ -202,7 +204,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
                             if (!hasActual && !hasForecast) return null;
 
                             const isDaily = dailyFieldsSet.has(field);
-                            const freqStr = isDaily ? '日' : '時';
+                            const freqStr = isDaily ? t('legend.daily') : t('legend.hourly');
                             const displayInfo = WEATHER_FIELD_DISPLAY[field];
 
                             // Find color: exact or base prefix match
@@ -210,7 +212,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
                             const baseFieldName = field.replace(scalePattern, '');
                             const weatherConfig = weatherFields.find(w => w.value === field || w.value === baseFieldName);
                             const color = weatherConfig?.color || '#888';
-                            const label = displayInfo?.shortLabel || weatherConfig?.label || field;
+                            const label = displayInfo?.shortLabelKey ? t(displayInfo.shortLabelKey) : (weatherConfig?.labelKey ? t(weatherConfig.labelKey) : field);
 
                             // Handler for toggling weather field visibility
                             const handleToggle = () => {
@@ -242,7 +244,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
                                     <LegendItem
                                         key={`weather-both-${field}`}
                                         color={color}
-                                        label={`[實/預·${freqStr}] ${label}`}
+                                        label={`[${t('legend.bothPrefix')}·${freqStr}] ${label}`}
                                         type="split-line"
                                         onClick={handleToggle}
                                         clickable={true}
@@ -254,7 +256,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
                                     <LegendItem
                                         key={`weather-actual-${field}`}
                                         color={color}
-                                        label={`[實測·${freqStr}] ${label}`}
+                                        label={`[${t('legend.actualPrefix')}·${freqStr}] ${label}`}
                                         onClick={handleToggle}
                                         clickable={true}
                                     />
@@ -265,7 +267,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
                                     <LegendItem
                                         key={`weather-forecast-${field}`}
                                         color={color}
-                                        label={`[預測·${freqStr}] ${label}`}
+                                        label={`[${t('legend.forecastPrefix')}·${freqStr}] ${label}`}
                                         type="dashed"
                                         opacity={0.7}
                                         onClick={handleToggle}

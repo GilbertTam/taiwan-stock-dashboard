@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Alert, Grid } from '@mui/material';
 import { useTheme } from '@/app/ThemeProvider';
 import { ChartDataPoint } from '@/utils/chartUtils';
@@ -33,6 +34,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
     embedded = false,
     hideControls = false,
 }) => {
+    const { t } = useTranslation('forecast');
     const { darkMode } = useTheme();
 
     const {
@@ -52,7 +54,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
         return (
             <Box sx={{ mt: 3 }}>
                 <Alert severity="info">
-                    該時段無收益分析資料 (No profit analysis data available for this period)
+                    {t('emptyState.noProfitData')}
                 </Alert>
             </Box>
         );
@@ -65,7 +67,7 @@ const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({
         <Box sx={{ mt: embedded ? 0 : 3 }}>
             {showModelWarning && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    請選擇模型以進行模型收益比較分析
+                    {t('emptyState.selectModelForProfit')}
                 </Alert>
             )}
 

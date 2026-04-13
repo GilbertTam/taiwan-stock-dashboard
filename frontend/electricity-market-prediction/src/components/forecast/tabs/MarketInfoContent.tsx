@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Tabs, Tab } from '@mui/material';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import InterconnectionPanel from '@/components/market/InterconnectionPanel';
@@ -27,6 +28,7 @@ export const MarketInfoContent: React.FC<MarketInfoContentProps> = ({
   marketInfoWeatherChartData,
   embedded = false,
 }) => {
+  const { t } = useTranslation('forecast');
   const [marketInfoSubTab, setMarketInfoSubTab] = useState(0);
   const padding = embedded ? 2 : 3;
 
@@ -42,10 +44,10 @@ export const MarketInfoContent: React.FC<MarketInfoContentProps> = ({
           '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
         }}
       >
-        <Tab label="停機資訊" />
-        <Tab label="互連流量" />
-        <Tab label="天氣資料" />
-        <Tab label="系統イベント" />
+        <Tab label={t('tabs.outageInfo')} />
+        <Tab label={t('tabs.interconnFlow')} />
+        <Tab label={t('tabs.weatherData')} />
+        <Tab label={t('tabs.systemEvents')} />
       </Tabs>
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: padding }}>
         {marketInfoSubTab === 0 && (

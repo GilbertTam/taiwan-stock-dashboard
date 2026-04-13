@@ -13,6 +13,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useTheme } from '@/app/ThemeProvider';
 import { HjksOutage } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface OutageTableProps {
   outages: HjksOutage[];
@@ -29,6 +30,7 @@ interface GroupedOutage {
 
 const OutageTable: React.FC<OutageTableProps> = ({ outages }) => {
   const { darkMode } = useTheme();
+  const { t } = useTranslation('generationMix');
 
   // 資料分組邏輯
   const groupedOutages = useMemo(() => {
@@ -79,14 +81,14 @@ const OutageTable: React.FC<OutageTableProps> = ({ outages }) => {
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ ...headerStyle, width: '10%' }}>公司</TableCell>
-            <TableCell sx={{ ...headerStyle, width: '15%' }}>發電廠名稱</TableCell>
-            <TableCell sx={{ ...headerStyle, width: '10%' }}>機組名稱</TableCell>
-            <TableCell sx={{ ...headerStyle, width: '10%' }}>最大容量 (kW)</TableCell>
-            <TableCell sx={headerStyle}>開始時間</TableCell>
-            <TableCell sx={headerStyle}>結束時間</TableCell>
-            <TableCell sx={headerStyle}>停機類型</TableCell>
-            <TableCell sx={headerStyle}>原因</TableCell>
+            <TableCell sx={{ ...headerStyle, width: '10%' }}>{t('outages.company')}</TableCell>
+            <TableCell sx={{ ...headerStyle, width: '15%' }}>{t('outages.plantName')}</TableCell>
+            <TableCell sx={{ ...headerStyle, width: '10%' }}>{t('outages.unitName')}</TableCell>
+            <TableCell sx={{ ...headerStyle, width: '10%' }}>{t('outages.maxCapacity')}</TableCell>
+            <TableCell sx={headerStyle}>{t('outages.startTime')}</TableCell>
+            <TableCell sx={headerStyle}>{t('outages.endTime')}</TableCell>
+            <TableCell sx={headerStyle}>{t('outages.outageType')}</TableCell>
+            <TableCell sx={headerStyle}>{t('outages.reason')}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -118,7 +120,7 @@ const OutageTable: React.FC<OutageTableProps> = ({ outages }) => {
           ))}
           {groupedOutages.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} align="center" sx={{ py: 3, color: '#888' }}>無資料</TableCell>
+              <TableCell colSpan={8} align="center" sx={{ py: 3, color: '#888' }}>{t('outages.noData')}</TableCell>
             </TableRow>
           )}
         </TableBody>

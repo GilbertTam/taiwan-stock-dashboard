@@ -108,7 +108,7 @@ describe('PriceChartSeriesLegend - Legend Visibility Toggle', () => {
             renderWithProviders(<PriceChartSeriesLegend />);
             
             // Weather section should be present
-            expect(screen.getByText('天氣')).toBeInTheDocument();
+            expect(screen.getByText('legend.weather')).toBeInTheDocument();
         });
 
         it('should make weather legend items clickable', () => {
@@ -190,7 +190,7 @@ describe('PriceChartSeriesLegend - Legend Visibility Toggle', () => {
             expect(container).toBeTruthy();
             
             // Weather section should be present
-            expect(screen.getByText('天氣')).toBeInTheDocument();
+            expect(screen.getByText('legend.weather')).toBeInTheDocument();
         });
     });
 
@@ -218,7 +218,7 @@ describe('PriceChartSeriesLegend - Legend Visibility Toggle', () => {
             
             // Weather legend items should have color indicators
             expect(container).toBeTruthy();
-            expect(screen.getByText('天氣')).toBeInTheDocument();
+            expect(screen.getByText('legend.weather')).toBeInTheDocument();
         });
     });
 

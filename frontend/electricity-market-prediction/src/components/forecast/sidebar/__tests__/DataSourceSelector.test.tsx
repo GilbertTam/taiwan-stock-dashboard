@@ -71,13 +71,13 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       // First, expand the weather section
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       // Wait for the section to expand and show model selectors
       await waitFor(() => {
-        const actualHeader = screen.queryByText('實際觀測模型');
-        const forecastHeader = screen.queryByText('預報模型');
+        const actualHeader = screen.queryByText('weatherLabels.actualObsModel');
+        const forecastHeader = screen.queryByText('weatherLabels.forecastModel');
 
         expect(actualHeader).toBeInTheDocument();
         expect(forecastHeader).toBeInTheDocument();
@@ -94,11 +94,11 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       // Expand the weather section
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       await waitFor(() => {
-        const actualHeader = screen.queryByText('實際觀測模型');
+        const actualHeader = screen.queryByText('weatherLabels.actualObsModel');
         expect(actualHeader).toBeInTheDocument();
       });
 
@@ -108,7 +108,7 @@ describe('DataSourceSelector - Unit Tests', () => {
 
     /**
      * Test Case 3: Forecast weather model chip group displays available models
-     * 
+     *
      * This tests that the forecast weather model chip group shows chips for
      * each available weather model.
      */
@@ -116,11 +116,11 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       // Expand the weather section
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       await waitFor(() => {
-        const forecastHeader = screen.queryByText('預報模型');
+        const forecastHeader = screen.queryByText('weatherLabels.forecastModel');
         expect(forecastHeader).toBeInTheDocument();
       });
 
@@ -138,12 +138,12 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       // Expand the weather section
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       await waitFor(() => {
-        const actualHeader = screen.queryByText('實際觀測模型');
-        const forecastHeader = screen.queryByText('預報模型');
+        const actualHeader = screen.queryByText('weatherLabels.actualObsModel');
+        const forecastHeader = screen.queryByText('weatherLabels.forecastModel');
 
         // Both headers should exist
         expect(actualHeader).toBeInTheDocument();
@@ -164,12 +164,12 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       // Expand the weather section
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       await waitFor(() => {
-        const actualHeader = screen.queryByText('實際觀測模型');
-        const forecastHeader = screen.queryByText('預報模型');
+        const actualHeader = screen.queryByText('weatherLabels.actualObsModel');
+        const forecastHeader = screen.queryByText('weatherLabels.forecastModel');
 
         expect(actualHeader).toBeInTheDocument();
         expect(forecastHeader).toBeInTheDocument();
@@ -192,7 +192,7 @@ describe('DataSourceSelector - Unit Tests', () => {
 
       await waitFor(() => {
         // Weather section should be present
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -210,7 +210,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -228,7 +228,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -246,7 +246,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -263,7 +263,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext();
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -316,7 +316,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: false });
 
       // When collapsed, should show summary of selected data sources
-      const summary = screen.getByText('已選：');
+      const summary = screen.getByText('sidebar.selected');
       expect(summary).toBeInTheDocument();
     });
 
@@ -330,7 +330,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: true });
 
       // When expanded, should show all data source sections
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       expect(weatherSection).toBeInTheDocument();
     });
 
@@ -346,7 +346,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: false, onToggle });
 
       // Find and click the section header (using the step number as identifier)
-      const header = screen.getByText(/圖表疊加資料/);
+      const header = screen.getByText(/sidebar\.chartOverlayData/);
       fireEvent.click(header);
 
       expect(onToggle).toHaveBeenCalledTimes(1);
@@ -376,14 +376,16 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: true });
 
       // Check that other data sources are still present
-      const actualPrice = screen.getByText('現貨實際價格');
-      const intraday = screen.getByText('日前市場');
-      // Use getAllByText for elements that appear multiple times (header and list item)
-      const imbalanceElements = screen.getAllByText('不平衡市場');
+      const actualPrice = screen.getByText('dataSources.spotActualPrice');
+      const intraday = screen.getByText('dataSources.intradayMarket');
+      // Imbalance appears as both section header and list item with different i18n keys
+      const imbalanceSectionHeader = screen.getByText('dataSourceSections.imbalanceMarket');
+      const imbalanceListItem = screen.getByText('dataSources.imbalanceMarket');
 
       expect(actualPrice).toBeInTheDocument();
       expect(intraday).toBeInTheDocument();
-      expect(imbalanceElements.length).toBeGreaterThan(0);
+      expect(imbalanceSectionHeader).toBeInTheDocument();
+      expect(imbalanceListItem).toBeInTheDocument();
     });
 
     /**
@@ -416,13 +418,13 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: true });
 
       // Find and click the weather section to expand it
-      const weatherSection = screen.getByText('天氣');
+      const weatherSection = screen.getByText('dataSources.weather');
       fireEvent.click(weatherSection);
 
       // Wait for the section to expand
       await waitFor(() => {
-        const actualHeader = screen.queryByText('實際觀測模型');
-        const forecastHeader = screen.queryByText('預報模型');
+        const actualHeader = screen.queryByText('weatherLabels.actualObsModel');
+        const forecastHeader = screen.queryByText('weatherLabels.forecastModel');
 
         // Headers should be visible after expansion
         expect(actualHeader).toBeInTheDocument();
@@ -440,7 +442,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: true });
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 
@@ -458,7 +460,7 @@ describe('DataSourceSelector - Unit Tests', () => {
       renderWithContext({ expanded: true });
 
       await waitFor(() => {
-        const weatherSection = screen.getByText('天氣');
+        const weatherSection = screen.getByText('dataSources.weather');
         expect(weatherSection).toBeInTheDocument();
       });
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     IChartApi,
     ISeriesApi,
@@ -103,6 +104,7 @@ export const useChartSeries = ({
     subchartLayout,
 }: UseChartSeriesParams) => {
 
+    const { t } = useTranslation('forecast');
     const seriesRefs = useRef<Map<string, ISeriesApi<any>>>(new Map());
     const dayBackgroundRef = useRef<DayBackgroundPrimitive | null>(null);
     const seriesWithBackgroundRef = useRef(new WeakSet<ISeriesApi<any>>());
@@ -264,7 +266,7 @@ export const useChartSeries = ({
                 const commonOptions = {
                     color,
                     priceScaleId: scaleId,
-                    title: showRightAxisLabels ? (isVolume ? '投標計畫 電量' : '投標計畫 價格') : '',
+                    title: showRightAxisLabels ? (isVolume ? t('chartPanel.bidPlanVolume') : t('chartPanel.bidPlanPrice')) : '',
                 };
 
                 // Add specific options based on series type
@@ -353,7 +355,7 @@ export const useChartSeries = ({
                         const typeStr = prefix.includes('forecast') ? '預測' : '實測';
                         const freqStr = isDaily ? 'day' : 'hour';
                         const itemKey = `${prefix.replace('_', '-')}-${freqStr}-${field}`;
-                        const label = `[${typeStr}·${isDaily ? '日' : '時'}] ${display?.shortLabel || weatherConfig?.label || field}`;
+                        const label = `[${typeStr}·${isDaily ? '日' : '時'}] ${display?.shortLabelKey ? t(display.shortLabelKey) : (weatherConfig?.labelKey ? t(weatherConfig.labelKey) : field)}`;
                         let targetScale = 'weather_overlay_' + field;
 
                         // Try to find a color: exact match, then prefix match
@@ -440,7 +442,7 @@ export const useChartSeries = ({
             updateOrAdd('imbalance', HistogramSeries, imbalanceData, {
                 color: colors.imbalance,
                 priceScaleId: 'imbalance',
-                title: showRightAxisLabels ? 'Imbalance Qty' : '',
+                title: showRightAxisLabels ? t('chartPanel.seriesImbalanceQty') : '',
             });
             usedSubCharts.add('imbalance');
         }
@@ -454,7 +456,7 @@ export const useChartSeries = ({
                 lineWidth: 2,
                 // Use title on the right price scale to show the line name;
                 // toggle it via showRightAxisLabels.
-                title: showRightAxisLabels ? 'Surplus Rate' : '',
+                title: showRightAxisLabels ? t('chartPanel.surplusRate') : '',
             });
             usedSubCharts.add(targetScale);
         }
@@ -464,7 +466,7 @@ export const useChartSeries = ({
                 color: colors.imbalanceDeficit,
                 priceScaleId: targetScale,
                 lineWidth: 2,
-                title: showRightAxisLabels ? 'Deficit Rate' : '',
+                title: showRightAxisLabels ? t('chartPanel.deficitRate') : '',
             });
             usedSubCharts.add(targetScale);
         }
@@ -479,7 +481,7 @@ export const useChartSeries = ({
                 wickUpColor: `rgba(239, 83, 80, ${alpha})`,
                 wickDownColor: `rgba(38, 166, 154, ${alpha})`,
                 priceScaleId: targetScale,
-                title: showRightAxisLabels ? 'Intraday' : '',
+                title: showRightAxisLabels ? t('chartPanel.seriesIntraday') : '',
             });
             usedSubCharts.add(targetScale);
         }
@@ -490,7 +492,7 @@ export const useChartSeries = ({
                 lineWidth: 2,
                 lineStyle: LineStyle.Dashed,
                 priceScaleId: targetScale,
-                title: showRightAxisLabels ? 'Intraday Avg' : '',
+                title: showRightAxisLabels ? t('chartPanel.seriesIntradayAvg') : '',
             });
             usedSubCharts.add(targetScale);
         }
@@ -545,7 +547,7 @@ export const useChartSeries = ({
                 color: colors.actual,
                 lineWidth: 2,
                 priceScaleId: targetScale,
-                title: showRightAxisLabels ? 'Actual' : '',
+                title: showRightAxisLabels ? t('chartPanel.seriesActual') : '',
                 autoscaleInfoProvider: (original: () => any) => {
                     const customRange = seriesAxisConfig?.['price']?.scale;
                     const res = original();

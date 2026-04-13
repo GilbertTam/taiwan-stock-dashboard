@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { Box, Paper, Typography, Divider, Grid, Alert } from '@mui/material';
 import type { EChartsOption } from 'echarts';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/app/ThemeProvider';
 import { useChartColors } from '@/utils/chart-colors';
@@ -187,6 +188,7 @@ const WeatherChartSection = ({
 }: WeatherChartSectionProps) => {
   const { darkMode } = useTheme();
   const colors = useChartColors();
+  const { t } = useTranslation('forecast');
 
   const sortedData = useMemo(() => {
     if (!weatherChartData) return [];
@@ -221,25 +223,25 @@ const WeatherChartSection = ({
       const tooltipFormatter = (params: any) => {
         const list = Array.isArray(params) ? params : [params];
         const p = list[0];
-        const t = p?.value?.[0];
+        const t_ = p?.value?.[0];
         const err = p?.value?.[1];
-        if (t == null || err == null) return '';
-        const timeStr = new Date(t).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        if (t_ == null || err == null) return '';
+        const timeStr = new Date(t_).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         return `
         <div style="background:${colors.tooltipBg};border:1px solid ${colors.tooltipBorder};color:${colors.text};padding:8px 10px;border-radius:6px;font-size:12px;pointer-events:none;">
           <div style="font-weight:700;margin-bottom:4px;">${timeStr}</div>
-          <div>${title} 誤差：<strong>${Number(err).toFixed(2)} ${unit}</strong></div>
+          <div>${t('weatherTab.errorTooltip', { field: title })}<strong>${Number(err).toFixed(2)} ${unit}</strong></div>
         </div>`;
       };
       return {
         grid: createGrid(SMALL_GRID),
         xAxis: createTimeAxis(colors, minT, maxT),
-        yAxis: createValueAxis(colors, { name: '誤差', unit }),
+        yAxis: createValueAxis(colors, { name: t('weatherTab.error'), unit }),
         tooltip: { trigger: 'axis' as const, formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
         series: [
           {
             type: 'line' as const,
-            name: title + ' 誤差',
+            name: t('weatherTab.errorLabel', { field: title }),
             data,
             showSymbol: true,
             symbolSize: 6,
@@ -256,16 +258,16 @@ const WeatherChartSection = ({
         animation: false,
       };
     };
-    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
-    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
-    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback');
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback');
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback');
 
     return {
       temperature: build(errorTimeSeries.temperature, tName, '°C', colors.tempActual),
       rainfall: build(errorTimeSeries.rainfall, rName, 'mm', colors.rainActual),
       wind_speed: build(errorTimeSeries.wind_speed, wName, 'm/s', colors.windActual),
     };
-  }, [errorTimeSeries, colors]);
+  }, [errorTimeSeries, colors, t]);
 
   const scatterOptions = useMemo(() => {
     const build = (
@@ -289,14 +291,14 @@ const WeatherChartSection = ({
         return `
         <div style="background:${colors.tooltipBg};border:1px solid ${colors.tooltipBorder};color:${colors.text};padding:8px 10px;border-radius:6px;font-size:12px;pointer-events:none;">
           <div style="font-weight:700;margin-bottom:4px;">${title}</div>
-          <div>預報：<strong>${Number(fc).toFixed(2)} ${unit}</strong></div>
-          <div>實際：<strong>${Number(act).toFixed(2)} ${unit}</strong></div>
+          <div>${t('weatherTab.tooltipForecast')}<strong>${Number(fc).toFixed(2)} ${unit}</strong></div>
+          <div>${t('weatherTab.tooltipActual')}<strong>${Number(act).toFixed(2)} ${unit}</strong></div>
         </div>`;
       };
       return {
         grid: createGrid(SMALL_GRID),
-        xAxis: { type: 'value' as const, name: '預報', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
-        yAxis: { type: 'value' as const, name: '實際', nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
+        xAxis: { type: 'value' as const, name: t('weatherTab.forecast'), nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
+        yAxis: { type: 'value' as const, name: t('weatherTab.actual'), nameTextStyle: { color: colors.text, fontSize: 11 }, min: range[0], max: range[1], axisLabel: { color: colors.text, fontSize: 11 }, splitLine: { lineStyle: { color: colors.grid, type: 'dashed' as const } }, axisLine: { lineStyle: { color: colors.text } } },
         tooltip: { trigger: 'item' as const, formatter: tooltipFormatter as any, backgroundColor: 'transparent', borderWidth: 0, extraCssText: 'pointer-events:none;' },
         series: [
           { type: 'scatter' as const, name: title, data, symbolSize: 8, itemStyle: { color }, emphasis: { scale: 1.2 } } as any,
@@ -305,16 +307,16 @@ const WeatherChartSection = ({
         animation: false,
       };
     };
-    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
-    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
-    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback');
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback');
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback');
 
     return {
       temperature: build(scatterData.temperature, tName, '°C', colors.tempActual),
       rainfall: build(scatterData.rainfall, rName, 'mm', colors.rainActual),
       wind_speed: build(scatterData.wind_speed, wName, 'm/s', colors.windActual),
     };
-  }, [scatterData, colors]);
+  }, [scatterData, colors, t]);
 
   const histogramOptions = useMemo(() => {
     const build = (
@@ -326,31 +328,31 @@ const WeatherChartSection = ({
       return {
         grid: createGrid(SMALL_GRID),
         xAxis: { type: 'category' as const, data: binLabels, axisLabel: { color: colors.text, fontSize: 10, rotate: 45 }, axisLine: { lineStyle: { color: colors.text } }, splitLine: { show: false } },
-        yAxis: createValueAxis(colors, { name: '筆數' }),
+        yAxis: createValueAxis(colors, { name: t('weatherTab.count') }),
         tooltip: { trigger: 'axis' as const, backgroundColor: colors.tooltipBg, borderColor: colors.tooltipBorder, borderWidth: 1, textStyle: { color: colors.text, fontSize: 12 } },
-        series: [{ type: 'bar' as const, name: title + ' 誤差', data: counts, barMaxWidth: 28, itemStyle: { color: colors.rainActual } } as any],
+        series: [{ type: 'bar' as const, name: t('weatherTab.errorLabel', { field: title }), data: counts, barMaxWidth: 28, itemStyle: { color: colors.rainActual } } as any],
         animation: false,
       };
     };
-    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫';
-    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨';
-    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速';
+    const tName = WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback');
+    const rName = WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback');
+    const wName = WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback');
 
     return {
       temperature: build(histogramData.temperature.binLabels, histogramData.temperature.counts, tName),
       rainfall: build(histogramData.rainfall.binLabels, histogramData.rainfall.counts, rName),
       wind_speed: build(histogramData.wind_speed.binLabels, histogramData.wind_speed.counts, wName),
     };
-  }, [histogramData, colors]);
+  }, [histogramData, colors, t]);
 
   if (!hasData) {
     return (
       <Box sx={{ mt: 3 }}>
         <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          天氣資訊 (Weather Information)
+          {t('weatherTab.title')}
         </Typography>
         <Divider sx={{ mb: 3 }} />
-        <Alert severity="info">該時段無天氣資料 (No weather data available for this period)</Alert>
+        <Alert severity="info">{t('weatherTab.noData')}</Alert>
       </Box>
     );
   }
@@ -358,13 +360,13 @@ const WeatherChartSection = ({
   return (
     <Box sx={{ mt: 3 }}>
       <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        天氣資訊 (Weather Information)
+        {t('weatherTab.title')}
       </Typography>
       <Divider sx={{ mb: 3 }} />
 
       {/* 1. 時段摘要 */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        時段摘要
+        {t('weatherTab.periodSummary')}
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={4}>
@@ -378,14 +380,14 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')} (°C)
+              {(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback'))} (°C)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.tempActual }}>
-              實際：平均 {formatNum(summary.temperature.actual.avg)}，最高 {formatNum(summary.temperature.actual.max)}，最低 {formatNum(summary.temperature.actual.min)}
+              {t('weatherTab.tempActualSummary', { avg: formatNum(summary.temperature.actual.avg), max: formatNum(summary.temperature.actual.max), min: formatNum(summary.temperature.actual.min) })}
             </Typography>
             {summary.temperature.forecast && (
               <Typography variant="body2" sx={{ color: colors.tempForecast, mt: 0.5 }}>
-                預報：平均 {formatNum(summary.temperature.forecast.avg)}
+                {t('weatherTab.forecastAvgSummary', { avg: formatNum(summary.temperature.forecast.avg) })}
               </Typography>
             )}
           </Paper>
@@ -401,14 +403,14 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')} (mm)
+              {(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback'))} (mm)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.rainActual }}>
-              實際累積：{formatNum(summary.rainfall.actual, 2)}
+              {t('weatherTab.actualCumulative', { value: formatNum(summary.rainfall.actual, 2) })}
             </Typography>
             {summary.rainfall.forecast != null && (
               <Typography variant="body2" sx={{ color: colors.rainForecast, mt: 0.5 }}>
-                預報累積：{formatNum(summary.rainfall.forecast, 2)}
+                {t('weatherTab.forecastCumulative', { value: formatNum(summary.rainfall.forecast, 2) })}
               </Typography>
             )}
           </Paper>
@@ -424,14 +426,14 @@ const WeatherChartSection = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')} (m/s)
+              {(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback'))} (m/s)
             </Typography>
             <Typography variant="body2" sx={{ color: colors.windActual }}>
-              實際：平均 {formatNum(summary.wind_speed.actual.avg)}，最大 {formatNum(summary.wind_speed.actual.max)}
+              {t('weatherTab.windActualSummary', { avg: formatNum(summary.wind_speed.actual.avg), max: formatNum(summary.wind_speed.actual.max) })}
             </Typography>
             {summary.wind_speed.forecast && (
               <Typography variant="body2" sx={{ color: colors.windForecast, mt: 0.5 }}>
-                預報：平均 {formatNum(summary.wind_speed.forecast.avg)}
+                {t('weatherTab.forecastAvgSummary', { avg: formatNum(summary.wind_speed.forecast.avg) })}
               </Typography>
             )}
           </Paper>
@@ -440,7 +442,7 @@ const WeatherChartSection = ({
 
       {/* 2. 預報準確度 */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        預報準確度 (預報 vs 實際)
+        {t('weatherTab.forecastAccuracy')}
       </Typography>
       <Paper
         variant="outlined"
@@ -454,60 +456,60 @@ const WeatherChartSection = ({
       >
         <Grid container spacing={2}>
           <Grid item xs={12} sm={4}>
-            <Typography variant="body2" color="text.secondary">溫度 MAE (°C)</Typography>
+            <Typography variant="body2" color="text.secondary">{t('weatherTab.tempMae')}</Typography>
             <Typography variant="body1" fontWeight="600">{accuracy.temperature.count ? accuracy.temperature.mae.toFixed(3) : '–'}</Typography>
-            <Typography variant="caption" color="text.secondary">樣本數 {accuracy.temperature.count}</Typography>
+            <Typography variant="caption" color="text.secondary">{t('weatherTab.sampleCount', { count: accuracy.temperature.count })}</Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Typography variant="body2" color="text.secondary">降雨 MAE (mm)</Typography>
+            <Typography variant="body2" color="text.secondary">{t('weatherTab.rainMae')}</Typography>
             <Typography variant="body1" fontWeight="600">{accuracy.rainfall.count ? accuracy.rainfall.mae.toFixed(3) : '–'}</Typography>
-            <Typography variant="caption" color="text.secondary">樣本數 {accuracy.rainfall.count}</Typography>
+            <Typography variant="caption" color="text.secondary">{t('weatherTab.sampleCount', { count: accuracy.rainfall.count })}</Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Typography variant="body2" color="text.secondary">風速 MAE (m/s)</Typography>
+            <Typography variant="body2" color="text.secondary">{t('weatherTab.windMae')}</Typography>
             <Typography variant="body1" fontWeight="600">{accuracy.wind_speed.count ? accuracy.wind_speed.mae.toFixed(3) : '–'}</Typography>
-            <Typography variant="caption" color="text.secondary">樣本數 {accuracy.wind_speed.count}</Typography>
+            <Typography variant="caption" color="text.secondary">{t('weatherTab.sampleCount', { count: accuracy.wind_speed.count })}</Typography>
           </Grid>
         </Grid>
       </Paper>
 
       {/* 3. 預報誤差時序（實際 − 預報） */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        預報誤差時序（實際 − 預報）
+        {t('weatherTab.errorTimeSeries')}
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')}誤差 (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback') })} (°C)</Typography>
             {errorTimeSeries.temperature.length > 0 ? (
               <BaseChart option={errorTimeOptions.temperature} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')}誤差 (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback') })} (mm)</Typography>
             {errorTimeSeries.rainfall.length > 0 ? (
               <BaseChart option={errorTimeOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')}誤差 (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback') })} (m/s)</Typography>
             {errorTimeSeries.wind_speed.length > 0 ? (
               <BaseChart option={errorTimeOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
@@ -516,41 +518,41 @@ const WeatherChartSection = ({
 
       {/* 4. 實際 vs 預測散點 */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        實際 vs 預測
+        {t('weatherTab.actualVsForecast')}
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')} (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback'))} (°C)</Typography>
             {scatterData.temperature.length > 0 ? (
               <BaseChart option={scatterOptions.temperature} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')} (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback'))} (mm)</Typography>
             {scatterData.rainfall.length > 0 ? (
               <BaseChart option={scatterOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')} (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback'))} (m/s)</Typography>
             {scatterData.wind_speed.length > 0 ? (
               <BaseChart option={scatterOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
@@ -559,41 +561,41 @@ const WeatherChartSection = ({
 
       {/* 5. 誤差分布 */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
-        誤差分布
+        {t('weatherTab.errorDistribution')}
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabel ?? '氣溫')}誤差 (°C)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['temperature_2m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['temperature_2m'].shortLabelKey) : t('weatherTab.tempFallback') })} (°C)</Typography>
             {histogramData.temperature.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.temperature} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['precipitation']?.shortLabel ?? '降雨')}誤差 (mm)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['precipitation']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['precipitation'].shortLabelKey) : t('weatherTab.rainFallback') })} (mm)</Typography>
             {histogramData.rainfall.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.rainfall} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: darkMode ? '#333' : '#e0e0e0' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{(WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabel ?? '風速')}誤差 (m/s)</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{t('weatherTab.errorLabel', { field: WEATHER_FIELD_DISPLAY['wind_speed_10m']?.shortLabelKey ? t(WEATHER_FIELD_DISPLAY['wind_speed_10m'].shortLabelKey) : t('weatherTab.windFallback') })} (m/s)</Typography>
             {histogramData.wind_speed.binLabels.length > 0 ? (
               <BaseChart option={histogramOptions.wind_speed} height={CHART_HEIGHT} />
             ) : (
               <Box sx={{ height: CHART_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">無可比對資料</Typography>
+                <Typography variant="body2" color="text.secondary">{t('weatherTab.noComparableData')}</Typography>
               </Box>
             )}
           </Paper>
@@ -603,7 +605,7 @@ const WeatherChartSection = ({
       {/* 6. 在圖表上疊加天氣指引 */}
       <Alert severity="info" sx={{ borderRadius: 2 }}>
         <Typography variant="body2">
-          若要在價格預測圖上疊加氣溫、降雨、風速等時序，請在左側「資料來源」勾選天氣（實際／預報）及欲顯示的項目。
+          {t('weatherTab.overlayHint')}
         </Typography>
       </Alert>
     </Box>

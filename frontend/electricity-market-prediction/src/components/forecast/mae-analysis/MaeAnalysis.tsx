@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Alert } from '@mui/material';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { TimeSlot } from '@/types';
@@ -21,6 +22,7 @@ interface MaeAnalysisProps {
 }
 
 const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels, embedded = false }) => {
+    const { t } = useTranslation('forecast');
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot>(TimeSlot.ALL);
 
     const {
@@ -38,7 +40,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels, em
         return (
             <Box sx={{ mt: 3 }}>
                 <Alert severity="info">
-                    請選擇模型以進行MAE分析 (Please select models to perform MAE analysis)
+                    {t('maeAnalysis.selectModel')}
                 </Alert>
             </Box>
         );
@@ -49,7 +51,7 @@ const MaeAnalysis: React.FC<MaeAnalysisProps> = ({ chartData, selectedModels, em
         return (
             <Box sx={{ mt: 3 }}>
                 <Alert severity="info">
-                    該時段無MAE分析資料 (No MAE analysis data available for this period)
+                    {t('maeAnalysis.noData')}
                 </Alert>
             </Box>
         );

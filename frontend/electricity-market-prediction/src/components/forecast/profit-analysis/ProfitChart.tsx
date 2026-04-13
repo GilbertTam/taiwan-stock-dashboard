@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EChartsOption } from 'echarts';
 import { Box, Typography } from '@mui/material';
 import { BaseChart } from '@/components/charts/BaseChart';
@@ -53,6 +54,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
     darkMode,
     embedded = false,
 }) => {
+    const { t } = useTranslation('forecast');
     const xLabels = useMemo(() => combinedData.map((d) => d.formattedDate), [combinedData]);
     const style = useMemo(() => tradingViewStyle(colors, darkMode), [colors, darkMode]);
 
@@ -67,7 +69,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
 
             const optimalRow = `
 <tr>
-  <td style="padding:4px 8px;color:${colors.actual};font-weight:700;">Optimal</td>
+  <td style="padding:4px 8px;color:${colors.actual};font-weight:700;">${t('profitAnalysis.tooltipOptimal')}</td>
   <td style="padding:4px 8px;color:${colors.text};text-align:right;">${d.actualProfit != null ? Number(d.actualProfit).toFixed(0) : '-'}</td>
   <td style="padding:4px 8px;color:${colors.text};text-align:right;">${d.cumulativeActual != null ? Number(d.cumulativeActual).toFixed(0) : '-'}</td>
 </tr>`;
@@ -97,13 +99,13 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
   min-width:280px;
   pointer-events:none;
 ">
-  <div style="font-weight:700;margin-bottom:8px;">${axisLabel} Profit</div>
+  <div style="font-weight:700;margin-bottom:8px;">${t('profitAnalysis.tooltipTitle', { date: axisLabel })}</div>
   <table style="border-collapse:collapse;width:100%;font-size:12px;">
     <thead>
       <tr>
-        <th style="text-align:left;padding:4px 8px;color:${colors.subText};font-weight:700;">Type</th>
-        <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:700;">Daily</th>
-        <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:700;">Cumulative</th>
+        <th style="text-align:left;padding:4px 8px;color:${colors.subText};font-weight:700;">${t('profitAnalysis.tooltipType')}</th>
+        <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:700;">${t('profitAnalysis.tooltipDaily')}</th>
+        <th style="text-align:right;padding:4px 8px;color:${colors.subText};font-weight:700;">${t('profitAnalysis.tooltipCumulative')}</th>
       </tr>
     </thead>
     <tbody>${optimalRow}${modelRows}</tbody>
@@ -115,7 +117,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
 
         // 每日收益 bar（左軸），並排：barGap + barCategoryGap
         series.push({
-            name: 'Optimal (Daily)',
+            name: t('profitAnalysis.seriesOptimalDaily'),
             type: 'bar' as const,
             yAxisIndex: 0,
             barMaxWidth: 24,
@@ -127,7 +129,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
         selectedModels.forEach((model) => {
             const modelKey = `${model.id}|${model.name}`;
             series.push({
-                name: `${model.name} (Daily)`,
+                name: t('profitAnalysis.seriesModelDaily', { model: model.name }),
                 type: 'bar' as const,
                 yAxisIndex: 0,
                 barMaxWidth: 24,
@@ -140,7 +142,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
 
         // 累計收益 line（右軸）
         series.push({
-            name: 'Optimal (Cumulative)',
+            name: t('profitAnalysis.seriesOptimalCumulative'),
             type: 'line' as const,
             yAxisIndex: 1,
             showSymbol: false,
@@ -151,7 +153,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
         selectedModels.forEach((model) => {
             const modelKey = `${model.id}|${model.name}`;
             series.push({
-                name: `${model.name} (Cumulative)`,
+                name: t('profitAnalysis.seriesModelCumulative', { model: model.name }),
                 type: 'line' as const,
                 yAxisIndex: 1,
                 showSymbol: false,
@@ -192,7 +194,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             yAxis: [
                 {
                     type: 'value' as const,
-                    name: '每日收益 (¥)',
+                    name: t('profitAnalysis.dailyProfitYAxis'),
                     position: 'left' as const,
                     ...style.axis,
                     nameTextStyle: { color: colors.text, fontSize: 11 },
@@ -200,7 +202,7 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
                 },
                 {
                     type: 'value' as const,
-                    name: '累計收益 (¥)',
+                    name: t('profitAnalysis.cumulativeProfitYAxis'),
                     position: 'right' as const,
                     ...style.axis,
                     nameTextStyle: { color: colors.text, fontSize: 11 },
@@ -210,13 +212,13 @@ export const ProfitChart: React.FC<ProfitChartProps> = ({
             series,
             animation: false,
         };
-    }, [combinedData, selectedModels, modelColorMap, colors, darkMode, xLabels, style]);
+    }, [combinedData, selectedModels, modelColorMap, colors, darkMode, xLabels, style, t]);
 
     return (
         <Box sx={{ mt: embedded ? 0 : 3 }}>
             {!embedded && (
                 <Typography variant="h6" component="h3" sx={{ color: colors.text, fontWeight: 'bold', mb: 2 }}>
-                    Profit Analysis (Daily & Cumulative)
+                    {t('profitAnalysis.title')}
                 </Typography>
             )}
             <BaseChart option={option} height={embedded ? 240 : 400} />
