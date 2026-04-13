@@ -1,0 +1,47 @@
+{
+  "chartType": {
+    "line": "折れ線",
+    "step": "ステップ",
+    "bar": "棒"
+  },
+  "fetchError": "データの取得に失敗しました。しばらくしてからもう一度お試しください。",
+  "selectAreaHint": "+ をクリックしてエリアを選択",
+  "addArea": "エリアを追加",
+  "maxAreaReached": "上限に達しました",
+  "selectAreaTitle": "エリアを選択（最大 {{max}} 個）",
+  "selectMetric": "指標を選択",
+  "noAreaSelected": "左側でエリアを1つ以上選択してオーバーレイ比較を表示してください。",
+  "noDataHint": "エリアと指標を選択すると、複数日のオーバーレイ比較が表示されます。",
+  "stats": {
+    "avg": "平均",
+    "peak": "最高",
+    "valley": "最低"
+  },
+  "groups": {
+    "spotMarket": "スポット市場",
+    "imbalanceMarket": "インバランス市場",
+    "intradayMarket": "日中市場",
+    "renewable": "再生可能エネルギー",
+    "powerSupplyDemand": "電力需給",
+    "spotTradeVolume": "スポット取引量"
+  },
+  "metrics": {
+    "spot_price": "エリアスポット価格",
+    "system_price": "システム参照価格",
+    "imbalance_surplus": "余剰インバランス料金",
+    "imbalance_deficit": "不足インバランス料金",
+    "imbalance_quantity": "インバランス量",
+    "intraday_avg": "日中平均約定価格",
+    "intraday_volume": "日中約定量",
+    "solar": "太陽光発電量",
+    "solar_curtail": "太陽光出力制御量",
+    "wind": "風力発電量",
+    "wind_curtail": "風力出力制御量",
+    "thermal": "火力発電量",
+    "nuclear": "原子力発電量",
+    "hydro": "水力発電量",
+    "area_demand": "エリア需要",
+    "jepx_sell_qty": "スポット売却量",
+    "jepx_contract_qty": "スポット約定量"
+  }
+}

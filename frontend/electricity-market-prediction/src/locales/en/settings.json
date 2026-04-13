@@ -1,0 +1,17 @@
+{
+  "title": "Settings",
+  "appearance": {
+    "title": "Appearance",
+    "description": "Switch the interface between dark and light themes.",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode"
+  },
+  "language": {
+    "title": "Language",
+    "description": "Select the interface display language."
+  },
+  "preferences": {
+    "title": "Preferences",
+    "comingSoon": "Default date range, timezone display, and other settings are coming soon."
+  }
+}

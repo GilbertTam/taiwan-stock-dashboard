@@ -1,0 +1,17 @@
+{
+  "title": "個人設定",
+  "appearance": {
+    "title": "顯示",
+    "description": "切換介面為深色或淺色主題。",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式"
+  },
+  "language": {
+    "title": "語言",
+    "description": "選擇介面顯示語言。"
+  },
+  "preferences": {
+    "title": "偏好設定",
+    "comingSoon": "預設日期範圍、時區顯示等設定即將推出，敬請期待。"
+  }
+}

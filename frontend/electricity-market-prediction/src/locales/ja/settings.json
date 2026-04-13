@@ -1,0 +1,17 @@
+{
+  "title": "設定",
+  "appearance": {
+    "title": "表示",
+    "description": "インターフェースをダークテーマまたはライトテーマに切り替えます。",
+    "darkMode": "ダークモード",
+    "lightMode": "ライトモード"
+  },
+  "language": {
+    "title": "言語",
+    "description": "インターフェースの表示言語を選択してください。"
+  },
+  "preferences": {
+    "title": "設定",
+    "comingSoon": "デフォルトの日付範囲やタイムゾーン表示などの設定は近日公開予定です。"
+  }
+}

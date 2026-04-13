@@ -1,0 +1,47 @@
+{
+  "chartType": {
+    "line": "Line",
+    "step": "Step",
+    "bar": "Bar"
+  },
+  "fetchError": "Failed to fetch data, please try again later.",
+  "selectAreaHint": "Click + to select area",
+  "addArea": "Add area",
+  "maxAreaReached": "Max reached",
+  "selectAreaTitle": "Select area (max {{max}})",
+  "selectMetric": "Select metric",
+  "noAreaSelected": "Please select at least one area to display overlay comparison.",
+  "noDataHint": "Select area and metric, and the chart will display a multi-day overlay comparison.",
+  "stats": {
+    "avg": "Avg",
+    "peak": "Peak",
+    "valley": "Valley"
+  },
+  "groups": {
+    "spotMarket": "Spot Market",
+    "imbalanceMarket": "Imbalance Market",
+    "intradayMarket": "Intraday Market",
+    "renewable": "Renewable Energy",
+    "powerSupplyDemand": "Power Supply & Demand",
+    "spotTradeVolume": "Spot Trade Volume"
+  },
+  "metrics": {
+    "spot_price": "Area Spot Price",
+    "system_price": "System Reference Price",
+    "imbalance_surplus": "Surplus Imbalance Rate",
+    "imbalance_deficit": "Deficit Imbalance Rate",
+    "imbalance_quantity": "Imbalance Quantity",
+    "intraday_avg": "Intraday Avg Price",
+    "intraday_volume": "Intraday Volume",
+    "solar": "Solar Generation",
+    "solar_curtail": "Solar Curtailment",
+    "wind": "Wind Generation",
+    "wind_curtail": "Wind Curtailment",
+    "thermal": "Thermal Generation",
+    "nuclear": "Nuclear Generation",
+    "hydro": "Hydro Generation",
+    "area_demand": "Area Demand",
+    "jepx_sell_qty": "Spot Sell Volume",
+    "jepx_contract_qty": "Spot Contract Volume"
+  }
+}
