@@ -23,17 +23,19 @@ import {
     SourceConfig,
     STATIC_SOURCE_CONFIGS,
     AREA_ORDER,
-    AREA_JP,
 } from '@/components/data-status/DataStatusControls';
+import { getAreaName } from '@/utils/areaI18n';
 import { DataStatusKPI } from '@/components/data-status/DataStatusKPI';
 import { DataStatusGantt } from '@/components/data-status/DataStatusGantt';
 import { SelectedCell } from '@/components/data-status/DataStatusDetailDrawer';
 import { DataStatusUnifiedDrawer } from '@/components/data-status/DataStatusUnifiedDrawer';
 import { DataStatusRawView } from '@/components/data-status/DataStatusRawView';
+import { useTranslation } from 'react-i18next';
 
 interface RecordsCell { sourceKey: string; area: string; date: string; slot?: number; }
 
 export default function DataStatusPage() {
+    const { t } = useTranslation('dataStatus');
     const {
         startDate,
         endDate,
@@ -123,7 +125,7 @@ export default function DataStatusPage() {
             setFetchedStart(result.start_date);
             setFetchedEnd(result.end_date);
         } catch {
-            setError('資料載入失敗，請稍後再試。');
+            setError(t('loadError'));
             setRows([]);
         } finally {
             setIsLoading(false);
@@ -222,7 +224,7 @@ export default function DataStatusPage() {
                                             },
                                         }}
                                     >
-                                        {AREA_JP[area]}
+                                        {getAreaName(t, area)}
                                     </ToggleButton>
                                 ))}
                             </ToggleButtonGroup>

@@ -34,12 +34,14 @@ import ReactECharts from 'echarts-for-react';
 import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
-import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
+
 import { useTheme } from '@/app/ThemeProvider';
 import { fetchOcctoArea, fetchHjksOutages } from '@/services';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
 import type { OcctoAreaData, HjksOutage } from '@/types';
 import GenerationMixLightweightChart, { GEN_SOURCES as GEN_SOURCES_LW } from '@/components/market/generation-mix/GenerationMixLightweightChart';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // GEN_SOURCES is defined in GenerationMixLightweightChart and re-exported
 const GEN_SOURCES = GEN_SOURCES_LW;
@@ -67,9 +69,10 @@ interface DonutPanelProps {
 }
 
 function DonutPanel({ title, values, isDark }: DonutPanelProps) {
+  const { t } = useTranslation('generationMix');
   const total = values.reduce((s, v) => s + v, 0);
   const pieData = GEN_SOURCES
-    .map((s, i) => ({ name: s.label, value: values[i], itemStyle: { color: s.color } }))
+    .map((s, i) => ({ name: t(s.labelKey), value: values[i], itemStyle: { color: s.color } }))
     .filter((d) => d.value > 0);
 
   const option = useMemo(
@@ -124,7 +127,7 @@ function DonutPanel({ title, values, isDark }: DonutPanelProps) {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: s.color, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{s.label}</Typography>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{t(s.labelKey)}</Typography>
               </Box>
               <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600 }}>
                 {s.val.toFixed(0)}{' '}
@@ -136,7 +139,7 @@ function DonutPanel({ title, values, isDark }: DonutPanelProps) {
       </Box>
       <Divider sx={{ my: 0.5 }} />
       <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, px: 0.5 }}>
-        合計 {total.toFixed(0)} MW
+        {t('totalMW', { total: total.toFixed(0) })}
       </Typography>
     </Box>
   );
@@ -145,6 +148,7 @@ function DonutPanel({ title, values, isDark }: DonutPanelProps) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function GenerationMixPage() {
   const { darkMode } = useTheme();
+  const { t } = useTranslation('generationMix');
 
   const {
     areas,
@@ -276,8 +280,8 @@ export default function GenerationMixPage() {
   }, [allAreaData, areas]);
 
   const comparisonLabels = useMemo(
-    () => comparisonData.map((d) => d.area.name_ch || d.area.name),
-    [comparisonData]
+    () => comparisonData.map((d) => getAreaName(t, d.area.name)),
+    [comparisonData, t]
   );
 
   // ── Lock: clicking a bar pins display; clicking same bar or empty area unlocks
@@ -328,14 +332,14 @@ export default function GenerationMixPage() {
 
   const donutTitle = useMemo(() => {
     if (activeIndex === null) {
-      return pageMode === 'comparison' ? '全域平均（懸停查看各地區）' : '期間平均組合';
+      return pageMode === 'comparison' ? t('globalAvg') : t('periodAvgMix');
     }
     if (pageMode === 'timeseries') {
       const label = timeLabels[activeIndex];
-      return label ? `${label.slice(5, 16)}` : '組合';
+      return label ? `${label.slice(5, 16)}` : t('periodAvgMix');
     } else {
       const label = comparisonLabels[activeIndex];
-      return label ? `${label} 平均組合` : '組合';
+      return label ? `${label} ${t('periodAvgMix')}` : t('periodAvgMix');
     }
   }, [activeIndex, pageMode, timeLabels, comparisonLabels]);
 
@@ -365,7 +369,7 @@ export default function GenerationMixPage() {
   const comparisonItems = useMemo(
     () =>
       comparisonData.map((d) => ({
-        label: d.area.name_ch || d.area.name,
+        label: getAreaName(t, d.area.name),
         values: GEN_SOURCES.map((s) => d.avg[s.key as string] || 0),
       })),
     [comparisonData]
@@ -381,7 +385,7 @@ export default function GenerationMixPage() {
 
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-      {timeseriesLoading && pageMode === 'timeseries' && <LoadingOverlay />}
+
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0 }}>
@@ -400,9 +404,9 @@ export default function GenerationMixPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5, flexShrink: 0, minHeight: 32 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <ElectricalServicesIcon sx={{ fontSize: 16, color: 'var(--primary)' }} />
-            <Typography variant="subtitle1" fontWeight={700}>發電組合分析</Typography>
+            <Typography variant="subtitle1" fontWeight={700}>{t('title')}</Typography>
             <Box sx={{ width: '1px', height: 14, backgroundColor: 'var(--card-border)', mx: 0.25 }} />
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>OCCTO 発電源分析</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('subtitle')}</Typography>
           </Box>
           {/* Mode toggle — toolbar-style ButtonBase pair */}
           <Box sx={{ display: 'inline-flex', border: '1px solid var(--card-border)', borderRadius: 1, overflow: 'hidden', height: 28, flexShrink: 0 }}>
@@ -427,7 +431,7 @@ export default function GenerationMixPage() {
                     }),
                   }}
                 >
-                  {mode === 'timeseries' ? '時序分析' : '地區比較'}
+                  {mode === 'timeseries' ? t('timeseries') : t('comparison')}
                 </ButtonBase>
               </React.Fragment>
             ))}
@@ -437,11 +441,11 @@ export default function GenerationMixPage() {
         {/* Row B: Area chip selector (timeseries mode only) */}
         {pageMode === 'timeseries' && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.5, flexWrap: 'wrap', flexShrink: 0 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>選擇地區：</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>{t('selectArea')}</Typography>
             {areas.map((area) => (
               <Chip
                 key={area.name}
-                label={area.name_ch || area.name}
+                label={getAreaName(t, area.name)}
                 size="small"
                 variant={selectedArea === area.name ? 'filled' : 'outlined'}
                 onClick={() => handleAreaChange({ target: { value: area.name } } as any)}
@@ -466,7 +470,7 @@ export default function GenerationMixPage() {
         {pageMode === 'comparison' && (
           <Box sx={{ px: 1.5, py: 0.5, flexShrink: 0, borderLeft: '4px solid var(--secondary)', backgroundColor: 'rgba(0,210,255,0.05)', borderRadius: '0 4px 4px 0', mx: 0.5 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              地區比較模式：顯示各地區期間平均發電組合。懸停長條可查看各地區詳情。
+              {t('comparisonHint')}
             </Typography>
           </Box>
         )}
@@ -477,7 +481,7 @@ export default function GenerationMixPage() {
             <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', borderTop: '2px solid rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.04)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
                 <BoltIcon sx={{ fontSize: 11, color: '#e0e0e0', opacity: 0.8 }} />
-                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>期間均值總供給</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t('avgTotalSupply')}</Typography>
               </Box>
               <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1.2 }}>
                 {periodStats.avgTotal.toFixed(0)}
@@ -487,7 +491,7 @@ export default function GenerationMixPage() {
             <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(0,204,122,0.08)', borderColor: 'rgba(0,204,122,0.3)', borderTop: '2px solid rgba(0,204,122,0.5)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
                 <EnergySavingsLeafIcon sx={{ fontSize: 11, color: '#00cc7a', opacity: 0.7 }} />
-                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>均值再生能源佔比</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t('avgRenewableShare')}</Typography>
               </Box>
               <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#00cc7a', lineHeight: 1.2 }}>
                 {periodStats.avgRenewablePct.toFixed(1)}
@@ -497,7 +501,7 @@ export default function GenerationMixPage() {
             <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(255,202,40,0.08)', borderColor: 'rgba(255,202,40,0.3)', borderTop: '2px solid rgba(255,202,40,0.5)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
                 <WbSunnyIcon sx={{ fontSize: 11, color: '#ffca28', opacity: 0.7 }} />
-                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>太陽能峰值</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t('solarPeak')}</Typography>
               </Box>
               <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#ffca28', lineHeight: 1.2 }}>
                 {periodStats.peakSolar.toFixed(0)}
@@ -507,7 +511,7 @@ export default function GenerationMixPage() {
             <Paper variant="outlined" sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, flex: '1 1 110px', backgroundColor: 'rgba(38,198,218,0.08)', borderColor: 'rgba(38,198,218,0.3)', borderTop: '2px solid rgba(38,198,218,0.5)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
                 <AirIcon sx={{ fontSize: 11, color: '#26c6da', opacity: 0.7 }} />
-                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>風力峰值</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t('windPeak')}</Typography>
               </Box>
               <Typography sx={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#26c6da', lineHeight: 1.2 }}>
                 {periodStats.peakWind.toFixed(0)}
@@ -521,7 +525,7 @@ export default function GenerationMixPage() {
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 1 }}>
           {!hasData && !activeLoading ? (
             <Alert severity="info" sx={{ mx: 0.5, alignSelf: 'flex-start' }}>
-              該時段無 OCCTO 供需資料 (No OCCTO area data for this period)
+              {t('noData')}
             </Alert>
           ) : activeLoading && !hasData ? (
             <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -545,13 +549,13 @@ export default function GenerationMixPage() {
                 {/* Title + inline legend */}
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                    {pageMode === 'timeseries' ? '發電來源時序（堆疊長條）' : '各地區期間平均發電組合'}
+                    {pageMode === 'timeseries' ? t('sourceTimeseries') : t('regionAvgMix')}
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px' }}>
                     {GEN_SOURCES.map((s) => (
                       <Box key={s.key as string} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                         <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: s.color, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{s.label}</Typography>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t(s.labelKey)}</Typography>
                       </Box>
                     ))}
                   </Box>
@@ -595,11 +599,11 @@ export default function GenerationMixPage() {
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <LockIcon sx={{ fontSize: 12, color: 'var(--primary)' }} />
-                      <Typography sx={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}>已鎖定</Typography>
+                      <Typography sx={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}>{t('locked')}</Typography>
                     </Box>
                     <Chip
                       size="small"
-                      label="解除"
+                      label={t('unlock')}
                       variant="outlined"
                       onClick={() => { setLockedIndex(null); setLockedOutages([]); setLockedTime(null); }}
                       sx={{ fontSize: 10, height: 18, cursor: 'pointer', color: 'var(--primary)', borderColor: 'rgba(0,255,157,0.5)' }}
@@ -609,7 +613,7 @@ export default function GenerationMixPage() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                     <LockOpenIcon sx={{ fontSize: 11, color: 'var(--muted)' }} />
                     <Typography sx={{ fontSize: 11, color: 'var(--muted)' }}>
-                      點擊圖表可鎖定時段
+                      {t('clickToLock')}
                     </Typography>
                   </Box>
                 )}
@@ -632,13 +636,13 @@ export default function GenerationMixPage() {
                         px: 0.5,
                         '&::-webkit-scrollbar': { width: 4 },
                         '&::-webkit-scrollbar-thumb': {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                          backgroundColor: 'var(--scrollbar-thumb)',
                           borderRadius: 2,
                         },
                       }}
                     >
                       <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'warning.main', mb: 0.5 }}>
-                        ⚡ 停機中 {activeOutages.length} 件
+                        {t('activeOutages', { count: activeOutages.length })}
                       </Typography>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         {activeOutages.map((o) => {
@@ -649,7 +653,7 @@ export default function GenerationMixPage() {
                             <Box key={o.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <Typography sx={{ fontSize: 10, color: tagColor, fontWeight: 700, minWidth: 28 }}>
-                                  {isEmergency ? '緊急' : isPlanned ? '計画' : '停止'}
+                                  {isEmergency ? t('emergency') : isPlanned ? t('planned') : t('stopped')}
                                 </Typography>
                                 <Typography sx={{ fontSize: 10, fontWeight: 600, lineHeight: 1.3 }}>
                                   {o.name} {o.unit_name}
@@ -690,7 +694,7 @@ export default function GenerationMixPage() {
             >
               <WarningAmberIcon sx={{ fontSize: 16, mr: 0.75, color: 'warning.main' }} />
               <Typography variant="caption" sx={{ fontWeight: 700, flex: 1 }}>
-                停機事件
+                {t('outageEvents')}
               </Typography>
               {outages.length > 0 && (
                 <Chip

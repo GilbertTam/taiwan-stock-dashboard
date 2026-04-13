@@ -24,10 +24,12 @@ import type { Area, HjksOutage } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const { t } = useTranslation('dashboard');
 
   // 共用日期範圍（與 header 及價格預測頁同步）
   const {
@@ -278,7 +280,7 @@ export default function Dashboard() {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setShowLoginSuccess(false)} severity="success" variant="filled">
-          登入成功
+          {t('loginSuccess')}
         </Alert>
       </Snackbar>
 
@@ -291,7 +293,7 @@ export default function Dashboard() {
           onDateChange={commitDateSelection}
           onDateRangePreset={handleDateRangePreset}
           onRefresh={handleRefresh}
-          downloadActions={[{ label: '下載目前檢視區域 CSV', onClick: handleDownloadCsv }]}
+          downloadActions={[{ label: t('downloadCsv'), onClick: handleDownloadCsv }]}
         />
       </Box>
 
@@ -330,10 +332,10 @@ export default function Dashboard() {
                     }}
                   >
                     <Typography sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 12 }}>
-                      區域一覽
+                      {t('areaOverview')}
                     </Typography>
                     <Tooltip
-                      title="價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較"
+                      title={t('priceSpreadTooltip')}
                       arrow
                       placement="bottom"
                     >

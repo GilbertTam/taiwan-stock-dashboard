@@ -12,6 +12,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { DashboardSubPageLayout } from '@/components/layout/DashboardSubPageLayout';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { useInView } from '@/hooks/useInView';
+import { useTranslation } from 'react-i18next';
 
 const sectionCardSx = {
   position: 'relative' as const,
@@ -42,19 +43,11 @@ const sectionTitleSx = {
   ml: -0.25,
 };
 
-const TOOLS = [
-  { name: 'Apache ECharts', desc: '圖表庫', url: 'https://echarts.apache.org/' },
-  { name: 'TradingView Lightweight Charts', desc: '金融圖表元件', url: 'https://www.tradingview.com/lightweight-charts/' },
-  { name: 'MUI (Material UI)', desc: 'UI 元件庫', url: 'https://mui.com/' },
-  { name: 'Next.js', desc: 'React 框架', url: 'https://nextjs.org/' },
-];
-
-const TECH_STACK: { label: string; tags: string[] }[] = [
-  { label: '前端', tags: ['Next.js 15', 'React 19', 'TypeScript', 'Material UI 6', 'ECharts'] },
-  { label: '後端', tags: ['FastAPI', 'Pydantic', 'SQLAlchemy (async)'] },
-  { label: '資料庫', tags: ['SQLite（使用者資料）', 'Elasticsearch（市場與預測資料）'] },
-  { label: '優化', tags: ['PuLP', 'Pandas', 'NumPy'] },
-  { label: '基礎設施', tags: ['Docker', 'Docker Compose', 'Nginx'] },
+const TOOL_URLS = [
+  { name: 'Apache ECharts', key: 'echarts', url: 'https://echarts.apache.org/' },
+  { name: 'TradingView Lightweight Charts', key: 'lwc', url: 'https://www.tradingview.com/lightweight-charts/' },
+  { name: 'MUI (Material UI)', key: 'mui', url: 'https://mui.com/' },
+  { name: 'Next.js', key: 'nextjs', url: 'https://nextjs.org/' },
 ];
 
 function GradientBar() {
@@ -95,13 +88,25 @@ function RevealSection({ children }: { children: ReactNode }) {
 }
 
 export default function AboutPage() {
+  const { t } = useTranslation('common');
+
+  const TOOLS = TOOL_URLS.map(tool => ({ ...tool, desc: t(`about.tools.${tool.key}`) }));
+
+  const TECH_STACK: { label: string; tags: string[] }[] = [
+    { label: t('about.stack.frontend'), tags: ['Next.js 15', 'React 19', 'TypeScript', 'Material UI 6', 'ECharts'] },
+    { label: t('about.stack.backend'), tags: ['FastAPI', 'Pydantic', 'SQLAlchemy (async)'] },
+    { label: t('about.stack.database'), tags: [t('about.dbItems.sqlite'), t('about.dbItems.elasticsearch')] },
+    { label: t('about.stack.optimization'), tags: ['PuLP', 'Pandas', 'NumPy'] },
+    { label: t('about.stack.infrastructure'), tags: ['Docker', 'Docker Compose', 'Nginx'] },
+  ];
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Box sx={{ flexShrink: 0, p: 0.5 }}>
         <DashboardToolbar variant="minimal" />
       </Box>
       <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        <DashboardSubPageLayout title="關於網站" icon={<InfoOutlinedIcon />} backHref="/dashboard">
+        <DashboardSubPageLayout title={t('about.title')} icon={<InfoOutlinedIcon />} backHref="/dashboard">
           {/* Hero */}
           <RevealSection>
           <Paper
@@ -127,10 +132,10 @@ export default function AboutPage() {
                 fontSize: '1.125rem',
               }}
             >
-              日本電力現貨市場資料視覺化
+              {t('about.heroTitle')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              即時價格、預測與儲能收益分析。
+              {t('about.heroDesc')}
             </Typography>
           </Paper>
           </RevealSection>
@@ -141,10 +146,10 @@ export default function AboutPage() {
             <GradientBar />
             <Typography variant="subtitle1" sx={sectionTitleSx}>
               <InfoOutlinedIcon fontSize="small" />
-              資料來源
+              {t('about.dataSources')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 1 }}>
-              本系統資料經由後端 API 提供，主要包含以下類別：
+              {t('about.dataSourcesDesc')}
             </Typography>
             <Box
               component="ul"
@@ -156,18 +161,18 @@ export default function AboutPage() {
                 lineHeight: 1.8,
               }}
             >
-              <li>區域與現貨價格（各區域即時與歷史價格）</li>
-              <li>預測模型與預測結果（自訂模型預測資料）</li>
-              <li>不平衡（imbalance）</li>
-              <li>連線流量（interconnection flow）</li>
-              <li>停機資訊（HJKS）</li>
-              <li>OCCTO（區域／連線／事件）</li>
+              <li>{t('about.dataItems.spotPrice')}</li>
+              <li>{t('about.dataItems.forecast')}</li>
+              <li>{t('about.dataItems.imbalance')}</li>
+              <li>{t('about.dataItems.interconnection')}</li>
+              <li>{t('about.dataItems.outage')}</li>
+              <li>{t('about.dataItems.occto')}</li>
               <li>TDGC</li>
-              <li>天氣實測與預報</li>
-              <li>地震資訊</li>
+              <li>{t('about.dataItems.weather')}</li>
+              <li>{t('about.dataItems.earthquake')}</li>
             </Box>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mt: 1.5 }}>
-              以上資料源自日本電力市場相關公開資訊。
+              {t('about.dataSourcesFooter')}
             </Typography>
           </Paper>
           </RevealSection>
@@ -178,10 +183,10 @@ export default function AboutPage() {
             <GradientBar />
             <Typography variant="subtitle1" sx={sectionTitleSx}>
               <BarChartIcon fontSize="small" />
-              圖表與前端工具來源
+              {t('about.chartTools')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
-              本系統圖表與介面使用以下開源與第三方工具：
+              {t('about.chartToolsDesc')}
             </Typography>
             <Box
               sx={{
@@ -234,10 +239,10 @@ export default function AboutPage() {
             <GradientBar />
             <Typography variant="subtitle1" sx={sectionTitleSx}>
               <CodeIcon fontSize="small" />
-              技術架構
+              {t('about.techStack')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
-              本專案技術棧與 README 對齊：
+              {t('about.techStackDesc')}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {TECH_STACK.map((row) => (

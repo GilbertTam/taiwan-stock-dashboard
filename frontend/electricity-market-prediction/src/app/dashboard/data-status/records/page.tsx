@@ -4,8 +4,10 @@ import React, { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CircularProgress } from '@mui/material';
 import { DataStatusRawView } from '@/components/data-status/DataStatusRawView';
+import { useTranslation } from 'react-i18next';
 
 function RecordsContent() {
+    const { t } = useTranslation('dataStatus');
     const router       = useRouter();
     const searchParams = useSearchParams();
 
@@ -18,7 +20,7 @@ function RecordsContent() {
     if (!sourceKey || !area || !date) {
         return (
             <div style={{ padding: 24 }}>
-                請從資料狀態頁面點擊格子進入此頁，或確認 URL 包含 source_key、area、date 參數。
+                {t('invalidUrlError')}
             </div>
         );
     }

@@ -155,7 +155,7 @@ describe('WeatherPage Integration Tests (Unified Chart Stack)', () => {
             render(<WeatherPage />);
 
             await waitFor(() => {
-                expect(screen.getByText(/此日期區間尚無天氣資料/)).toBeInTheDocument();
+                expect(screen.getByText(/noData/)).toBeInTheDocument();
                 // Chart should not be rendered
                 expect(screen.queryByTestId('chart-lightweight')).not.toBeInTheDocument();
             });

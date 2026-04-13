@@ -22,10 +22,12 @@ import { MainPriceChartTab } from '@/components/forecast/tabs/MainPriceChartTab'
 
 // Hooks
 import { usePricePredictionData } from '@/components/forecast/hooks/usePricePredictionData';
+import { useTranslation } from 'react-i18next';
 
 function ForecastContent() {
   const { darkMode } = useTheme();
   const colors = useChartColors();
+  const { t } = useTranslation('forecast');
 
   const {
     areas, models, calculatingDatesByModel, selectedArea, selectedModels,
@@ -114,7 +116,7 @@ function ForecastContent() {
               onDateChange={commitDateSelection}
               onDateRangePreset={handleDateRangePreset}
               onRefresh={handleRefresh}
-              downloadActions={[{ label: '下載價差 CSV', onClick: handleDownloadCsv }]}
+              downloadActions={[{ label: t('downloadSpreadCsv'), onClick: handleDownloadCsv }]}
               isLoading={isLoading || isFetchingPredictions}
             />
             {isFetchingPredictions && !isLoading && (
@@ -146,8 +148,9 @@ function ForecastContent() {
 }
 
 export default function ForecastPage() {
+  const { t: tCommon } = useTranslation('common');
   return (
-    <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading...</Box>}>
+    <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>{tCommon('loading')}</Box>}>
       <ForecastContent />
     </Suspense>
   );

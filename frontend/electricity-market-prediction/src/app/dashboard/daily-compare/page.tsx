@@ -15,8 +15,9 @@ import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { fetchActualPrices } from '@/services/marketApi';
 import { fetchImbalance, fetchOcctoArea, fetchIntraday, fetchJepxSystem } from '@/services/gridOperationsApi';
-import { DailyCompareControls, MetricKey, MetricConfig, METRIC_CONFIGS } from '@/components/daily-compare/DailyCompareControls';
+import { DailyCompareControls, MetricKey, MetricConfig, METRIC_CONFIGS, useTranslatedMetrics } from '@/components/daily-compare/DailyCompareControls';
 import { DailyCompareGrid } from '@/components/daily-compare/DailyCompareGrid';
+import { useTranslation } from 'react-i18next';
 
 // ─── Fetch registry ─────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ async function fetchDailyCompareData(
 const ECHARTS_GROUP_ID = 'daily-compare-crosshair';
 
 export default function DailyComparePage() {
+    const { t } = useTranslation('dailyCompare');
     const {
         areas,
         selectedArea: ctxArea,
@@ -131,9 +133,10 @@ export default function DailyComparePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const translatedMetrics = useTranslatedMetrics();
     const currentMetricConfig = useMemo<MetricConfig>(
-        () => METRIC_CONFIGS.find(m => m.key === selectedMetric)!,
-        [selectedMetric],
+        () => translatedMetrics.find(m => m.key === selectedMetric)!,
+        [selectedMetric, translatedMetrics],
     );
 
     // Fetch all selected areas in parallel whenever inputs change
@@ -161,7 +164,7 @@ export default function DailyComparePage() {
             })
             .catch(() => {
                 if (!ctrl.signal.aborted) {
-                    setError('データの取得に失敗しました。しばらくしてからもう一度お試しください。');
+                    setError(t('fetchError'));
                     setRawDataMap(new Map());
                 }
             })
@@ -208,7 +211,7 @@ export default function DailyComparePage() {
                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{currentMetricConfig.unit}</Typography>
                             <Chip
                                 size="small"
-                                label={{ line: '折線', step: '梯線', bar: '長條' }[currentMetricConfig.chartType] ?? currentMetricConfig.chartType}
+                                label={({ line: t('chartType.line'), step: t('chartType.step'), bar: t('chartType.bar') } as Record<string, string>)[currentMetricConfig.chartType] ?? currentMetricConfig.chartType}
                                 sx={{
                                     height: 18,
                                     fontSize: '0.65rem',

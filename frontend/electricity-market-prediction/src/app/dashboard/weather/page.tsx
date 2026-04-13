@@ -28,6 +28,8 @@ import {
 import { PriceChartProvider } from '@/components/price-chart/context/PriceChartContext';
 import { ChartLightweight } from '@/components/price-chart/ChartLightweight';
 import { WeatherDataTableWrapper } from '@/components/price-chart/controls/WeatherDataTableWrapper';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 import {
     fetchWeatherActualModels,
     fetchWeatherActualDailyModels,
@@ -45,6 +47,7 @@ const DEFAULT_EXPANDED_SIZES = [65, 35];
 export default function WeatherPage() {
     const { darkMode } = useTheme();
     const colors = useChartColors();
+    const { t } = useTranslation('weather');
 
     const {
         areas,
@@ -309,7 +312,7 @@ export default function WeatherPage() {
         return Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
     }, [showForecastHourly, showForecastDaily, selectedModelForecastHourly, selectedModelForecastDaily, weatherForecast, weatherForecastDaily]);
 
-    const currentAreaName = areas.find(a => a.name === selectedArea)?.name_ch || selectedArea;
+    const currentAreaName = getAreaName(t, selectedArea);
     const dataCount = displayedWeatherActual.length + displayedWeatherForecast.length;
 
     return (
@@ -323,7 +326,7 @@ export default function WeatherPage() {
                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
                 <Alert onClose={() => setShowWarnings(false)} severity="warning" sx={{ width: '100%' }}>
-                    以下資料載入失敗，可能影響部分圖表：{dataFetchWarnings?.join('、')}
+                    {t('loadWarning')}{dataFetchWarnings?.join('、')}
                 </Alert>
             </Snackbar>
 
@@ -395,7 +398,7 @@ export default function WeatherPage() {
                             {dataCount === 0 && !isLoading ? (
                                 <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'var(--card-bg)', borderRadius: 2, border: '1px dashed var(--card-border)', m: 2 }}>
                                     <Typography variant="body1" color="text.secondary">
-                                        此日期區間尚無天氣資料，請更換日期或地區
+                                        {t('noData')}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -458,7 +461,7 @@ export default function WeatherPage() {
                                                 <Tab
                                                     icon={<TableChartIcon sx={{ fontSize: 18, mr: 0.5 }} />}
                                                     iconPosition="start"
-                                                    label="天氣資料表格 (Weather Data Table)"
+                                                    label={t('dataTable')}
                                                     onClick={() => setCollapsed(!collapsed)}
                                                 />
                                             </Tabs>
@@ -466,7 +469,7 @@ export default function WeatherPage() {
                                                 size="small"
                                                 onClick={() => setCollapsed(!collapsed)}
                                                 sx={{ color: 'text.secondary' }}
-                                                title={collapsed ? '展開' : '收合'}
+                                                title={collapsed ? t('expand') : t('collapse')}
                                             >
                                                 {collapsed ? <UnfoldMoreIcon sx={{ fontSize: 20 }} /> : <UnfoldLessIcon sx={{ fontSize: 20 }} />}
                                             </IconButton>

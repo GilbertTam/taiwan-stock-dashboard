@@ -32,6 +32,7 @@ import { BatteryConfig, DEFAULT_BATTERY_CONFIG, OptimizationResult, GanttChartDa
 import { calculateRevenue, simulateManual } from '@/services/marketApi';
 import { getJepxTimeCode } from '@/utils/jepxUtils';
 import { simulateManualClient } from '@/utils/manualSimulationClient';
+import { useTranslation } from 'react-i18next';
 
 interface ModelResult {
   optimization: OptimizationResult;
@@ -41,6 +42,7 @@ interface ModelResult {
 function SiteRevenueContent() {
   const searchParams = useSearchParams();
   const { darkMode } = useTheme();
+  const { t } = useTranslation('siteRevenue');
   const colors = useChartColors();
 
   const {
@@ -199,25 +201,25 @@ function SiteRevenueContent() {
     const rows: string[] = [];
 
     // Summary section
-    rows.push('案場收益報表');
+    rows.push(t('csv.reportTitle'));
     rows.push('');
     if (startDate && endDate) {
-      rows.push(`日期範圍,${format(startDate, 'yyyy-MM-dd')},${format(endDate, 'yyyy-MM-dd')}`);
+      rows.push(`${t('csv.dateRange')},${format(startDate, 'yyyy-MM-dd')},${format(endDate, 'yyyy-MM-dd')}`);
     }
-    rows.push(`區域,${escape(selectedArea)}`);
-    rows.push(`儲能容量(MWh),${escape(config.E_cap)}`);
-    rows.push(`放電上限(MW),${escape(config.P_max_dis)}`);
-    rows.push(`充電上限(MW),${escape(config.P_max_ch)}`);
-    rows.push(`時間步長(h),${escape(config.dt)}`);
+    rows.push(`${t('csv.area')},${escape(selectedArea)}`);
+    rows.push(`${t('csv.capacityMwh')},${escape(config.E_cap)}`);
+    rows.push(`${t('csv.maxDischargeMw')},${escape(config.P_max_dis)}`);
+    rows.push(`${t('csv.maxChargeMw')},${escape(config.P_max_ch)}`);
+    rows.push(`${t('csv.timestepH')},${escape(config.dt)}`);
     rows.push('');
 
     const sumRevenue = (ops: { revenueRealized?: number | null; revenue?: number | null }[]) =>
       ops.reduce((sum, op) => sum + (op.revenueRealized ?? op.revenue ?? 0), 0);
 
     const optimalRev = ganttData.optimal?.length ? sumRevenue(ganttData.optimal) : 0;
-    rows.push('摘要');
-    rows.push('類型,總收益(預測/最適),實現收益');
-    rows.push(`Optimal,${escape(optimalRev)},${escape(optimalRev)}`);
+    rows.push(t('csv.summary'));
+    rows.push(t('csv.summaryHeader'));
+    rows.push(`${escape(t('actions.optimal'))},${escape(optimalRev)},${escape(optimalRev)}`);
 
     selectedModels.forEach((m) => {
       const key = `${m.id}|${m.name}`;
@@ -230,9 +232,8 @@ function SiteRevenueContent() {
     });
 
     rows.push('');
-    rows.push('明細');
-    const detailHeaders = '排程類型,日期時間,動作,功率(MW),SoC,價格,收益,實際價格,預測價格,實現收益';
-    rows.push(detailHeaders);
+    rows.push(t('csv.details'));
+    rows.push(t('csv.detailsHeader'));
 
     const writeOps = (ops: typeof ganttData.optimal, type: string) => {
       if (!ops) return;
@@ -252,7 +253,7 @@ function SiteRevenueContent() {
       });
     };
 
-    writeOps(ganttData.optimal, 'Optimal');
+    writeOps(ganttData.optimal, t('actions.optimal'));
     selectedModels.forEach((m) => {
       const key = `${m.id}|${m.name}`;
       writeOps(ganttData.models?.[key], m.name);
@@ -294,7 +295,7 @@ function SiteRevenueContent() {
       );
 
       if (validData.length === 0) {
-        setError("此期間無可用資料（無實際價格或預測結果）。請嘗試其他日期或區域。");
+        setError(t('noDataError'));
         return;
       }
 
@@ -644,7 +645,7 @@ function SiteRevenueContent() {
     try {
       const validData = chartData.filter(d => d.actualPrice !== null || d.modelPredictions.length > 0);
       if (validData.length === 0) {
-        setError("此期間無可用資料。請先載入市場資料後再執行手動模擬。");
+        setError(t('noManualDataError'));
         return;
       }
 
@@ -782,7 +783,7 @@ function SiteRevenueContent() {
               onDateChange={handleDateChange}
               onDateRangePreset={handleDateRangePreset}
               onRefresh={handleRefresh}
-              downloadActions={ganttData ? [{ label: '下載收益報表 CSV', onClick: handleDownloadRevenueCsv }] : []}
+              downloadActions={ganttData ? [{ label: t('downloadCsv'), onClick: handleDownloadRevenueCsv }] : []}
               currentTab="site-revenue"
               isLoading={revenueData.isFetching || isSimulating}
             />
@@ -858,12 +859,12 @@ function SiteRevenueContent() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid var(--card-border)', flexShrink: 0 }}>
-              <Typography variant="subtitle2" fontWeight={700}>電池參數設定</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>{t('batteryConfig')}</Typography>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <IconButton
                   size="small"
                   onClick={() => setConfig(DEFAULT_BATTERY_CONFIG)}
-                  title="重置預設值"
+                  title={t('resetDefaults')}
                   sx={{ color: 'var(--text-secondary)', '&:hover': { color: 'var(--primary)' } }}
                 >
                   <RestartAltIcon sx={{ fontSize: '1rem' }} />
@@ -887,9 +888,16 @@ function SiteRevenueContent() {
   );
 }
 
+function SiteRevenueFallback() {
+  const { t } = useTranslation('common');
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>{t('loading')}</Box>
+  );
+}
+
 export default function SiteRevenuePage() {
   return (
-    <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading...</Box>}>
+    <Suspense fallback={<SiteRevenueFallback />}>
       <SiteRevenueContent />
     </Suspense>
   );
