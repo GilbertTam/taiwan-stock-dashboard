@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, ButtonBase, Popover, Tooltip, Typography } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { DateRange } from 'react-date-range';
@@ -62,6 +63,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   onChange,
   isLoading = false,
 }) => {
+  const { t } = useTranslation('common');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [tempStart, setTempStart] = useState<Date | null>(startDate);
   const [tempEnd, setTempEnd] = useState<Date | null>(endDate);
@@ -167,7 +169,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         }}
       >
         {/* Prev arrow */}
-        <Tooltip title="上一天">
+        <Tooltip title={t('nav.prevDay')}>
           <ButtonBase
             disableRipple
             onClick={() => shiftDate(-1)}
@@ -193,7 +195,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         </Box>
 
         {/* Start date label — opens calendar */}
-        <Tooltip title="選擇開始日期">
+        <Tooltip title={t('dateRangePicker.selectStartDate')}>
           <ButtonBase disableRipple onClick={openCalendar} sx={dateFieldSx(open)}>
             <Typography sx={dateLabelSx(open)}>
               {startDate ? format(startDate, 'MM/dd') : '--/--'}
@@ -207,7 +209,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         </Box>
 
         {/* End date label — also opens the same calendar */}
-        <Tooltip title="選擇結束日期">
+        <Tooltip title={t('dateRangePicker.selectEndDate')}>
           <ButtonBase disableRipple onClick={openCalendar} sx={dateFieldSx(open)}>
             <Typography sx={dateLabelSx(open)}>
               {endDate ? format(endDate, 'MM/dd') : '--/--'}
@@ -216,7 +218,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         </Tooltip>
 
         {/* Next arrow */}
-        <Tooltip title="下一天">
+        <Tooltip title={t('nav.nextDay')}>
           <ButtonBase
             disableRipple
             onClick={() => shiftDate(1)}

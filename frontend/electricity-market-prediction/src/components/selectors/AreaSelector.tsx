@@ -15,6 +15,8 @@ import {
 } from '@mui/material';
 import { Area } from '@/types';
 import { SectionHeader } from './shared';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 interface AreaSelectorProps {
     areas: Area[];
@@ -33,8 +35,10 @@ export const AreaSelector: React.FC<AreaSelectorProps> = ({
     expanded,
     onToggle,
     step = 1,
-    description = '選擇要分析的地區',
+    description,
 }) => {
+    const { t } = useTranslation('common');
+    const resolvedDescription = description ?? t('selectAreaDescription');
     return (
         <Paper
             elevation={0}
@@ -49,9 +53,9 @@ export const AreaSelector: React.FC<AreaSelectorProps> = ({
                 onClick={onToggle}
                 expanded={expanded}
                 step={step}
-                description={description}
+                description={resolvedDescription}
             >
-                選擇地區
+                {t('selectArea')}
             </SectionHeader>
             <Collapse in={expanded}>
                 <List dense sx={{ p: 1 }}>
@@ -88,7 +92,7 @@ export const AreaSelector: React.FC<AreaSelectorProps> = ({
                                         />
                                     </ListItemIcon>
                                     <ListItemText
-                                        primary={area.name_ch}
+                                        primary={getAreaName(t, area.name)}
                                         secondary={area.name}
                                         primaryTypographyProps={{
                                             fontSize: '0.85rem',
@@ -108,9 +112,9 @@ export const AreaSelector: React.FC<AreaSelectorProps> = ({
             {/* 收合時顯示當前選擇 */}
             {!expanded && selectedArea && (
                 <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, borderLeft: '3px solid var(--primary)', ml: 0.5, bgcolor: 'var(--hover-bg)' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>目前選擇：</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>{t('currentSelection')}：</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--primary)' }}>
-                        {areas.find(a => a.name === selectedArea)?.name_ch || selectedArea}
+                        {getAreaName(t, selectedArea)}
                     </Typography>
                 </Box>
             )}

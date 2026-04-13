@@ -4,11 +4,13 @@
  *
  * Mirrors the field lists in backend es_service.py `_preview_config()`.
  * Dynamic sources (prediction_*, tdgc_*) are handled via prefix matching below.
+ *
+ * `labelKey` is an i18n key within the 'dataStatus' namespace (e.g. 'columns.area_price').
  */
 
 export interface RecordColumn {
     field: string;
-    label: string;
+    labelKey: string;   // i18n key within 'dataStatus' namespace
     unit?: string;
     text?: boolean;     // if true, left-align and skip numeric formatting
 }
@@ -16,46 +18,46 @@ export interface RecordColumn {
 // Static source column definitions
 export const SOURCE_RECORD_COLUMNS: Record<string, RecordColumn[]> = {
     spot_price: [
-        { field: 'area_price', label: '地區現貨價', unit: '¥/kWh' },
+        { field: 'area_price', labelKey: 'columns.area_price', unit: '¥/kWh' },
     ],
     jepx_system: [
-        { field: 'system_price',           label: '系統現貨價', unit: '¥/kWh' },
-        { field: 'sell_bid_volume',        label: '賣出申告量', unit: 'kWh'    },
-        { field: 'buy_bid_volume',         label: '買入申告量', unit: 'kWh'    },
-        { field: 'contracted_total_volume',label: '成交量',     unit: 'kWh'    },
+        { field: 'system_price',           labelKey: 'columns.system_price',           unit: '¥/kWh' },
+        { field: 'sell_bid_volume',        labelKey: 'columns.sell_bid_volume',        unit: 'kWh'    },
+        { field: 'buy_bid_volume',         labelKey: 'columns.buy_bid_volume',         unit: 'kWh'    },
+        { field: 'contracted_total_volume',labelKey: 'columns.contracted_total_volume', unit: 'kWh'    },
     ],
     intraday: [
-        { field: 'opening_price',            label: '開盤價',   unit: '¥/kWh' },
-        { field: 'high_price',               label: '最高價',   unit: '¥/kWh' },
-        { field: 'low_price',                label: '最低價',   unit: '¥/kWh' },
-        { field: 'closing_price',            label: '收盤價',   unit: '¥/kWh' },
-        { field: 'average_price',            label: '平均價',   unit: '¥/kWh' },
-        { field: 'total_contracted_volume',  label: '成交量',   unit: 'kWh'    },
+        { field: 'opening_price',            labelKey: 'columns.opening_price',            unit: '¥/kWh' },
+        { field: 'high_price',               labelKey: 'columns.high_price',               unit: '¥/kWh' },
+        { field: 'low_price',                labelKey: 'columns.low_price',                unit: '¥/kWh' },
+        { field: 'closing_price',            labelKey: 'columns.closing_price',            unit: '¥/kWh' },
+        { field: 'average_price',            labelKey: 'columns.average_price',            unit: '¥/kWh' },
+        { field: 'total_contracted_volume',  labelKey: 'columns.total_contracted_volume',  unit: 'kWh'    },
     ],
     imbalance: [
-        { field: 'imbalance_surplus_rate', label: '剩餘費率',   unit: '¥/kWh' },
-        { field: 'imbalance_deficit_rate', label: '不足費率',   unit: '¥/kWh' },
-        { field: 'imbalance_quantity',     label: '不平衡量',   unit: 'kWh'    },
+        { field: 'imbalance_surplus_rate', labelKey: 'columns.imbalance_surplus_rate', unit: '¥/kWh' },
+        { field: 'imbalance_deficit_rate', labelKey: 'columns.imbalance_deficit_rate', unit: '¥/kWh' },
+        { field: 'imbalance_quantity',     labelKey: 'columns.imbalance_quantity',     unit: 'kWh'    },
     ],
     occto_area: [
-        { field: 'area_demand',                     label: '地區需求',     unit: 'MW' },
-        { field: 'total',                           label: '總供電',       unit: 'MW' },
-        { field: 'solar_power_generation_actual',   label: '太陽能',       unit: 'MW' },
-        { field: 'wind_power_generation_actual',    label: '風力',         unit: 'MW' },
-        { field: 'solar_power_output_control',      label: '太陽能抑制',   unit: 'MW' },
-        { field: 'wind_power_output_control',       label: '風力抑制',     unit: 'MW' },
-        { field: 'nuclear_power',                   label: '核能',         unit: 'MW' },
-        { field: 'thermal',                         label: '火力',         unit: 'MW' },
-        { field: 'hydropower',                      label: '水力',         unit: 'MW' },
-        { field: 'pumped_storage',                  label: '抽蓄',         unit: 'MW' },
-        { field: 'interconnection_line',            label: '連絡線融通',   unit: 'MW' },
+        { field: 'area_demand',                     labelKey: 'columns.area_demand',           unit: 'MW' },
+        { field: 'total',                           labelKey: 'columns.total_supply',          unit: 'MW' },
+        { field: 'solar_power_generation_actual',   labelKey: 'columns.solar_power',           unit: 'MW' },
+        { field: 'wind_power_generation_actual',    labelKey: 'columns.wind_power',            unit: 'MW' },
+        { field: 'solar_power_output_control',      labelKey: 'columns.solar_curtailment',     unit: 'MW' },
+        { field: 'wind_power_output_control',       labelKey: 'columns.wind_curtailment',      unit: 'MW' },
+        { field: 'nuclear_power',                   labelKey: 'columns.nuclear_power',         unit: 'MW' },
+        { field: 'thermal',                         labelKey: 'columns.thermal',               unit: 'MW' },
+        { field: 'hydropower',                      labelKey: 'columns.hydropower',            unit: 'MW' },
+        { field: 'pumped_storage',                  labelKey: 'columns.pumped_storage',        unit: 'MW' },
+        { field: 'interconnection_line',            labelKey: 'columns.interconnection_line',   unit: 'MW' },
     ],
     occto_inter: [
-        { field: 'interconnection_name',       label: '連絡線名稱',     unit: '', text: true },
-        { field: 'forward_planned_flow',       label: '正向計劃潮流',   unit: 'MW' },
-        { field: 'reverse_planned_flow',       label: '逆向計劃潮流',   unit: 'MW' },
-        { field: 'forward_available_capacity', label: '正向可用容量',   unit: 'MW' },
-        { field: 'reverse_available_capacity', label: '逆向可用容量',   unit: 'MW' },
+        { field: 'interconnection_name',       labelKey: 'columns.interconnection_name',       unit: '', text: true },
+        { field: 'forward_planned_flow',       labelKey: 'columns.forward_planned_flow',       unit: 'MW' },
+        { field: 'reverse_planned_flow',       labelKey: 'columns.reverse_planned_flow',       unit: 'MW' },
+        { field: 'forward_available_capacity', labelKey: 'columns.forward_available_capacity', unit: 'MW' },
+        { field: 'reverse_available_capacity', labelKey: 'columns.reverse_available_capacity', unit: 'MW' },
     ],
     // occto_event has special card-list rendering — no column definition needed
     occto_event: [],
@@ -63,36 +65,36 @@ export const SOURCE_RECORD_COLUMNS: Record<string, RecordColumn[]> = {
 
 // Columns for all tdgc_* sources (commodity_category varies but fields are the same)
 export const TDGC_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'corrected_unit_price_ave', label: '補正後單價 (Ave)', unit: '¥/kWh' },
-    { field: 'tso_price_ave',            label: 'TSO 價格 (Ave)',   unit: '¥/kWh' },
-    { field: 'in_area_quantity',         label: '地區需求量',       unit: 'kWh'    },
-    { field: 'total_contract_quantity',  label: '總成交量',         unit: 'kWh'    },
+    { field: 'corrected_unit_price_ave', labelKey: 'columns.corrected_unit_price_ave', unit: '¥/kWh' },
+    { field: 'tso_price_ave',            labelKey: 'columns.tso_price_ave',            unit: '¥/kWh' },
+    { field: 'in_area_quantity',         labelKey: 'columns.in_area_quantity',         unit: 'kWh'    },
+    { field: 'total_contract_quantity',  labelKey: 'columns.total_contract_quantity',  unit: 'kWh'    },
 ];
 
 // Columns for all prediction_* sources (P50 is stored as forecast_price after expansion)
 // calculate_time is intentionally first so users can distinguish multiple forecasting runs
 export const PREDICTION_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'calculate_time', label: '計算日',       unit: ''       },
-    { field: 'forecast_price', label: 'P50 (中位數)', unit: '¥/kWh' },
+    { field: 'calculate_time', labelKey: 'columns.calculate_time',     unit: ''       },
+    { field: 'forecast_price', labelKey: 'columns.forecast_price_p50', unit: '¥/kWh' },
 ];
 
 // Key weather fields to display (subset of the full schema — keeps table readable)
 export const WEATHER_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'temperature_2m',               label: '氣溫',         unit: '°C'    },
-    { field: 'apparent_temperature',         label: '體感溫度',     unit: '°C'    },
-    { field: 'relative_humidity_2m',         label: '相對濕度',     unit: '%'     },
-    { field: 'precipitation',                label: '降水量',       unit: 'mm'    },
-    { field: 'wind_speed_10m',               label: '風速 10m',     unit: 'm/s'   },
-    { field: 'wind_speed_100m',              label: '風速 100m',    unit: 'm/s'   },
-    { field: 'shortwave_radiation',          label: '短波輻射',     unit: 'W/m²'  },
-    { field: 'cloud_cover',                  label: '雲量',         unit: '%'     },
-    { field: 'surface_pressure',             label: '地面氣壓',     unit: 'hPa'   },
+    { field: 'temperature_2m',               labelKey: 'columns.temperature_2m',          unit: '°C'    },
+    { field: 'apparent_temperature',         labelKey: 'columns.apparent_temperature',    unit: '°C'    },
+    { field: 'relative_humidity_2m',         labelKey: 'columns.relative_humidity_2m',    unit: '%'     },
+    { field: 'precipitation',                labelKey: 'columns.precipitation',           unit: 'mm'    },
+    { field: 'wind_speed_10m',               labelKey: 'columns.wind_speed_10m',          unit: 'm/s'   },
+    { field: 'wind_speed_100m',              labelKey: 'columns.wind_speed_100m',         unit: 'm/s'   },
+    { field: 'shortwave_radiation',          labelKey: 'columns.shortwave_radiation',     unit: 'W/m²'  },
+    { field: 'cloud_cover',                  labelKey: 'columns.cloud_cover',             unit: '%'     },
+    { field: 'surface_pressure',             labelKey: 'columns.surface_pressure',        unit: 'hPa'   },
     // daily-only fields
-    { field: 'temperature_2m_max',           label: '最高溫',       unit: '°C'    },
-    { field: 'temperature_2m_min',           label: '最低溫',       unit: '°C'    },
-    { field: 'precipitation_sum',            label: '日降水量',     unit: 'mm'    },
-    { field: 'wind_speed_10m_max',           label: '最大風速 10m', unit: 'm/s'   },
-    { field: 'shortwave_radiation_sum',      label: '日照輻射總量', unit: 'MJ/m²' },
+    { field: 'temperature_2m_max',           labelKey: 'columns.temperature_2m_max',      unit: '°C'    },
+    { field: 'temperature_2m_min',           labelKey: 'columns.temperature_2m_min',      unit: '°C'    },
+    { field: 'precipitation_sum',            labelKey: 'columns.precipitation_sum',       unit: 'mm'    },
+    { field: 'wind_speed_10m_max',           labelKey: 'columns.wind_speed_10m_max',      unit: 'm/s'   },
+    { field: 'shortwave_radiation_sum',      labelKey: 'columns.shortwave_radiation_sum', unit: 'MJ/m²' },
 ];
 
 /**

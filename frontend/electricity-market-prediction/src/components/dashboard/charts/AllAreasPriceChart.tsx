@@ -25,6 +25,8 @@ import { OutageHoverBar } from './chart-parts/OutageHoverBar';
 import { OutageSummaryChip } from './chart-parts/OutageSummaryChip';
 import { OutageDetailDrawer } from './chart-parts/OutageDetailDrawer';
 import { AreaChartLegend } from '@/components/charts/legends/AreaChartLegend';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // 9個不同區域的顏色定義，用於圖表線條與圖例
 const AREA_COLORS = [
@@ -68,6 +70,7 @@ export function AllAreasPriceChart({
 }: AllAreasPriceChartProps) {
     const { darkMode } = useTheme();
     const colors = useChartColors();
+    const { t } = useTranslation(['common', 'dashboard']);
 
     // Refs 用於存儲圖表實例與狀態，避免閉包問題
     const containerRef = useRef<HTMLDivElement>(null);
@@ -214,7 +217,7 @@ export function AllAreasPriceChart({
                 const series = chart.addSeries(LineSeries, {
                     color: AREA_COLORS[idx % AREA_COLORS.length],
                     lineWidth: 2,
-                    title: showLabels ? area.name_ch : '', // 控制顯示/隱藏文字標籤
+                    title: showLabels ? getAreaName(t, area.name) : '', // 控制顯示/隱藏文字標籤
                     priceLineVisible: false, // 不顯示最新價格線
                     lastValueVisible: true,  // 顯示最新數值標籤
                 });
@@ -268,7 +271,7 @@ export function AllAreasPriceChart({
 
                     if (closest && closest.actualPrice != null) {
                         hoverResults.push({
-                            areaName: area.name_ch,
+                            areaName: getAreaName(t, area.name),
                             price: closest.actualPrice,
                             time: format(new Date(closest.timestamp), 'HH:mm'),
                             timestamp: closest.timestamp,
@@ -343,7 +346,7 @@ export function AllAreasPriceChart({
         areas.forEach((area) => {
             const series = seriesMapRef.current.get(area.name);
             if (series) {
-                series.applyOptions({ title: showLabels ? area.name_ch : '' });
+                series.applyOptions({ title: showLabels ? getAreaName(t, area.name) : '' });
             }
         });
     }, [showLabels, chartInitialized, areas]);
@@ -396,7 +399,7 @@ export function AllAreasPriceChart({
         // 更新原語的高亮狀態
         if (typeof prim?.setHighlightedArea === 'function') {
             const area = highlightedArea != null ? areas.find((a) => a.name === highlightedArea) : null;
-            prim.setHighlightedArea(highlightedArea ?? null, area?.name_ch ?? null);
+            prim.setHighlightedArea(highlightedArea ?? null, area ? getAreaName(t, area.name) : null);
         }
 
         const targetDim = highlightedArea != null ? DIM_TARGET : 1;
@@ -497,7 +500,7 @@ export function AllAreasPriceChart({
                     }}
                 />
                 <Typography sx={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>
-                    載入圖表...
+                    {t('dashboard:loadingChart')}
                 </Typography>
             </Box>
         );
@@ -517,7 +520,7 @@ export function AllAreasPriceChart({
                 <OutageHoverBar outages={hoveredOutage?.outages ?? null} />
                 {/* 標籤顯示切換按鈕 */}
                 <Box sx={{ flexShrink: 0, ml: 'auto' }}>
-                    <Tooltip title={showLabels ? '隱藏文字標籤' : '顯示文字標籤'} placement="left" arrow>
+                    <Tooltip title={showLabels ? t('dashboard:hideLabels') : t('dashboard:showLabels')} placement="left" arrow>
                         <IconButton
                             size="small"
                             onClick={() => setShowLabels(!showLabels)}

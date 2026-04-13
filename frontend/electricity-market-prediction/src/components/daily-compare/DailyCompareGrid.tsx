@@ -5,6 +5,8 @@ import { Box, Typography, Alert } from '@mui/material';
 import { Area } from '@/types';
 import { MetricConfig } from './DailyCompareControls';
 import { DailyOverlayChart } from './DailyOverlayChart';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 interface DailyCompareGridProps {
     selectedAreas: string[];
@@ -25,17 +27,18 @@ export const DailyCompareGrid: React.FC<DailyCompareGridProps> = ({
     isLoading,
     groupId,
 }) => {
+    const { t } = useTranslation('dailyCompare');
     const areaLabelMap = useMemo(() => {
         const m = new Map<string, string>();
-        for (const a of areas) m.set(a.name, a.name_ch);
+        for (const a of areas) m.set(a.name, getAreaName(t, a.name));
         return m;
-    }, [areas]);
+    }, [areas, t]);
 
     if (!isLoading && selectedAreas.length === 0) {
         return (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Alert severity="info" sx={{ maxWidth: 400 }}>
-                    <Typography variant="body2">請在左側選擇至少一個地區以顯示疊圖比較。</Typography>
+                    <Typography variant="body2">{t('noAreaSelected')}</Typography>
                 </Alert>
             </Box>
         );

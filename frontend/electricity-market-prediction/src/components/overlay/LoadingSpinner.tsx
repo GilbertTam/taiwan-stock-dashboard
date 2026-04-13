@@ -8,13 +8,16 @@
  */
 
 import { Box, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface LoadingSpinnerProps {
     /** 載入提示文字 | Loading hint text */
     label?: string;
 }
 
-export function LoadingSpinner({ label = '載入中...' }: LoadingSpinnerProps) {
+export function LoadingSpinner({ label }: LoadingSpinnerProps) {
+    const { t } = useTranslation('common');
+    const displayLabel = label ?? t('loading');
     return (
         <>
             <Box
@@ -47,9 +50,9 @@ export function LoadingSpinner({ label = '載入中...' }: LoadingSpinnerProps) 
                     },
                 }}
             />
-            {label && (
+            {displayLabel && (
                 <Typography sx={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>
-                    {label}
+                    {displayLabel}
                 </Typography>
             )}
         </>

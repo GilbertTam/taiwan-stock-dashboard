@@ -23,6 +23,8 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import AddIcon from '@mui/icons-material/Add';
 import { Area } from '@/types';
 import { SectionHeader } from '@/components/selectors/shared';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,48 +49,59 @@ export type MetricKey =
     | 'jepx_sell_qty'
     | 'jepx_contract_qty';
 
+export type GroupKey = 'spotMarket' | 'imbalanceMarket' | 'intradayMarket' | 'renewable' | 'powerSupplyDemand' | 'spotTradeVolume';
+
 export interface MetricConfig {
     key: MetricKey;
     label: string;
     unit: string;
     group: string;
+    groupKey: GroupKey;
     chartType: ChartType;
     baseColor: string;
 }
 
-export const METRIC_CONFIGS: MetricConfig[] = [
-    // 現貨市場
-    { key: 'spot_price',        label: '地區現貨價格',   unit: '円/kWh', group: '現貨市場',   chartType: 'step', baseColor: '#ff4d4f' },
-    { key: 'system_price',      label: '系統參考價格',   unit: '円/kWh', group: '現貨市場',   chartType: 'step', baseColor: '#ff7875' },
-    // 不平衡市場
-    { key: 'imbalance_surplus', label: '超供費率',       unit: '円/kWh', group: '不平衡市場', chartType: 'step', baseColor: '#52c41a' },
-    { key: 'imbalance_deficit', label: '不足費率',       unit: '円/kWh', group: '不平衡市場', chartType: 'step', baseColor: '#fa8c16' },
-    { key: 'imbalance_quantity',label: '不平衡量',       unit: 'kWh',    group: '不平衡市場', chartType: 'bar',  baseColor: '#73d13d' },
-    // 日內市場
-    { key: 'intraday_avg',      label: '日內平均成交價', unit: '円/kWh', group: '日內市場',   chartType: 'step', baseColor: '#9254de' },
-    { key: 'intraday_volume',   label: '日內成交量',     unit: 'kWh',    group: '日內市場',   chartType: 'bar',  baseColor: '#722ed1' },
-    // 再生能源
-    { key: 'solar',             label: '太陽能發電量',   unit: 'MW',     group: '再生能源',   chartType: 'bar',  baseColor: '#fadb14' },
-    { key: 'solar_curtail',     label: '太陽能棄電量',   unit: 'MW',     group: '再生能源',   chartType: 'bar',  baseColor: '#ffc53d' },
-    { key: 'wind',              label: '風力發電量',     unit: 'MW',     group: '再生能源',   chartType: 'bar',  baseColor: '#40a9ff' },
-    { key: 'wind_curtail',      label: '風力棄電量',     unit: 'MW',     group: '再生能源',   chartType: 'bar',  baseColor: '#91d5ff' },
-    // 電力供需
-    { key: 'thermal',           label: '火力發電量',     unit: 'MW',     group: '電力供需',   chartType: 'bar',  baseColor: '#fa541c' },
-    { key: 'nuclear',           label: '核能發電量',     unit: 'MW',     group: '電力供需',   chartType: 'bar',  baseColor: '#13c2c2' },
-    { key: 'hydro',             label: '水力發電量',     unit: 'MW',     group: '電力供需',   chartType: 'bar',  baseColor: '#1890ff' },
-    { key: 'area_demand',       label: '地區需求量',     unit: 'MW',     group: '電力供需',   chartType: 'line', baseColor: '#b0bec5' },
-    // 現貨交易量
-    { key: 'jepx_sell_qty',     label: '現貨賣出量',     unit: 'MWh',    group: '現貨交易量', chartType: 'bar',  baseColor: '#ff85c0' },
-    { key: 'jepx_contract_qty', label: '現貨成交量',     unit: 'MWh',    group: '現貨交易量', chartType: 'bar',  baseColor: '#eb2f96' },
+/** Raw configs — label/group are populated at runtime via useTranslatedMetrics() */
+const RAW_METRIC_CONFIGS: Omit<MetricConfig, 'label' | 'group'>[] = [
+    { key: 'spot_price',        unit: '円/kWh', groupKey: 'spotMarket',        chartType: 'step', baseColor: '#ff4d4f' },
+    { key: 'system_price',      unit: '円/kWh', groupKey: 'spotMarket',        chartType: 'step', baseColor: '#ff7875' },
+    { key: 'imbalance_surplus', unit: '円/kWh', groupKey: 'imbalanceMarket',   chartType: 'step', baseColor: '#52c41a' },
+    { key: 'imbalance_deficit', unit: '円/kWh', groupKey: 'imbalanceMarket',   chartType: 'step', baseColor: '#fa8c16' },
+    { key: 'imbalance_quantity',unit: 'kWh',    groupKey: 'imbalanceMarket',   chartType: 'bar',  baseColor: '#73d13d' },
+    { key: 'intraday_avg',      unit: '円/kWh', groupKey: 'intradayMarket',    chartType: 'step', baseColor: '#9254de' },
+    { key: 'intraday_volume',   unit: 'kWh',    groupKey: 'intradayMarket',    chartType: 'bar',  baseColor: '#722ed1' },
+    { key: 'solar',             unit: 'MW',     groupKey: 'renewable',         chartType: 'bar',  baseColor: '#fadb14' },
+    { key: 'solar_curtail',     unit: 'MW',     groupKey: 'renewable',         chartType: 'bar',  baseColor: '#ffc53d' },
+    { key: 'wind',              unit: 'MW',     groupKey: 'renewable',         chartType: 'bar',  baseColor: '#40a9ff' },
+    { key: 'wind_curtail',      unit: 'MW',     groupKey: 'renewable',         chartType: 'bar',  baseColor: '#91d5ff' },
+    { key: 'thermal',           unit: 'MW',     groupKey: 'powerSupplyDemand', chartType: 'bar',  baseColor: '#fa541c' },
+    { key: 'nuclear',           unit: 'MW',     groupKey: 'powerSupplyDemand', chartType: 'bar',  baseColor: '#13c2c2' },
+    { key: 'hydro',             unit: 'MW',     groupKey: 'powerSupplyDemand', chartType: 'bar',  baseColor: '#1890ff' },
+    { key: 'area_demand',       unit: 'MW',     groupKey: 'powerSupplyDemand', chartType: 'line', baseColor: '#b0bec5' },
+    { key: 'jepx_sell_qty',     unit: 'MWh',    groupKey: 'spotTradeVolume',   chartType: 'bar',  baseColor: '#ff85c0' },
+    { key: 'jepx_contract_qty', unit: 'MWh',    groupKey: 'spotTradeVolume',   chartType: 'bar',  baseColor: '#eb2f96' },
 ];
 
-const CHART_TYPE_LABELS: Record<ChartType, string> = {
-    line: '折線',
-    step: '梯線',
-    bar:  '長條',
-};
+/** Fallback export for non-translated contexts (keeps backward compat) */
+export const METRIC_CONFIGS: MetricConfig[] = RAW_METRIC_CONFIGS.map(c => ({
+    ...c,
+    label: c.key,
+    group: c.groupKey,
+})) as MetricConfig[];
 
-const GROUPS = Array.from(new Set(METRIC_CONFIGS.map(m => m.group)));
+/** Hook that returns METRIC_CONFIGS with translated label & group */
+export function useTranslatedMetrics(): MetricConfig[] {
+    const { t } = useTranslation('dailyCompare');
+    return React.useMemo(() =>
+        RAW_METRIC_CONFIGS.map(c => ({
+            ...c,
+            label: t(`metrics.${c.key}`),
+            group: t(`groups.${c.groupKey}`),
+        })) as MetricConfig[],
+    [t]);
+}
+
+const GROUP_KEY_ORDER: GroupKey[] = ['spotMarket', 'imbalanceMarket', 'intradayMarket', 'renewable', 'powerSupplyDemand', 'spotTradeVolume'];
 
 const MAX_AREAS = 6;
 
@@ -97,12 +110,12 @@ const AREA_COLORS = ['#00ff9d', '#00d2ff', '#ffca28', '#ff7043', '#9254de', '#26
 // ─── Group icon map ────────────────────────────────────────────────────────────
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
-    '現貨市場':   <ShowChartIcon sx={{ fontSize: 11 }} />,
-    '不平衡市場': <SwapHorizIcon sx={{ fontSize: 11 }} />,
-    '日內市場':   <BoltIcon sx={{ fontSize: 11 }} />,
-    '再生能源':   <EnergySavingsLeafIcon sx={{ fontSize: 11 }} />,
-    '電力供需':   <ElectricBoltIcon sx={{ fontSize: 11 }} />,
-    '現貨交易量': <BarChartIcon sx={{ fontSize: 11 }} />,
+    spotMarket:        <ShowChartIcon sx={{ fontSize: 11 }} />,
+    imbalanceMarket:   <SwapHorizIcon sx={{ fontSize: 11 }} />,
+    intradayMarket:    <BoltIcon sx={{ fontSize: 11 }} />,
+    renewable:         <EnergySavingsLeafIcon sx={{ fontSize: 11 }} />,
+    powerSupplyDemand: <ElectricBoltIcon sx={{ fontSize: 11 }} />,
+    spotTradeVolume:   <BarChartIcon sx={{ fontSize: 11 }} />,
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -124,6 +137,8 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
     selectedMetric,
     onMetricChange,
 }) => {
+    const { t } = useTranslation('dailyCompare');
+    const translatedMetrics = useTranslatedMetrics();
     const [areaPopoverAnchor, setAreaPopoverAnchor] = useState<HTMLElement | null>(null);
     const [metricPopoverAnchor, setMetricPopoverAnchor] = useState<HTMLElement | null>(null);
 
@@ -137,7 +152,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
     };
 
     const atMax = selectedAreas.length >= MAX_AREAS;
-    const currentMetric = METRIC_CONFIGS.find(m => m.key === selectedMetric);
+    const currentMetric = translatedMetrics.find(m => m.key === selectedMetric);
 
     return (
         <Paper
@@ -160,8 +175,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                 {selectedAreas.map((areaName, idx) => {
                     const color = AREA_COLORS[idx % AREA_COLORS.length];
-                    const area = areas.find(a => a.name === areaName);
-                    const label = area?.name_ch || areaName;
+                    const label = getAreaName(t, areaName);
                     return (
                         <Chip
                             key={areaName}
@@ -181,7 +195,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                     );
                 })}
 
-                <Tooltip title={atMax ? `已達上限 ${MAX_AREAS} 個` : '新增地區'} arrow>
+                <Tooltip title={atMax ? t('maxAreaReached') : t('addArea')} arrow>
                     <span>
                         <IconButton
                             size="small"
@@ -203,7 +217,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
 
                 {selectedAreas.length === 0 && (
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-                        點擊 + 選擇地區
+                        {t('selectAreaHint')}
                     </Typography>
                 )}
             </Box>
@@ -233,10 +247,10 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
             >
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: currentMetric?.baseColor ?? '#888', flexShrink: 0 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', flexShrink: 0, fontSize: 14 }}>
-                    {currentMetric ? GROUP_ICONS[currentMetric.group] : null}
+                    {currentMetric ? GROUP_ICONS[currentMetric.groupKey] : null}
                 </Box>
                 <Typography noWrap sx={{ fontSize: '0.78rem', fontWeight: 500, flex: 1, textAlign: 'left', color: 'inherit' }}>
-                    {currentMetric?.label ?? '選擇指標'}
+                    {currentMetric?.label ?? t('selectMetric')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary', flexShrink: 0, fontFamily: 'monospace' }}>
                     {currentMetric?.unit}
@@ -264,11 +278,11 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
             >
                 <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                        選擇地區（最多 {MAX_AREAS} 個）
+                        {t('selectAreaTitle', { max: MAX_AREAS })}
                     </Typography>
                     {atMax && (
                         <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'warning.main' }}>
-                            已達上限
+                            {t('maxAreaReached')}
                         </Typography>
                     )}
                 </Box>
@@ -299,7 +313,7 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                                     disableRipple
                                 />
                                 <Typography sx={{ fontSize: '0.8rem', fontWeight: isSelected ? 600 : 400 }}>
-                                    {area.name_ch}
+                                    {getAreaName(t, area.name)}
                                 </Typography>
                             </ListItemButton>
                         );
@@ -328,12 +342,14 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
             >
                 <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid var(--card-border)', bgcolor: 'var(--hover-bg)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                        選擇指標
+                        {t('selectMetric')}
                     </Typography>
                 </Box>
                 <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
-                    {GROUPS.map(group => (
-                        <Box key={group}>
+                    {GROUP_KEY_ORDER.map(groupKey => {
+                        const groupLabel = t(`groups.${groupKey}`);
+                        return (
+                        <Box key={groupKey}>
                             <Box sx={{
                                 display: 'flex', alignItems: 'center', gap: 0.75,
                                 px: 1.5, py: 0.6,
@@ -342,13 +358,13 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                                 position: 'sticky', top: 0, zIndex: 1,
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', fontSize: 13 }}>
-                                    {GROUP_ICONS[group]}
+                                    {GROUP_ICONS[groupKey]}
                                 </Box>
                                 <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'text.secondary' }}>
-                                    {group}
+                                    {groupLabel}
                                 </Typography>
                             </Box>
-                            {METRIC_CONFIGS.filter(m => m.group === group).map(metric => {
+                            {translatedMetrics.filter(m => m.groupKey === groupKey).map(metric => {
                                 const isSelected = metric.key === selectedMetric;
                                 return (
                                     <Box
@@ -383,7 +399,8 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                                 );
                             })}
                         </Box>
-                    ))}
+                        );
+                    })}
                 </Box>
             </Popover>
         </Paper>

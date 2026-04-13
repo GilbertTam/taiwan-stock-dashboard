@@ -1,37 +1,37 @@
 export const HOURLY_CATEGORIES = [
     {
         id: 'hourly_temperature',
-        label: '溫度與體感',
+        labelKey: 'weatherCategories.hourlyTemperature',
         fields: ['temperature_2m', 'apparent_temperature', 'dew_point_2m']
     },
     {
         id: 'hourly_humidity',
-        label: '濕度',
+        labelKey: 'weatherCategories.hourlyHumidity',
         fields: ['relative_humidity_2m']
     },
     {
         id: 'hourly_precipitation',
-        label: '降水與雪',
+        labelKey: 'weatherCategories.hourlyPrecipitation',
         fields: ['precipitation', 'rain', 'snowfall', 'snow_depth']
     },
     {
         id: 'hourly_wind',
-        label: '風',
+        labelKey: 'weatherCategories.hourlyWind',
         fields: ['wind_speed_10m', 'wind_speed_100m', 'wind_gusts_10m', 'wind_direction_10m', 'wind_direction_100m']
     },
     {
         id: 'hourly_cloud_radiation',
-        label: '雲量與輻射',
+        labelKey: 'weatherCategories.hourlyCloudRadiation',
         fields: ['cloud_cover', 'shortwave_radiation', 'sunshine_duration']
     },
     {
         id: 'hourly_pressure',
-        label: '氣壓',
+        labelKey: 'weatherCategories.hourlyPressure',
         fields: ['pressure_msl', 'surface_pressure']
     },
     {
         id: 'hourly_soil',
-        label: '土壤（進階）',
+        labelKey: 'weatherCategories.hourlySoil',
         fields: ['soil_temperature_0_to_7cm', 'soil_moisture_0_to_7cm']
     }
 ];
@@ -39,32 +39,32 @@ export const HOURLY_CATEGORIES = [
 export const DAILY_CATEGORIES = [
     {
         id: 'daily_temperature',
-        label: '日溫度',
+        labelKey: 'weatherCategories.dailyTemperature',
         fields: ['temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean']
     },
     {
         id: 'daily_precipitation_radiation',
-        label: '日降水與輻射',
+        labelKey: 'weatherCategories.dailyPrecipRadiation',
         fields: ['precipitation_sum', 'shortwave_radiation_sum', 'rain_sum', 'snowfall_sum']
     },
     {
         id: 'daily_sunshine',
-        label: '日照與晝長',
+        labelKey: 'weatherCategories.dailySunshine',
         fields: ['sunshine_duration', 'daylight_duration', 'sunrise', 'sunset']
     },
     {
         id: 'daily_wind',
-        label: '日風力',
+        labelKey: 'weatherCategories.dailyWind',
         fields: ['wind_speed_10m_max', 'wind_speed_10m_mean', 'wind_gusts_10m_max']
     },
     {
         id: 'daily_humidity',
-        label: '日濕度',
+        labelKey: 'weatherCategories.dailyHumidity',
         fields: ['relative_humidity_2m_mean', 'relative_humidity_2m_max', 'relative_humidity_2m_min']
     },
     {
         id: 'daily_pressure',
-        label: '日氣壓',
+        labelKey: 'weatherCategories.dailyPressure',
         fields: ['pressure_msl_mean', 'pressure_msl_min', 'pressure_msl_max']
     }
 ];
@@ -82,82 +82,84 @@ export const DEFAULT_SELECTED_DAILY = [
     'daily_sunshine'
 ];
 
-export const WEATHER_FIELD_DISPLAY: Record<string, { shortLabel: string; longLabel: string; unit?: string }> = {
-    temperature_2m: { shortLabel: '氣溫', longLabel: '氣溫 (2m)', unit: '°C' },
-    apparent_temperature: { shortLabel: '體感', longLabel: '體感溫度', unit: '°C' },
-    dew_point_2m: { shortLabel: '露點', longLabel: '露點溫度', unit: '°C' },
-    precipitation: { shortLabel: '降水', longLabel: '總降水量', unit: 'mm' },
-    rain: { shortLabel: '雨', longLabel: '雨量', unit: 'mm' },
-    snowfall: { shortLabel: '雪', longLabel: '降雪量', unit: 'mm' },
-    snow_depth: { shortLabel: '積雪', longLabel: '積雪深度', unit: 'm' },
-    relative_humidity_2m: { shortLabel: '濕度', longLabel: '相對濕度', unit: '%' },
-    wind_speed_10m: { shortLabel: '風速', longLabel: '風速 (10m)', unit: 'm/s' },
-    wind_speed_100m: { shortLabel: '風速 (100m)', longLabel: '風速 (100m)', unit: 'm/s' },
-    wind_gusts_10m: { shortLabel: '陣風', longLabel: '陣風 (10m)', unit: 'm/s' },
-    wind_direction_10m: { shortLabel: '風向 (10m)', longLabel: '風向 (10m)', unit: '°' },
-    wind_direction_100m: { shortLabel: '風向 (100m)', longLabel: '風向 (100m)', unit: '°' },
-    cloud_cover: { shortLabel: '雲量', longLabel: '雲量', unit: '%' },
-    shortwave_radiation: { shortLabel: '短波輻射', longLabel: '短波輻射', unit: 'W/m²' },
-    sunshine_duration: { shortLabel: '日照時數', longLabel: '日照時數', unit: 's' },
-    pressure_msl: { shortLabel: '海平面氣壓', longLabel: '海平面氣壓', unit: 'hPa' },
-    surface_pressure: { shortLabel: '地表氣壓', longLabel: '地表氣壓', unit: 'hPa' },
-    vapour_pressure_deficit: { shortLabel: '飽和壓力差', longLabel: '飽和壓力差', unit: 'kPa' },
+export const WEATHER_FIELD_DISPLAY: Record<string, { shortLabelKey: string; longLabelKey: string; unit?: string }> = {
+    temperature_2m: { shortLabelKey: 'weatherDisplay.temperature_2m.short', longLabelKey: 'weatherDisplay.temperature_2m.long', unit: '°C' },
+    apparent_temperature: { shortLabelKey: 'weatherDisplay.apparent_temperature.short', longLabelKey: 'weatherDisplay.apparent_temperature.long', unit: '°C' },
+    dew_point_2m: { shortLabelKey: 'weatherDisplay.dew_point_2m.short', longLabelKey: 'weatherDisplay.dew_point_2m.long', unit: '°C' },
+    precipitation: { shortLabelKey: 'weatherDisplay.precipitation.short', longLabelKey: 'weatherDisplay.precipitation.long', unit: 'mm' },
+    rain: { shortLabelKey: 'weatherDisplay.rain.short', longLabelKey: 'weatherDisplay.rain.long', unit: 'mm' },
+    snowfall: { shortLabelKey: 'weatherDisplay.snowfall.short', longLabelKey: 'weatherDisplay.snowfall.long', unit: 'mm' },
+    snow_depth: { shortLabelKey: 'weatherDisplay.snow_depth.short', longLabelKey: 'weatherDisplay.snow_depth.long', unit: 'm' },
+    relative_humidity_2m: { shortLabelKey: 'weatherDisplay.relative_humidity_2m.short', longLabelKey: 'weatherDisplay.relative_humidity_2m.long', unit: '%' },
+    wind_speed_10m: { shortLabelKey: 'weatherDisplay.wind_speed_10m.short', longLabelKey: 'weatherDisplay.wind_speed_10m.long', unit: 'm/s' },
+    wind_speed_100m: { shortLabelKey: 'weatherDisplay.wind_speed_100m.short', longLabelKey: 'weatherDisplay.wind_speed_100m.long', unit: 'm/s' },
+    wind_gusts_10m: { shortLabelKey: 'weatherDisplay.wind_gusts_10m.short', longLabelKey: 'weatherDisplay.wind_gusts_10m.long', unit: 'm/s' },
+    wind_direction_10m: { shortLabelKey: 'weatherDisplay.wind_direction_10m.short', longLabelKey: 'weatherDisplay.wind_direction_10m.long', unit: '°' },
+    wind_direction_100m: { shortLabelKey: 'weatherDisplay.wind_direction_100m.short', longLabelKey: 'weatherDisplay.wind_direction_100m.long', unit: '°' },
+    cloud_cover: { shortLabelKey: 'weatherDisplay.cloud_cover.short', longLabelKey: 'weatherDisplay.cloud_cover.long', unit: '%' },
+    shortwave_radiation: { shortLabelKey: 'weatherDisplay.shortwave_radiation.short', longLabelKey: 'weatherDisplay.shortwave_radiation.long', unit: 'W/m²' },
+    sunshine_duration: { shortLabelKey: 'weatherDisplay.sunshine_duration.short', longLabelKey: 'weatherDisplay.sunshine_duration.long', unit: 's' },
+    pressure_msl: { shortLabelKey: 'weatherDisplay.pressure_msl.short', longLabelKey: 'weatherDisplay.pressure_msl.long', unit: 'hPa' },
+    surface_pressure: { shortLabelKey: 'weatherDisplay.surface_pressure.short', longLabelKey: 'weatherDisplay.surface_pressure.long', unit: 'hPa' },
+    vapour_pressure_deficit: { shortLabelKey: 'weatherDisplay.vapour_pressure_deficit.short', longLabelKey: 'weatherDisplay.vapour_pressure_deficit.long', unit: 'kPa' },
 
     // Soil variants (Hourly)
-    soil_temperature_0_to_7cm: { shortLabel: '土壤溫度(0-7cm)', longLabel: '土壤溫度 (0-7cm)', unit: '°C' },
-    soil_temperature_7_to_28cm: { shortLabel: '土壤溫度(7-28cm)', longLabel: '土壤溫度 (7-28cm)', unit: '°C' },
-    soil_temperature_28_to_100cm: { shortLabel: '土壤溫度(28-100cm)', longLabel: '土壤溫度 (28-100cm)', unit: '°C' },
-    soil_temperature_100_to_255cm: { shortLabel: '土壤溫度(100-255cm)', longLabel: '土壤溫度 (100-255cm)', unit: '°C' },
-    soil_moisture_0_to_7cm: { shortLabel: '土壤濕度(0-7cm)', longLabel: '土壤濕度 (0-7cm)', unit: 'm³/m³' },
-    soil_moisture_7_to_28cm: { shortLabel: '土壤濕度(7-28cm)', longLabel: '土壤濕度 (7-28cm)', unit: 'm³/m³' },
-    soil_moisture_28_to_100cm: { shortLabel: '土壤濕度(28-100cm)', longLabel: '土壤濕度 (28-100cm)', unit: 'm³/m³' },
-    soil_moisture_100_to_255cm: { shortLabel: '土壤濕度(100-255cm)', longLabel: '土壤濕度 (100-255cm)', unit: 'm³/m³' },
+    soil_temperature_0_to_7cm: { shortLabelKey: 'weatherDisplay.soil_temperature_0_to_7cm.short', longLabelKey: 'weatherDisplay.soil_temperature_0_to_7cm.long', unit: '°C' },
+    soil_temperature_7_to_28cm: { shortLabelKey: 'weatherDisplay.soil_temperature_7_to_28cm.short', longLabelKey: 'weatherDisplay.soil_temperature_7_to_28cm.long', unit: '°C' },
+    soil_temperature_28_to_100cm: { shortLabelKey: 'weatherDisplay.soil_temperature_28_to_100cm.short', longLabelKey: 'weatherDisplay.soil_temperature_28_to_100cm.long', unit: '°C' },
+    soil_temperature_100_to_255cm: { shortLabelKey: 'weatherDisplay.soil_temperature_100_to_255cm.short', longLabelKey: 'weatherDisplay.soil_temperature_100_to_255cm.long', unit: '°C' },
+    soil_moisture_0_to_7cm: { shortLabelKey: 'weatherDisplay.soil_moisture_0_to_7cm.short', longLabelKey: 'weatherDisplay.soil_moisture_0_to_7cm.long', unit: 'm³/m³' },
+    soil_moisture_7_to_28cm: { shortLabelKey: 'weatherDisplay.soil_moisture_7_to_28cm.short', longLabelKey: 'weatherDisplay.soil_moisture_7_to_28cm.long', unit: 'm³/m³' },
+    soil_moisture_28_to_100cm: { shortLabelKey: 'weatherDisplay.soil_moisture_28_to_100cm.short', longLabelKey: 'weatherDisplay.soil_moisture_28_to_100cm.long', unit: 'm³/m³' },
+    soil_moisture_100_to_255cm: { shortLabelKey: 'weatherDisplay.soil_moisture_100_to_255cm.short', longLabelKey: 'weatherDisplay.soil_moisture_100_to_255cm.long', unit: 'm³/m³' },
 
     // Daily specific prefixes
-    temperature_2m_max: { shortLabel: '最高溫', longLabel: '最高氣溫 (2m)', unit: '°C' },
-    temperature_2m_min: { shortLabel: '最低溫', longLabel: '最低氣溫 (2m)', unit: '°C' },
-    temperature_2m_mean: { shortLabel: '平均溫', longLabel: '平均氣溫 (2m)', unit: '°C' },
-    precipitation_sum: { shortLabel: '總降水量', longLabel: '總降水量', unit: 'mm' },
-    rain_sum: { shortLabel: '總雨量', longLabel: '總雨量', unit: 'mm' },
-    snowfall_sum: { shortLabel: '總降雪量', longLabel: '總降雪量', unit: 'cm' },
-    shortwave_radiation_sum: { shortLabel: '總短波輻射', longLabel: '總短波輻射', unit: 'MJ/m²' },
-    sunshine_duration_sum: { shortLabel: '日照總時數', longLabel: '日照總時數', unit: 'h' },
-    daylight_duration: { shortLabel: '晝長', longLabel: '晝長', unit: 'h' },
-    wind_speed_10m_max: { shortLabel: '最大風速(10m)', longLabel: '最大風速 (10m)', unit: 'm/s' },
-    wind_speed_10m_mean: { shortLabel: '平均風速(10m)', longLabel: '平均風速 (10m)', unit: 'm/s' },
-    wind_speed_10m_min: { shortLabel: '最小風速(10m)', longLabel: '最小風速 (10m)', unit: 'm/s' },
-    wind_gusts_10m_max: { shortLabel: '最大陣風(10m)', longLabel: '最大陣風 (10m)', unit: 'm/s' },
-    wind_gusts_10m_mean: { shortLabel: '平均陣風(10m)', longLabel: '平均陣風 (10m)', unit: 'm/s' },
-    wind_gusts_10m_min: { shortLabel: '最小陣風(10m)', longLabel: '最小陣風 (10m)', unit: 'm/s' },
-    relative_humidity_2m_mean: { shortLabel: '平均濕度', longLabel: '平均相對濕度', unit: '%' },
-    relative_humidity_2m_max: { shortLabel: '最高濕度', longLabel: '最高相對濕度', unit: '%' },
-    relative_humidity_2m_min: { shortLabel: '最低濕度', longLabel: '最低相對濕度', unit: '%' },
-    pressure_msl_mean: { shortLabel: '平均氣壓', longLabel: '平均海平面氣壓', unit: 'hPa' },
-    pressure_msl_max: { shortLabel: '最高氣壓', longLabel: '最高海平面氣壓', unit: 'hPa' },
-    pressure_msl_min: { shortLabel: '最低氣壓', longLabel: '最低海平面氣壓', unit: 'hPa' },
+    temperature_2m_max: { shortLabelKey: 'weatherDisplay.temperature_2m_max.short', longLabelKey: 'weatherDisplay.temperature_2m_max.long', unit: '°C' },
+    temperature_2m_min: { shortLabelKey: 'weatherDisplay.temperature_2m_min.short', longLabelKey: 'weatherDisplay.temperature_2m_min.long', unit: '°C' },
+    temperature_2m_mean: { shortLabelKey: 'weatherDisplay.temperature_2m_mean.short', longLabelKey: 'weatherDisplay.temperature_2m_mean.long', unit: '°C' },
+    precipitation_sum: { shortLabelKey: 'weatherDisplay.precipitation_sum.short', longLabelKey: 'weatherDisplay.precipitation_sum.long', unit: 'mm' },
+    rain_sum: { shortLabelKey: 'weatherDisplay.rain_sum.short', longLabelKey: 'weatherDisplay.rain_sum.long', unit: 'mm' },
+    snowfall_sum: { shortLabelKey: 'weatherDisplay.snowfall_sum.short', longLabelKey: 'weatherDisplay.snowfall_sum.long', unit: 'cm' },
+    shortwave_radiation_sum: { shortLabelKey: 'weatherDisplay.shortwave_radiation_sum.short', longLabelKey: 'weatherDisplay.shortwave_radiation_sum.long', unit: 'MJ/m²' },
+    sunshine_duration_sum: { shortLabelKey: 'weatherDisplay.sunshine_duration_sum.short', longLabelKey: 'weatherDisplay.sunshine_duration_sum.long', unit: 'h' },
+    daylight_duration: { shortLabelKey: 'weatherDisplay.daylight_duration.short', longLabelKey: 'weatherDisplay.daylight_duration.long', unit: 'h' },
+    wind_speed_10m_max: { shortLabelKey: 'weatherDisplay.wind_speed_10m_max.short', longLabelKey: 'weatherDisplay.wind_speed_10m_max.long', unit: 'm/s' },
+    wind_speed_10m_mean: { shortLabelKey: 'weatherDisplay.wind_speed_10m_mean.short', longLabelKey: 'weatherDisplay.wind_speed_10m_mean.long', unit: 'm/s' },
+    wind_speed_10m_min: { shortLabelKey: 'weatherDisplay.wind_speed_10m_min.short', longLabelKey: 'weatherDisplay.wind_speed_10m_min.long', unit: 'm/s' },
+    wind_gusts_10m_max: { shortLabelKey: 'weatherDisplay.wind_gusts_10m_max.short', longLabelKey: 'weatherDisplay.wind_gusts_10m_max.long', unit: 'm/s' },
+    wind_gusts_10m_mean: { shortLabelKey: 'weatherDisplay.wind_gusts_10m_mean.short', longLabelKey: 'weatherDisplay.wind_gusts_10m_mean.long', unit: 'm/s' },
+    wind_gusts_10m_min: { shortLabelKey: 'weatherDisplay.wind_gusts_10m_min.short', longLabelKey: 'weatherDisplay.wind_gusts_10m_min.long', unit: 'm/s' },
+    relative_humidity_2m_mean: { shortLabelKey: 'weatherDisplay.relative_humidity_2m_mean.short', longLabelKey: 'weatherDisplay.relative_humidity_2m_mean.long', unit: '%' },
+    relative_humidity_2m_max: { shortLabelKey: 'weatherDisplay.relative_humidity_2m_max.short', longLabelKey: 'weatherDisplay.relative_humidity_2m_max.long', unit: '%' },
+    relative_humidity_2m_min: { shortLabelKey: 'weatherDisplay.relative_humidity_2m_min.short', longLabelKey: 'weatherDisplay.relative_humidity_2m_min.long', unit: '%' },
+    pressure_msl_mean: { shortLabelKey: 'weatherDisplay.pressure_msl_mean.short', longLabelKey: 'weatherDisplay.pressure_msl_mean.long', unit: 'hPa' },
+    pressure_msl_max: { shortLabelKey: 'weatherDisplay.pressure_msl_max.short', longLabelKey: 'weatherDisplay.pressure_msl_max.long', unit: 'hPa' },
+    pressure_msl_min: { shortLabelKey: 'weatherDisplay.pressure_msl_min.short', longLabelKey: 'weatherDisplay.pressure_msl_min.long', unit: 'hPa' },
 
     // Soil variants (Daily)
-    soil_temperature_0_to_7cm_mean: { shortLabel: '平均土溫(0-7cm)', longLabel: '平均土壤溫度 (0-7cm)', unit: '°C' },
-    soil_temperature_7_to_28cm_mean: { shortLabel: '平均土溫(7-28cm)', longLabel: '平均土壤溫度 (7-28cm)', unit: '°C' },
-    soil_temperature_28_to_100cm_mean: { shortLabel: '平均土溫(28-100cm)', longLabel: '平均土壤溫度 (28-100cm)', unit: '°C' },
-    soil_temperature_100_to_255cm_mean: { shortLabel: '平均土溫(100-255cm)', longLabel: '平均土壤溫度 (100-255cm)', unit: '°C' },
-    soil_temperature_0_to_100cm_mean: { shortLabel: '平均土溫(0-100cm)', longLabel: '平均土壤溫度 (0-100cm)', unit: '°C' },
-    soil_moisture_0_to_7cm_mean: { shortLabel: '平均土濕(0-7cm)', longLabel: '平均土壤濕度 (0-7cm)', unit: 'm³/m³' },
-    soil_moisture_7_to_28cm_mean: { shortLabel: '平均土濕(7-28cm)', longLabel: '平均土壤濕度 (7-28cm)', unit: 'm³/m³' },
-    soil_moisture_28_to_100cm_mean: { shortLabel: '平均土濕(28-100cm)', longLabel: '平均土壤濕度 (28-100cm)', unit: 'm³/m³' },
-    soil_moisture_100_to_255cm_mean: { shortLabel: '平均土濕(100-255cm)', longLabel: '平均土壤濕度 (100-255cm)', unit: 'm³/m³' },
-    soil_moisture_0_to_100cm_mean: { shortLabel: '平均土濕(0-100cm)', longLabel: '平均土壤濕度 (0-100cm)', unit: 'm³/m³' },
+    soil_temperature_0_to_7cm_mean: { shortLabelKey: 'weatherDisplay.soil_temperature_0_to_7cm_mean.short', longLabelKey: 'weatherDisplay.soil_temperature_0_to_7cm_mean.long', unit: '°C' },
+    soil_temperature_7_to_28cm_mean: { shortLabelKey: 'weatherDisplay.soil_temperature_7_to_28cm_mean.short', longLabelKey: 'weatherDisplay.soil_temperature_7_to_28cm_mean.long', unit: '°C' },
+    soil_temperature_28_to_100cm_mean: { shortLabelKey: 'weatherDisplay.soil_temperature_28_to_100cm_mean.short', longLabelKey: 'weatherDisplay.soil_temperature_28_to_100cm_mean.long', unit: '°C' },
+    soil_temperature_100_to_255cm_mean: { shortLabelKey: 'weatherDisplay.soil_temperature_100_to_255cm_mean.short', longLabelKey: 'weatherDisplay.soil_temperature_100_to_255cm_mean.long', unit: '°C' },
+    soil_temperature_0_to_100cm_mean: { shortLabelKey: 'weatherDisplay.soil_temperature_0_to_100cm_mean.short', longLabelKey: 'weatherDisplay.soil_temperature_0_to_100cm_mean.long', unit: '°C' },
+    soil_moisture_0_to_7cm_mean: { shortLabelKey: 'weatherDisplay.soil_moisture_0_to_7cm_mean.short', longLabelKey: 'weatherDisplay.soil_moisture_0_to_7cm_mean.long', unit: 'm³/m³' },
+    soil_moisture_7_to_28cm_mean: { shortLabelKey: 'weatherDisplay.soil_moisture_7_to_28cm_mean.short', longLabelKey: 'weatherDisplay.soil_moisture_7_to_28cm_mean.long', unit: 'm³/m³' },
+    soil_moisture_28_to_100cm_mean: { shortLabelKey: 'weatherDisplay.soil_moisture_28_to_100cm_mean.short', longLabelKey: 'weatherDisplay.soil_moisture_28_to_100cm_mean.long', unit: 'm³/m³' },
+    soil_moisture_100_to_255cm_mean: { shortLabelKey: 'weatherDisplay.soil_moisture_100_to_255cm_mean.short', longLabelKey: 'weatherDisplay.soil_moisture_100_to_255cm_mean.long', unit: 'm³/m³' },
+    soil_moisture_0_to_100cm_mean: { shortLabelKey: 'weatherDisplay.soil_moisture_0_to_100cm_mean.short', longLabelKey: 'weatherDisplay.soil_moisture_0_to_100cm_mean.long', unit: 'm³/m³' },
 };
 
 export type DataSourceType = 'actual' | 'forecast' | 'daily_mean' | 'daily_max' | 'daily_min' | 'none';
 
-export function buildLegendLabel(fieldKey: string, source: DataSourceType = 'none'): string {
-    const base = WEATHER_FIELD_DISPLAY[fieldKey]?.shortLabel ?? fieldKey;
-    if (source === 'actual') return `${base} (實際)`;
-    if (source === 'forecast') return `${base} (預報)`;
-    if (source === 'daily_mean') return `${base} (日均)`;
-    if (source === 'daily_max') return `${base} (日最高)`;
-    if (source === 'daily_min') return `${base} (日最低)`;
+export function buildLegendLabel(fieldKey: string, source: DataSourceType = 'none', t?: (key: string) => string): string {
+    const base = t && WEATHER_FIELD_DISPLAY[fieldKey]?.shortLabelKey
+        ? t(WEATHER_FIELD_DISPLAY[fieldKey].shortLabelKey)
+        : fieldKey;
+    if (source === 'actual') return `${base} (${t ? t('weatherCategories.actual') : 'Actual'})`;
+    if (source === 'forecast') return `${base} (${t ? t('weatherCategories.forecast') : 'Forecast'})`;
+    if (source === 'daily_mean') return `${base} (${t ? t('weatherCategories.dailyMean') : 'Daily Avg'})`;
+    if (source === 'daily_max') return `${base} (${t ? t('weatherCategories.dailyMax') : 'Daily Max'})`;
+    if (source === 'daily_min') return `${base} (${t ? t('weatherCategories.dailyMin') : 'Daily Min'})`;
     return base;
 }
 
@@ -223,6 +225,7 @@ export const weatherColors = {
  * @param colors - Object with actual and forecast color strings
  * @param unit - Unit string to append to legend (e.g., '°C')
  * @param options - Optional configuration for series type, axis, etc.
+ * @param t - Optional translation function
  * @returns Array of series objects for ECharts
  */
 export function buildWeatherSeriesPair(
@@ -236,7 +239,8 @@ export function buildWeatherSeriesPair(
         yAxisIndex?: number;
         smooth?: boolean;
         areaStyle?: any;
-    }
+    },
+    t?: (key: string) => string
 ): any[] {
     const { type = 'line', yAxisIndex = 0, smooth = true, areaStyle } = options || {};
 
@@ -256,7 +260,7 @@ export function buildWeatherSeriesPair(
 
     if (actualValues.length > 0) {
         series.push({
-            name: buildLegendLabel(fieldKey, 'actual') + ` (${unit})`,
+            name: buildLegendLabel(fieldKey, 'actual', t) + ` (${unit})`,
             type,
             data: actualValues,
             smooth,
@@ -269,7 +273,7 @@ export function buildWeatherSeriesPair(
 
     if (forecastValues.length > 0) {
         series.push({
-            name: buildLegendLabel(fieldKey, 'forecast') + ` (${unit})`,
+            name: buildLegendLabel(fieldKey, 'forecast', t) + ` (${unit})`,
             type,
             data: forecastValues,
             smooth,
@@ -295,10 +299,14 @@ export function hasChartData(series: any[]): boolean {
 /**
  * Group tooltip parameters by field name for better organization
  * @param params - Array of tooltip parameters from ECharts
+ * @param t - Optional translation function
  * @returns Record mapping field names to actual and forecast values
  */
-export function groupTooltipByField(params: any[]): Record<string, { actual?: any; forecast?: any }> {
+export function groupTooltipByField(params: any[], t?: (key: string) => string): Record<string, { actual?: any; forecast?: any }> {
     const grouped: Record<string, { actual?: any; forecast?: any }> = {};
+
+    const actualText = t ? t('weatherCategories.actual') : 'Actual';
+    const forecastText = t ? t('weatherCategories.forecast') : 'Forecast';
 
     for (const param of params) {
         // Extract field name from series name (remove suffix like " (實際)" or " (預報)")
@@ -309,9 +317,9 @@ export function groupTooltipByField(params: any[]): Record<string, { actual?: an
             grouped[fieldName] = {};
         }
 
-        if (param.seriesName.includes('實際')) {
+        if (param.seriesName.includes(actualText)) {
             grouped[fieldName].actual = param;
-        } else if (param.seriesName.includes('預報')) {
+        } else if (param.seriesName.includes(forecastText)) {
             grouped[fieldName].forecast = param;
         } else {
             // Handle series without actual/forecast suffix

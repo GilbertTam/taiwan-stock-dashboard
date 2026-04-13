@@ -73,16 +73,12 @@ export function OutageIndicatorBar({
                     py: 0.25,
                     // 自定義捲軸樣式
                     '&::-webkit-scrollbar': { height: 4 },
-                    '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2 },
+                    '&::-webkit-scrollbar-thumb': { backgroundColor: 'var(--scrollbar-thumb)', borderRadius: 2 },
                 }}
             >
                 {outagePoints.map((point, i) => {
                     // 判斷此事件是否與高顯區域相關
-                    const isRelated = highlightedArea == null || (() => {
-                        if (point.area === highlightedArea) return true;
-                        const a = areas.find((ar) => ar.name === highlightedArea);
-                        return a != null && point.area === a.name_ch;
-                    })();
+                    const isRelated = highlightedArea == null || point.area === highlightedArea;
 
                     const isDimmed = highlightedArea != null && !isRelated;
                     const label = point.outages.length > 1

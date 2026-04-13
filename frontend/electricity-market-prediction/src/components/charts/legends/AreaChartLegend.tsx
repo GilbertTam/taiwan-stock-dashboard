@@ -13,6 +13,8 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { Area } from '@/types';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 interface AreaChartLegendProps {
     /** 區域列表 | Area list */
@@ -24,6 +26,7 @@ interface AreaChartLegendProps {
 }
 
 export function AreaChartLegend({ areas, highlightedArea, colors }: AreaChartLegendProps) {
+    const { t } = useTranslation('common');
     return (
         <Box
             sx={{
@@ -59,7 +62,7 @@ export function AreaChartLegend({ areas, highlightedArea, colors }: AreaChartLeg
                     />
                     {/* 區域名稱 | Area name */}
                     <Typography variant="caption" sx={{ fontSize: 10, color: 'var(--muted)' }}>
-                        {area.name_ch}
+                        {getAreaName(t, area.name)}
                     </Typography>
                 </Box>
             ))}

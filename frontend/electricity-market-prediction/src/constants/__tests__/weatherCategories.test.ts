@@ -49,7 +49,7 @@ describe('weatherCategories utility functions', () => {
             );
 
             expect(series).toHaveLength(1);
-            expect(series[0].name).toContain('實際');
+            expect(series[0].name).toContain('Actual');
             expect(series[0].lineStyle.type).toBe('solid');
             expect(series[0].lineStyle.width).toBe(2);
             expect(series[0].itemStyle.color).toBe('#ff0000');
@@ -66,7 +66,7 @@ describe('weatherCategories utility functions', () => {
             );
 
             expect(series).toHaveLength(1);
-            expect(series[0].name).toContain('預報');
+            expect(series[0].name).toContain('Forecast');
             expect(series[0].lineStyle.type).toBe('dashed');
             expect(series[0].lineStyle.width).toBe(2);
             expect(series[0].itemStyle.color).toBe('#00ff00');
@@ -83,8 +83,8 @@ describe('weatherCategories utility functions', () => {
             );
 
             expect(series).toHaveLength(2);
-            expect(series[0].name).toContain('實際');
-            expect(series[1].name).toContain('預報');
+            expect(series[0].name).toContain('Actual');
+            expect(series[1].name).toContain('Forecast');
             expect(series[0].lineStyle.type).toBe('solid');
             expect(series[1].lineStyle.type).toBe('dashed');
         });
@@ -193,17 +193,17 @@ describe('weatherCategories utility functions', () => {
         it('should group actual and forecast values by field name', () => {
             const params = [
                 {
-                    seriesName: '氣溫 (實際) (°C)',
+                    seriesName: 'temperature_2m (Actual) (°C)',
                     value: [1234567890000, 20],
                     marker: '<span>●</span>'
                 },
                 {
-                    seriesName: '氣溫 (預報) (°C)',
+                    seriesName: 'temperature_2m (Forecast) (°C)',
                     value: [1234567890000, 19],
                     marker: '<span>○</span>'
                 },
                 {
-                    seriesName: '濕度 (實際) (%)',
+                    seriesName: 'relative_humidity_2m (Actual) (%)',
                     value: [1234567890000, 60],
                     marker: '<span>●</span>'
                 }
@@ -212,18 +212,18 @@ describe('weatherCategories utility functions', () => {
             const grouped = groupTooltipByField(params);
 
             expect(Object.keys(grouped)).toHaveLength(2);
-            expect(grouped['氣溫']).toBeDefined();
-            expect(grouped['氣溫'].actual).toBeDefined();
-            expect(grouped['氣溫'].forecast).toBeDefined();
-            expect(grouped['濕度']).toBeDefined();
-            expect(grouped['濕度'].actual).toBeDefined();
-            expect(grouped['濕度'].forecast).toBeUndefined();
+            expect(grouped['temperature_2m']).toBeDefined();
+            expect(grouped['temperature_2m'].actual).toBeDefined();
+            expect(grouped['temperature_2m'].forecast).toBeDefined();
+            expect(grouped['relative_humidity_2m']).toBeDefined();
+            expect(grouped['relative_humidity_2m'].actual).toBeDefined();
+            expect(grouped['relative_humidity_2m'].forecast).toBeUndefined();
         });
 
         it('should handle series without actual/forecast suffix', () => {
             const params = [
                 {
-                    seriesName: '氣溫 (°C)',
+                    seriesName: 'temperature_2m (°C)',
                     value: [1234567890000, 20],
                     marker: '<span>●</span>'
                 }
@@ -232,8 +232,8 @@ describe('weatherCategories utility functions', () => {
             const grouped = groupTooltipByField(params);
 
             expect(Object.keys(grouped)).toHaveLength(1);
-            expect(grouped['氣溫']).toBeDefined();
-            expect(grouped['氣溫'].actual).toBeDefined();
+            expect(grouped['temperature_2m']).toBeDefined();
+            expect(grouped['temperature_2m'].actual).toBeDefined();
         });
 
         it('should handle empty params array', () => {
@@ -245,7 +245,7 @@ describe('weatherCategories utility functions', () => {
         it('should correctly extract field names with parentheses', () => {
             const params = [
                 {
-                    seriesName: '氣溫 (實際) (°C)',
+                    seriesName: 'temperature_2m (Actual) (°C)',
                     value: [1234567890000, 20],
                     marker: '<span>●</span>'
                 }
@@ -253,24 +253,24 @@ describe('weatherCategories utility functions', () => {
 
             const grouped = groupTooltipByField(params);
 
-            expect(grouped['氣溫']).toBeDefined();
+            expect(grouped['temperature_2m']).toBeDefined();
         });
 
         it('should handle multiple fields with both actual and forecast', () => {
             const params = [
-                { seriesName: '氣溫 (實際) (°C)', value: [1, 20], marker: '●' },
-                { seriesName: '氣溫 (預報) (°C)', value: [1, 19], marker: '○' },
-                { seriesName: '濕度 (實際) (%)', value: [1, 60], marker: '●' },
-                { seriesName: '濕度 (預報) (%)', value: [1, 58], marker: '○' }
+                { seriesName: 'temperature_2m (Actual) (°C)', value: [1, 20], marker: '●' },
+                { seriesName: 'temperature_2m (Forecast) (°C)', value: [1, 19], marker: '○' },
+                { seriesName: 'relative_humidity_2m (Actual) (%)', value: [1, 60], marker: '●' },
+                { seriesName: 'relative_humidity_2m (Forecast) (%)', value: [1, 58], marker: '○' }
             ];
 
             const grouped = groupTooltipByField(params);
 
             expect(Object.keys(grouped)).toHaveLength(2);
-            expect(grouped['氣溫'].actual).toBeDefined();
-            expect(grouped['氣溫'].forecast).toBeDefined();
-            expect(grouped['濕度'].actual).toBeDefined();
-            expect(grouped['濕度'].forecast).toBeDefined();
+            expect(grouped['temperature_2m'].actual).toBeDefined();
+            expect(grouped['temperature_2m'].forecast).toBeDefined();
+            expect(grouped['relative_humidity_2m'].actual).toBeDefined();
+            expect(grouped['relative_humidity_2m'].forecast).toBeDefined();
         });
     });
 });

@@ -40,7 +40,9 @@ export const fetchDataCoverage = async (startDate: string, endDate: string): Pro
 export interface DynamicSourceConfig {
     key: string;                // e.g. "prediction_mersol", "tdgc_1000"
     label: string;              // e.g. "Mersol", "一次調整力"
+    labelKey?: string;          // i18n key, e.g. "sources.tdgc_1000"
     category: string;           // e.g. "價格預測", "調整市場"
+    categoryKey?: string;       // i18n key, e.g. "categories.adjustmentMarket"
     interval: 'hour' | '30m' | 'day';
     validation_type: 'fixed' | 'variable' | 'event';
     expected_per_day: number | null;
@@ -65,6 +67,7 @@ export const fetchCoverageSources = async (): Promise<CoverageSourcesResponse> =
 
 export interface PreviewSeries {
     name: string;
+    field?: string;     // backend field name for i18n lookup
     unit: string;
     type: 'line' | 'bar';
     color: string;

@@ -8,6 +8,8 @@ import { ChartDataPoint } from '@/utils/chartUtils';
 import { toUTCTimestamp } from '@/utils/lightweightChartsHelpers';
 import { useTheme } from '@/app/ThemeProvider';
 import type { Area } from '@/types';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 import { createMinimalChartOptions } from '@/utils/chartUtils';
 
@@ -74,6 +76,7 @@ export interface AreaPricePreviewGridProps {
 export function AreaPricePreviewGrid({ areas, allAreasChartData, loading }: AreaPricePreviewGridProps) {
   const router = useRouter();
   const { darkMode } = useTheme();
+  const { t } = useTranslation('common');
 
   if (loading) {
     return (
@@ -115,7 +118,7 @@ export function AreaPricePreviewGrid({ areas, allAreasChartData, loading }: Area
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold" color="text.primary" noWrap>
-                {area.name_ch}
+                {getAreaName(t, area.name)}
               </Typography>
               {latestPrice != null && (
                 <Typography variant="caption" color="var(--primary)" fontWeight="600">

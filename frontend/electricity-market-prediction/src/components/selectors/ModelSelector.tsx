@@ -16,6 +16,7 @@ import {
     alpha
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { PredictionModel, CalculatingDate } from '@/types';
 import { usePriceChart } from '@/components/price-chart/context/PriceChartContext';
@@ -41,9 +42,9 @@ interface ModelSelectorProps {
     description?: string;
 }
 
-// Helper: 格式化日期的函數
-const formatCalcDate = (dateVal: string | number) => {
-    if (dateVal === 'latest') return '最新';
+// Helper: format date
+const formatCalcDate = (dateVal: string | number, latestLabel = 'Latest') => {
+    if (dateVal === 'latest') return latestLabel;
     if (!dateVal) return '';
     const numVal = Number(dateVal);
     if (!isNaN(numVal) && numVal > 100000000) {
@@ -70,8 +71,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     expanded,
     onToggle,
     step = 2,
-    description = '選擇要比較的預測模型',
+    description,
 }) => {
+    const { t } = useTranslation('forecast');
     const [dateMenuAnchor, setDateMenuAnchor] = useState<{ el: HTMLElement; modelIndex: number } | null>(null);
     const { modelColorMap } = usePriceChart();
     const { highlightedModelId, setHighlightedModelId } = useMarketDataContext();
@@ -115,9 +117,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 onClick={onToggle}
                 expanded={expanded}
                 step={step}
-                description={description}
+                description={description ?? t('sidebar.selectModels')}
             >
-                選擇模型 ({selectedModels.length})
+                {t('controlBar.selectModels')} ({selectedModels.length})
             </SectionHeader>
 
             <Collapse in={expanded}>
@@ -129,7 +131,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         const modelIndex = selectedModel ? selectedModels.indexOf(selectedModel) : -1;
                         const modelColor = modelColorMap[modelKey] || (model as any).color || '#cccccc';
                         const dateLabel = selectedModel
-                            ? (selectedModel.calculatingDate === 'latest' ? '最新' : formatCalcDate(selectedModel.calculatingDate))
+                            ? formatCalcDate(selectedModel.calculatingDate, t('controlBar.latest'))
                             : '';
 
                         return (
@@ -161,7 +163,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                                         secondaryTypographyProps={{ fontSize: '0.7rem' }}
                                     />
                                     {isSelected && (
-                                        <IconButton size="small" onClick={(e) => handleDateMenuOpen(e, modelIndex)} title="變更計算日">
+                                        <IconButton size="small" onClick={(e) => handleDateMenuOpen(e, modelIndex)} title={t('controlBar.changeCalcDate')}>
                                             <EditIcon sx={{ fontSize: '0.8rem' }} />
                                         </IconButton>
                                     )}
@@ -197,7 +199,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 onClose={handleDateMenuClose}
             >
                 <MenuItem onClick={() => dateMenuAnchor && handleDateSelect(dateMenuAnchor.modelIndex, 'latest')}>
-                    最新預測
+                    {t('controlBar.latestForecast')}
                 </MenuItem>
                 {dateMenuAnchor && calculatingDatesByModel[`${selectedModels[dateMenuAnchor.modelIndex]?.id}|${selectedModels[dateMenuAnchor.modelIndex]?.name}`]?.map((date) => (
                     <MenuItem

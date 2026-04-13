@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import { DateRangePicker } from '@/components/selectors/DateRangePicker';
+import { useTranslation } from 'react-i18next';
 
 export interface DownloadAction {
   label: string;
@@ -77,6 +78,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
   downloadActions = [],
   isLoading = false,
 }) => {
+  const { t } = useTranslation('common');
   const [dateAnchorEl, setDateAnchorEl] = useState<HTMLElement | null>(null);
   const [downloadAnchorEl, setDownloadAnchorEl] = useState<HTMLElement | null>(null);
   const firstClickDoneRef = useRef(false);
@@ -147,7 +149,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
             }}
           >
             {/* Prev */}
-            <Tooltip title="上一天">
+            <Tooltip title={t('nav.prevDay')}>
               <ButtonBase
                 disableRipple
                 onClick={() => shiftDate(-1)}
@@ -198,7 +200,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
             </ButtonBase>
 
             {/* Next */}
-            <Tooltip title="下一天">
+            <Tooltip title={t('nav.nextDay')}>
               <ButtonBase
                 disableRipple
                 onClick={() => shiftDate(1)}
@@ -268,7 +270,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
           }}
         >
           {/* Refresh */}
-          <Tooltip title="刷新數據">
+          <Tooltip title={t('nav.refreshData')}>
             <span>
               <ButtonBase
                 disableRipple
@@ -340,7 +342,7 @@ export const DashboardToolbar: React.FC<SimpleToolbarProps> = ({
               >
                 <DownloadIcon sx={{ fontSize: 13, color: 'var(--muted)' }} />
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', fontFamily: 'monospace' }}>
-                  下載
+                  {t('toolbar.download')}
                 </Typography>
               </ButtonBase>
               <Menu

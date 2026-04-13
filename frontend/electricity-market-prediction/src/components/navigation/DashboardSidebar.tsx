@@ -13,17 +13,21 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import LayersIcon from '@mui/icons-material/Layers';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/app/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
-const NAV_ITEMS: { key: string; label: string; path: string; Icon: React.ElementType }[] = [
-    { key: 'home',            label: '現貨總覽', path: '/dashboard',                  Icon: DashboardIcon          },
-    { key: 'price',           label: '市場分析', path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
-    { key: 'generation-mix',  label: '發電組合', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
-    { key: 'site-revenue',    label: '案場收益', path: '/dashboard/site-revenue',     Icon: StorefrontIcon         },
-    { key: 'weather',         label: '天氣分析', path: '/dashboard/weather',          Icon: WbSunnyIcon            },
-    { key: 'daily-compare',   label: '疊圖比較', path: '/dashboard/daily-compare',    Icon: LayersIcon             },
-    { key: 'data-status',     label: '資料狀態', path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
+const NAV_ITEMS: { key: string; labelKey: string; path: string; Icon: React.ElementType }[] = [
+    { key: 'home',            labelKey: 'sidebar.overview',      path: '/dashboard',                  Icon: DashboardIcon          },
+    { key: 'price',           labelKey: 'sidebar.forecast',      path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
+    { key: 'generation-mix',  labelKey: 'sidebar.generationMix', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
+    { key: 'site-revenue',    labelKey: 'sidebar.siteRevenue',   path: '/dashboard/site-revenue',     Icon: StorefrontIcon         },
+    { key: 'weather',         labelKey: 'sidebar.weather',       path: '/dashboard/weather',          Icon: WbSunnyIcon            },
+    { key: 'daily-compare',   labelKey: 'sidebar.dailyCompare',  path: '/dashboard/daily-compare',    Icon: LayersIcon             },
+    { key: 'data-status',     labelKey: 'sidebar.dataStatus',    path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
 ];
 
 const COLLAPSED_W = 60;
@@ -35,6 +39,8 @@ export function DashboardSidebar() {
     const router   = useRouter();
     const pathname = usePathname();
     const { user, logout } = useAuth();
+    const { darkMode, setDarkMode, setSettingsOpen } = useTheme();
+    const { t } = useTranslation('navigation');
     const [expanded, setExpanded] = useState(false);
 
     const avatarLetter = user ? user.charAt(0).toUpperCase() : null;
@@ -53,10 +59,10 @@ export function DashboardSidebar() {
                 zIndex: 1200,
                 display: 'flex',
                 flexDirection: 'column',
-                background: 'rgba(10,13,20,0.96)',
+                background: 'var(--sidebar-bg)',
                 backdropFilter: 'blur(16px)',
                 WebkitBackdropFilter: 'blur(16px)',
-                borderRight: '1px solid rgba(255,255,255,0.07)',
+                borderRight: '1px solid var(--sidebar-border)',
                 overflow: 'hidden',
             }}
         >
@@ -97,11 +103,12 @@ export function DashboardSidebar() {
                 </Typography>
             </ButtonBase>
 
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+            <Divider sx={{ borderColor: 'var(--sidebar-border)', flexShrink: 0 }} />
 
             {/* ── Nav items ── */}
             <Box sx={{ flex: 1, py: 0.5, display: 'flex', flexDirection: 'column' }}>
-                {NAV_ITEMS.map(({ key, label, path, Icon }) => {
+                {NAV_ITEMS.map(({ key, labelKey, path, Icon }) => {
+                    const label = t(labelKey);
                     const isActive =
                         pathname === path ||
                         (key === 'price'           && pathname.startsWith('/dashboard/forecast'))          ||
@@ -126,7 +133,7 @@ export function DashboardSidebar() {
                                 borderLeft: 'none',
                                 transition: 'background-color 0.15s ease',
                                 '&:hover': {
-                                    backgroundColor: isActive ? 'rgba(0,204,122,0.18)' : 'rgba(255,255,255,0.05)',
+                                    backgroundColor: isActive ? 'rgba(0,204,122,0.18)' : 'var(--hover-bg)',
                                 },
                             }}
                         >
@@ -159,7 +166,7 @@ export function DashboardSidebar() {
                 })}
             </Box>
 
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+            <Divider sx={{ borderColor: 'var(--sidebar-border)', flexShrink: 0 }} />
 
             {/* ── Profile section ── */}
             <Box sx={{ flexShrink: 0, py: 0.5, display: 'flex', flexDirection: 'column' }}>
@@ -192,16 +199,16 @@ export function DashboardSidebar() {
                             {user || 'Guest'}
                         </Typography>
                         <Typography sx={{ fontSize: 9, color: 'var(--muted)', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
-                            管理員
+                            {t('sidebar.admin')}
                         </Typography>
                     </Box>
                 </Box>
 
-                {/* Settings */}
+                {/* Theme toggle */}
                 <ButtonBase
                     disableRipple
-                    title={!expanded ? '個人設定' : undefined}
-                    onClick={() => router.push('/dashboard/settings')}
+                    title={!expanded ? t(darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode') : undefined}
+                    onClick={() => setDarkMode(!darkMode)}
                     sx={{
                         width: '100%',
                         height: 40,
@@ -210,7 +217,37 @@ export function DashboardSidebar() {
                         justifyContent: 'flex-start',
                         flexShrink: 0,
                         transition: 'background-color 0.15s ease',
-                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
+                        '&:hover': { backgroundColor: 'var(--hover-bg)' },
+                    }}
+                >
+                    <Box sx={{ width: ICON_SLOT_W, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                        {darkMode
+                            ? <Brightness7Icon sx={{ fontSize: 18, color: 'var(--muted)' }} />
+                            : <Brightness4Icon sx={{ fontSize: 18, color: 'var(--muted)' }} />
+                        }
+                    </Box>
+                    <Typography
+                        component="span"
+                        sx={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity 0.15s ease' }}
+                    >
+                        {t(darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode')}
+                    </Typography>
+                </ButtonBase>
+
+                {/* Settings → opens modal */}
+                <ButtonBase
+                    disableRipple
+                    title={!expanded ? t('sidebar.settings') : undefined}
+                    onClick={() => setSettingsOpen(true)}
+                    sx={{
+                        width: '100%',
+                        height: 40,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        flexShrink: 0,
+                        transition: 'background-color 0.15s ease',
+                        '&:hover': { backgroundColor: 'var(--hover-bg)' },
                     }}
                 >
                     <Box sx={{ width: ICON_SLOT_W, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
@@ -220,14 +257,14 @@ export function DashboardSidebar() {
                         component="span"
                         sx={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity 0.15s ease' }}
                     >
-                        個人設定
+                        {t('sidebar.settings')}
                     </Typography>
                 </ButtonBase>
 
                 {/* Logout */}
                 <ButtonBase
                     disableRipple
-                    title={!expanded ? '登出' : undefined}
+                    title={!expanded ? t('sidebar.logout') : undefined}
                     onClick={logout}
                     sx={{
                         width: '100%',
@@ -247,7 +284,7 @@ export function DashboardSidebar() {
                         component="span"
                         sx={{ fontSize: 13, fontWeight: 500, color: 'rgba(248,113,113,0.7)', whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity 0.15s ease' }}
                     >
-                        登出
+                        {t('sidebar.logout')}
                     </Typography>
                 </ButtonBase>
             </Box>

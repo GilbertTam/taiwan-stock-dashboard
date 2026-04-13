@@ -5,6 +5,7 @@ import { Box, Typography, Alert, Skeleton } from '@mui/material';
 import * as echarts from 'echarts/core';
 import { BaseChart } from '@/components/charts/BaseChart';
 import { MetricConfig } from './DailyCompareControls';
+import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
     areaLabel,
     groupId,
 }) => {
+    const { t } = useTranslation('dailyCompare');
     const total = sortedDates.length;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -264,14 +266,14 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
         return { avg, peak, min };
     }, [seriesData]);
 
-    const CHART_TYPE_LABELS: Record<string, string> = { line: '折線', step: '梯線', bar: '長條' };
+    const CHART_TYPE_LABELS: Record<string, string> = { line: t('chartType.line'), step: t('chartType.step'), bar: t('chartType.bar') };
 
     if (!isLoading && total === 0) {
         return (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Alert severity="info" sx={{ maxWidth: 400 }}>
                     <Typography variant="body2">
-                        選擇地區與指標後，圖表將顯示多日疊加比較。
+                        {t('noDataHint')}
                     </Typography>
                 </Alert>
             </Box>
@@ -308,17 +310,17 @@ export const DailyOverlayChart: React.FC<DailyOverlayChartProps> = ({
             {panelStats && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, ml: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>均</Typography>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{t('stats.avg')}</Typography>
                         <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600 }}>{panelStats.avg.toFixed(1)}</Typography>
                     </Box>
                     <Box sx={{ width: '1px', height: 10, backgroundColor: 'var(--card-border)' }} />
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>峰</Typography>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{t('stats.peak')}</Typography>
                         <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600, color: metric.baseColor }}>{panelStats.peak.toFixed(1)}</Typography>
                     </Box>
                     <Box sx={{ width: '1px', height: 10, backgroundColor: 'var(--card-border)' }} />
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>谷</Typography>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{t('stats.valley')}</Typography>
                         <Typography sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600 }}>{panelStats.min.toFixed(1)}</Typography>
                     </Box>
                     <Typography sx={{ fontSize: 9, color: 'text.disabled' }}>{metric.unit}</Typography>

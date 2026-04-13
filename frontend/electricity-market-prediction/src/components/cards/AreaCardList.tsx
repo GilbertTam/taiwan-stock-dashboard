@@ -6,6 +6,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import type { Area } from '@/types';
 import { ChartDataPoint } from '@/utils/chartUtils';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 // Distinct colors for each area (same as AllAreasPriceChart)
 const AREA_COLORS = [
@@ -41,6 +43,7 @@ export function AreaInfoCard({
     spreadChange,
     todaySpread,
 }: AreaInfoCardProps) {
+    const { t } = useTranslation(['common', 'dashboard']);
     const color = AREA_COLORS[colorIndex % AREA_COLORS.length];
 
     // Calculate metrics
@@ -108,7 +111,7 @@ export function AreaInfoCard({
                 {/* 第一列：地區名稱 + 最新電價 */}
                 <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 0.5 }}>
                     <Typography sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 13, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {area.name_ch}
+                        {getAreaName(t, area.name)}
                     </Typography>
                     
                     {loading ? (
@@ -141,7 +144,7 @@ export function AreaInfoCard({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         {/* 漲跌指標 */}
                         {!loading && spreadChange != null && (
-                            <Tooltip title="價差變化率 = (今日價差 - 昨日價差) / 昨日價差" arrow placement="top">
+                            <Tooltip title={t('dashboard:areaCard.spreadChangeTooltip')} arrow placement="top">
                                 <Box
                                     component="span"
                                     sx={{
@@ -168,7 +171,7 @@ export function AreaInfoCard({
                         
                         {/* 今日價差 */}
                         {!loading && todaySpread != null && (
-                            <Tooltip title="今日價差 = 今日最高價 - 今日最低價" arrow placement="top">
+                            <Tooltip title={t('dashboard:areaCard.todaySpreadTooltip')} arrow placement="top">
                                 <Typography sx={{ color: 'var(--muted)', fontSize: 10, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', cursor: 'help' }}>
                                     Δ¥{todaySpread.toFixed(1)}
                                 </Typography>
@@ -219,10 +222,10 @@ export function AreaCardList({
                     height: isColumn ? undefined : 4,
                 },
                 '&::-webkit-scrollbar-track': {
-                    backgroundColor: 'transparent',
+                    backgroundColor: 'var(--scrollbar-track)',
                 },
                 '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    backgroundColor: 'var(--scrollbar-thumb)',
                     borderRadius: 2,
                 },
                 ...(isColumn ? {

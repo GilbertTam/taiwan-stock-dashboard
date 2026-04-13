@@ -18,6 +18,8 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/app/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 export interface UserMenuProps {
   /** Show username label next to avatar */
@@ -29,6 +31,8 @@ export interface UserMenuProps {
 const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { setSettingsOpen } = useTheme();
+  const { t } = useTranslation('navigation');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -54,7 +58,7 @@ const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
 
   return (
     <>
-      <Tooltip title="帳戶選單">
+      <Tooltip title={t('userMenu.accountMenu')}>
         <ButtonBase
           onClick={handleClick}
           sx={{
@@ -122,41 +126,32 @@ const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <MenuItem onClick={() => handleNavigate('/dashboard/settings')} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+        <MenuItem onClick={() => { handleClose(); setSettingsOpen(true); }} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" sx={{ color: 'var(--foreground)' }} />
           </ListItemIcon>
-          個人設定
+          {t('userMenu.settings')}
         </MenuItem>
         <MenuItem onClick={() => window.open('/api/docs', '_blank')} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
           <ListItemIcon>
             <Box component="span" sx={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--foreground)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20 }}>
-              {/* Using a text icon or a custom SVG if needed, but for now reuse Info or similar, maybe specific icon? */}
-              {/* Let's use a generic 'Code' or 'Description' icon, or just text 'API' if possible. 
-                  Material UI has 'Code' icon. 
-                  But for now, let's use 'Description' or 'Article'. 
-                  Wait, I need to import it. 
-                  Let's use 'ArticleIcon' or just reuse 'InfoOutlinedIcon' isn't great.
-                  Actually, let's stick to consistent style. 
-                  I'll use 'DescriptionIcon' but need to import it.
-              */}
               API
             </Box>
           </ListItemIcon>
-          API 文件
+          {t('userMenu.apiDocs')}
         </MenuItem>
         <MenuItem onClick={() => handleNavigate('/dashboard/about')} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
           <ListItemIcon>
             <InfoOutlinedIcon fontSize="small" sx={{ color: 'var(--foreground)' }} />
           </ListItemIcon>
-          關於網站
+          {t('userMenu.about')}
         </MenuItem>
         <Divider sx={{ borderColor: 'var(--card-border)' }} />
         <MenuItem onClick={handleLogout} sx={{ color: '#ff4d4d', '&:hover': { bgcolor: 'rgba(255,77,77,0.1)' } }}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" sx={{ color: '#ff4d4d' }} />
           </ListItemIcon>
-          登出
+          {t('userMenu.logout')}
         </MenuItem>
       </Menu>
     </>

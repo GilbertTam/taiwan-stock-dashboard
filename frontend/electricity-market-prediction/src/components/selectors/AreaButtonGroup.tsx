@@ -4,6 +4,8 @@ import React from 'react';
 import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import type { Area } from '@/types';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 interface AreaButtonGroupProps {
     areas: Area[];
@@ -16,6 +18,7 @@ export const AreaButtonGroup: React.FC<AreaButtonGroupProps> = ({
     selectedArea,
     onAreaChange,
 }) => {
+    const { t } = useTranslation('common');
     return (
         <ToggleButtonGroup
             value={selectedArea}
@@ -59,7 +62,7 @@ export const AreaButtonGroup: React.FC<AreaButtonGroupProps> = ({
             {areas.map((area) => (
                 <Tooltip key={area.id} title={area.name} placement="bottom" enterDelay={600} arrow>
                     <ToggleButton value={area.name} aria-label={area.name}>
-                        {area.name_ch}
+                        {getAreaName(t, area.name)}
                     </ToggleButton>
                 </Tooltip>
             ))}

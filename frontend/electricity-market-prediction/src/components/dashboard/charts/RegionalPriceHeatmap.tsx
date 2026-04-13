@@ -9,6 +9,8 @@ import type { Area } from '@/types';
 import { ChartDataPoint } from '@/utils/chartUtils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { useTranslation } from 'react-i18next';
+import { getAreaName } from '@/utils/areaI18n';
 
 interface RegionalPriceHeatmapProps {
     areas: Area[];
@@ -21,6 +23,7 @@ interface RegionalPriceHeatmapProps {
 export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea, hoveredTimestamp, loading }: RegionalPriceHeatmapProps) {
     const { darkMode } = useTheme();
     const colors = useChartColors();
+    const { t } = useTranslation(['common', 'dashboard']);
     const [internalHoveredXIdx, setInternalHoveredXIdx] = useState<number | null>(null);
 
     const onEvents = useMemo(() => ({
@@ -37,7 +40,7 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
     const { options, hasData } = useMemo(() => {
         if (!areas || areas.length === 0) return { options: {}, hasData: false };
 
-        const yCategories = areas.map(a => a.name_ch);
+        const yCategories = areas.map(a => getAreaName(t, a.name));
 
         // Find all unique timestamps across all areas
         const timestampsSet = new Set<number>();
@@ -143,7 +146,7 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
                     const price = params.value[2];
                     return `
                         <div style="font-weight:bold; margin-bottom:5px;">${time}</div>
-                        <div>${area}: <span style="font-weight:bold;color:${params.color}">${price.toFixed(2)}</span> 円/kWh</div>
+                        <div>${area}: <span style="font-weight:bold;color:${params.color}">${price.toFixed(2)}</span> ${t('dashboard:heatmap.unit')}</div>
                     `;
                 },
                 backgroundColor: colors.tooltipBg,
@@ -194,9 +197,9 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
                     color: (value: string, index: number) => {
                         // Highlight the Y-axis label text if selected
                         if (highlightedArea) {
-                            const selectedAreaCh = areas.find(a => a.name === highlightedArea)?.name_ch;
+                            const selectedAreaLabel = getAreaName(t, highlightedArea);
                             // Canvas rendering doesn't support CSS variables, so we must use exact hex codes or theme vars
-                            return value === selectedAreaCh ? colors.nowLine : 'rgba(150, 150, 150, 0.5)';
+                            return value === selectedAreaLabel ? colors.nowLine : 'rgba(150, 150, 150, 0.5)';
                         }
                         return colors.text;
                     },
@@ -213,7 +216,7 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
                 orient: 'horizontal',
                 left: 'center',
                 bottom: 0,
-                text: ['高 (High)', '低 (Low)'],
+                text: [t('dashboard:heatmap.high'), t('dashboard:heatmap.low')],
                 textStyle: { color: colors.text },
                 inRange: {
                     color: visualMapColor // [minColor, ..., maxColor]
@@ -222,7 +225,7 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
                 itemHeight: 300,
             },
             series: [{
-                name: 'Price Heatmap',
+                name: t('dashboard:heatmap.seriesName'),
                 type: 'heatmap',
                 data: heatmapData,
                 label: {
@@ -247,12 +250,12 @@ export function RegionalPriceHeatmap({ areas, allAreasChartData, highlightedArea
         };
 
         return { options: option, hasData: heatmapData.length > 0 };
-    }, [areas, allAreasChartData, highlightedArea, hoveredTimestamp, internalHoveredXIdx, darkMode, colors]);
+    }, [areas, allAreasChartData, highlightedArea, hoveredTimestamp, internalHoveredXIdx, darkMode, colors, t]);
 
     if (loading) {
         return (
             <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', color: 'var(--muted)', minHeight: 300, alignItems: 'center' }}>
-                <Typography>載入中...</Typography>
+                <Typography>{t('common:loading')}</Typography>
             </Box>
         );
     }
