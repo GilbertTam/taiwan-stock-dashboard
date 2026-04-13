@@ -18,12 +18,15 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import BoltIcon from '@mui/icons-material/Bolt';
 import { createAdminUser } from '@/services/authApi';
+import { useTranslation } from 'react-i18next';
 
 interface SetupFormProps {
   onSetupComplete: () => void;
 }
 
 export function SetupForm({ onSetupComplete }: SetupFormProps) {
+  const { t } = useTranslation('auth');
+  const { t: tCommon } = useTranslation('common');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +49,7 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       await createAdminUser({ username, email, password });
       onSetupComplete();
     } catch {
-      setError('建立帳號失敗，請重試');
+      setError(t('setup.createFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -84,10 +87,10 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
           <BoltIcon sx={{ fontSize: 30, color: 'var(--primary-foreground)' }} />
         </Box>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 18 }}>
-          初期設定
+          {t('setup.title')}
         </Typography>
         <Typography sx={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-          建立第一個管理員帳號
+          {t('setup.subtitle')}
         </Typography>
       </Box>
 
@@ -109,12 +112,12 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       {/* Username */}
       <Box sx={{ mb: 1.5 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          帳號 *
+          {t('setup.usernameRequired')}
         </Typography>
         <TextField
           fullWidth
           size="small"
-          placeholder="請輸入帳號"
+          placeholder={t('usernamePlaceholder')}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           onFocus={() => setFocused('username')}
@@ -139,12 +142,12 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       {/* Email (optional) */}
       <Box sx={{ mb: 1.5 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          Email（選填）
+          {t('setup.emailOptional')}
         </Typography>
         <TextField
           fullWidth
           size="small"
-          placeholder="請輸入 Email"
+          placeholder={t('setup.emailPlaceholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onFocus={() => setFocused('email')}
@@ -169,13 +172,13 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       {/* Password */}
       <Box sx={{ mb: 1.5 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          密碼 *
+          {t('setup.passwordRequired')}
         </Typography>
         <TextField
           fullWidth
           size="small"
           type={showPassword ? 'text' : 'password'}
-          placeholder="請輸入密碼"
+          placeholder={t('passwordPlaceholder')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onFocus={() => setFocused('password')}
@@ -199,7 +202,7 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
                   edge="end"
                   size="small"
                   sx={{ color: 'var(--text-secondary)' }}
-                  aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                  aria-label={showPassword ? tCommon('auth.hidePassword') : tCommon('auth.showPassword')}
                 >
                   {showPassword ? <VisibilityOffIcon sx={{ fontSize: 18 }} /> : <VisibilityIcon sx={{ fontSize: 18 }} />}
                 </IconButton>
@@ -213,19 +216,19 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       {/* Confirm Password */}
       <Box sx={{ mb: 2.5 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          確認密碼 *
+          {t('setup.confirmPassword')}
         </Typography>
         <TextField
           fullWidth
           size="small"
           type={showConfirm ? 'text' : 'password'}
-          placeholder="請再次輸入密碼"
+          placeholder={t('setup.confirmPlaceholder')}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           onFocus={() => setFocused('confirm')}
           onBlur={() => setFocused(null)}
           error={passwordMismatch}
-          helperText={passwordMismatch ? '密碼不一致' : undefined}
+          helperText={passwordMismatch ? t('setup.passwordMismatch') : undefined}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -245,7 +248,7 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
                   edge="end"
                   size="small"
                   sx={{ color: 'var(--text-secondary)' }}
-                  aria-label={showConfirm ? '隱藏密碼' : '顯示密碼'}
+                  aria-label={showConfirm ? tCommon('auth.hidePassword') : tCommon('auth.showPassword')}
                 >
                   {showConfirm ? <VisibilityOffIcon sx={{ fontSize: 18 }} /> : <VisibilityIcon sx={{ fontSize: 18 }} />}
                 </IconButton>
@@ -284,11 +287,11 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
           },
         }}
       >
-        {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : '建立帳號'}
+        {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : t('setup.createAccount')}
       </Button>
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>© 2026 HD Research</Typography>
+        <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t('copyright')}</Typography>
       </Box>
     </Box>
   );

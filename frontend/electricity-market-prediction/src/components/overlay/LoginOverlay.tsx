@@ -17,6 +17,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import BoltIcon from '@mui/icons-material/Bolt';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface LoginOverlayProps {
     onLoginSuccess?: () => void;
@@ -29,6 +30,8 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
+    const { t } = useTranslation('auth');
+    const { t: tCommon } = useTranslation('common');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,7 +43,7 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
             onLoginSuccess?.();
         } catch (err) {
             console.error('Login failed', err);
-            setError('登入失敗，請檢查帳號密碼');
+            setError(tCommon('auth.loginFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -106,10 +109,10 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
                                 letterSpacing: '-0.02em',
                             }}
                         >
-                            日本電力市場儀表板
+                            {t('title')}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'var(--muted)' }}>
-                            請登入以查看即時資料
+                            {t('loginPrompt')}
                         </Typography>
                     </Box>
 
@@ -134,7 +137,7 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
                     <Box component="form" onSubmit={handleSubmit}>
                         <TextField
                             fullWidth
-                            placeholder="帳號"
+                            placeholder={t('username')}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             size="small"
@@ -161,7 +164,7 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
                         <TextField
                             fullWidth
                             type={showPassword ? 'text' : 'password'}
-                            placeholder="密碼"
+                            placeholder={t('password')}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             size="small"
@@ -218,7 +221,7 @@ export function LoginOverlay({ onLoginSuccess }: LoginOverlayProps) {
                                 },
                             }}
                         >
-                            {isLoading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : '登入'}
+                            {isLoading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : t('login')}
                         </Button>
                     </Box>
                 </Box>

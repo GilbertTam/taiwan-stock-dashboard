@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { Box, Button, Alert, CircularProgress } from '@mui/material';
 import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined';
 import { createDefaultAdmin } from '@/services/authApi';
+import { useTranslation } from 'react-i18next';
 
 interface DevToolSetupButtonProps {
   onSetupComplete: () => void;
 }
 
 export function DevToolSetupButton({ onSetupComplete }: DevToolSetupButtonProps) {
+  const { t } = useTranslation('auth');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,7 @@ export function DevToolSetupButton({ onSetupComplete }: DevToolSetupButtonProps)
       await createDefaultAdmin();
       onSetupComplete();
     } catch {
-      setError('建立預設帳號失敗');
+      setError(t('devTool.createFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +76,7 @@ export function DevToolSetupButton({ onSetupComplete }: DevToolSetupButtonProps)
           },
         }}
       >
-        Dev: admin / 1234 快速設定
+        {t('devTool.quickSetup')}
       </Button>
     </Box>
   );

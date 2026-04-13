@@ -17,12 +17,15 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import BoltIcon from '@mui/icons-material/Bolt';
 import type { LoginCredentials } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface LoginFormProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
 }
 
 export function LoginForm({ onSubmit }: LoginFormProps) {
+  const { t } = useTranslation('auth');
+  const { t: tCommon } = useTranslation('common');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,7 +42,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       await onSubmit({ username, password });
     } catch (err) {
       console.error('Login failed', err);
-      setError('登入失敗，請檢查帳號密碼');
+      setError(tCommon('auth.loginFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -66,10 +69,10 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           <BoltIcon sx={{ fontSize: 30, color: 'var(--primary-foreground)' }} />
         </Box>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--foreground)', fontSize: 18 }}>
-          日本電力市場儀表板
+          {t('title')}
         </Typography>
         <Typography sx={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-          HD Japan Electricity Market
+          {t('subtitle')}
         </Typography>
       </Box>
 
@@ -90,12 +93,12 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
 
       <Box sx={{ mb: 2 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          帳號
+          {t('username')}
         </Typography>
         <TextField
           fullWidth
           size="small"
-          placeholder="請輸入帳號"
+          placeholder={t('usernamePlaceholder')}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           onFocus={() => setFocused('username')}
@@ -128,13 +131,13 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
 
       <Box sx={{ mb: 3 }}>
         <Typography sx={{ fontSize: 11, color: 'var(--text-secondary)', mb: 0.5, ml: 0.5, fontWeight: 500 }}>
-          密碼
+          {t('password')}
         </Typography>
         <TextField
           fullWidth
           size="small"
           type={showPassword ? 'text' : 'password'}
-          placeholder="請輸入密碼"
+          placeholder={t('passwordPlaceholder')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onFocus={() => setFocused('password')}
@@ -158,7 +161,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
                   edge="end"
                   size="small"
                   sx={{ color: 'var(--text-secondary)' }}
-                  aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                  aria-label={showPassword ? tCommon('auth.hidePassword') : tCommon('auth.showPassword')}
                 >
                   {showPassword ? (
                     <VisibilityOffIcon sx={{ fontSize: 18 }} />
@@ -201,11 +204,11 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           },
         }}
       >
-        {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : '登入'}
+        {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : t('login')}
       </Button>
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>© 2026 HD Research</Typography>
+        <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t('copyright')}</Typography>
       </Box>
     </Box>
   );
