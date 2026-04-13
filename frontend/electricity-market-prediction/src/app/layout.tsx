@@ -3,6 +3,7 @@ import './globals.css';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from './ThemeProvider';
+import { I18nProvider } from './I18nProvider';
 
 export const metadata = {
   title: 'HDJP Electricity Market Dashboard',
@@ -19,9 +20,11 @@ export default function RootLayout({
       <body>
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <AuthProvider>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
+            <I18nProvider>
+              <ThemeProvider>
+                {children}
+              </ThemeProvider>
+            </I18nProvider>
           </AuthProvider>
         </AppRouterCacheProvider>
       </body>

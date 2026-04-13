@@ -33,13 +33,19 @@
   /* Neon Purple */
 
   /* Sidebar & Header */
-  --sidebar-bg: rgba(5, 5, 5, 0.8);
+  --sidebar-bg: rgba(5, 5, 5, 0.9);
   --header-bg: rgba(5, 5, 5, 0.6);
+  --sidebar-border: rgba(255, 255, 255, 0.07);
 
   /* Status */
   --success: #00ff9d;
   --warning: #facc15;
   --error: #ff4d4d;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+  --scrollbar-track: transparent;
 
   /* Spacing tokens (4px base) */
   --space-1: 4px;
@@ -88,8 +94,14 @@
   --secondary-foreground: #ffffff;
 
   /* Sidebar & Header */
-  --sidebar-bg: rgba(255, 255, 255, 0.9);
+  --sidebar-bg: rgba(255, 255, 255, 0.95);
   --header-bg: rgba(255, 255, 255, 0.8);
+  --sidebar-border: rgba(0, 0, 0, 0.1);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+  --scrollbar-track: transparent;
 }
 
 @theme inline {
@@ -190,4 +202,23 @@ body {
   color: var(--foreground);
   overflow-x: hidden;
   line-height: var(--line-height-normal);
+}
+
+/* ECharts tooltip scrollbar theming */
+div[style*="echarts"] ::-webkit-scrollbar,
+.echarts-tooltip ::-webkit-scrollbar,
+div[_echarts_instance_] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+div[style*="echarts"] ::-webkit-scrollbar-thumb,
+.echarts-tooltip ::-webkit-scrollbar-thumb,
+div[_echarts_instance_] ::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+div[style*="echarts"] ::-webkit-scrollbar-track,
+.echarts-tooltip ::-webkit-scrollbar-track,
+div[_echarts_instance_] ::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
 }
