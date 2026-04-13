@@ -1,0 +1,80 @@
+{
+  "loginSuccess": "登入成功",
+  "areaOverview": "區域一覽",
+  "downloadCsv": "下載目前檢視區域 CSV",
+  "priceSpreadTooltip": "價差 = 當日最高價 - 最低價；變化 = 與昨日價差比較",
+  "showLabels": "顯示文字標籤",
+  "hideLabels": "隱藏文字標籤",
+  "loadingChart": "載入圖表...",
+  "heatmap": {
+    "high": "高",
+    "low": "低",
+    "seriesName": "價格熱力圖",
+    "unit": "円/kWh"
+  },
+  "areaCard": {
+    "spreadChangeTooltip": "價差變化率 = (今日價差 - 昨日價差) / 昨日價差",
+    "todaySpreadTooltip": "今日價差 = 今日最高價 - 今日最低價"
+  },
+  "quickAccess": {
+    "forecastTitle": "預測詳細分析",
+    "forecastDesc": "查看完整的預測圖表、模型比較和市場資訊",
+    "modelTitle": "模型效能分析",
+    "modelDesc": "在預測分析頁下方展開收益分析與 MAE 分析，比較不同模型表現",
+    "marketTitle": "市場資訊總覽",
+    "marketDesc": "在預測分析頁下方選擇市場資訊，查看停機、互連、天氣",
+    "viewDetails": "查看詳細"
+  },
+  "metrics": {
+    "vsPrevDay": "vs 前一日",
+    "noDateSelected": "未選擇",
+    "currentPrice": "當前電價",
+    "noData": "無資料",
+    "area": "區域: {{area}}",
+    "modelAccuracy": "模型預測準確度",
+    "noModelSelected": "未選擇模型",
+    "bestModel": "最佳模型: {{name}}",
+    "modelsSelected": "{{count}} 個模型已選擇",
+    "marketStatus": "市場狀態",
+    "outageEvents": "{{count}} 個停機事件",
+    "normal": "正常",
+    "interconnectionOk": "互連線正常",
+    "noInterconnectionData": "無互連資料",
+    "dataRange": "資料範圍",
+    "dataPoints": "{{count}} 個資料點",
+    "selectedModels": "已選擇模型",
+    "noModelsSelected": "未選擇任何模型",
+    "revenueAnalysis": "收益分析",
+    "viewDetails": "查看詳細",
+    "clickForRevenue": "點擊查看完整收益分析"
+  },
+  "outage": {
+    "badge": {
+      "loading": "載入停機資料...",
+      "noEvents": "無停機事件",
+      "largestUnit": "最大停機機組",
+      "count": "停機: {{count}}座"
+    },
+    "drawer": {
+      "title": "停機影響資訊",
+      "description": "電廠停機減少供電量，可能推高現貨電價",
+      "noActiveOutages": "現在、停機中の事象はありません",
+      "count": "件数",
+      "maxSingle": "最大單一",
+      "largest": "最大：{{name}} {{unit}}",
+      "items": "{{count}}件",
+      "estimated": "推定",
+      "endedCount": "＋{{count}}件の終了済停機あり（期間内）",
+      "undetermined": "未定",
+      "days": "{{count}}日",
+      "types": {
+        "emergency": "緊急停止",
+        "accident": "事故停止",
+        "unplanned": "計画外停止",
+        "reducedOutput": "出力低下",
+        "planned": "計画停止",
+        "other": "その他"
+      }
+    }
+  }
+}

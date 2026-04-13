@@ -8,6 +8,7 @@ import {
   ArrowForward
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 
 interface QuickAccessCardProps {
   title: string;
@@ -16,6 +17,7 @@ interface QuickAccessCardProps {
   color: string;
   href: string;
   isPrimary?: boolean;
+  viewDetailsLabel: string;
 }
 
 const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
@@ -24,7 +26,8 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
   icon,
   color,
   href,
-  isPrimary = false
+  isPrimary = false,
+  viewDetailsLabel
 }) => {
   const router = useRouter();
 
@@ -59,7 +62,7 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
             {description}
           </p>
           <div className="flex items-center text-[var(--primary)] font-medium">
-            <span className="text-xs mr-1">查看詳細</span>
+            <span className="text-xs mr-1">{viewDetailsLabel}</span>
             <ArrowForward sx={{ fontSize: 14 }} />
           </div>
         </div>
@@ -69,28 +72,33 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
 };
 
 export const QuickAccessCards: React.FC = () => {
+  const { t } = useTranslation('dashboard');
+
   const accessCards: QuickAccessCardProps[] = [
     {
-      title: '預測詳細分析',
-      description: '查看完整的預測圖表、模型比較和市場資訊',
+      title: t('quickAccess.forecastTitle'),
+      description: t('quickAccess.forecastDesc'),
       icon: <TrendingUp sx={{ fontSize: 28 }} />,
       color: 'var(--primary)',
       href: '/dashboard/forecast',
-      isPrimary: true
+      isPrimary: true,
+      viewDetailsLabel: t('quickAccess.viewDetails')
     },
     {
-      title: '模型效能分析',
-      description: '在預測分析頁下方展開收益分析與 MAE 分析，比較不同模型表現',
+      title: t('quickAccess.modelTitle'),
+      description: t('quickAccess.modelDesc'),
       icon: <Assessment sx={{ fontSize: 28 }} />,
       color: '#109618',
-      href: '/dashboard/forecast'
+      href: '/dashboard/forecast',
+      viewDetailsLabel: t('quickAccess.viewDetails')
     },
     {
-      title: '市場資訊總覽',
-      description: '在預測分析頁下方選擇市場資訊，查看停機、互連、天氣',
+      title: t('quickAccess.marketTitle'),
+      description: t('quickAccess.marketDesc'),
       icon: <Info sx={{ fontSize: 28 }} />,
       color: '#990099',
-      href: '/dashboard/forecast?panel=market-info'
+      href: '/dashboard/forecast?panel=market-info',
+      viewDetailsLabel: t('quickAccess.viewDetails')
     }
   ];
 

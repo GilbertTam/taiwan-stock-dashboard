@@ -6,6 +6,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import BoltIcon from '@mui/icons-material/Bolt';
 import { format, differenceInDays } from 'date-fns';
 import { HjksOutage } from '@/types';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 interface OutageDetailDrawerProps {
     open: boolean;
@@ -14,10 +16,19 @@ interface OutageDetailDrawerProps {
     darkMode: boolean;
 }
 
-// 停機類型顯示順序（嚴重程度由高到低）
-const STOP_TYPE_ORDER = ['緊急停止', '事故停止', '計画外停止', '出力低下', '計画停止'];
+// Stop type keys for matching raw data (Japanese values from ES)
+const STOP_TYPE_MATCH_ORDER = ['緊急停止', '事故停止', '計画外停止', '出力低下', '計画停止'] as const;
 
-// 各類型色彩配置
+// Map match keys to i18n translation keys
+const STOP_TYPE_I18N_MAP: Record<string, string> = {
+    '緊急停止': 'outage.drawer.types.emergency',
+    '事故停止': 'outage.drawer.types.accident',
+    '計画外停止': 'outage.drawer.types.unplanned',
+    '出力低下': 'outage.drawer.types.reducedOutput',
+    '計画停止': 'outage.drawer.types.planned',
+};
+
+// Color config per stop type (keyed by match key)
 const STOP_TYPE_COLORS: Record<string, { bg: string; text: string; border: string; accent: string }> = {
     '緊急停止':   { bg: 'rgba(239,68,68,0.1)',   text: '#ef4444', border: 'rgba(239,68,68,0.25)', accent: '#ef4444' },
     '事故停止':   { bg: 'rgba(239,68,68,0.1)',   text: '#ef4444', border: 'rgba(239,68,68,0.25)', accent: '#ef4444' },
@@ -35,7 +46,6 @@ const DEFAULT_COLORS = {
 
 function getStopTypeColors(type: string | undefined) {
     if (!type) return DEFAULT_COLORS;
-    // 前綴比對（與 OutageGanttChart 邏輯一致）
     if (type.includes('緊急') || type.includes('事故')) return STOP_TYPE_COLORS['緊急停止'];
     if (type.includes('計画外')) return STOP_TYPE_COLORS['計画外停止'];
     if (type.includes('出力低下')) return STOP_TYPE_COLORS['出力低下'];
@@ -43,13 +53,13 @@ function getStopTypeColors(type: string | undefined) {
     return DEFAULT_COLORS;
 }
 
-function formatDuration(o: HjksOutage): string {
+function formatDuration(o: HjksOutage, t: TFunction): string {
     if (!o.start_datetime) return '-';
     const start = new Date(o.start_datetime);
-    if (!o.end_datetime) return `${format(start, 'MM/dd HH:mm')} ~ 未定`;
+    if (!o.end_datetime) return `${format(start, 'MM/dd HH:mm')} ~ ${t('outage.drawer.undetermined')}`;
     const end = new Date(o.end_datetime);
     const days = differenceInDays(end, start);
-    if (days > 0) return `${format(start, 'MM/dd')} ~ ${format(end, 'MM/dd')} (${days}日)`;
+    if (days > 0) return `${format(start, 'MM/dd')} ~ ${format(end, 'MM/dd')} (${t('outage.drawer.days', { count: days })})`;
     return `${format(start, 'MM/dd HH:mm')} ~ ${format(end, 'HH:mm')}`;
 }
 
@@ -59,7 +69,6 @@ function formatCapacity(o: HjksOutage): { value: string; estimated: boolean } {
     return { value: '-', estimated: false };
 }
 
-// 統計卡片
 function StatBox({ label, value, color }: { label: string; value: string; color?: string }) {
     return (
         <Box
@@ -83,12 +92,9 @@ function StatBox({ label, value, color }: { label: string; value: string; color?
     );
 }
 
-/**
- * 停機影響詳細抽屜
- * 點擊 OutageSummaryChip 後從右側展開
- * 顯示：摘要統計 + 按停機類型分組的詳細清單
- */
 export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageDetailDrawerProps) {
+    const { t } = useTranslation('dashboard');
+
     const { activeOutages, largestOutage, grouped, endedCount } = useMemo(() => {
         const now = new Date();
         const active = outages.filter((o) => !o.end_datetime || new Date(o.end_datetime) > now);
@@ -100,28 +106,27 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
             return currCap > prevCap ? curr : prev;
         }, null);
 
-        // 分組（維持嚴重程度排序）
-        const groups = STOP_TYPE_ORDER
+        const groups: Array<{ type: string; i18nKey: string; items: HjksOutage[]; colors: typeof DEFAULT_COLORS }> = STOP_TYPE_MATCH_ORDER
             .map((type) => ({
-                type,
+                type: type as string,
+                i18nKey: STOP_TYPE_I18N_MAP[type],
                 items: active.filter((o) => {
-                    const t = o.stop_type || '';
-                    if (type === '緊急停止') return t.includes('緊急') || t.includes('事故');
-                    if (type === '事故停止') return false; // 已合併進 緊急停止
-                    if (type === '計画外停止') return t.includes('計画外');
-                    if (type === '出力低下') return t.includes('出力低下');
-                    if (type === '計画停止') return t.includes('計画') && !t.includes('計画外');
+                    const st = o.stop_type || '';
+                    if (type === '緊急停止') return st.includes('緊急') || st.includes('事故');
+                    if (type === '事故停止') return false; // merged into 緊急停止
+                    if (type === '計画外停止') return st.includes('計画外');
+                    if (type === '出力低下') return st.includes('出力低下');
+                    if (type === '計画停止') return st.includes('計画') && !st.includes('計画外');
                     return false;
                 }),
                 colors: getStopTypeColors(type),
             }))
             .filter((g) => g.items.length > 0);
 
-        // 未分類的放最後
         const categorized = new Set(groups.flatMap((g) => g.items.map((i) => i.id)));
         const uncategorized = active.filter((o) => !categorized.has(o.id));
         if (uncategorized.length > 0) {
-            groups.push({ type: 'その他', items: uncategorized, colors: DEFAULT_COLORS });
+            groups.push({ type: 'other', i18nKey: 'outage.drawer.types.other', items: uncategorized, colors: DEFAULT_COLORS });
         }
 
         return {
@@ -161,7 +166,7 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
             }}
             sx={{ zIndex: 1300 }}
         >
-            {/* ── ヘッダー ── */}
+            {/* Header */}
             <Box
                 sx={{
                     px: 2,
@@ -176,10 +181,10 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                 <WarningAmberIcon sx={{ fontSize: 16, color: '#f87171' }} />
                 <Box sx={{ flex: 1 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>
-                        停機影響資訊
+                        {t('outage.drawer.title')}
                     </Typography>
                     <Typography sx={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.3 }}>
-                        電廠停機減少供電量，可能推高現貨電價
+                        {t('outage.drawer.description')}
                     </Typography>
                 </Box>
                 <IconButton size="small" onClick={onClose} sx={{ color: 'var(--muted)', flexShrink: 0 }}>
@@ -187,20 +192,20 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                 </IconButton>
             </Box>
 
-            {/* ── スクロール可能なコンテンツ ── */}
+            {/* Scrollable content */}
             <Box sx={{ flex: 1, overflowY: 'auto', px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
 
                 {activeOutages.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography sx={{ fontSize: 12, color: 'var(--muted)' }}>現在、停機中の事象はありません</Typography>
+                        <Typography sx={{ fontSize: 12, color: 'var(--muted)' }}>{t('outage.drawer.noActiveOutages')}</Typography>
                     </Box>
                 ) : (
                     <>
-                        {/* ── 摘要統計 ── */}
+                        {/* Summary stats */}
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                            <StatBox label="件数" value={`${activeOutages.length}件`} color="#f87171" />
+                            <StatBox label={t('outage.drawer.count')} value={t('outage.drawer.items', { count: activeOutages.length })} color="#f87171" />
                             <StatBox
-                                label="最大單一"
+                                label={t('outage.drawer.maxSingle')}
                                 value={largestOutage
                                     ? `${largestCap.toLocaleString()} MW`
                                     : '-'}
@@ -209,16 +214,16 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
 
                         {largestOutage && (
                             <Typography sx={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right', mt: -0.5 }}>
-                                最大：{largestOutage.name} {largestOutage.unit_name || ''}
+                                {t('outage.drawer.largest', { name: largestOutage.name, unit: largestOutage.unit_name || '' })}
                             </Typography>
                         )}
 
                         <Divider sx={{ borderColor: 'var(--card-border)' }} />
 
-                        {/* ── 分組清單 ── */}
-                        {grouped.map(({ type, items, colors }) => (
+                        {/* Grouped list */}
+                        {grouped.map(({ type, i18nKey, items, colors }) => (
                             <Box key={type}>
-                                {/* 分組標題 */}
+                                {/* Group header */}
                                 <Box
                                     sx={{
                                         display: 'inline-flex',
@@ -233,14 +238,14 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                                     }}
                                 >
                                     <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text }}>
-                                        {type}
+                                        {t(i18nKey)}
                                     </Typography>
                                     <Typography sx={{ fontSize: 10, color: colors.text, opacity: 0.7 }}>
-                                        {items.length}件
+                                        {t('outage.drawer.items', { count: items.length })}
                                     </Typography>
                                 </Box>
 
-                                {/* 各停機事件 */}
+                                {/* Outage items */}
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                                     {items.map((outage) => {
                                         const cap = formatCapacity(outage);
@@ -255,11 +260,11 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                                                     border: `1px solid rgba(255,255,255,0.07)`,
                                                 }}
                                             >
-                                                {/* 左側色彩アクセントバー */}
+                                                {/* Left accent bar */}
                                                 <Box sx={{ width: 3, flexShrink: 0, backgroundColor: colors.accent }} />
 
                                                 <Box sx={{ flex: 1, px: 1.25, py: 1, minWidth: 0 }}>
-                                                    {/* 電廠名 + 地區 */}
+                                                    {/* Plant name + area */}
                                                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
                                                         <Typography
                                                             sx={{
@@ -281,7 +286,7 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                                                                 </Box>
                                                             )}
                                                         </Typography>
-                                                        {/* 地區チップ */}
+                                                        {/* Area chip */}
                                                         <Box
                                                             sx={{
                                                                 flexShrink: 0,
@@ -298,17 +303,17 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                                                         </Box>
                                                     </Box>
 
-                                                    {/* 容量 + 期間 */}
+                                                    {/* Capacity + duration */}
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                                         <Typography sx={{ fontSize: 11, fontWeight: 700, color: colors.text, fontFamily: 'monospace' }}>
-                                                            {cap.value} MW{cap.estimated && <Box component="span" sx={{ fontSize: 9, fontWeight: 400, ml: 0.25 }}>(推定)</Box>}
+                                                            {cap.value} MW{cap.estimated && <Box component="span" sx={{ fontSize: 9, fontWeight: 400, ml: 0.25 }}>({t('outage.drawer.estimated')})</Box>}
                                                         </Typography>
                                                         <Typography sx={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'monospace' }}>
-                                                            {formatDuration(outage)}
+                                                            {formatDuration(outage, t)}
                                                         </Typography>
                                                     </Box>
 
-                                                    {/* 原因 */}
+                                                    {/* Factor */}
                                                     {outage.factor && (
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.375 }}>
                                                             <BoltIcon sx={{ fontSize: 10, color: '#facc15', flexShrink: 0 }} />
@@ -335,10 +340,10 @@ export function OutageDetailDrawer({ open, onClose, outages, darkMode }: OutageD
                     </>
                 )}
 
-                {/* 終了済み停機の件数 */}
+                {/* Ended outage count */}
                 {endedCount > 0 && (
                     <Typography sx={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center', mt: 0.5 }}>
-                        ＋{endedCount}件の終了済停機あり（期間内）
+                        {t('outage.drawer.endedCount', { count: endedCount })}
                     </Typography>
                 )}
             </Box>

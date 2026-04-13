@@ -15,6 +15,7 @@ import { ChartDataPoint } from '@/utils/chartUtils';
 import { format } from 'date-fns';
 import { calculateModelMAE } from '@/utils/chartUtils';
 import { AreaPrice, ImbalanceData, InterconnectionFlow } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface KeyMetricsCardsProps {
   chartData: ChartDataPoint[];
@@ -44,6 +45,7 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
   interconnectionData = [],
   isLoading = false
 }) => {
+  const { t } = useTranslation('dashboard');
 
   // Calculate current price (latest actual price)
   const currentPrice = useMemo(() => {
@@ -74,9 +76,9 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
     const change = ((currentPrice - previousPrice) / previousPrice) * 100;
     return {
       value: change,
-      label: 'vs 前一日'
+      label: t('metrics.vsPrevDay')
     };
-  }, [currentPrice, previousPrice]);
+  }, [currentPrice, previousPrice, t]);
 
   // Calculate best model MAE
   const bestModelMAE = useMemo(() => {
@@ -106,9 +108,9 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
 
   // Format date range
   const dateRangeText = useMemo(() => {
-    if (!startDate || !endDate) return '未選擇';
+    if (!startDate || !endDate) return t('metrics.noDateSelected');
     return `${format(startDate, 'yyyy/MM/dd')} - ${format(endDate, 'yyyy/MM/dd')}`;
-  }, [startDate, endDate]);
+  }, [startDate, endDate, t]);
 
   if (isLoading) {
     return (
@@ -122,9 +124,9 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Current Price Card */}
       <MetricCard
-        title="當前電價"
-        value={currentPrice !== null ? `¥${currentPrice.toFixed(2)}` : '無資料'}
-        subtitle={selectedArea ? `區域: ${selectedArea}` : undefined}
+        title={t('metrics.currentPrice')}
+        value={currentPrice !== null ? `¥${currentPrice.toFixed(2)}` : t('metrics.noData')}
+        subtitle={selectedArea ? t('metrics.area', { area: selectedArea }) : undefined}
         trend={priceTrend}
         icon={<AttachMoney />}
         color="primary"
@@ -132,36 +134,36 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
 
       {/* Model Accuracy Card */}
       <MetricCard
-        title="模型預測準確度"
-        value={bestModelMAE ? `MAE: ${bestModelMAE.mae.toFixed(2)}` : '未選擇模型'}
-        subtitle={bestModelMAE ? `最佳模型: ${bestModelMAE.model.name}` : `${selectedModels.length} 個模型已選擇`}
+        title={t('metrics.modelAccuracy')}
+        value={bestModelMAE ? `MAE: ${bestModelMAE.mae.toFixed(2)}` : t('metrics.noModelSelected')}
+        subtitle={bestModelMAE ? t('metrics.bestModel', { name: bestModelMAE.model.name }) : t('metrics.modelsSelected', { count: selectedModels.length })}
         icon={<Assessment />}
         color="success"
       />
 
       {/* Market Status Card */}
       <MetricCard
-        title="市場狀態"
-        value={outageCount > 0 ? `${outageCount} 個停機事件` : '正常'}
-        subtitle={interconnectionData.length > 0 ? '互連線正常' : '無互連資料'}
+        title={t('metrics.marketStatus')}
+        value={outageCount > 0 ? t('metrics.outageEvents', { count: outageCount }) : t('metrics.normal')}
+        subtitle={interconnectionData.length > 0 ? t('metrics.interconnectionOk') : t('metrics.noInterconnectionData')}
         icon={<Warning />}
         color={outageCount > 0 ? 'warning' : 'success'}
       />
 
       {/* Data Range Card */}
       <MetricCard
-        title="資料範圍"
+        title={t('metrics.dataRange')}
         value={dateRangeText}
-        subtitle={`${dataPointCount} 個資料點`}
+        subtitle={t('metrics.dataPoints', { count: dataPointCount })}
         icon={<CalendarToday />}
         color="info"
       />
 
       {/* Model Count Card */}
       <MetricCard
-        title="已選擇模型"
+        title={t('metrics.selectedModels')}
         value={selectedModels.length}
-        subtitle={selectedModels.length > 0 ? selectedModels.map(m => m.name).join(', ') : '未選擇任何模型'}
+        subtitle={selectedModels.length > 0 ? selectedModels.map(m => m.name).join(', ') : t('metrics.noModelsSelected')}
         icon={<DataUsage />}
         color="secondary"
       />
@@ -169,9 +171,9 @@ export const KeyMetricsCards: React.FC<KeyMetricsCardsProps> = ({
       {/* Profit Summary Card (if models selected) */}
       {selectedModels.length > 0 && (
         <MetricCard
-          title="收益分析"
-          value="查看詳細"
-          subtitle="點擊查看完整收益分析"
+          title={t('metrics.revenueAnalysis')}
+          value={t('metrics.viewDetails')}
+          subtitle={t('metrics.clickForRevenue')}
           icon={<TrendingUp />}
           color="success"
         />

@@ -1,0 +1,80 @@
+{
+  "loginSuccess": "Login successful",
+  "areaOverview": "Area Overview",
+  "downloadCsv": "Download current area CSV",
+  "priceSpreadTooltip": "Spread = daily high minus low; Change = vs yesterday's spread",
+  "showLabels": "Show labels",
+  "hideLabels": "Hide labels",
+  "loadingChart": "Loading chart...",
+  "heatmap": {
+    "high": "High",
+    "low": "Low",
+    "seriesName": "Price Heatmap",
+    "unit": "JPY/kWh"
+  },
+  "areaCard": {
+    "spreadChangeTooltip": "Spread change rate = (today's spread - yesterday's spread) / yesterday's spread",
+    "todaySpreadTooltip": "Today's spread = today's high - today's low"
+  },
+  "quickAccess": {
+    "forecastTitle": "Forecast Analysis",
+    "forecastDesc": "View full forecast charts, model comparisons and market information",
+    "modelTitle": "Model Performance",
+    "modelDesc": "Expand revenue analysis and MAE analysis below the forecast page to compare model performance",
+    "marketTitle": "Market Overview",
+    "marketDesc": "Select market info below the forecast page to view outages, interconnection, weather",
+    "viewDetails": "View Details"
+  },
+  "metrics": {
+    "vsPrevDay": "vs prev. day",
+    "noDateSelected": "Not selected",
+    "currentPrice": "Current Price",
+    "noData": "No data",
+    "area": "Area: {{area}}",
+    "modelAccuracy": "Model Accuracy",
+    "noModelSelected": "No model selected",
+    "bestModel": "Best model: {{name}}",
+    "modelsSelected": "{{count}} models selected",
+    "marketStatus": "Market Status",
+    "outageEvents": "{{count}} outage events",
+    "normal": "Normal",
+    "interconnectionOk": "Interconnection OK",
+    "noInterconnectionData": "No interconnection data",
+    "dataRange": "Data Range",
+    "dataPoints": "{{count}} data points",
+    "selectedModels": "Selected Models",
+    "noModelsSelected": "No models selected",
+    "revenueAnalysis": "Revenue Analysis",
+    "viewDetails": "View Details",
+    "clickForRevenue": "Click for full revenue analysis"
+  },
+  "outage": {
+    "badge": {
+      "loading": "Loading outage data...",
+      "noEvents": "No outage events",
+      "largestUnit": "Largest outage unit",
+      "count": "Outages: {{count}}"
+    },
+    "drawer": {
+      "title": "Outage Impact Info",
+      "description": "Plant outages reduce supply and may push up spot prices",
+      "noActiveOutages": "No active outage events at this time",
+      "count": "Count",
+      "maxSingle": "Max Single",
+      "largest": "Largest: {{name}} {{unit}}",
+      "items": "{{count}} items",
+      "estimated": "est.",
+      "endedCount": "+{{count}} ended outages (within period)",
+      "undetermined": "TBD",
+      "days": "{{count}} days",
+      "types": {
+        "emergency": "Emergency Stop",
+        "accident": "Accident Stop",
+        "unplanned": "Unplanned Stop",
+        "reducedOutput": "Reduced Output",
+        "planned": "Planned Stop",
+        "other": "Other"
+      }
+    }
+  }
+}

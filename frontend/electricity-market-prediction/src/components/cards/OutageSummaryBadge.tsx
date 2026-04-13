@@ -4,6 +4,7 @@ import React from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import type { HjksOutage } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface OutageSummaryBadgeProps {
     outages: HjksOutage[];
@@ -11,6 +12,7 @@ interface OutageSummaryBadgeProps {
 }
 
 export function OutageSummaryBadge({ outages, loading }: OutageSummaryBadgeProps) {
+    const { t } = useTranslation('dashboard');
     // Filter active outages (end_datetime in future or null)
     const now = new Date();
     const activeOutages = outages.filter((o) => {
@@ -47,7 +49,7 @@ export function OutageSummaryBadge({ outages, loading }: OutageSummaryBadgeProps
                 }}
             >
                 <Typography variant="caption" sx={{ color: 'var(--muted)' }}>
-                    載入停機資料...
+                    {t('outage.badge.loading')}
                 </Typography>
             </Box>
         );
@@ -68,7 +70,7 @@ export function OutageSummaryBadge({ outages, loading }: OutageSummaryBadgeProps
                 }}
             >
                 <Typography variant="caption" sx={{ color: '#22c55e', fontWeight: 600 }}>
-                    ✓ 無停機事件
+                    ✓ {t('outage.badge.noEvents')}
                 </Typography>
             </Box>
         );
@@ -77,7 +79,7 @@ export function OutageSummaryBadge({ outages, loading }: OutageSummaryBadgeProps
     const tooltipContent = largestOutage ? (
         <Box sx={{ p: 0.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                最大停機機組
+                {t('outage.badge.largestUnit')}
             </Typography>
             <Typography variant="body2">
                 {largestOutage.name} {largestOutage.unit_name}
@@ -116,7 +118,7 @@ export function OutageSummaryBadge({ outages, loading }: OutageSummaryBadgeProps
                         fontFamily: 'monospace',
                     }}
                 >
-                    停機: {count}座
+                    {t('outage.badge.count', { count })}
                 </Typography>
                 <Box sx={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.2)' }} />
                 <Typography
