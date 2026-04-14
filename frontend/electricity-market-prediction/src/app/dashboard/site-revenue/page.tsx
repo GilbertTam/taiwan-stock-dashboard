@@ -347,12 +347,13 @@ function SiteRevenueContent() {
       const hasAllActuals = validData.every(d => d.actualPrice !== null);
 
       if (hasAllActuals) {
-        const optDayResults = await Promise.all(
+        const optDaySettled = await Promise.allSettled(
           dates.map(date => runDailyOptimization(dataByDate[date], true))
         );
         let combinedActualResults: any[] = [];
         let totalActualRevenue = 0;
-        for (const result of optDayResults) {
+        for (const settled of optDaySettled) {
+          const result = settled.status === 'fulfilled' ? settled.value : null;
           if (result?.results) {
             combinedActualResults = [...combinedActualResults, ...result.results];
             totalActualRevenue += result.summary.total_revenue;
@@ -370,14 +371,15 @@ function SiteRevenueContent() {
 
       // 2. Run Models - all models and all dates in parallel
       const newModelResults: Record<string, ModelResult> = {};
-      const modelResultEntries = await Promise.all(selectedModels.map(async (model) => {
+      const modelResultEntries = await Promise.allSettled(selectedModels.map(async (model) => {
         const modelKey = `${model.id}|${model.name}`;
-        const modelDayResults = await Promise.all(
+        const modelDaySettled = await Promise.allSettled(
           dates.map(date => runDailyOptimization(dataByDate[date], false, modelKey))
         );
         let combinedModelResults: any[] = [];
         let totalModelRevenue = 0;
-        for (const result of modelDayResults) {
+        for (const settled of modelDaySettled) {
+          const result = settled.status === 'fulfilled' ? settled.value : null;
           if (result?.results) {
             combinedModelResults = [...combinedModelResults, ...result.results];
             totalModelRevenue += result.summary.total_revenue;
@@ -386,7 +388,9 @@ function SiteRevenueContent() {
         return { model, modelKey, combinedModelResults, totalModelRevenue };
       }));
 
-      for (const { model, modelKey, combinedModelResults, totalModelRevenue } of modelResultEntries) {
+      for (const settled of modelResultEntries) {
+        if (settled.status !== 'fulfilled') continue;
+        const { model, modelKey, combinedModelResults, totalModelRevenue } = settled.value;
         const modelOpt = {
           status: 'model',
           summary: { total_revenue: totalModelRevenue },

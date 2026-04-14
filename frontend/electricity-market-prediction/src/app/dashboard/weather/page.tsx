@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { mergeWeatherData } from '@/utils/weatherMerge';
 import {
     Box,
     Typography,
@@ -234,82 +235,16 @@ export default function WeatherPage() {
     }, [selectedArea]);
 
     // ── Filter and merge data (Hourly takes priority over Daily) ──
-    const displayedWeatherActual = useMemo((): any[] => {
+    const displayedWeatherActual = useMemo(() => {
         const hourlyData = showActualHourly ? weatherActual.filter((d: any) => !selectedModelActualHourly || d.model === selectedModelActualHourly) : [];
         const dailyData = showActualDaily ? weatherActualDaily.filter((d: any) => !selectedModelActualDaily || d.model === selectedModelActualDaily) : [];
-
-        const mergedMap = new Map<string, any>();
-
-        // 1. Add daily first (lower priority)
-        dailyData.forEach(d => {
-            if (!d.datetime) return;
-            let dailyTime = d.datetime;
-            if (dailyTime.length === 8) { // YYYYMMDD
-                dailyTime = `${dailyTime.substring(0, 4)}-${dailyTime.substring(4, 6)}-${dailyTime.substring(6, 8)}T00:00:00+09:00`;
-            } else if (!dailyTime.includes('T') && !dailyTime.includes(' ')) {
-                dailyTime = `${dailyTime}T00:00:00+09:00`;
-            }
-            mergedMap.set(dailyTime, { ...d, datetime: dailyTime });
-        });
-
-        // 2. Merge hourly (higher priority, overwrites overlapping keys with non-null values)
-        hourlyData.forEach(d => {
-            if (!d.datetime) return;
-            const existing = mergedMap.get(d.datetime);
-            if (existing) {
-                const merged = { ...existing };
-                Object.keys(d).forEach(key => {
-                    const val = (d as any)[key];
-                    if (val !== null && val !== undefined) {
-                        merged[key] = val;
-                    }
-                });
-                mergedMap.set(d.datetime, merged);
-            } else {
-                mergedMap.set(d.datetime, { ...d });
-            }
-        });
-
-        return Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+        return mergeWeatherData(hourlyData, dailyData);
     }, [showActualHourly, showActualDaily, selectedModelActualHourly, selectedModelActualDaily, weatherActual, weatherActualDaily]);
 
-    const displayedWeatherForecast = useMemo((): any[] => {
+    const displayedWeatherForecast = useMemo(() => {
         const hourlyData = showForecastHourly ? weatherForecast.filter((d: any) => !selectedModelForecastHourly || d.model === selectedModelForecastHourly) : [];
         const dailyData = showForecastDaily ? weatherForecastDaily.filter((d: any) => !selectedModelForecastDaily || d.model === selectedModelForecastDaily) : [];
-
-        const mergedMap = new Map<string, any>();
-
-        // 1. Add daily first (lower priority)
-        dailyData.forEach(d => {
-            if (!d.datetime) return;
-            let dailyTime = d.datetime;
-            if (dailyTime.length === 8) { // YYYYMMDD
-                dailyTime = `${dailyTime.substring(0, 4)}-${dailyTime.substring(4, 6)}-${dailyTime.substring(6, 8)}T00:00:00+09:00`;
-            } else if (!dailyTime.includes('T') && !dailyTime.includes(' ')) {
-                dailyTime = `${dailyTime}T00:00:00+09:00`;
-            }
-            mergedMap.set(dailyTime, { ...d, datetime: dailyTime });
-        });
-
-        // 2. Merge hourly (higher priority, overwrites overlapping keys with non-null values)
-        hourlyData.forEach(d => {
-            if (!d.datetime) return;
-            const existing = mergedMap.get(d.datetime);
-            if (existing) {
-                const merged = { ...existing };
-                Object.keys(d).forEach(key => {
-                    const val = (d as any)[key];
-                    if (val !== null && val !== undefined) {
-                        merged[key] = val;
-                    }
-                });
-                mergedMap.set(d.datetime, merged);
-            } else {
-                mergedMap.set(d.datetime, { ...d });
-            }
-        });
-
-        return Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+        return mergeWeatherData(hourlyData, dailyData);
     }, [showForecastHourly, showForecastDaily, selectedModelForecastHourly, selectedModelForecastDaily, weatherForecast, weatherForecastDaily]);
 
     const currentAreaName = getAreaName(t, selectedArea);

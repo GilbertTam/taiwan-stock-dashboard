@@ -499,7 +499,7 @@ export const useMarketData = (): UseMarketDataReturn => {
     // User Preferences
     // ==========================================================================
 
-    const { loadPreferences, updatePreference } = useUserPreferences();
+    const { loadPreferences, savePreferences } = useUserPreferences();
     /** Flag to prevent saving preferences during initial load */
     const prefsLoadedRef = useRef(false);
 
@@ -525,65 +525,33 @@ export const useMarketData = (): UseMarketDataReturn => {
     // Effects: Auto-save Preferences
     // ==========================================================================
 
+    // Batch save all preferences in a single effect to reduce localStorage I/O
     useEffect(() => {
         if (!prefsLoadedRef.current) return;
-        updatePreference('showImbalance', showImbalance);
-    }, [showImbalance, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showImbalanceQuantity', showImbalanceQuantity);
-    }, [showImbalanceQuantity, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showImbalanceSurplusRate', showImbalanceSurplusRate);
-    }, [showImbalanceSurplusRate, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showImbalanceDeficitRate', showImbalanceDeficitRate);
-    }, [showImbalanceDeficitRate, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showIntraday', showIntraday);
-    }, [showIntraday, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showIntradayAverage', showIntradayAverage);
-    }, [showIntradayAverage, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showInterconnection', showInterconnection);
-    }, [showInterconnection, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('showOcctoArea', showOcctoArea);
-    }, [showOcctoArea, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current || !selectedArea) return;
-        updatePreference('selectedArea', selectedArea);
-    }, [selectedArea, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('selectedModels', selectedModels);
-    }, [selectedModels, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('selectedWeatherModelActual', selectedWeatherModelActual);
-    }, [selectedWeatherModelActual, updatePreference]);
-
-    useEffect(() => {
-        if (!prefsLoadedRef.current) return;
-        updatePreference('selectedWeatherModelForecast', selectedWeatherModelForecast);
-    }, [selectedWeatherModelForecast, updatePreference]);
+        const current = loadPreferences();
+        const updated = {
+            ...current,
+            showImbalance,
+            showImbalanceQuantity,
+            showImbalanceSurplusRate,
+            showImbalanceDeficitRate,
+            showIntraday,
+            showIntradayAverage,
+            showInterconnection,
+            showOcctoArea,
+            ...(selectedArea ? { selectedArea } : {}),
+            selectedModels,
+            selectedWeatherModelActual,
+            selectedWeatherModelForecast,
+        };
+        savePreferences(updated);
+    }, [
+        showImbalance, showImbalanceQuantity, showImbalanceSurplusRate,
+        showImbalanceDeficitRate, showIntraday, showIntradayAverage,
+        showInterconnection, showOcctoArea, selectedArea, selectedModels,
+        selectedWeatherModelActual, selectedWeatherModelForecast,
+        loadPreferences, savePreferences,
+    ]);
 
     // ==========================================================================
     // Effects: Initial Data Fetch
