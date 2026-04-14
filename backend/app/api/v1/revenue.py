@@ -26,7 +26,7 @@ def sanitize_for_json(obj):
     return obj
 
 @router.post("", response_model=OptimizationResponse)
-async def optimize_revenue(
+def optimize_revenue(
     request: OptimizationRequest,
     current_user = Depends(get_current_user)
 ):
@@ -57,11 +57,11 @@ async def optimize_revenue(
         
     except Exception as e:
         logger.error(f"Optimization failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Optimization failed. Check server logs for details.")
 
 
 @router.post("/manual", response_model=OptimizationResponse)
-async def simulate_manual_revenue(
+def simulate_manual_revenue(
     request: ManualSimulationRequest,
     current_user = Depends(get_current_user)
 ):
@@ -88,4 +88,4 @@ async def simulate_manual_revenue(
 
     except Exception as e:
         logger.error(f"Manual simulation failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Manual simulation failed. Check server logs for details.")
