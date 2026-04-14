@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.get("/coverage")
-async def get_coverage(
+def get_coverage(
     start_date: str = Query(..., description="Start date in YYYYMMDD format"),
     end_date: str = Query(..., description="End date in YYYYMMDD format"),
     current_user=Depends(get_current_user),
@@ -27,7 +27,7 @@ async def get_coverage(
 
 
 @router.get("/sources")
-async def get_coverage_sources(
+def get_coverage_sources(
     current_user=Depends(get_current_user),
 ):
     """
@@ -38,7 +38,7 @@ async def get_coverage_sources(
 
 
 @router.get("/preview")
-async def get_coverage_preview(
+def get_coverage_preview(
     source_key: str = Query(..., description="Source key, e.g. 'spot_price', 'tdgc_1000'"),
     area: str = Query(..., description="Area name (lowercase) or 'system'"),
     date: str = Query(..., description="Date in YYYYMMDD format"),
@@ -52,7 +52,7 @@ async def get_coverage_preview(
 
 
 @router.get("/calculate-times")
-async def get_prediction_calculate_times(
+def get_prediction_calculate_times(
     source_key: str = Query(..., description="Prediction source key, e.g. 'prediction_mersol'"),
     area: str = Query(..., description="Area name (lowercase)"),
     date: str = Query(..., description="Date in YYYYMMDD format"),
@@ -67,7 +67,7 @@ async def get_prediction_calculate_times(
 
 
 @router.get("/records")
-async def get_coverage_records(
+def get_coverage_records(
     source_key: str = Query(..., description="Source key, e.g. 'spot_price'"),
     area: str = Query(..., description="Area name (lowercase) or 'system'"),
     date: str = Query(..., description="Date in YYYYMMDD format"),
@@ -88,7 +88,7 @@ async def get_coverage_records(
 
 
 @router.get("/detail")
-async def get_coverage_detail(
+def get_coverage_detail(
     source_key: str = Query(..., description="Source key, e.g. 'spot_price'"),
     area: str = Query(..., description="Area name (lowercase) or 'system'"),
     date: str = Query(..., description="Date in YYYYMMDD format"),

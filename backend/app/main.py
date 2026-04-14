@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
 
 from app.core.logging import setup_logging
@@ -21,7 +22,8 @@ def create_application() -> FastAPI:
         redoc_url=None,    # Disable default /redoc
     )
 
-    # ... CORS setup ...
+    # GZip compression for responses > 1KB
+    application.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # Protected Documentation Routes
     from fastapi import Depends
@@ -43,23 +45,18 @@ def create_application() -> FastAPI:
 
 
     # Set all CORS enabled origins
-    if settings.BACKEND_CORS_ORIGINS:
-        application.add_middleware(
-            CORSMiddleware,
-            allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-    else:
-        # Default to allow all for dev if not specified
-        application.add_middleware(
-            CORSMiddleware,
-            allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:6873"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+    cors_origins = (
+        [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+        if settings.BACKEND_CORS_ORIGINS
+        else ["http://localhost:3000", "http://localhost:8000", "http://localhost:6873"]
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
         
     # Register Exception Handlers
     application.add_exception_handler(StarletteHTTPException, http_exception_handler)

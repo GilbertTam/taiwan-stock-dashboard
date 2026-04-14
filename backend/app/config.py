@@ -1,7 +1,10 @@
 import os
+import warnings
 from typing import List, Union, Dict, Any
 from pydantic import AnyHttpUrl, EmailStr, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_INSECURE_DEFAULT_KEY = "django-insecure-h0usnb4^27w+^)i*)f24$i$@#*(^*D(*)W&*(&cj42wsi1n@0&+7@G)"
 
 class Settings(BaseSettings):
     """
@@ -14,13 +17,20 @@ class Settings(BaseSettings):
         extra="ignore"  # Allow extra fields in .env
     )
 
+    # Environment: "development" or "production"
+    ENV: str = "development"
+
     API_V1_STR: str = "/api"
     PROJECT_NAME: str = "JEPX Spot Price Dashboard API"
-    
+
     # SECURITY
-    SECRET_KEY: str = "django-insecure-h0usnb4^27w+^)i*)f24$i$@#*(^*D(*)W&*(&cj42wsi1n@0&+7@G)"  # Default from old settings for dev
+    SECRET_KEY: str = _INSECURE_DEFAULT_KEY
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     ALGORITHM: str = "HS256"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV.lower() == "production"
     
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -91,3 +101,16 @@ class Settings(BaseSettings):
         }
 
 settings = Settings()
+
+# Startup validation
+if settings.SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    if settings.is_production:
+        raise RuntimeError(
+            "SECRET_KEY is using the insecure default value. "
+            "Set a strong SECRET_KEY environment variable for production."
+        )
+    warnings.warn(
+        "SECRET_KEY is using the insecure default value. "
+        "Set SECRET_KEY in your .env file for non-development environments.",
+        stacklevel=1,
+    )
