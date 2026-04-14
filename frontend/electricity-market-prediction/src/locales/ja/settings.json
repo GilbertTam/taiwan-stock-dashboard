@@ -2,9 +2,10 @@
   "title": "設定",
   "appearance": {
     "title": "表示",
-    "description": "インターフェースをダークテーマまたはライトテーマに切り替えます。",
-    "darkMode": "ダークモード",
-    "lightMode": "ライトモード"
+    "description": "お好みのテーマを選択するか、システム設定に合わせます。",
+    "darkMode": "ダーク",
+    "lightMode": "ライト",
+    "systemMode": "システム"
   },
   "language": {
     "title": "言語",

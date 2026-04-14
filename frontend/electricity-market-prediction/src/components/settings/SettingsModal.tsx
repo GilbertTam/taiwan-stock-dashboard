@@ -6,8 +6,6 @@ import {
   DialogContent,
   Box,
   Typography,
-  Switch,
-  FormControlLabel,
   IconButton,
   Divider,
   ToggleButtonGroup,
@@ -16,10 +14,11 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
+import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import LanguageIcon from '@mui/icons-material/Language';
 import TuneIcon from '@mui/icons-material/Tune';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useTheme, type Locale } from '@/app/ThemeProvider';
+import { useTheme, type Locale, type ThemePreference } from '@/app/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 
 interface SettingsModalProps {
@@ -31,8 +30,8 @@ const sectionCardSx = {
   position: 'relative' as const,
   p: 2.5,
   borderRadius: 1.5,
-  border: '1px solid rgba(255,255,255,0.06)',
-  backgroundColor: 'rgba(255,255,255,0.03)',
+  border: '1px solid var(--subtle-border)',
+  backgroundColor: 'var(--subtle-bg)',
   overflow: 'hidden',
 };
 
@@ -71,9 +70,38 @@ const LOCALE_LABELS: Record<Locale, string> = {
   ja: '日本語',
 };
 
+const THEME_ICONS: Record<ThemePreference, typeof DarkModeIcon> = {
+  dark: DarkModeIcon,
+  light: LightModeIcon,
+  system: SettingsBrightnessIcon,
+};
+
+const toggleButtonGroupSx = {
+  gap: 1,
+  '& .MuiToggleButton-root': {
+    border: '1px solid var(--subtle-border-medium)',
+    borderRadius: '6px !important',
+    color: 'var(--muted)',
+    fontSize: '0.8125rem',
+    fontWeight: 500,
+    px: 2,
+    py: 0.75,
+    textTransform: 'none',
+    '&.Mui-selected': {
+      backgroundColor: 'var(--primary-alpha-12)',
+      borderColor: 'var(--primary)',
+      color: 'var(--primary)',
+      '&:hover': { backgroundColor: 'var(--primary-alpha-18)' },
+    },
+    '&:hover': { backgroundColor: 'var(--subtle-bg-hover)', borderColor: 'var(--subtle-border-medium)' },
+  },
+};
+
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { darkMode, setDarkMode, locale, setLocale } = useTheme();
+  const { themePreference, setThemePreference, darkMode, locale, setLocale } = useTheme();
   const { t } = useTranslation('settings');
+
+  const ThemeIcon = THEME_ICONS[themePreference];
 
   return (
     <Dialog
@@ -88,7 +116,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid var(--card-border)',
           borderRadius: 2,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          boxShadow: 'var(--modal-shadow)',
           overflow: 'hidden',
         },
       }}
@@ -137,32 +165,35 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <Box sx={sectionCardSx}>
           <GradientBar />
           <Typography variant="subtitle2" sx={sectionTitleSx}>
-            {darkMode ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
+            <ThemeIcon fontSize="small" />
             {t('appearance.title')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
             {t('appearance.description')}
           </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={darkMode}
-                onChange={(_, checked) => setDarkMode(checked)}
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': { color: 'var(--primary)' },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: 'var(--primary)' },
-                }}
-              />
-            }
-            label={
-              <Typography variant="body2" sx={{ color: 'var(--foreground)', fontWeight: 500 }}>
-                {darkMode ? t('appearance.darkMode') : t('appearance.lightMode')}
-              </Typography>
-            }
-          />
+          <ToggleButtonGroup
+            value={themePreference}
+            exclusive
+            onChange={(_, value) => { if (value) setThemePreference(value as ThemePreference); }}
+            size="small"
+            sx={toggleButtonGroupSx}
+          >
+            <ToggleButton value="light">
+              <LightModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              {t('appearance.lightMode')}
+            </ToggleButton>
+            <ToggleButton value="dark">
+              <DarkModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              {t('appearance.darkMode')}
+            </ToggleButton>
+            <ToggleButton value="system">
+              <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              {t('appearance.systemMode')}
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
 
         {/* Language */}
         <Box sx={sectionCardSx}>
@@ -179,26 +210,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             exclusive
             onChange={(_, value) => { if (value) setLocale(value as Locale); }}
             size="small"
-            sx={{
-              gap: 1,
-              '& .MuiToggleButton-root': {
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '6px !important',
-                color: 'var(--muted)',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-                px: 2,
-                py: 0.75,
-                textTransform: 'none',
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(0,255,157,0.12)',
-                  borderColor: 'var(--primary)',
-                  color: 'var(--primary)',
-                  '&:hover': { backgroundColor: 'rgba(0,255,157,0.18)' },
-                },
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.2)' },
-              },
-            }}
+            sx={toggleButtonGroupSx}
           >
             {(Object.entries(LOCALE_LABELS) as [Locale, string][]).map(([value, label]) => (
               <ToggleButton key={value} value={value}>
@@ -208,7 +220,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </ToggleButtonGroup>
         </Box>
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
 
         {/* Preferences placeholder */}
         <Box sx={sectionCardSx}>

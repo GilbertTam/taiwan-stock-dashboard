@@ -81,7 +81,7 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(0, 255, 157, 0.25)',
+            boxShadow: 'var(--logo-glow)',
           }}
         >
           <BoltIcon sx={{ fontSize: 30, color: 'var(--primary-foreground)' }} />

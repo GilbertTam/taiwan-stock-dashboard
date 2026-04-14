@@ -47,6 +47,34 @@
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
   --scrollbar-track: transparent;
 
+  /* Glass / overlay backgrounds (login, settings, cards) */
+  --region-block-bg: rgba(0, 0, 0, 0.55);
+  --region-block-bg-active: rgba(0, 0, 0, 0.6);
+  --port-bg: rgba(0, 0, 0, 0.6);
+  --port-inner-shadow: rgba(0, 0, 0, 0.3);
+  --block-shadow: rgba(0, 0, 0, 0.25);
+  --block-shadow-active: rgba(0, 0, 0, 0.4);
+  --chip-bg: rgba(0, 0, 0, 0.5);
+
+  /* Subtle overlay borders / backgrounds */
+  --subtle-border: rgba(255, 255, 255, 0.06);
+  --subtle-border-medium: rgba(255, 255, 255, 0.12);
+  --subtle-bg: rgba(255, 255, 255, 0.03);
+  --subtle-bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* Primary color alpha variants */
+  --primary-alpha-12: rgba(0, 255, 157, 0.12);
+  --primary-alpha-18: rgba(0, 255, 157, 0.18);
+  --primary-alpha-25: rgba(0, 255, 157, 0.25);
+
+  /* Circuit board background opacity */
+  --circuit-bg-opacity: 0.55;
+
+  /* Elevated shadows */
+  --elevated-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.4);
+  --modal-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --logo-glow: 0 8px 24px rgba(0, 255, 157, 0.25);
+
   /* Spacing tokens (4px base) */
   --space-1: 4px;
   --space-2: 8px;
@@ -98,10 +126,45 @@
   --header-bg: rgba(255, 255, 255, 0.8);
   --sidebar-border: rgba(0, 0, 0, 0.1);
 
+  /* Status (adjusted for light bg contrast) */
+  --date-picker-selected: #00915a;
+  --success: #00a86b;
+  --warning: #d4a017;
+  --error: #dc2626;
+  --accent: #c026d3;
+
   /* Scrollbar */
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
   --scrollbar-track: transparent;
+
+  /* Glass / overlay backgrounds */
+  --region-block-bg: rgba(255, 255, 255, 0.75);
+  --region-block-bg-active: rgba(255, 255, 255, 0.85);
+  --port-bg: rgba(255, 255, 255, 0.8);
+  --port-inner-shadow: rgba(0, 0, 0, 0.08);
+  --block-shadow: rgba(0, 0, 0, 0.08);
+  --block-shadow-active: rgba(0, 0, 0, 0.15);
+  --chip-bg: rgba(255, 255, 255, 0.7);
+
+  /* Subtle overlay borders / backgrounds */
+  --subtle-border: rgba(0, 0, 0, 0.06);
+  --subtle-border-medium: rgba(0, 0, 0, 0.12);
+  --subtle-bg: rgba(0, 0, 0, 0.02);
+  --subtle-bg-hover: rgba(0, 0, 0, 0.04);
+
+  /* Primary color alpha variants */
+  --primary-alpha-12: rgba(0, 168, 107, 0.12);
+  --primary-alpha-18: rgba(0, 168, 107, 0.18);
+  --primary-alpha-25: rgba(0, 168, 107, 0.25);
+
+  /* Circuit board background opacity */
+  --circuit-bg-opacity: 0.35;
+
+  /* Elevated shadows */
+  --elevated-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.12);
+  --modal-shadow: 0 24px 64px rgba(0, 0, 0, 0.15);
+  --logo-glow: 0 8px 24px rgba(0, 168, 107, 0.2);
 }
 
 @theme inline {
@@ -137,7 +200,7 @@
   }
 
   .text-glow {
-    text-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+    text-shadow: 0 0 10px var(--primary-alpha-25);
   }
 }
 

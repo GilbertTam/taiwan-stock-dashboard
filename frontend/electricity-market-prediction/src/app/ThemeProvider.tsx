@@ -69,21 +69,29 @@ const darkTheme = createTheme({
   },
 });
 
-// We are prioritizing Dark Mode layout, but keeping light mode just in case fallback is needed (though it might look off with the new global CSS)
 const lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#008f5d',
+      main: '#00a86b', // Match CSS --primary for light
     },
     secondary: {
-      main: '#007bb5',
+      main: '#007bb5', // Match CSS --secondary for light
+    },
+    background: {
+      default: '#f0f2f5',
+      paper: 'rgba(255, 255, 255, 0.8)',
+    },
+    text: {
+      primary: '#1a1a1a',
+      secondary: '#666666',
     },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
+          backgroundColor: '#f0f2f5',
           scrollbarColor: 'var(--scrollbar-thumb) var(--scrollbar-track)',
           '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
             backgroundColor: 'var(--scrollbar-track)',
@@ -101,6 +109,15 @@ const lightTheme = createTheme({
         },
       },
     },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          border: '1px solid rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
     MuiMenu: {
       styleOverrides: {
         paper: {
@@ -114,8 +131,10 @@ const lightTheme = createTheme({
 });
 
 export type Locale = 'zh-TW' | 'en' | 'ja';
+export type ThemePreference = 'dark' | 'light' | 'system';
 
 const SUPPORTED_LOCALES: Locale[] = ['zh-TW', 'en', 'ja'];
+const VALID_THEME_PREFS: ThemePreference[] = ['dark', 'light', 'system'];
 
 function getSavedLocale(): Locale {
   if (typeof window === 'undefined') return 'zh-TW';
@@ -123,15 +142,36 @@ function getSavedLocale(): Locale {
   return SUPPORTED_LOCALES.includes(saved as Locale) ? (saved as Locale) : 'zh-TW';
 }
 
-function getSavedDarkMode(): boolean {
+function getSavedThemePreference(): ThemePreference {
+  if (typeof window === 'undefined') return 'system';
+  const saved = localStorage.getItem('hdjp-theme');
+  if (VALID_THEME_PREFS.includes(saved as ThemePreference)) return saved as ThemePreference;
+  return 'system'; // new users default to system
+}
+
+function getSystemDarkMode(): boolean {
   if (typeof window === 'undefined') return true;
-  return localStorage.getItem('hdjp-theme') !== 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function useSystemDarkMode(): boolean {
+  const [systemDark, setSystemDark] = useState(getSystemDarkMode);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return systemDark;
 }
 
 // 創建上下文
 interface ThemeContextType {
-  darkMode: boolean;
-  setDarkMode: (darkMode: boolean) => void;
+  themePreference: ThemePreference;
+  setThemePreference: (pref: ThemePreference) => void;
+  darkMode: boolean; // resolved actual mode — backward compatible for 36+ consuming files
   locale: Locale;
   setLocale: (locale: Locale) => void;
   settingsOpen: boolean;
@@ -139,8 +179,9 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
+  themePreference: 'system',
+  setThemePreference: () => { },
   darkMode: true,
-  setDarkMode: () => { },
   locale: 'zh-TW',
   setLocale: () => { },
   settingsOpen: false,
@@ -154,9 +195,12 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [darkMode, setDarkModeState] = useState<boolean>(getSavedDarkMode);
+  const [themePreference, setThemePrefState] = useState<ThemePreference>(getSavedThemePreference);
   const [locale, setLocaleState] = useState<Locale>(getSavedLocale);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const systemDark = useSystemDarkMode();
+  const darkMode = themePreference === 'system' ? systemDark : themePreference === 'dark';
 
   // Sync theme with body data attribute so CSS variables work
   useEffect(() => {
@@ -172,10 +216,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }
   }, [locale]);
 
-  const setDarkMode = (value: boolean) => {
-    setDarkModeState(value);
-    localStorage.setItem('hdjp-theme', value ? 'dark' : 'light');
-    document.body.dataset.theme = value ? 'dark' : 'light';
+  const setThemePreference = (value: ThemePreference) => {
+    setThemePrefState(value);
+    localStorage.setItem('hdjp-theme', value);
+    const resolved = value === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : value;
+    document.body.dataset.theme = resolved;
   };
 
   const setLocale = (value: Locale) => {
@@ -189,7 +236,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   };
 
   return (
-    <ThemeContext.Provider value={{ darkMode, setDarkMode, locale, setLocale, settingsOpen, setSettingsOpen }}>
+    <ThemeContext.Provider value={{ themePreference, setThemePreference, darkMode, locale, setLocale, settingsOpen, setSettingsOpen }}>
       <MuiThemeProvider theme={darkMode ? darkTheme : lightTheme}>
         <CssBaseline />
         {children}

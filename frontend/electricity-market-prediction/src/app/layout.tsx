@@ -17,6 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var p=localStorage.getItem('hdjp-theme');var d=p==='dark'||(p!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.body.dataset.theme=d?'dark':'light'}catch(e){}})()` }} />
+      </head>
       <body>
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <AuthProvider>

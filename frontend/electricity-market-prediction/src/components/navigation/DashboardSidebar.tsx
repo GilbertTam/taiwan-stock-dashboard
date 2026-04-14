@@ -15,6 +15,8 @@ import LayersIcon from '@mui/icons-material/Layers';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
+import type { ThemePreference } from '@/app/ThemeProvider';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/app/ThemeProvider';
@@ -39,7 +41,14 @@ export function DashboardSidebar() {
     const router   = useRouter();
     const pathname = usePathname();
     const { user, logout } = useAuth();
-    const { darkMode, setDarkMode, setSettingsOpen } = useTheme();
+    const { darkMode, themePreference, setThemePreference, setSettingsOpen } = useTheme();
+    const cycleTheme = () => {
+        const order: ThemePreference[] = ['dark', 'light', 'system'];
+        const next = order[(order.indexOf(themePreference) + 1) % order.length];
+        setThemePreference(next);
+    };
+    const themeLabel = themePreference === 'system' ? 'sidebar.systemMode' : darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode';
+    const ThemeToggleIcon = themePreference === 'system' ? SettingsBrightnessIcon : darkMode ? Brightness7Icon : Brightness4Icon;
     const { t } = useTranslation('navigation');
     const [expanded, setExpanded] = useState(false);
 
@@ -207,8 +216,8 @@ export function DashboardSidebar() {
                 {/* Theme toggle */}
                 <ButtonBase
                     disableRipple
-                    title={!expanded ? t(darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode') : undefined}
-                    onClick={() => setDarkMode(!darkMode)}
+                    title={!expanded ? t(themeLabel) : undefined}
+                    onClick={cycleTheme}
                     sx={{
                         width: '100%',
                         height: 40,
@@ -221,16 +230,13 @@ export function DashboardSidebar() {
                     }}
                 >
                     <Box sx={{ width: ICON_SLOT_W, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                        {darkMode
-                            ? <Brightness7Icon sx={{ fontSize: 18, color: 'var(--muted)' }} />
-                            : <Brightness4Icon sx={{ fontSize: 18, color: 'var(--muted)' }} />
-                        }
+                        <ThemeToggleIcon sx={{ fontSize: 18, color: 'var(--muted)' }} />
                     </Box>
                     <Typography
                         component="span"
                         sx={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity 0.15s ease' }}
                     >
-                        {t(darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode')}
+                        {t(themeLabel)}
                     </Typography>
                 </ButtonBase>
 

@@ -25,13 +25,13 @@ export function LoginFormCard({ onSubmit, mode = 'login', onSetupComplete }: Log
         backdropFilter: 'blur(16px)',
         borderRadius: 1.5,
         border: '1px solid var(--card-border)',
-        boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.4)',
+        boxShadow: 'var(--elevated-shadow)',
         overflow: 'hidden',
         zIndex: 1,
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
         '&:focus-within': {
           borderColor: 'var(--primary)',
-          boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--primary)',
+          boxShadow: 'var(--elevated-shadow), 0 0 0 1px var(--primary)',
         },
       }}
     >

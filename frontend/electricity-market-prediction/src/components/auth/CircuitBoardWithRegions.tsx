@@ -195,8 +195,8 @@ const portBase = {
   height: 10,
   borderRadius: '50%',
   border: '2px solid var(--card-border)',
-  backgroundColor: 'rgba(0,0,0,0.6)',
-  boxShadow: 'inset 0 0 4px rgba(0,0,0,0.3)',
+  backgroundColor: 'var(--port-bg)',
+  boxShadow: 'inset 0 0 4px var(--port-inner-shadow)',
 };
 const portPos = (side: 'top' | 'right' | 'bottom' | 'left') => {
   const c = '50%';
@@ -243,10 +243,10 @@ function RegionBlock({ area, price, change, left, top, pulseDelaySec, inputSide,
         pt: { lg: 1.25, xl: 1.5 },
         pb: { lg: 1.25, xl: 1.5 },
         borderRadius: 1.5,
-        backgroundColor: 'rgba(0,0,0,0.55)',
+        backgroundColor: 'var(--region-block-bg)',
         backdropFilter: 'blur(10px)',
         border: '1px solid var(--card-border)',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+        boxShadow: '0 4px 16px var(--block-shadow)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -257,27 +257,27 @@ function RegionBlock({ area, price, change, left, top, pulseDelaySec, inputSide,
         '@keyframes regionPulse': {
           '0%, 100%': {
             transform: 'translate(-50%, -50%) translateY(0) scale(1)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            boxShadow: '0 4px 16px var(--block-shadow)',
             borderColor: 'var(--card-border)',
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            backgroundColor: 'var(--region-block-bg)',
           },
           '6%': {
             transform: 'translate(-50%, -50%) translateY(-18px) scale(1.12)',
-            boxShadow: '0 0 0 2px var(--primary), 0 0 24px var(--primary), 0 12px 32px rgba(0,0,0,0.4)',
+            boxShadow: '0 0 0 2px var(--primary), 0 0 24px var(--primary), 0 12px 32px var(--block-shadow-active)',
             borderColor: 'var(--primary)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--region-block-bg-active)',
           },
           '18%': {
             transform: 'translate(-50%, -50%) translateY(-18px) scale(1.12)',
-            boxShadow: '0 0 0 2px var(--primary), 0 0 24px var(--primary), 0 12px 32px rgba(0,0,0,0.4)',
+            boxShadow: '0 0 0 2px var(--primary), 0 0 24px var(--primary), 0 12px 32px var(--block-shadow-active)',
             borderColor: 'var(--primary)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--region-block-bg-active)',
           },
           '28%': {
             transform: 'translate(-50%, -50%) translateY(0) scale(1)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            boxShadow: '0 4px 16px var(--block-shadow)',
             borderColor: 'var(--card-border)',
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            backgroundColor: 'var(--region-block-bg)',
           },
         },
         '@media (prefers-reduced-motion: reduce)': {
@@ -291,7 +291,7 @@ function RegionBlock({ area, price, change, left, top, pulseDelaySec, inputSide,
           ...portBase,
           ...portPos(inputSide),
           borderColor: 'var(--secondary)',
-          boxShadow: 'inset 0 0 4px rgba(0,0,0,0.3), 0 0 6px var(--secondary)',
+          boxShadow: 'inset 0 0 4px var(--port-inner-shadow), 0 0 6px var(--secondary)',
         }}
       >
         <PortArrow dir={sideToArrow(inputSide, true)} color="var(--secondary)" />
@@ -302,7 +302,7 @@ function RegionBlock({ area, price, change, left, top, pulseDelaySec, inputSide,
           ...portBase,
           ...portPos(outputSide),
           borderColor: 'var(--primary)',
-          boxShadow: 'inset 0 0 4px rgba(0,0,0,0.3), 0 0 6px var(--primary)',
+          boxShadow: 'inset 0 0 4px var(--port-inner-shadow), 0 0 6px var(--primary)',
         }}
       >
         <PortArrow dir={sideToArrow(outputSide, false)} color="var(--primary)" />
@@ -366,7 +366,7 @@ function RegionChip({
         px: { xs: 1, sm: 1.25 },
         py: 1,
         borderRadius: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'var(--chip-bg)',
         backdropFilter: 'blur(8px)',
         border: '1px solid var(--card-border)',
         display: 'flex',

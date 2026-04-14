@@ -19,7 +19,7 @@ export function CircuitBoardBackground() {
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        opacity: 0.55,
+        opacity: 'var(--circuit-bg-opacity)',
       }}
     >
       <defs>

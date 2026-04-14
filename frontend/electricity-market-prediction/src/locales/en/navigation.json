@@ -11,6 +11,7 @@
     "logout": "Logout",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
+    "systemMode": "System Theme",
     "admin": "Admin"
   },
   "userMenu": {

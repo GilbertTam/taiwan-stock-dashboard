@@ -2,9 +2,10 @@
   "title": "Settings",
   "appearance": {
     "title": "Appearance",
-    "description": "Switch the interface between dark and light themes.",
-    "darkMode": "Dark Mode",
-    "lightMode": "Light Mode"
+    "description": "Choose your preferred theme, or sync with your system setting.",
+    "darkMode": "Dark",
+    "lightMode": "Light",
+    "systemMode": "System"
   },
   "language": {
     "title": "Language",
