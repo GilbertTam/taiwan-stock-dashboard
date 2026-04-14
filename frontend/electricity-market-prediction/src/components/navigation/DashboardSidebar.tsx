@@ -16,7 +16,8 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
-import type { ThemePreference } from '@/app/ThemeProvider';
+import LanguageIcon from '@mui/icons-material/Language';
+import type { ThemePreference, LocalePreference } from '@/app/ThemeProvider';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/app/ThemeProvider';
@@ -37,22 +38,130 @@ const EXPANDED_W  = 200;
 // Fixed icon slot width = collapsed sidebar width (icon always centered in same spot)
 const ICON_SLOT_W = COLLAPSED_W;
 
+const THEME_OPTIONS: { value: ThemePreference; Icon: React.ElementType }[] = [
+    { value: 'dark',   Icon: Brightness4Icon },
+    { value: 'light',  Icon: Brightness7Icon },
+    { value: 'system', Icon: SettingsBrightnessIcon },
+];
+
+const LANG_OPTIONS: { value: LocalePreference; label: string }[] = [
+    { value: 'zh-TW',  label: '中' },
+    { value: 'en',     label: 'EN' },
+    { value: 'ja',     label: '日' },
+    { value: 'system', label: 'Auto' },
+];
+
+const THEME_ICON_MAP: Record<ThemePreference, React.ElementType> = {
+    dark: Brightness4Icon,
+    light: Brightness7Icon,
+    system: SettingsBrightnessIcon,
+};
+
+function SegmentedIcons<T extends string>({
+    options,
+    value,
+    onChange,
+}: {
+    options: { value: T; Icon: React.ElementType }[];
+    value: T;
+    onChange: (v: T) => void;
+}) {
+    return (
+        <Box sx={{ display: 'flex', gap: '2px', p: '2px', borderRadius: '7px', background: 'var(--subtle-bg)' }}>
+            {options.map((opt) => {
+                const active = opt.value === value;
+                return (
+                    <ButtonBase
+                        key={opt.value}
+                        disableRipple
+                        onClick={() => onChange(opt.value)}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 24,
+                            borderRadius: '5px',
+                            transition: 'all 0.15s ease',
+                            backgroundColor: active ? 'rgba(0,204,122,0.12)' : 'transparent',
+                            color: active ? 'var(--primary)' : 'var(--muted)',
+                            '&:hover': { backgroundColor: active ? 'rgba(0,204,122,0.18)' : 'var(--hover-bg)' },
+                        }}
+                    >
+                        <opt.Icon sx={{ fontSize: 14 }} />
+                    </ButtonBase>
+                );
+            })}
+        </Box>
+    );
+}
+
+function SegmentedText<T extends string>({
+    options,
+    value,
+    onChange,
+}: {
+    options: { value: T; label: string }[];
+    value: T;
+    onChange: (v: T) => void;
+}) {
+    return (
+        <Box sx={{ display: 'flex', gap: '2px', p: '2px', borderRadius: '7px', background: 'var(--subtle-bg)' }}>
+            {options.map((opt) => {
+                const active = opt.value === value;
+                return (
+                    <ButtonBase
+                        key={opt.value}
+                        disableRipple
+                        onClick={() => onChange(opt.value)}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 28,
+                            height: 24,
+                            px: 0.5,
+                            borderRadius: '5px',
+                            transition: 'all 0.15s ease',
+                            backgroundColor: active ? 'rgba(0,204,122,0.12)' : 'transparent',
+                            color: active ? 'var(--primary)' : 'var(--muted)',
+                            fontSize: 11,
+                            fontWeight: active ? 700 : 500,
+                            '&:hover': { backgroundColor: active ? 'rgba(0,204,122,0.18)' : 'var(--hover-bg)' },
+                        }}
+                    >
+                        {opt.label}
+                    </ButtonBase>
+                );
+            })}
+        </Box>
+    );
+}
+
 export function DashboardSidebar() {
     const router   = useRouter();
     const pathname = usePathname();
     const { user, logout } = useAuth();
-    const { darkMode, themePreference, setThemePreference, setSettingsOpen } = useTheme();
+    const { darkMode, themePreference, setThemePreference, localePreference, setLocale, setSettingsOpen } = useTheme();
+    const { t } = useTranslation('navigation');
+    const [expanded, setExpanded] = useState(false);
+
+    const avatarLetter = user ? user.charAt(0).toUpperCase() : null;
+
+    // Current theme icon for collapsed state
+    const CurrentThemeIcon = THEME_ICON_MAP[themePreference];
+
+    // Cycle helpers for collapsed click
     const cycleTheme = () => {
         const order: ThemePreference[] = ['dark', 'light', 'system'];
         const next = order[(order.indexOf(themePreference) + 1) % order.length];
         setThemePreference(next);
     };
-    const themeLabel = themePreference === 'system' ? 'sidebar.systemMode' : darkMode ? 'sidebar.lightMode' : 'sidebar.darkMode';
-    const ThemeToggleIcon = themePreference === 'system' ? SettingsBrightnessIcon : darkMode ? Brightness7Icon : Brightness4Icon;
-    const { t } = useTranslation('navigation');
-    const [expanded, setExpanded] = useState(false);
-
-    const avatarLetter = user ? user.charAt(0).toUpperCase() : null;
+    const cycleLang = () => {
+        const order: LocalePreference[] = ['zh-TW', 'en', 'ja', 'system'];
+        const next = order[(order.indexOf(localePreference) + 1) % order.length];
+        setLocale(next);
+    };
 
     return (
         <Box
@@ -213,11 +322,8 @@ export function DashboardSidebar() {
                     </Box>
                 </Box>
 
-                {/* Theme toggle */}
-                <ButtonBase
-                    disableRipple
-                    title={!expanded ? t(themeLabel) : undefined}
-                    onClick={cycleTheme}
+                {/* Theme segmented control */}
+                <Box
                     sx={{
                         width: '100%',
                         height: 40,
@@ -225,20 +331,68 @@ export function DashboardSidebar() {
                         alignItems: 'center',
                         justifyContent: 'flex-start',
                         flexShrink: 0,
-                        transition: 'background-color 0.15s ease',
-                        '&:hover': { backgroundColor: 'var(--hover-bg)' },
                     }}
                 >
-                    <Box sx={{ width: ICON_SLOT_W, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                        <ThemeToggleIcon sx={{ fontSize: 18, color: 'var(--muted)' }} />
-                    </Box>
-                    <Typography
-                        component="span"
-                        sx={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity 0.15s ease' }}
+                    <Box
+                        component={expanded ? 'div' : ButtonBase}
+                        {...(!expanded && { disableRipple: true, onClick: cycleTheme })}
+                        title={!expanded ? t('sidebar.theme') : undefined}
+                        sx={{
+                            width: ICON_SLOT_W,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            flexShrink: 0,
+                            ...(!expanded && {
+                                height: 40,
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: 'var(--hover-bg)' },
+                                transition: 'background-color 0.15s ease',
+                            }),
+                        }}
                     >
-                        {t(themeLabel)}
-                    </Typography>
-                </ButtonBase>
+                        <CurrentThemeIcon sx={{ fontSize: 18, color: 'var(--muted)' }} />
+                    </Box>
+                    <Box sx={{ opacity: expanded ? 1 : 0, pointerEvents: expanded ? 'auto' : 'none', transition: 'opacity 0.15s ease' }}>
+                        <SegmentedIcons options={THEME_OPTIONS} value={themePreference} onChange={setThemePreference} />
+                    </Box>
+                </Box>
+
+                {/* Language segmented control */}
+                <Box
+                    sx={{
+                        width: '100%',
+                        height: 40,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        flexShrink: 0,
+                    }}
+                >
+                    <Box
+                        component={expanded ? 'div' : ButtonBase}
+                        {...(!expanded && { disableRipple: true, onClick: cycleLang })}
+                        title={!expanded ? t('sidebar.language') : undefined}
+                        sx={{
+                            width: ICON_SLOT_W,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            flexShrink: 0,
+                            ...(!expanded && {
+                                height: 40,
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: 'var(--hover-bg)' },
+                                transition: 'background-color 0.15s ease',
+                            }),
+                        }}
+                    >
+                        <LanguageIcon sx={{ fontSize: 18, color: 'var(--muted)' }} />
+                    </Box>
+                    <Box sx={{ opacity: expanded ? 1 : 0, pointerEvents: expanded ? 'auto' : 'none', transition: 'opacity 0.15s ease' }}>
+                        <SegmentedText options={LANG_OPTIONS} value={localePreference} onChange={setLocale} />
+                    </Box>
+                </Box>
 
                 {/* Settings → opens modal */}
                 <ButtonBase

@@ -9,7 +9,8 @@
   },
   "language": {
     "title": "語言",
-    "description": "選擇介面顯示語言。"
+    "description": "選擇介面顯示語言。",
+    "systemLocale": "自動"
   },
   "preferences": {
     "title": "偏好設定",

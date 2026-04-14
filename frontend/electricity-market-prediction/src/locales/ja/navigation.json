@@ -12,7 +12,10 @@
     "lightMode": "ライトモード",
     "darkMode": "ダークモード",
     "systemMode": "システムテーマ",
-    "admin": "管理者"
+    "admin": "管理者",
+    "theme": "テーマ",
+    "language": "言語",
+    "autoLocale": "自動"
   },
   "userMenu": {
     "settings": "設定",

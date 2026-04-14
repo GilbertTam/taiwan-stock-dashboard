@@ -131,15 +131,26 @@ const lightTheme = createTheme({
 });
 
 export type Locale = 'zh-TW' | 'en' | 'ja';
+export type LocalePreference = Locale | 'system';
 export type ThemePreference = 'dark' | 'light' | 'system';
 
 const SUPPORTED_LOCALES: Locale[] = ['zh-TW', 'en', 'ja'];
+const VALID_LOCALE_PREFS: LocalePreference[] = ['zh-TW', 'en', 'ja', 'system'];
 const VALID_THEME_PREFS: ThemePreference[] = ['dark', 'light', 'system'];
 
-function getSavedLocale(): Locale {
+function getSystemLocale(): Locale {
   if (typeof window === 'undefined') return 'zh-TW';
+  const lang = navigator.language;
+  if (lang.startsWith('ja')) return 'ja';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('zh')) return 'zh-TW';
+  return 'zh-TW';
+}
+
+function getSavedLocalePreference(): LocalePreference {
+  if (typeof window === 'undefined') return 'system';
   const saved = localStorage.getItem('hdjp-language');
-  return SUPPORTED_LOCALES.includes(saved as Locale) ? (saved as Locale) : 'zh-TW';
+  return VALID_LOCALE_PREFS.includes(saved as LocalePreference) ? (saved as LocalePreference) : 'zh-TW';
 }
 
 function getSavedThemePreference(): ThemePreference {
@@ -167,13 +178,26 @@ function useSystemDarkMode(): boolean {
   return systemDark;
 }
 
+function useSystemLocale(): Locale {
+  const [systemLocale, setSystemLocale] = useState(getSystemLocale);
+
+  useEffect(() => {
+    const handler = () => setSystemLocale(getSystemLocale());
+    window.addEventListener('languagechange', handler);
+    return () => window.removeEventListener('languagechange', handler);
+  }, []);
+
+  return systemLocale;
+}
+
 // 創建上下文
 interface ThemeContextType {
   themePreference: ThemePreference;
   setThemePreference: (pref: ThemePreference) => void;
   darkMode: boolean; // resolved actual mode — backward compatible for 36+ consuming files
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
+  localePreference: LocalePreference;
+  locale: Locale; // resolved actual locale (never 'system') — backward compatible
+  setLocale: (locale: LocalePreference) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
 }
@@ -182,6 +206,7 @@ const ThemeContext = createContext<ThemeContextType>({
   themePreference: 'system',
   setThemePreference: () => { },
   darkMode: true,
+  localePreference: 'system',
   locale: 'zh-TW',
   setLocale: () => { },
   settingsOpen: false,
@@ -196,11 +221,14 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [themePreference, setThemePrefState] = useState<ThemePreference>(getSavedThemePreference);
-  const [locale, setLocaleState] = useState<Locale>(getSavedLocale);
+  const [localePreference, setLocalePrefState] = useState<LocalePreference>(getSavedLocalePreference);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const systemDark = useSystemDarkMode();
   const darkMode = themePreference === 'system' ? systemDark : themePreference === 'dark';
+
+  const systemLocale = useSystemLocale();
+  const locale: Locale = localePreference === 'system' ? systemLocale : localePreference;
 
   // Sync theme with body data attribute so CSS variables work
   useEffect(() => {
@@ -209,10 +237,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }
   }, [darkMode]);
 
-  // Sync html lang attribute with locale
+  // Sync html lang attribute and i18n with resolved locale
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = locale;
+      import('@/i18n/config').then(({ default: i18n }) => {
+        if (i18n.language !== locale) i18n.changeLanguage(locale);
+      });
     }
   }, [locale]);
 
@@ -225,18 +256,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     document.body.dataset.theme = resolved;
   };
 
-  const setLocale = (value: Locale) => {
-    setLocaleState(value);
+  const setLocale = (value: LocalePreference) => {
+    setLocalePrefState(value);
     localStorage.setItem('hdjp-language', value);
-    document.documentElement.lang = value;
-    // Dynamically import i18n to avoid circular deps at module load time
+    const resolved = value === 'system' ? getSystemLocale() : value;
+    document.documentElement.lang = resolved;
     import('@/i18n/config').then(({ default: i18n }) => {
-      i18n.changeLanguage(value);
+      i18n.changeLanguage(resolved);
     });
   };
 
   return (
-    <ThemeContext.Provider value={{ themePreference, setThemePreference, darkMode, locale, setLocale, settingsOpen, setSettingsOpen }}>
+    <ThemeContext.Provider value={{ themePreference, setThemePreference, darkMode, localePreference, locale, setLocale, settingsOpen, setSettingsOpen }}>
       <MuiThemeProvider theme={darkMode ? darkTheme : lightTheme}>
         <CssBaseline />
         {children}

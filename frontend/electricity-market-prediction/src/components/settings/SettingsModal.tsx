@@ -18,7 +18,7 @@ import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import LanguageIcon from '@mui/icons-material/Language';
 import TuneIcon from '@mui/icons-material/Tune';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useTheme, type Locale, type ThemePreference } from '@/app/ThemeProvider';
+import { useTheme, type LocalePreference, type ThemePreference } from '@/app/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 
 interface SettingsModalProps {
@@ -64,7 +64,7 @@ function GradientBar() {
   );
 }
 
-const LOCALE_LABELS: Record<Locale, string> = {
+const LOCALE_LABELS: Record<Exclude<LocalePreference, 'system'>, string> = {
   'zh-TW': '繁體中文',
   en: 'English',
   ja: '日本語',
@@ -98,7 +98,7 @@ const toggleButtonGroupSx = {
 };
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { themePreference, setThemePreference, darkMode, locale, setLocale } = useTheme();
+  const { themePreference, setThemePreference, darkMode, localePreference, setLocale } = useTheme();
   const { t } = useTranslation('settings');
 
   const ThemeIcon = THEME_ICONS[themePreference];
@@ -206,17 +206,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t('language.description')}
           </Typography>
           <ToggleButtonGroup
-            value={locale}
+            value={localePreference}
             exclusive
-            onChange={(_, value) => { if (value) setLocale(value as Locale); }}
+            onChange={(_, value) => { if (value) setLocale(value as LocalePreference); }}
             size="small"
             sx={toggleButtonGroupSx}
           >
-            {(Object.entries(LOCALE_LABELS) as [Locale, string][]).map(([value, label]) => (
+            {(Object.entries(LOCALE_LABELS) as [string, string][]).map(([value, label]) => (
               <ToggleButton key={value} value={value}>
                 {label}
               </ToggleButton>
             ))}
+            <ToggleButton value="system">
+              <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              {t('language.systemLocale')}
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
 

@@ -12,7 +12,10 @@
     "lightMode": "淺色模式",
     "darkMode": "深色模式",
     "systemMode": "系統主題",
-    "admin": "管理員"
+    "admin": "管理員",
+    "theme": "主題",
+    "language": "語言",
+    "autoLocale": "自動"
   },
   "userMenu": {
     "settings": "個人設定",
