@@ -25,6 +25,11 @@ import { Area } from '@/types';
 import { SectionHeader } from '@/components/selectors/shared';
 import { useTranslation } from 'react-i18next';
 import { getAreaName } from '@/utils/areaI18n';
+import { PresetSelector } from '@/components/selectors/PresetSelector';
+import type { Preset } from '@/types/presets';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyPreset = Preset<any>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +131,18 @@ interface DailyCompareControlsProps {
     onAreasChange: (names: string[]) => void;
     selectedMetric: MetricKey;
     onMetricChange: (metric: MetricKey) => void;
+    // Presets
+    presets?: AnyPreset[];
+    presetsLoading?: boolean;
+    defaultPresetId?: number | null;
+    onPresetSave?: (name: string) => void;
+    onPresetLoad?: (preset: AnyPreset) => void;
+    onPresetUpdate?: (id: number) => void;
+    onPresetDelete?: (id: number) => void;
+    onPresetRename?: (id: number, newName: string) => void;
+    onPresetSetDefault?: (id: number | null) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    renderPresetPreview?: (data: any) => React.ReactNode;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -136,6 +153,16 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
     onAreasChange,
     selectedMetric,
     onMetricChange,
+    presets = [],
+    presetsLoading = false,
+    defaultPresetId = null,
+    onPresetSave,
+    onPresetLoad,
+    onPresetUpdate,
+    onPresetDelete,
+    onPresetRename,
+    onPresetSetDefault,
+    renderPresetPreview,
 }) => {
     const { t } = useTranslation('dailyCompare');
     const translatedMetrics = useTranslatedMetrics();
@@ -257,6 +284,25 @@ export const DailyCompareControls: React.FC<DailyCompareControlsProps> = ({
                 </Typography>
                 <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', flexShrink: 0, ml: 0.25 }}>▾</Typography>
             </Box>
+
+            {/* ── Presets ──────────────────────────────────────────────────── */}
+            {onPresetSave && (
+                <>
+                    <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
+                    <PresetSelector
+                        presets={presets}
+                        isLoading={presetsLoading}
+                        defaultPresetId={defaultPresetId}
+                        onSave={onPresetSave}
+                        onLoad={(preset) => onPresetLoad?.(preset)}
+                        onUpdate={(id) => onPresetUpdate?.(id)}
+                        onDelete={(id) => onPresetDelete?.(id)}
+                        onRename={(id, name) => onPresetRename?.(id, name)}
+                        onSetDefault={(id) => onPresetSetDefault?.(id)}
+                        renderPreview={renderPresetPreview}
+                    />
+                </>
+            )}
 
             {/* ── Area add popover ─────────────────────────────────────────── */}
             <Popover

@@ -54,7 +54,7 @@ def create_application() -> FastAPI:
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"],
     )
         
@@ -70,6 +70,17 @@ def create_application() -> FastAPI:
     return application
 
 app = create_application()
+
+
+@app.on_event("startup")
+async def ensure_tables():
+    """Create any missing tables on startup (e.g. user_presets for fresh instances)."""
+    from app.db import engine, Base
+    from app.models import User, UserPreset  # noqa: F401 – ensure models are registered
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 
 @app.get("/")
 async def root():

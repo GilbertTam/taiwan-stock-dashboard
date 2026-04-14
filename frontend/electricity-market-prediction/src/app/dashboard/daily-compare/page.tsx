@@ -8,7 +8,7 @@
  */
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Alert, Chip, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { useMarketDataContext } from '@/context/MarketDataContext';
@@ -18,6 +18,9 @@ import { fetchImbalance, fetchOcctoArea, fetchIntraday, fetchJepxSystem } from '
 import { DailyCompareControls, MetricKey, MetricConfig, METRIC_CONFIGS, useTranslatedMetrics } from '@/components/daily-compare/DailyCompareControls';
 import { DailyCompareGrid } from '@/components/daily-compare/DailyCompareGrid';
 import { useTranslation } from 'react-i18next';
+import { useDataPresets } from '@/hooks/useDataPresets';
+import type { DailyComparePresetData } from '@/types/presets';
+import { DailyComparePreview } from '@/components/selectors/presetPreviews';
 
 // ─── Fetch registry ─────────────────────────────────────────────────────────
 
@@ -119,14 +122,40 @@ export default function DailyComparePage() {
     const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
     const [selectedMetric, setSelectedMetric] = useState<MetricKey>('spot_price');
 
-    // Sync first area from context on mount
+    // ── Presets ──────────────────────────────────────────────────────────────
+    const {
+        presets,
+        isLoading: presetsLoading,
+        defaultPreset,
+        savePreset,
+        updatePresetData,
+        renamePreset,
+        deletePreset,
+        setAsDefault,
+    } = useDataPresets<DailyComparePresetData>('daily-compare');
+
+    const captureState = useCallback((): DailyComparePresetData => ({
+        selectedAreas,
+        selectedMetric,
+    }), [selectedAreas, selectedMetric]);
+
+    const applyPreset = useCallback((data: DailyComparePresetData) => {
+        setSelectedAreas(data.selectedAreas);
+        setSelectedMetric(data.selectedMetric);
+    }, []);
+
+    // Sync first area from context on mount, or apply default preset
     const didSyncArea = useRef(false);
     useEffect(() => {
-        if (!didSyncArea.current && ctxArea) {
+        if (didSyncArea.current) return;
+        if (defaultPreset) {
+            applyPreset(defaultPreset.data);
+            didSyncArea.current = true;
+        } else if (ctxArea) {
             setSelectedAreas([ctxArea]);
             didSyncArea.current = true;
         }
-    }, [ctxArea]);
+    }, [ctxArea, defaultPreset, applyPreset]);
 
     // Data state: areaName → (date → 48-slot values)
     const [rawDataMap, setRawDataMap] = useState<Map<string, Map<string, (number | null)[]>>>(new Map());
@@ -199,6 +228,16 @@ export default function DailyComparePage() {
                 onAreasChange={setSelectedAreas}
                 selectedMetric={selectedMetric}
                 onMetricChange={setSelectedMetric}
+                presets={presets}
+                presetsLoading={presetsLoading}
+                defaultPresetId={defaultPreset?.id ?? null}
+                onPresetSave={(name) => savePreset(name, captureState())}
+                onPresetLoad={(preset) => applyPreset(preset.data)}
+                onPresetUpdate={(id) => updatePresetData(id, captureState())}
+                onPresetDelete={deletePreset}
+                onPresetRename={renamePreset}
+                onPresetSetDefault={setAsDefault}
+                renderPresetPreview={(data) => <DailyComparePreview data={data} />}
             />
 
             {/* Context strip + chart grid */}

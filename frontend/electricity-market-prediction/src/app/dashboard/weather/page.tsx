@@ -10,14 +10,13 @@ import {
     Tabs,
     Tab,
     IconButton,
-    alpha
 } from '@mui/material';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
-import { WeatherUnifiedSidebar } from '@/components/weather/WeatherUnifiedSidebar';
+import { WeatherControlBar } from '@/components/weather/WeatherControlBar';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 import { useTheme } from '@/app/ThemeProvider';
@@ -38,6 +37,10 @@ import {
     fetchWeatherForecastDailyModels,
 } from '@/services/weatherApi';
 import type { WeatherModelBasicInfo } from '@/services/weatherApi';
+import { useDataPresets } from '@/hooks/useDataPresets';
+import { PresetSelector } from '@/components/selectors/PresetSelector';
+import type { WeatherPresetData } from '@/types/presets';
+import { WeatherPreview } from '@/components/selectors/presetPreviews';
 
 const BOTTOM_BAR_HEIGHT = 48;
 const INNER_STORAGE_KEY = 'weather-page-inner-layout';
@@ -192,6 +195,54 @@ export default function WeatherPage() {
         });
     }, []);
 
+    // ── Presets ──────────────────────────────────────────────────────────────
+    const {
+        presets: weatherPresets,
+        isLoading: presetsLoading,
+        defaultPreset: weatherDefaultPreset,
+        savePreset: saveWeatherPreset,
+        updatePresetData: updateWeatherPresetData,
+        renamePreset: renameWeatherPreset,
+        deletePreset: deleteWeatherPreset,
+        setAsDefault: setWeatherAsDefault,
+    } = useDataPresets<WeatherPresetData>('weather');
+
+    const captureWeatherState = useCallback((): WeatherPresetData => ({
+        showActualHourly,
+        showActualDaily,
+        showForecastHourly,
+        showForecastDaily,
+        selectedModelActualHourly,
+        selectedModelActualDaily,
+        selectedModelForecastHourly,
+        selectedModelForecastDaily,
+        selectedFields: Array.from(selectedFields),
+        weatherHeightByField,
+    }), [showActualHourly, showActualDaily, showForecastHourly, showForecastDaily,
+         selectedModelActualHourly, selectedModelActualDaily, selectedModelForecastHourly, selectedModelForecastDaily,
+         selectedFields, weatherHeightByField]);
+
+    const applyWeatherPreset = useCallback((data: WeatherPresetData) => {
+        setShowActualHourly(data.showActualHourly);
+        setShowActualDaily(data.showActualDaily);
+        setShowForecastHourly(data.showForecastHourly);
+        setShowForecastDaily(data.showForecastDaily);
+        if (data.selectedModelActualHourly !== undefined) setSelectedModelActualHourly(data.selectedModelActualHourly);
+        if (data.selectedModelActualDaily !== undefined) setSelectedModelActualDaily(data.selectedModelActualDaily);
+        if (data.selectedModelForecastHourly !== undefined) setSelectedModelForecastHourly(data.selectedModelForecastHourly);
+        if (data.selectedModelForecastDaily !== undefined) setSelectedModelForecastDaily(data.selectedModelForecastDaily);
+        if (data.selectedFields) setSelectedFields(new Set(data.selectedFields));
+        if (data.weatherHeightByField) setWeatherHeightByField(data.weatherHeightByField);
+    }, []);
+
+    // Apply default preset on mount
+    const didApplyDefaultPreset = React.useRef(false);
+    useEffect(() => {
+        if (didApplyDefaultPreset.current || !weatherDefaultPreset) return;
+        applyWeatherPreset(weatherDefaultPreset.data);
+        didApplyDefaultPreset.current = true;
+    }, [weatherDefaultPreset, applyWeatherPreset]);
+
     // ── Fetch model lists when area changes ──
     useEffect(() => {
         if (!selectedArea) return;
@@ -276,40 +327,51 @@ export default function WeatherPage() {
                 isLoading={isLoading}
             />
 
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row' }}>
-                {/* Fixed-width sidebar — no accordion, all controls always visible */}
-                <Box sx={{ width: 210, flexShrink: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <WeatherUnifiedSidebar
-                        areas={areas}
-                        selectedArea={selectedArea}
-                        onAreaChange={handleAreaChange}
-                        showActualHourly={showActualHourly}
-                        onShowActualHourlyChange={setShowActualHourly}
-                        showActualDaily={showActualDaily}
-                        onShowActualDailyChange={setShowActualDaily}
-                        showForecastHourly={showForecastHourly}
-                        onShowForecastHourlyChange={setShowForecastHourly}
-                        showForecastDaily={showForecastDaily}
-                        onShowForecastDailyChange={setShowForecastDaily}
-                        modelsActualHourly={modelsActualHourly}
-                        selectedModelActualHourly={selectedModelActualHourly}
-                        onModelActualHourlyChange={setSelectedModelActualHourly}
-                        modelsActualDaily={modelsActualDaily}
-                        selectedModelActualDaily={selectedModelActualDaily}
-                        onModelActualDailyChange={setSelectedModelActualDaily}
-                        modelsForecastHourly={modelsForecastHourly}
-                        selectedModelForecastHourly={selectedModelForecastHourly}
-                        onModelForecastHourlyChange={setSelectedModelForecastHourly}
-                        modelsForecastDaily={modelsForecastDaily}
-                        selectedModelForecastDaily={selectedModelForecastDaily}
-                        onModelForecastDailyChange={setSelectedModelForecastDaily}
-                        selectedFields={selectedFields}
-                        onFieldToggle={handleFieldToggle}
-                        weatherHeightByField={weatherHeightByField}
-                        availableHeights={availableHeights}
-                        onHeightChange={handleHeightChange}
-                    />
-                </Box>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <WeatherControlBar
+                    areas={areas}
+                    selectedArea={selectedArea}
+                    onAreaChange={handleAreaChange}
+                    showActualHourly={showActualHourly}
+                    onShowActualHourlyChange={setShowActualHourly}
+                    showActualDaily={showActualDaily}
+                    onShowActualDailyChange={setShowActualDaily}
+                    showForecastHourly={showForecastHourly}
+                    onShowForecastHourlyChange={setShowForecastHourly}
+                    showForecastDaily={showForecastDaily}
+                    onShowForecastDailyChange={setShowForecastDaily}
+                    modelsActualHourly={modelsActualHourly}
+                    selectedModelActualHourly={selectedModelActualHourly}
+                    onModelActualHourlyChange={setSelectedModelActualHourly}
+                    modelsActualDaily={modelsActualDaily}
+                    selectedModelActualDaily={selectedModelActualDaily}
+                    onModelActualDailyChange={setSelectedModelActualDaily}
+                    modelsForecastHourly={modelsForecastHourly}
+                    selectedModelForecastHourly={selectedModelForecastHourly}
+                    onModelForecastHourlyChange={setSelectedModelForecastHourly}
+                    modelsForecastDaily={modelsForecastDaily}
+                    selectedModelForecastDaily={selectedModelForecastDaily}
+                    onModelForecastDailyChange={setSelectedModelForecastDaily}
+                    selectedFields={selectedFields}
+                    onFieldToggle={handleFieldToggle}
+                    weatherHeightByField={weatherHeightByField}
+                    availableHeights={availableHeights}
+                    onHeightChange={handleHeightChange}
+                    presetSlot={
+                        <PresetSelector
+                            presets={weatherPresets}
+                            isLoading={presetsLoading}
+                            defaultPresetId={weatherDefaultPreset?.id ?? null}
+                            onSave={(name) => saveWeatherPreset(name, captureWeatherState())}
+                            onLoad={(preset) => applyWeatherPreset(preset.data)}
+                            onUpdate={(id) => updateWeatherPresetData(id, captureWeatherState())}
+                            onDelete={deleteWeatherPreset}
+                            onRename={renameWeatherPreset}
+                            onSetDefault={setWeatherAsDefault}
+                            renderPreview={(data) => <WeatherPreview data={data} />}
+                        />
+                    }
+                />
 
                 <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <PriceChartProvider

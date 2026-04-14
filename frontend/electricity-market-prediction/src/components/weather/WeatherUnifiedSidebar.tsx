@@ -81,6 +81,9 @@ export interface WeatherUnifiedSidebarProps {
     weatherHeightByField: Record<string, string>;
     availableHeights: Record<string, string[]>;
     onHeightChange: (fieldGroup: string, height: string) => void;
+
+    // Optional preset slot rendered at the top of sidebar
+    presetSlot?: React.ReactNode;
 }
 
 // =============================================================================
@@ -184,6 +187,7 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
     weatherHeightByField,
     availableHeights,
     onHeightChange,
+    presetSlot,
 }) => {
     const { t } = useTranslation(['weather', 'forecast']);
     const [fieldTab, setFieldTab] = useState<0 | 1>(0);
@@ -225,6 +229,16 @@ export const WeatherUnifiedSidebar: React.FC<WeatherUnifiedSidebarProps> = ({
             '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
             '&::-webkit-scrollbar-thumb': { backgroundColor: 'var(--card-border)', borderRadius: '2px' },
         }}>
+
+            {/* ── Presets (optional) ── */}
+            {presetSlot && (
+                <>
+                    <SidebarLabel>{t('sidebar.presets', { ns: 'common', defaultValue: '' }) || 'PRESETS'}</SidebarLabel>
+                    <Box sx={{ px: 1, py: 0.75, borderBottom: '1px solid var(--card-border)', display: 'flex', justifyContent: 'center' }}>
+                        {presetSlot}
+                    </Box>
+                </>
+            )}
 
             {/* ── Area (always visible, compact toggle buttons) ── */}
             <SidebarLabel>{t('sidebar.area')}</SidebarLabel>

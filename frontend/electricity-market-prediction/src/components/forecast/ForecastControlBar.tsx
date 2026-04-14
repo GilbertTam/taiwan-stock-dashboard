@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Box, Paper, Chip, Typography, IconButton, Tooltip, Divider,
     Popover, List, ListItemButton, Checkbox, Menu, MenuItem,
@@ -19,6 +19,10 @@ import {
     INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS,
 } from '@/components/price-chart/constants';
 import { SOURCE_COLORS } from '@/components/selectors/shared';
+import { PresetSelector } from '@/components/selectors/PresetSelector';
+import { ForecastPreview } from '@/components/selectors/presetPreviews';
+import { useForecastPresets } from '@/components/forecast/hooks/useForecastPresets';
+import type { ForecastPresetData } from '@/types/presets';
 import type { CalculatingDate } from '@/types';
 
 // ─── Source config ────────────────────────────────────────────────────────────
@@ -145,6 +149,28 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
         () => prepareChartData(actualPrices, predictionsByModel),
         [actualPrices, predictionsByModel],
     );
+
+    // ── Presets ───────────────────────────────────────────────────────────────
+    const {
+        presets: forecastPresets,
+        isLoading: forecastPresetsLoading,
+        defaultPreset: forecastDefaultPreset,
+        savePreset: saveForecastPreset,
+        updatePresetData: updateForecastPresetData,
+        renamePreset: renameForecastPreset,
+        deletePreset: deleteForecastPreset,
+        setAsDefault: setForecastAsDefault,
+        captureState: captureForecastState,
+        applyPreset: applyForecastPreset,
+    } = useForecastPresets();
+
+    // Apply default preset on mount
+    const didApplyForecastDefault = useRef(false);
+    useEffect(() => {
+        if (didApplyForecastDefault.current || !forecastDefaultPreset) return;
+        applyForecastPreset(forecastDefaultPreset.data);
+        didApplyForecastDefault.current = true;
+    }, [forecastDefaultPreset, applyForecastPreset]);
 
     // ── Source popover state ──────────────────────────────────────────────────
     const [sourcePopover, setSourcePopover] = useState<{ anchor: HTMLElement; key: SourceKey } | null>(null);
@@ -790,6 +816,21 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     );
                 })}
             </Box>
+
+            {/* ── Presets ─────────────────────────────────────────────────── */}
+            <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
+            <PresetSelector
+                presets={forecastPresets}
+                isLoading={forecastPresetsLoading}
+                defaultPresetId={forecastDefaultPreset?.id ?? null}
+                onSave={(name) => saveForecastPreset(name, captureForecastState())}
+                onLoad={(preset) => applyForecastPreset(preset.data as ForecastPresetData)}
+                onUpdate={(id) => updateForecastPresetData(id, captureForecastState())}
+                onDelete={deleteForecastPreset}
+                onRename={renameForecastPreset}
+                onSetDefault={setForecastAsDefault}
+                renderPreview={(data) => <ForecastPreview data={data} />}
+            />
 
             {/* ── Model add/manage popover ─────────────────────────────────── */}
             <Popover
