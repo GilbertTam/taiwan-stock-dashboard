@@ -1,13 +1,35 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // eslint-config-next@16 + eslint@9 with Next 15 can throw "Converting circular structure to JSON"
-  // during `next build`; run `npm run lint` locally when upgrading the toolchain.
   eslint: { ignoreDuringBuilds: true },
-  // Standalone output: next build traces only the modules actually imported at runtime
-  // and emits .next/standalone/server.js — eliminates the need to copy all node_modules
-  // into the Docker runner stage (~50-100 MB instead of 761 MB).
   output: 'standalone',
+  poweredByHeader: false,
+  compress: true,
+  experimental: {
+    optimizePackageImports: ['@mui/material', '@mui/icons-material', 'echarts', 'date-fns'],
+  },
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      config.optimization = config.optimization || {};
+      config.optimization.splitChunks = config.optimization.splitChunks || {};
+      const cacheGroups = (config.optimization.splitChunks as any).cacheGroups || {};
+      // Split large charting/UI libraries into separate chunks for better caching
+      cacheGroups.echarts = {
+        test: /[\\/]node_modules[\\/](echarts|zrender|echarts-for-react)[\\/]/,
+        name: 'echarts',
+        chunks: 'all' as const,
+        priority: 20,
+      };
+      cacheGroups.mui = {
+        test: /[\\/]node_modules[\\/]@mui[\\/]/,
+        name: 'mui',
+        chunks: 'all' as const,
+        priority: 20,
+      };
+      (config.optimization.splitChunks as any).cacheGroups = cacheGroups;
+    }
+    return config;
+  },
   async rewrites() {
     // Only proxy during local dev (when NEXT_PUBLIC_API_PORT is set).
     // In full-Docker deployment nginx handles /api directly, so no rewrite is needed.
