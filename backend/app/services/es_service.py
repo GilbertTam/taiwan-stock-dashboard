@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 
 from elasticsearch import Elasticsearch
@@ -9,6 +9,15 @@ from app.core.logging import logger
 from app.core.constants import AREA_EN_JP_MAP, AREA_EN_CH_MAP
 
 MAX_ES_RESULTS = 10000
+
+
+def _warn_if_truncated(results: list) -> None:
+    """Log a warning when query results hit the ES size limit."""
+    if len(results) >= MAX_ES_RESULTS:
+        logger.warning(
+            f"ES query returned {len(results)} results "
+            f"(hit MAX_ES_RESULTS={MAX_ES_RESULTS}). Data may be truncated."
+        )
 
 def _downsample_by_interval(
     rows: List[Dict[str, Any]],
@@ -32,7 +41,7 @@ def _downsample_by_interval(
              # Try iso format if basic parsing fails
             try:
                 dt = datetime.fromisoformat(str(dt_str))
-            except:
+            except (ValueError, TypeError):
                 out.append(rec)
                 continue
                 
@@ -100,7 +109,8 @@ class ESService:
         area_name: Optional[str] = None,
         model_name: Optional[str] = None,
         calculating_date: Optional[str] = None,
-        latest_only: bool = True
+        latest_only: bool = True,
+        model_names: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -111,7 +121,9 @@ class ESService:
         if area_name:
             s = s.filter('term', area=area_name)
 
-        if model_name:
+        if model_names:
+            s = s.filter('terms', source=model_names)
+        elif model_name:
             s = s.query(Q('match', source=model_name))
 
         if calculating_date:
@@ -240,7 +252,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_hjks_outages(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -255,7 +269,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('start_datetime.keyword')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_interconnection_flows(self, start_date: str, end_date: str, line_name: Optional[str] = None, interval_minutes: Optional[int] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -284,7 +300,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_jepx_system_data(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """Query JEPX system-level price and bid/ask volume data."""
@@ -329,7 +347,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('event_datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_occto_area_data(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -342,7 +362,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_occto_interconnection(self, start_date: str, end_date: str, interval_minutes: Optional[int] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -368,7 +390,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('event_time')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_occto_events(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -378,7 +402,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_tdgc_data(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -390,7 +416,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_weather_actual(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -402,7 +430,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_weather_actual_daily(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -414,7 +444,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_weather_forecast(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -427,7 +459,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_weather_forecast_daily(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return daily weather forecast data."""
@@ -440,7 +474,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_weather_models(self, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return distinct weather model names from the weather_actual index."""
@@ -473,7 +509,8 @@ class ESService:
         s.aggs.bucket('models', 'terms', field='model', size=100)
         try:
             response = s.execute()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_weather_models_forecast: field 'model' query failed, retrying with 'model.keyword': {e}")
             s = Search(using=self.client, index=self.weather_forecast_index)
             if area_name:
                 s = s.query(Q('match', area=area_name))
@@ -492,7 +529,8 @@ class ESService:
         s.aggs.bucket('models', 'terms', field='model', size=100)
         try:
             response = s.execute()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_weather_models_forecast_daily: field 'model' query failed, retrying with 'model.keyword': {e}")
             s = Search(using=self.client, index=self.weather_forecast_daily_index)
             if area_name:
                 s = s.query(Q('match', area=area_name))
@@ -514,7 +552,9 @@ class ESService:
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('event_time')
         response = s.execute()
-        return [hit.to_dict() for hit in response]
+        results = [hit.to_dict() for hit in response]
+        _warn_if_truncated(results)
+        return results
 
     def get_available_calculating_dates(self, start_date: str, end_date: str, area_name: str, model_name: str) -> List[Dict[str, str]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
@@ -543,7 +583,8 @@ class ESService:
 
         try:
             response = s.execute()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_available_models: field 'source' query failed, retrying with 'source.keyword': {e}")
             s = Search(using=self.client, index=self.prediction_index)
             s.aggs.bucket('sources', 'terms', field='source.keyword', size=100)
             s = s.extra(size=0)
@@ -866,7 +907,6 @@ class ESService:
     @staticmethod
     def _to_unix_ms(dt_str: str) -> Optional[int]:
         """Convert any ES datetime string to Unix milliseconds (JST assumed when no offset)."""
-        from datetime import timezone, timedelta
         JST = timezone(timedelta(hours=9))
         try:
             s = str(dt_str).replace('+09:00', '').replace('Z', '').replace('T', ' ')[:19]

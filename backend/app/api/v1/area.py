@@ -19,7 +19,7 @@ async def list_areas(current_user: Any = Depends(get_current_active_user)):
             "name_jp": AREA_EN_JP_MAP.get(area_en, "")
         })
     return {
-        "result": [{"Message": "Success"}],
+        "result": "Success",
         "code": 0,
         "data": areas
     }

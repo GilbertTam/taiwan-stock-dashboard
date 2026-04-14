@@ -1,57 +1,70 @@
+from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.services.es_service import es_service
 from app.schemas.market_info import APIResponse
 from app.api.v1.auth import get_current_user
 from app.core.logging import logger
+from app.core.validators import validate_dates
 
 router = APIRouter()
 
-def validate_dates(start_date: str, end_date: str):
-    if not start_date or not end_date:
-        raise HTTPException(status_code=400, detail="start_date and end_date are required")
-    if len(start_date) != 8 or len(end_date) != 8:
-        raise HTTPException(status_code=400, detail="Dates must be in YYYYMMDD format")
+def _set_cache_headers(response: Response, end_date: str) -> None:
+    """Set Cache-Control for historical data. Cache if end_date is in the past."""
+    try:
+        end = datetime.strptime(end_date, "%Y%m%d").date()
+        if end < datetime.now().date():
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        else:
+            response.headers["Cache-Control"] = "private, max-age=300"
+    except ValueError:
+        pass
 
 @router.get("/spot-market-trades", response_model=APIResponse)
-async def spot_market_trades(
+def spot_market_trades(
     start_date: str,
     end_date: str,
+    response: Response,
     name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
+    _set_cache_headers(response, end_date)
     es = es_service
     data = es.get_jepx_trades(start_date, end_date, name)
-    return {"result": [{"Message": "Success"}], "code": 0, "count": len(data), "data": data}
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/spot-market-area-prices", response_model=APIResponse)
-async def spot_market_area_prices(
+def spot_market_area_prices(
     start_date: str,
     end_date: str,
+    response: Response,
     name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
+    _set_cache_headers(response, end_date)
     es = es_service
     # Same as trades for now
     data = es.get_jepx_trades(start_date, end_date, name)
-    return {"result": [{"Message": "Success"}], "code": 0, "count": len(data), "data": data}
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/imbalance", response_model=APIResponse)
-async def imbalance(
+def imbalance(
     start_date: str,
     end_date: str,
+    response: Response,
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
+    _set_cache_headers(response, end_date)
     es = es_service
     data = es.get_imbalance_data(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/hjks", response_model=APIResponse)
-async def hjks(
+def hjks(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -63,7 +76,7 @@ async def hjks(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/interconnection", response_model=APIResponse)
-async def interconnection(
+def interconnection(
     start_date: str,
     end_date: str,
     line_name: Optional[str] = None,
@@ -76,7 +89,7 @@ async def interconnection(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/intraday", response_model=APIResponse)
-async def intraday(
+def intraday(
     start_date: str,
     end_date: str,
     current_user = Depends(get_current_user)
@@ -87,7 +100,7 @@ async def intraday(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/jepx-system", response_model=APIResponse)
-async def jepx_system(
+def jepx_system(
     start_date: str,
     end_date: str,
     current_user = Depends(get_current_user)
@@ -98,7 +111,7 @@ async def jepx_system(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/earthquakes", response_model=APIResponse)
-async def earthquakes(
+def earthquakes(
     start_date: str,
     end_date: str,
     current_user = Depends(get_current_user)
@@ -109,7 +122,7 @@ async def earthquakes(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/occto-area", response_model=APIResponse)
-async def occto_area(
+def occto_area(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -121,7 +134,7 @@ async def occto_area(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/occto-inter", response_model=APIResponse)
-async def occto_inter(
+def occto_inter(
     start_date: str,
     end_date: str,
     interval_minutes: Optional[int] = None,
@@ -133,7 +146,7 @@ async def occto_inter(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/occto-event", response_model=APIResponse)
-async def occto_event(
+def occto_event(
     start_date: str,
     end_date: str,
     current_user = Depends(get_current_user)
@@ -144,7 +157,7 @@ async def occto_event(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/battery-data", response_model=APIResponse)
-async def battery_data(
+def battery_data(
     start_date: str,
     end_date: str,
     site_id: Optional[str] = None,
@@ -156,7 +169,7 @@ async def battery_data(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/tdgc", response_model=APIResponse)
-async def tdgc(
+def tdgc(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -168,7 +181,7 @@ async def tdgc(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-actual", response_model=APIResponse)
-async def weather_actual(
+def weather_actual(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -180,7 +193,7 @@ async def weather_actual(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-actual-daily", response_model=APIResponse)
-async def weather_actual_daily(
+def weather_actual_daily(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -192,7 +205,7 @@ async def weather_actual_daily(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-forecast", response_model=APIResponse)
-async def weather_forecast(
+def weather_forecast(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -204,10 +217,12 @@ async def weather_forecast(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-models", response_model=APIResponse)
-async def weather_models(
+def weather_models(
+    response: Response,
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
+    response.headers["Cache-Control"] = "public, max-age=300"
     es = es_service
     hourly_models = es.get_weather_models(area_name)
     daily_models = es.get_weather_models_daily(area_name)
@@ -224,7 +239,7 @@ async def weather_models(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-forecast-daily", response_model=APIResponse)
-async def weather_forecast_daily(
+def weather_forecast_daily(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
@@ -236,7 +251,7 @@ async def weather_forecast_daily(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-actual-models", response_model=APIResponse)
-async def weather_actual_models(
+def weather_actual_models(
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
@@ -245,7 +260,7 @@ async def weather_actual_models(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-actual-daily-models", response_model=APIResponse)
-async def weather_actual_daily_models(
+def weather_actual_daily_models(
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
@@ -254,7 +269,7 @@ async def weather_actual_daily_models(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-forecast-models", response_model=APIResponse)
-async def weather_forecast_models(
+def weather_forecast_models(
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
@@ -263,7 +278,7 @@ async def weather_forecast_models(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-forecast-daily-models", response_model=APIResponse)
-async def weather_forecast_daily_models(
+def weather_forecast_daily_models(
     area_name: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
@@ -272,7 +287,7 @@ async def weather_forecast_daily_models(
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/bid-plans", response_model=APIResponse)
-async def bid_plans(
+def bid_plans(
     start_date: str,
     end_date: str,
     site_id: Optional[str] = None,

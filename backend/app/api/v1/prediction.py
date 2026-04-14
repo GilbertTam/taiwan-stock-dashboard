@@ -1,19 +1,19 @@
+from io import StringIO
 from typing import List, Optional
+
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
+from starlette.responses import StreamingResponse
+
 from app.services.es_service import es_service
 from app.schemas.prediction import PredictionResponse, CalculatingDate, AvailableModel
 from app.api.v1.auth import get_current_user
+from app.core.validators import validate_dates
 
 router = APIRouter()
 
-def validate_dates(start_date: str, end_date: str):
-    if not start_date or not end_date:
-        raise HTTPException(status_code=400, detail="start_date and end_date are required")
-    if len(start_date) != 8 or len(end_date) != 8:
-        raise HTTPException(status_code=400, detail="Dates must be in YYYYMMDD format")
-
 @router.get("/predictions", response_model=PredictionResponse)
-async def get_predictions(
+def get_predictions(
     start_date: str,
     end_date: str,
     model_name: str,
@@ -31,14 +31,14 @@ async def get_predictions(
         latest_only=latest_only
     )
     return {
-        "result": [{"Message": "Success"}],
+        "result": "Success",
         "code": 0,
         "count": len(data),
         "data": data
     }
 
 @router.get("/available-dates", response_model=List[CalculatingDate])
-async def get_available_dates(
+def get_available_dates(
     start_date: str,
     end_date: str,
     area_name: str,
@@ -51,14 +51,14 @@ async def get_available_dates(
     return data
 
 @router.get("/available-models", response_model=List[AvailableModel])
-async def get_available_models(
+def get_available_models(
     current_user = Depends(get_current_user)
 ):
     es = es_service
     data = es.get_available_models()
     return data
 @router.get("/spot-csv-download")
-async def download_spot_csv(
+def download_spot_csv(
     start_date: str,
     end_date: str,
     area_name: str,
@@ -71,35 +71,24 @@ async def download_spot_csv(
     # 1. Get Actual Spot Prices
     actual_data = es.get_jepx_trades(start_date, end_date, area_name)
     
-    # 2. Get Predictions for each model
-    predictions_map = {}
+    # 2. Get Predictions for all models in a single query
+    predictions_map: dict = {}
     if model_names:
-        for model in model_names.split(','):
-            model = model.strip()
-            if not model:
-                continue
-            preds = es.get_predictions(
+        model_list = [m.strip() for m in model_names.split(',') if m.strip()]
+        if model_list:
+            all_preds = es.get_predictions(
                 start_date=start_date,
                 end_date=end_date,
                 area_name=area_name,
-                model_name=model,
-                latest_only=True
+                model_name=None,
+                latest_only=True,
+                model_names=model_list
             )
-            predictions_map[model] = preds
+            for pred in all_preds:
+                mn = pred['model_name']
+                predictions_map.setdefault(mn, []).append(pred)
 
-    import pandas as pd
-    from io import  StringIO
-    from starlette.responses import StreamingResponse
-
-    # Prepare data for DataFrame
-    # Base: all 30-min slots in range. 
-    # Actually, let's just use the actual data as base since it has all time slots.
-    
-    rows = []
-    # Create a map for quick lookup: (trade_date, time_code) -> data
-    
-    # Process actual data
-    processed_data = {} # key: f"{date}_{time_code}"
+    processed_data: dict = {}  # key: f"{date}_{time_code}"
     
     for item in actual_data:
         key = f"{item['trade_date']}_{item['time_code']}"

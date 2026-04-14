@@ -17,7 +17,7 @@ class PredictionResult(BaseModel):
     additional_data: Optional[Dict[str, Any]]
 
 class PredictionResponse(BaseModel):
-    result: List[Dict[str, str]]
+    result: Union[str, List[Dict[str, str]]]
     code: int
     count: Optional[int]
     data: List[PredictionResult]
