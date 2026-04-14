@@ -574,6 +574,18 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
         };
     }, [ganttData, timeCategories.length]);
 
+    // Dynamic chart heights: taller charts for short time ranges
+    const { priceChartHeight, socChartHeight } = useMemo(() => {
+        const numPoints = timeCategories.length;
+        const numDays = Math.max(1, Math.ceil(numPoints / 48));
+        let price: number, soc: number;
+        if (numDays >= 7)      { price = 300; soc = 200; }
+        else if (numDays >= 4) { price = 340; soc = 240; }
+        else if (numDays >= 2) { price = 380; soc = 270; }
+        else                   { price = 420; soc = 300; } // 1 day
+        return { priceChartHeight: price, socChartHeight: soc };
+    }, [timeCategories.length]);
+
     const borderColor = colors.border || 'var(--card-border)';
 
     /** Price basis selector — rendered above the tab bar */
@@ -674,7 +686,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     flex: 1,
                     overflow: 'hidden',
                     display: 'grid',
-                    gridTemplateRows: '300px 240px 200px',
+                    gridTemplateRows: `${priceChartHeight}px 240px ${socChartHeight}px`,
                     gap: '4px',
                     p: 1,
                     overflowY: 'auto',
@@ -686,7 +698,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                             selectedModels={selectedModels}
                             colors={colors}
                             timeCategories={timeCategories}
-                            height={294}
+                            height={priceChartHeight - 6}
                             title={t('summary.priceOperationTitle')}
                             tooltipLabels={{ action: t('chart.tooltipAction') }}
                             groupId="revenue-time-group"
@@ -715,7 +727,7 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                                 selectedModels={selectedModels}
                                 timeCategories={timeCategories}
                                 colors={colors}
-                                height={194}
+                                height={socChartHeight - 6}
                                 groupId="revenue-time-group"
                             />
                         </Box>

@@ -143,6 +143,37 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
 
         const actualPrices = schedules[0] ? schedules[0].data.map(d => d.priceActual) : [];
 
+        // Collect all visible price values for smart Y-axis range
+        const allPriceValues: number[] = [];
+        actualPrices.forEach(v => { if (v != null && isFinite(v)) allPriceValues.push(v); });
+        schedules.forEach(s => {
+            s.data.forEach(d => {
+                if (d.pricePredicted != null && isFinite(d.pricePredicted)) allPriceValues.push(d.pricePredicted);
+            });
+        });
+
+        const priceMin = allPriceValues.length > 0 ? Math.min(...allPriceValues) : 0;
+        const priceMax = allPriceValues.length > 0 ? Math.max(...allPriceValues) : 0;
+        const priceRange = priceMax - priceMin;
+        const MIN_Y_RANGE = 5; // JPY/kWh — prevent over-zoom on narrow data
+        const PADDING_RATIO = 0.1;
+        let yMin: number | undefined;
+        let yMax: number | undefined;
+        if (allPriceValues.length > 0) {
+            const effectiveRange = Math.max(priceRange, MIN_Y_RANGE);
+            const padding = effectiveRange * PADDING_RATIO;
+            if (priceMin >= 0) {
+                // All positive: anchor at 0 only if data is near zero
+                yMin = Math.max(0, priceMin - padding);
+                if (yMin === 0 && priceMin > effectiveRange * 0.4) {
+                    yMin = Math.floor(priceMin - padding);
+                }
+            } else if (priceMax <= 0) {
+                yMax = Math.min(0, priceMax + padding);
+            }
+            // Straddles zero → leave both undefined, ECharts auto-includes 0
+        }
+
         const firstId = schedules[0]?.id;
         const firstColor = firstId === 'manual' ? manualColor : actualColor;
         const firstLabel = firstId === 'optimal' ? 'Optimal' : firstId === 'manual' ? 'Manual (Actual)' : 'Actual Price';
@@ -239,6 +270,8 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                 name: 'Price (JPY/kWh)',
                 nameLocation: 'middle',
                 nameGap: 40,
+                ...(yMin !== undefined && { min: yMin }),
+                ...(yMax !== undefined && { max: yMax }),
                 boundaryGap: ['0%', '8%'],
                 axisLabel: { color: darkMode ? '#ccc' : '#666' },
                 splitLine: {
@@ -250,7 +283,7 @@ export const PriceOperationChart = forwardRef<PriceOperationChartRef, PriceOpera
                 const dayBgSeries = {
                     name: '__dayBg',
                     type: 'line' as const,
-                    data: times.map(() => 0),
+                    data: times.map(() => yMin ?? 0),
                     showSymbol: false,
                     lineStyle: { opacity: 0 },
                     itemStyle: { opacity: 0 },
