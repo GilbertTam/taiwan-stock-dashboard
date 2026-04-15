@@ -34,7 +34,7 @@ import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 // --- Constants ---
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, weatherFields } from '../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES, weatherFields } from '../constants';
 import { useTranslation } from 'react-i18next';
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -164,7 +164,7 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
     hideObsAndPriceRow = false,
-    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), showOcctoArea,
+    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), selectedTdgcFields = new Set(), selectedTdgcCategories = new Set(), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
     onDownload, onFullscreen, timezone,
@@ -384,6 +384,23 @@ export const ChartInfoPanel: React.FC<any> = ({
                                     }
                                 });
 
+                                // TDGC price fields — Y1/Y2 axis control
+                                if (!hideObsAndPriceRow) {
+                                    Array.from(selectedTdgcCategories as Set<string>).forEach((category: string) => {
+                                        const catCfg = TDGC_CATEGORIES[category];
+                                        const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                                        const catColor = catCfg?.color ?? '#999';
+                                        TDGC_FIELDS.filter(f => f.type === 'price').forEach(f => {
+                                            if (!(selectedTdgcFields as Set<string>).has(f.key)) return;
+                                            activeItems.push({
+                                                key: `tdgc_${category}_${f.key}`,
+                                                label: `${catLabel} ${t(f.labelKey)}`,
+                                                color: catColor,
+                                            });
+                                        });
+                                    });
+                                }
+
                                 if (activeItems.length === 0) {
                                     return (
                                         <Typography variant="caption" sx={{ color: colors.subText, opacity: 0.5, fontSize: '0.55rem', textAlign: 'center', py: 1 }}>
@@ -579,6 +596,26 @@ export const ChartInfoPanel: React.FC<any> = ({
                             return (
                                 <DataChip key={`bp-intraday-${fieldKey}`} icon={TrendingUpIcon} label={t(f.labelPrefix) + t(f.labelKey)} value={val} unit="" color={f.color} decimals={fieldKey.includes('price') ? 2 : 0} />
                             );
+                        })}
+
+                        {/* TDGC Fields */}
+                        {Array.from(selectedTdgcCategories as Set<string>).map((category) => {
+                            const catCfg = TDGC_CATEGORIES[category];
+                            const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                            const catColor = catCfg?.color ?? '#999';
+                            return Array.from(selectedTdgcFields as Set<string>).map((fieldKey) => {
+                                const f = TDGC_FIELDS.find(x => x.key === fieldKey);
+                                if (!f) return null;
+                                const shortKey = f.pointKey.replace('tdgc_', '');
+                                const dynamicPointKey = `tdgc_${category}_${shortKey}`;
+                                const val = (hoveredData as any)[dynamicPointKey];
+                                if (val == null) return null;
+                                return (
+                                    <DataChip key={`tdgc-${category}-${fieldKey}`} icon={ElectricBoltIcon}
+                                        label={`${catLabel} ${t(f.labelKey)}`} value={val} unit=""
+                                        color={catColor} decimals={fieldKey.includes('price') ? 2 : 0} />
+                                );
+                            });
                         })}
 
                         {/* 2. OCCTO (Fixed: Using specific colors) */}

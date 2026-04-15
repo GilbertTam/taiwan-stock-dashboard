@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp, normalizeWeatherDatetimeToJST } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData, BidPlanData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData, BidPlanData, TdgcData } from '@/types';
 
 /**
  * Extract an OCCTO field value from an API item, supporting both:
@@ -29,6 +29,8 @@ interface UseChartDataProps {
     batteryData?: BatteryData[];
     bidPlansData?: BidPlanData[];
     selectedBidPlanCategories?: Set<string>;
+    tdgcData?: TdgcData[];
+    selectedTdgcCategories?: Set<string>;
     weatherActual?: WeatherData[];
     weatherForecast?: WeatherData[];
     areaName: string;
@@ -57,6 +59,8 @@ export const useChartData = ({
     batteryData = [],
     bidPlansData = [],
     selectedBidPlanCategories = new Set<string>(),
+    tdgcData = [],
+    selectedTdgcCategories = new Set<string>(),
     weatherActual,
     weatherForecast,
     areaName,
@@ -369,6 +373,62 @@ export const useChartData = ({
             });
         }
 
+        // E3. TDGC Data (group by commodity_category, then aggregate by datetime — like bid plans)
+        // Process ALL fields unconditionally (like interconnection/battery) so that
+        // toggling selectedTdgcFields doesn't trigger a full processedChartData recompute.
+        // Field filtering happens downstream in useChartDataTransformers.
+        const filteredTdgc = selectedTdgcCategories.size > 0
+            ? tdgcData.filter(item => selectedTdgcCategories.has(item.commodity_category))
+            : tdgcData;
+
+        if (filteredTdgc && filteredTdgc.length > 0) {
+            // Group by commodity_category
+            const byCategory: Record<string, TdgcData[]> = {};
+            filteredTdgc.forEach(item => {
+                const cat = item.commodity_category;
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(item);
+            });
+
+            const tdgcAllFields: { key: string; shortKey: string; isMwh: boolean }[] = [
+                { key: 'corrected_unit_price_ave', shortKey: 'corrected_price_ave', isMwh: false },
+                { key: 'tso_price_ave',            shortKey: 'tso_price_ave',       isMwh: false },
+                { key: 'total_contract_quantity',  shortKey: 'contract_qty',        isMwh: true },
+                { key: 'reserve_requirement',      shortKey: 'reserve_req',         isMwh: true },
+            ];
+
+            Object.keys(byCategory).forEach(category => {
+                const categoryData = byCategory[category];
+                const byTs: Record<number, Record<string, number[]>> = {};
+
+                categoryData.forEach(item => {
+                    const ts = parseToTimestamp(item.datetime);
+                    if (!ts) return;
+                    if (!byTs[ts]) byTs[ts] = {};
+                    tdgcAllFields.forEach(({ key }) => {
+                        const value = (item as any)[key];
+                        if (typeof value === 'number' && !isNaN(value)) {
+                            if (!byTs[ts][key]) byTs[ts][key] = [];
+                            byTs[ts][key].push(value);
+                        }
+                    });
+                });
+
+                Object.keys(byTs).forEach(tsStr => {
+                    const ts = Number(tsStr);
+                    const point = ensurePoint(ts);
+                    tdgcAllFields.forEach(({ key, shortKey, isMwh }) => {
+                        const values = byTs[ts][key];
+                        if (values && values.length > 0) {
+                            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                            const pointFieldKey = `tdgc_${category}_${shortKey}`;
+                            (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
+                        }
+                    });
+                });
+            });
+        }
+
         // F. Occto Data
         if (occtoAreaData && Array.isArray(occtoAreaData)) {
             occtoAreaData.forEach(item => {
@@ -572,7 +632,7 @@ export const useChartData = ({
             };
         });
 
-    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, bidPlansData, selectedBidPlanCategories, weatherActual, weatherForecast, weatherHeightByField, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
+    }, [chartData, imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, bidPlansData, selectedBidPlanCategories, tdgcData, selectedTdgcCategories, weatherActual, weatherForecast, weatherHeightByField, areaName, selectedOcctoField, selectedOcctoFields, selectedWeatherFields, showWeatherActual, showWeatherForecast, pointsWithMarkers]);
 
     // Ranges
     const priceRange = useMemo(() => {

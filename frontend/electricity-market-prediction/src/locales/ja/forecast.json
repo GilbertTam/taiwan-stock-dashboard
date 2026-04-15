@@ -88,23 +88,39 @@
   "tabs": {
     "expand": "展開",
     "collapse": "折りたたむ",
-    "profitAnalysis": "収益分析",
+    "maximize": "最大化",
+    "restore": "元に戻す",
+    "profitAnalysis": "価格スプレッド",
     "maeAnalysis": "MAE 分析",
     "outageInfo": "停止情報",
     "interconnFlow": "連系線潮流",
     "weatherData": "気象データ",
     "intradayMarketTab": "日前市場",
     "supplyDemandBalance": "需給バランス",
+    "tdgcMarket": "調整力市場",
     "systemEvents": "システムイベント"
+  },
+  "tabGroups": {
+    "modelAnalysis": "分析",
+    "marketReference": "市場"
+  },
+  "compactSummary": {
+    "optimalSpread": "最適スプレッド ¥{{value}}",
+    "bestModel": "最良: {{name}} ¥{{value}} ({{percent}}%)",
+    "bestMae": "最良: {{name}} (MAE {{value}})",
+    "worstMae": "最悪: {{name}} (MAE {{value}})",
+    "outageCount": "{{count}} 件の停止事象",
+    "affectedCapacity": "影響容量: {{value}} MW"
   },
   "marketInfo": {
     "currentArea": "現在のエリア："
   },
   "profitAnalysis": {
-    "title": "収益分析（日次 & 累計）",
-    "dailyProfitYAxis": "日次収益 (¥)",
-    "cumulativeProfitYAxis": "累計収益 (¥)",
-    "tooltipTitle": "{{date}} 収益",
+    "title": "価格スプレッド（日次 & 累計）",
+    "subtitle": "毎日の最安Nスロットで買い、最高Nスロットで売った場合の理論的スプレッド。蓄電池の制約は考慮していません。",
+    "dailyProfitYAxis": "日次スプレッド (¥)",
+    "cumulativeProfitYAxis": "累計スプレッド (¥)",
+    "tooltipTitle": "{{date}} スプレッド",
     "tooltipType": "タイプ",
     "tooltipDaily": "日次",
     "tooltipCumulative": "累計",
@@ -113,12 +129,12 @@
     "seriesModelDaily": "{{model}}（日次）",
     "seriesOptimalCumulative": "Optimal（累計）",
     "seriesModelCumulative": "{{model}}（累計）",
-    "summaryTitle": "総収益サマリー",
+    "summaryTitle": "スプレッドサマリー",
     "optimalActual": "Optimal（実績）",
     "baseline100": "基準 100%",
     "pairsLabel": "上下ペア数 (N): {{count}}",
     "pairsValue": "{{count}} ペア（{{hours}} 時間）",
-    "pairsDescription": "毎日、最安の {{count}} スロットで購入し、最高の {{count}} スロットで売却して収益を計算します。"
+    "pairsDescription": "毎日、最安の {{count}} スロットで購入し、最高の {{count}} スロットで売却してスプレッドを計算します。"
   },
   "maeAnalysis": {
     "title": "MAE 指標",
@@ -168,6 +184,7 @@
     "bidPlans": "入札",
     "weather": "気象",
     "occto": "OCCTO",
+    "tdgc": "調整力",
     "latest": "最新",
     "changeCalcDate": "計算日を変更",
     "occtoGroups": {
@@ -250,6 +267,12 @@
       "interconnection": "連系線",
       "others": "その他"
     },
+    "tdgc": {
+      "correctedPrice": "補正単価",
+      "tsoPrice": "TSO価格",
+      "contractQty": "約定量",
+      "reserveReq": "必要量"
+    },
     "bidPlan": {
       "buyPrice": "買い入札価格",
       "buyVolume": "買い入札電力量",
@@ -310,6 +333,31 @@
     "totalVolume": "総約定量 {{value}} MWh",
     "totalContracts": "{{count}} 件約定",
     "colorHint": "赤 = 上昇、緑 = 下落（日本市場慣習）"
+  },
+  "tdgcTab": {
+    "selectDateRange": "日付範囲を選択してください",
+    "noData": "この期間の調整力市場データがありません",
+    "categories": {
+      "primary": "一次調整力",
+      "secondary1": "二次調整力①",
+      "secondary2": "二次調整力②",
+      "tertiary1": "三次調整力①",
+      "tertiary2": "三次調整力②",
+      "supplyDemandAdj": "需給調整②",
+      "forward": "先渡し"
+    },
+    "correctedPrice": "補正単価",
+    "tsoPrice": "TSO価格",
+    "contractQuantity": "約定量",
+    "reserveRequirement": "必要量",
+    "avgPrice": "平均単価 {{value}} 円/kWh",
+    "totalContract": "総約定量 {{value}} MWh",
+    "offerCount": "応札数 {{value}} 件",
+    "chartHint": "線 = 平均単価（円/kWh）、棒 = 約定量（MWh）",
+    "tooltipCorrectedPrice": "補正単価",
+    "tooltipTsoPrice": "TSO価格",
+    "tooltipContract": "約定量",
+    "tooltipReserve": "必要量"
   },
   "supplyDemandTab": {
     "selectDateRange": "日付範囲を選択してください",

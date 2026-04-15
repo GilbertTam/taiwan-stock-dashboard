@@ -33,7 +33,7 @@ function ForecastContent() {
     areas, models, calculatingDatesByModel, selectedArea, selectedModels,
     startDate, endDate, dateRangePreset, actualPrices, predictionsByModel,
     weatherActual, weatherForecast, imbalanceData, intradayData,
-    interconnectionData, occtoAreaData, batteryData, bidPlansData, isLoading, isFetchingPredictions,
+    interconnectionData, occtoAreaData, batteryData, bidPlansData, tdgcData, isLoading, isFetchingPredictions,
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
     handleDateRangePreset, commitDateSelection, refreshData, registerPageNeeds, unregisterPageNeeds,
     selectedWeatherModelActual, selectedWeatherModelForecast,
@@ -100,6 +100,7 @@ function ForecastContent() {
         occtoAreaData={occtoAreaData}
         batteryData={batteryData}
         bidPlansData={bidPlansData}
+        tdgcData={tdgcData}
         weatherActual={weatherActual}
         weatherForecast={weatherForecast}
         selectedWeatherModelActual={selectedWeatherModelActual}

@@ -53,6 +53,8 @@ export interface ForecastPresetData {
     selectedBidPlanFields: string[];
     selectedBidPlanCategories: string[];
     selectedSiteIds: string[];
+    selectedTdgcFields: string[];
+    selectedTdgcCategories: string[];
     selectedWeatherFieldsActual: string[];
     selectedWeatherFieldsForecast: string[];
 }

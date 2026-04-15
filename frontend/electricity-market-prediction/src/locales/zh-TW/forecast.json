@@ -88,23 +88,39 @@
   "tabs": {
     "expand": "展開",
     "collapse": "收合",
-    "profitAnalysis": "收益分析",
+    "maximize": "最大化",
+    "restore": "還原",
+    "profitAnalysis": "價格展差",
     "maeAnalysis": "MAE 分析",
     "outageInfo": "停機資訊",
     "interconnFlow": "互連流量",
     "weatherData": "天氣資料",
     "intradayMarketTab": "日内市場",
-    "supplyDemandBalance": "需給バランス",
+    "supplyDemandBalance": "供需平衡",
+    "tdgcMarket": "調整力市場",
     "systemEvents": "系統事件"
+  },
+  "tabGroups": {
+    "modelAnalysis": "分析",
+    "marketReference": "市場"
+  },
+  "compactSummary": {
+    "optimalSpread": "最佳展差 ¥{{value}}",
+    "bestModel": "最佳: {{name}} ¥{{value}} ({{percent}}%)",
+    "bestMae": "最佳: {{name}} (MAE {{value}})",
+    "worstMae": "最差: {{name}} (MAE {{value}})",
+    "outageCount": "{{count}} 起停機事件",
+    "affectedCapacity": "影響容量: {{value}} MW"
   },
   "marketInfo": {
     "currentArea": "目前地區："
   },
   "profitAnalysis": {
-    "title": "收益分析（每日 & 累計）",
-    "dailyProfitYAxis": "每日收益 (¥)",
-    "cumulativeProfitYAxis": "累計收益 (¥)",
-    "tooltipTitle": "{{date}} 收益",
+    "title": "價格展差（每日 & 累計）",
+    "subtitle": "每日在最低 N 個時段買入、最高 N 個時段賣出的理論展差，未考慮蓄電池容量等限制條件。",
+    "dailyProfitYAxis": "每日展差 (¥)",
+    "cumulativeProfitYAxis": "累計展差 (¥)",
+    "tooltipTitle": "{{date}} 展差",
     "tooltipType": "類型",
     "tooltipDaily": "每日",
     "tooltipCumulative": "累計",
@@ -113,12 +129,12 @@
     "seriesModelDaily": "{{model}}（每日）",
     "seriesOptimalCumulative": "Optimal（累計）",
     "seriesModelCumulative": "{{model}}（累計）",
-    "summaryTitle": "總收益摘要",
+    "summaryTitle": "展差摘要",
     "optimalActual": "Optimal（實際）",
     "baseline100": "基準 100%",
     "pairsLabel": "高低配對數 (N): {{count}}",
     "pairsValue": "{{count}} 配對（{{hours}} 小時）",
-    "pairsDescription": "透過每天在最低的 {{count}} 個時段買入、最高的 {{count}} 個時段賣出來計算收益。"
+    "pairsDescription": "透過每天在最低的 {{count}} 個時段買入、最高的 {{count}} 個時段賣出來計算展差。"
   },
   "maeAnalysis": {
     "title": "MAE 指標",
@@ -168,6 +184,7 @@
     "bidPlans": "入標",
     "weather": "天氣",
     "occto": "OCCTO",
+    "tdgc": "調整力",
     "latest": "最新",
     "changeCalcDate": "變更計算日",
     "occtoGroups": {
@@ -250,6 +267,12 @@
       "interconnection": "互連",
       "others": "其他"
     },
+    "tdgc": {
+      "correctedPrice": "補正單價",
+      "tsoPrice": "TSO 價格",
+      "contractQty": "約定量",
+      "reserveReq": "必要量"
+    },
     "bidPlan": {
       "buyPrice": "買入價格",
       "buyVolume": "買入電量",
@@ -310,6 +333,31 @@
     "totalVolume": "總成交量 {{value}} MWh",
     "totalContracts": "{{count}} 件成交",
     "colorHint": "紅色 = 漲、綠色 = 跌（日本市場慣例）"
+  },
+  "tdgcTab": {
+    "selectDateRange": "請選擇日期範圍",
+    "noData": "該時段無調整力市場資料",
+    "categories": {
+      "primary": "一次調整力",
+      "secondary1": "二次調整力①",
+      "secondary2": "二次調整力②",
+      "tertiary1": "三次調整力①",
+      "tertiary2": "三次調整力②",
+      "supplyDemandAdj": "需給調整②",
+      "forward": "先渡し"
+    },
+    "correctedPrice": "補正單價",
+    "tsoPrice": "TSO 價格",
+    "contractQuantity": "約定量",
+    "reserveRequirement": "必要量",
+    "avgPrice": "均價 {{value}} 円/kWh",
+    "totalContract": "總約定量 {{value}} MWh",
+    "offerCount": "應札數 {{value}} 件",
+    "chartHint": "線 = 平均單價 (円/kWh)、柱 = 約定量 (MWh)",
+    "tooltipCorrectedPrice": "補正單價",
+    "tooltipTsoPrice": "TSO 價格",
+    "tooltipContract": "約定量",
+    "tooltipReserve": "必要量"
   },
   "supplyDemandTab": {
     "selectDateRange": "請選擇日期範圍",

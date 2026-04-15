@@ -48,6 +48,10 @@ export function useForecastPresets() {
     const setSelectedBidPlanCategories = chartCtx.setSelectedBidPlanCategories ?? (() => {});
     const selectedSiteIds: Set<string> = chartCtx.selectedSiteIds ?? new Set();
     const setSelectedSiteIds = chartCtx.setSelectedSiteIds ?? (() => {});
+    const selectedTdgcFields: Set<string> = chartCtx.selectedTdgcFields ?? new Set();
+    const setSelectedTdgcFields = chartCtx.setSelectedTdgcFields ?? (() => {});
+    const selectedTdgcCategories: Set<string> = chartCtx.selectedTdgcCategories ?? new Set();
+    const setSelectedTdgcCategories = chartCtx.setSelectedTdgcCategories ?? (() => {});
     const selectedWeatherFieldsActual: Set<string> = chartCtx.selectedWeatherFieldsActual ?? new Set();
     const setSelectedWeatherFieldsActual = chartCtx.setSelectedWeatherFieldsActual ?? (() => {});
     const selectedWeatherFieldsForecast: Set<string> = chartCtx.selectedWeatherFieldsForecast ?? new Set();
@@ -83,6 +87,8 @@ export function useForecastPresets() {
         selectedBidPlanFields: Array.from(selectedBidPlanFields),
         selectedBidPlanCategories: Array.from(selectedBidPlanCategories),
         selectedSiteIds: Array.from(selectedSiteIds),
+        selectedTdgcFields: Array.from(selectedTdgcFields),
+        selectedTdgcCategories: Array.from(selectedTdgcCategories),
         selectedWeatherFieldsActual: Array.from(selectedWeatherFieldsActual),
         selectedWeatherFieldsForecast: Array.from(selectedWeatherFieldsForecast),
     }), [
@@ -91,6 +97,7 @@ export function useForecastPresets() {
         selectedModels, selectedWeatherModelActual, selectedWeatherModelForecast,
         selectedOcctoFields, occtoChartType, selectedInterconnectionFields, selectedBatteryFields,
         selectedBidPlanFields, selectedBidPlanCategories, selectedSiteIds,
+        selectedTdgcFields, selectedTdgcCategories,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
     ]);
 
@@ -120,6 +127,8 @@ export function useForecastPresets() {
         if (data.selectedBidPlanFields) setSelectedBidPlanFields(() => new Set(data.selectedBidPlanFields));
         if (data.selectedBidPlanCategories) setSelectedBidPlanCategories(() => new Set(data.selectedBidPlanCategories));
         if (data.selectedSiteIds) setSelectedSiteIds(() => new Set(data.selectedSiteIds));
+        if (data.selectedTdgcFields) setSelectedTdgcFields(() => new Set(data.selectedTdgcFields));
+        if (data.selectedTdgcCategories) setSelectedTdgcCategories(() => new Set(data.selectedTdgcCategories));
         if (data.selectedWeatherFieldsActual) setSelectedWeatherFieldsActual(() => new Set(data.selectedWeatherFieldsActual));
         if (data.selectedWeatherFieldsForecast) setSelectedWeatherFieldsForecast(() => new Set(data.selectedWeatherFieldsForecast));
 
@@ -132,6 +141,7 @@ export function useForecastPresets() {
         setSelectedWeatherModelActual, setSelectedWeatherModelForecast,
         setSelectedOcctoFields, setOcctoChartType, setSelectedInterconnectionFields, setSelectedBatteryFields,
         setSelectedBidPlanFields, setSelectedBidPlanCategories, setSelectedSiteIds,
+        setSelectedTdgcFields, setSelectedTdgcCategories,
         setSelectedWeatherFieldsActual, setSelectedWeatherFieldsForecast,
     ]);
 

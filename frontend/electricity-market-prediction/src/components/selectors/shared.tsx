@@ -14,6 +14,7 @@ export const SOURCE_COLORS = {
     weatherActual: '#ffc107',
     weatherForecast: '#ff9800',
     occto: '#009688',
+    tdgc: '#8e24aa',
     primary: 'var(--primary)',
     text: 'var(--text-primary)',
     textSec: 'var(--text-secondary)',

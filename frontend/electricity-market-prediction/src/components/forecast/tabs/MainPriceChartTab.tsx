@@ -1,25 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Tabs,
-  Tab,
-  Typography,
-  Alert,
-  IconButton,
-  useTheme,
-  alpha,
-} from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
-import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import CloudIcon from '@mui/icons-material/Cloud';
-import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
-import BalanceIcon from '@mui/icons-material/Balance';
+import { Box, Alert, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { PriceChartContainer } from '../charts/PriceChartContainer';
 import ProfitAnalysis from '../profit-analysis/ProfitAnalysis';
@@ -29,7 +11,9 @@ import InterconnectionPanel from '@/components/market/InterconnectionPanel';
 import WeatherChartSection from '@/components/market/weather/WeatherChartSection';
 import IntradayPanel from '@/components/market/intraday/IntradayPanel';
 import SupplyDemandChart from '@/components/market/supply-demand/SupplyDemandChart';
+import TdgcPanel from '@/components/market/tdgc/TdgcPanel';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
+import { BottomPanelNav, type TabKey } from './BottomPanelNav';
 import type { IntradayData } from '@/types';
 
 interface MainPriceChartTabProps {
@@ -47,14 +31,25 @@ interface MainPriceChartTabProps {
   defaultPanelMarketInfo?: boolean;
 }
 
-type SubTabIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-
 const BOTTOM_BAR_HEIGHT = 40;
-const STORAGE_KEY = 'main-price-chart-bottom-panel';
+const STORAGE_KEY_SIZES = 'main-price-chart-bottom-panel';
+const STORAGE_KEY_TAB = 'main-price-chart-active-tab';
+
 /** 收合時下方只留一條 tab 列，比例收到底 */
 const COLLAPSED_SIZES = [96, 4] as const;
 const COLLAPSED_MIN_SIZES = [92, 4] as const;
 const DEFAULT_EXPANDED_SIZES = [72, 28];
+const MAXIMIZED_SIZES = [15, 85];
+const MAXIMIZED_MIN_SIZES = [10, 60];
+
+function loadStoredTab(): TabKey | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_TAB);
+    if (saved) return saved as TabKey;
+  } catch { /* ignore */ }
+  return null;
+}
 
 export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   areaName,
@@ -69,32 +64,44 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
   intradayData = [],
   defaultPanelMarketInfo = false,
 }) => {
-  const theme = useTheme();
   const { t } = useTranslation(['forecast', 'common']);
   const [topBottomPairs, setTopBottomPairs] = useState(2);
-  const [subTab, setSubTab] = useState<SubTabIndex>(defaultPanelMarketInfo ? 2 : 0); // 2 = 停機資訊
+
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (defaultPanelMarketInfo) return 'outage';
+    return loadStoredTab() ?? 'profit';
+  });
+
   const [collapsed, setCollapsed] = useState(!defaultPanelMarketInfo);
+  const [maximized, setMaximized] = useState(false);
+
   const [panelSizes, setPanelSizes] = useState<number[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_EXPANDED_SIZES;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY_SIZES);
       if (saved) {
         const parsed = JSON.parse(saved) as number[];
         if (Array.isArray(parsed) && parsed.length === 2) return parsed;
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     return DEFAULT_EXPANDED_SIZES;
   });
+
+  // Persist panel sizes
   useEffect(() => {
-    if (!collapsed && typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(panelSizes));
+    if (!collapsed && !maximized && typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_SIZES, JSON.stringify(panelSizes));
     }
-  }, [collapsed, panelSizes]);
-  const isDark = theme.palette.mode === 'dark';
-  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const cardBg = isDark ? alpha(theme.palette.background.paper, 0.6) : theme.palette.background.paper;
+  }, [collapsed, maximized, panelSizes]);
+
+  // Persist active tab
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_TAB, activeTab);
+    }
+  }, [activeTab]);
+
+  const isCompact = !maximized;
 
   const emptyMessage = t('forecast:emptyState.selectAreaAndModel');
   const loadingNode = (
@@ -124,87 +131,25 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
     </Box>
   );
 
-  const handleTabChange = (_: React.SyntheticEvent, v: SubTabIndex) => {
-    if (!collapsed) setSubTab(v);
+  const handleTabSelect = (tab: TabKey) => {
+    setActiveTab(tab);
   };
 
-  const handleTabClick = (index: SubTabIndex) => {
+  const handleToggleCollapse = () => {
     if (collapsed) {
-      setSubTab(index);
       setCollapsed(false);
-    } else if (subTab === index) {
+      setMaximized(false);
+    } else {
       setCollapsed(true);
+      setMaximized(false);
     }
   };
 
-  const tabBar = (
-    <Tabs
-      value={subTab}
-      onChange={handleTabChange}
-      sx={{
-        minHeight: BOTTOM_BAR_HEIGHT,
-        flex: 1,
-        minWidth: 0,
-        '& .MuiTab-root': {
-          textTransform: 'none',
-          fontWeight: 600,
-          minHeight: BOTTOM_BAR_HEIGHT,
-          py: 0.75,
-          ...(collapsed && { color: 'text.secondary', opacity: 0.85 }),
-        },
-        '& .MuiTab-root.Mui-selected': collapsed ? { color: 'text.secondary', opacity: 0.85 } : {},
-        '& .MuiTabs-indicator': {
-          height: 2,
-          ...(collapsed && { display: 'none' }),
-        },
-        '& .MuiTabs-flexContainer': { height: BOTTOM_BAR_HEIGHT },
-      }}
-    >
-      <Tab
-        icon={<TrendingUpIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.profitAnalysis')}
-        onClick={() => handleTabClick(0)}
-      />
-      <Tab
-        icon={<AssessmentIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.maeAnalysis')}
-        onClick={() => handleTabClick(1)}
-      />
-      <Tab
-        icon={<WarningAmberIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.outageInfo')}
-        onClick={() => handleTabClick(2)}
-      />
-      <Tab
-        icon={<AccountTreeIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.interconnFlow')}
-        onClick={() => handleTabClick(3)}
-      />
-      <Tab
-        icon={<CloudIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.weatherData')}
-        onClick={() => handleTabClick(4)}
-      />
-      <Tab
-        icon={<CandlestickChartIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.intradayMarketTab')}
-        onClick={() => handleTabClick(5)}
-      />
-      <Tab
-        icon={<BalanceIcon sx={{ fontSize: 18, mr: 0.5 }} />}
-        iconPosition="start"
-        label={t('forecast:tabs.supplyDemandBalance')}
-        onClick={() => handleTabClick(6)}
-      />
-    </Tabs>
-  );
+  const handleToggleMaximize = () => {
+    setMaximized((prev) => !prev);
+  };
 
+  // Tab content
   const tabContent = (
     <Box
       sx={{
@@ -223,7 +168,7 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         },
       }}
     >
-      {subTab === 0 && (
+      {activeTab === 'profit' && (
         <>
           {!selectedModels.length ? (
             <Alert severity="info" sx={{ borderRadius: 1.5, py: 0.75 }}>
@@ -238,12 +183,13 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
               topBottomPairs={topBottomPairs}
               setTopBottomPairs={setTopBottomPairs}
               embedded
-              hideControls={false}
+              hideControls={isCompact}
+              compact={isCompact}
             />
           )}
         </>
       )}
-      {subTab === 1 && (
+      {activeTab === 'mae' && (
         <>
           {!selectedModels.length ? (
             <Alert severity="info" sx={{ borderRadius: 1.5, py: 0.75 }}>
@@ -262,20 +208,26 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
               <Typography sx={{ fontSize: 13 }}>{t('common:loading')}</Typography>
             </Box>
           ) : (
-            <MaeAnalysis chartData={chartData} selectedModels={selectedModels} embedded />
+            <MaeAnalysis
+              chartData={chartData}
+              selectedModels={selectedModels}
+              embedded
+              compact={isCompact}
+            />
           )}
         </>
       )}
-      {subTab === 2 && (
+      {activeTab === 'outage' && (
         <Box sx={{ py: 0.5 }}>
           <OutagesPanel
             startDate={startDate}
             endDate={endDate}
             selectedArea={areaName}
+            compact={isCompact}
           />
         </Box>
       )}
-      {subTab === 3 && (
+      {activeTab === 'interconnection' && (
         <Box sx={{ py: 0.5 }}>
           <InterconnectionPanel
             startDate={startDate}
@@ -284,23 +236,29 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
           />
         </Box>
       )}
-      {subTab === 4 && (
+      {activeTab === 'weather' && (
         <Box sx={{ py: 0.5 }}>
           <WeatherChartSection
             weatherActual={weatherActual}
             weatherForecast={weatherForecast}
             weatherChartData={marketInfoWeatherChartData}
+            compact={isCompact}
           />
         </Box>
       )}
-      {subTab === 5 && (
+      {activeTab === 'intraday' && (
         <Box sx={{ py: 0.5 }}>
           <IntradayPanel data={intradayData} />
         </Box>
       )}
-      {subTab === 6 && (
+      {activeTab === 'supplyDemand' && (
         <Box sx={{ py: 0.5 }}>
           <SupplyDemandChart startDate={startDate} endDate={endDate} />
+        </Box>
+      )}
+      {activeTab === 'tdgc' && (
+        <Box sx={{ py: 0.5 }}>
+          <TdgcPanel startDate={startDate} endDate={endDate} areaName={areaName} />
         </Box>
       )}
     </Box>
@@ -328,47 +286,36 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        borderTop: `1px solid ${borderColor}`,
-        backgroundColor: cardBg,
+        borderTop: '1px solid var(--card-border)',
+        backgroundColor: collapsed ? 'var(--subtle-bg)' : 'var(--card-bg)',
+        ...(collapsed && {
+          borderTop: '1px solid var(--primary-alpha-12)',
+        }),
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          borderBottom: `1px solid ${borderColor}`,
-          flexShrink: 0,
-          height: BOTTOM_BAR_HEIGHT,
-          minHeight: BOTTOM_BAR_HEIGHT,
-        }}
-      >
-        {tabBar}
-        <IconButton
-          size="small"
-          onClick={() => {
-            if (collapsed) {
-              setSubTab(0);
-              setCollapsed(false);
-            } else {
-              setCollapsed(true);
-            }
-          }}
-          sx={{ mr: 0.5, color: 'text.secondary' }}
-          title={collapsed ? t('forecast:tabs.expand') : t('forecast:tabs.collapse')}
-          aria-label={collapsed ? t('forecast:tabs.expand') : t('forecast:tabs.collapse')}
-        >
-          {collapsed ? (
-            <UnfoldMoreIcon sx={{ fontSize: 20 }} aria-hidden />
-          ) : (
-            <UnfoldLessIcon sx={{ fontSize: 20 }} />
-          )}
-        </IconButton>
-      </Box>
+      <BottomPanelNav
+        activeTab={activeTab}
+        collapsed={collapsed}
+        maximized={maximized}
+        onTabSelect={handleTabSelect}
+        onToggleCollapse={handleToggleCollapse}
+        onToggleMaximize={handleToggleMaximize}
+      />
       {tabContent}
     </Box>
   );
 
-  const layoutSizes = collapsed ? [...COLLAPSED_SIZES] : panelSizes;
+  const layoutSizes = collapsed
+    ? [...COLLAPSED_SIZES]
+    : maximized
+      ? MAXIMIZED_SIZES
+      : panelSizes;
+
+  const layoutMinSizes = collapsed
+    ? [...COLLAPSED_MIN_SIZES]
+    : maximized
+      ? MAXIMIZED_MIN_SIZES
+      : [35, 8];
 
   return (
     <Box
@@ -383,10 +330,10 @@ export const MainPriceChartTab: React.FC<MainPriceChartTabProps> = ({
       <ResizableLayout
         direction="vertical"
         defaultSizes={DEFAULT_EXPANDED_SIZES}
-        minSizes={collapsed ? [...COLLAPSED_MIN_SIZES] : [35, 8]}
+        minSizes={layoutMinSizes}
         sizes={layoutSizes}
         onSizesChange={(sizes) => {
-          if (!collapsed) setPanelSizes(sizes);
+          if (!collapsed && !maximized) setPanelSizes(sizes);
         }}
         animateSizeChanges
       >

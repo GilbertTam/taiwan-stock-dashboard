@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Paper, Typography,
+  Box, Paper, Typography, Chip, Stack,
   CircularProgress, Alert
 } from '@mui/material';
 import { format } from 'date-fns';
@@ -20,10 +20,12 @@ interface OutagesPanelProps {
   startDate: Date | null;
   endDate: Date | null;
   selectedArea: string;
+  /** compact 模式：只顯示 Gantt + 摘要，不顯示詳細表格 */
+  compact?: boolean;
 }
 
-export default function OutagesPanel({ startDate, endDate, selectedArea }: OutagesPanelProps) {
-  const { t } = useTranslation('generationMix');
+export default function OutagesPanel({ startDate, endDate, selectedArea, compact = false }: OutagesPanelProps) {
+  const { t } = useTranslation(['generationMix', 'forecast']);
   const [loading, setLoading] = useState(false);
   const [outagesData, setOutagesData] = useState<HjksOutage[]>([]);
 
@@ -80,12 +82,30 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
         <>
           {outagesData.length > 0 ? (
             <>
-              <Typography variant="subtitle1" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
-                {t('outages.panelTitle')} - {selectedArea}
+              <Typography variant="subtitle1" gutterBottom fontWeight="bold" sx={{ mb: compact ? 1 : 2 }}>
+                {t('generationMix:outages.panelTitle')} - {selectedArea}
               </Typography>
 
+              {/* compact 摘要 Chips */}
+              {compact && (
+                <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
+                  <Chip
+                    size="small"
+                    label={t('forecast:compactSummary.outageCount', { count: outagesData.length })}
+                    sx={{ fontWeight: 600 }}
+                  />
+                  <Chip
+                    size="small"
+                    label={t('forecast:compactSummary.affectedCapacity', {
+                      value: outagesData.reduce((sum, o) => sum + (o.max_capacity ?? 0), 0).toLocaleString(),
+                    })}
+                    sx={{ fontWeight: 600, backgroundColor: 'rgba(255,152,0,0.12)', color: '#ffa726' }}
+                  />
+                </Stack>
+              )}
+
               {/* Gantt Chart */}
-              <Paper variant="outlined" sx={{ p: 2, mb: 3, backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <Paper variant="outlined" sx={{ p: compact ? 1.5 : 2, mb: compact ? 0 : 3, backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
                 <OutageGanttChart
                   outages={outagesData}
                   startDate={startDate}
@@ -93,18 +113,22 @@ export default function OutagesPanel({ startDate, endDate, selectedArea }: Outag
                 />
               </Paper>
 
-              {/* Outages Table */}
-              <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
-                {t('outages.detailedInfo')}
-              </Typography>
+              {/* Outages Table — full 模式才顯示 */}
+              {!compact && (
+                <>
+                  <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
+                    {t('generationMix:outages.detailedInfo')}
+                  </Typography>
 
-              <OutageTable
-                outages={outagesData}
-              />
+                  <OutageTable
+                    outages={outagesData}
+                  />
+                </>
+              )}
             </>
           ) : (
             <Alert severity="info" sx={{ mt: 2 }}>
-              {t('outages.noDataForPeriod')}
+              {t('generationMix:outages.noDataForPeriod')}
             </Alert>
           )}
         </>

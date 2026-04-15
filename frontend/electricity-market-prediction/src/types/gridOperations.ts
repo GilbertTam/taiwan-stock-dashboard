@@ -261,40 +261,41 @@ export interface BatteryData {
 
 /**
  * TDGC (Tertiary Demand/Generation Control) balancing market data.
+ * Field names match ES snake_case document structure.
  */
 export interface TdgcData {
     /** Timestamp (ISO format) */
     datetime: string;
-    /** Area name */
-    Area: string;
+    /** Area name (e.g. "hokkaido", "tokyo") */
+    area: string;
     /** Corrected unit price average (yen/kWh) */
-    CorrectedUnitPriceAve: number;
+    corrected_unit_price_ave: number;
     /** Corrected unit price maximum (yen/kWh) */
-    CorrectedUnitPriceMax: number;
+    corrected_unit_price_max: number;
     /** Corrected unit price minimum (yen/kWh) */
-    CorrectedUnitPriceMin: number;
+    corrected_unit_price_min: number;
     /** In-area quantity (kWh) */
-    InAreaQuantity: number;
+    in_area_quantity: number;
     /** Number of offers */
-    OfferCount: number;
+    offer_count: number;
     /** Total offer quantity (kWh) */
-    OfferCountQuantityInTotal: number;
+    offer_count_quantity_in_total: number;
     /** Number of unique offer IDs */
-    OfferIdCount: number;
+    offer_id_count: number;
     /** Total quantity by offer ID (kWh) */
-    OfferIdCountQuantityInTotal: number;
+    offer_id_count_quantity_in_total: number;
     /** Reserve requirement (kWh) */
-    ReserveRequirement: number;
+    reserve_requirement: number;
     /** Total contracted quantity (kWh) */
-    TotalContractQuantity: number;
+    total_contract_quantity: number;
     /** TSO price average (yen/kWh) */
-    TsoPriceAve: number;
+    tso_price_ave: number;
     /** TSO price maximum (yen/kWh) */
-    TsoPriceMax: number;
+    tso_price_max: number;
     /** TSO price minimum (yen/kWh) */
-    TsoPriceMin: number;
-    /** Commodity category identifier */
-    CommodityCategory: string;
+    tso_price_min: number;
+    /** Commodity category identifier (e.g. "1000", "3200") */
+    commodity_category: string;
 }
 
 /**

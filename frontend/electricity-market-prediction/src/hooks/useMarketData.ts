@@ -42,11 +42,12 @@ import {
     fetchOcctoArea,
     fetchBatteryData,
     fetchBidPlans,
+    fetchTdgc,
     fetchWeatherActualDaily,
     WeatherModelInfo,
     WeatherModelBasicInfo
 } from '@/services';
-import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, WeatherDailyData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
+import { Area, PredictionModel, AreaPrice, PricePrediction, CalculatingDate, WeatherData, WeatherDailyData, ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData, TdgcData } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { generateColor, hashString } from '@/utils/chartUtils';
 import { SelectChangeEvent } from '@mui/material';
@@ -108,6 +109,7 @@ export interface UseMarketDataReturn {
     occtoAreaData: OcctoAreaData[];
     batteryData: BatteryData[];
     bidPlansData: BidPlanData[];
+    tdgcData: TdgcData[];
     selectedSiteIds: Set<string>;
     setSelectedSiteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
     availableSiteIds: string[];
@@ -364,6 +366,7 @@ export const useMarketData = (): UseMarketDataReturn => {
             occtoAreaData: OcctoAreaData[];
             batteryData: BatteryData[];
             bidPlansData: BidPlanData[];
+            tdgcData: TdgcData[];
         }
     }>>({});
 
@@ -393,6 +396,9 @@ export const useMarketData = (): UseMarketDataReturn => {
 
     /** Bid plan data (spot) */
     const [bidPlansData, setBidPlansData] = useState<BidPlanData[]>([]);
+
+    /** TDGC (balancing market) data */
+    const [tdgcData, setTdgcData] = useState<TdgcData[]>([]);
 
     /** Selected site IDs for bid plans filtering */
     const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set());
@@ -831,7 +837,8 @@ export const useMarketData = (): UseMarketDataReturn => {
                 promises.push(fetchIntraday({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('日前')));
                 promises.push(fetchInterconnectionFlows({ start_date: formattedStartDate, end_date: formattedEndDate, interval_minutes: 30 }).catch(catchWithLabel('互連')));
                 promises.push(fetchOcctoArea({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('OCCTO 區域')));
-                indices.push('imbalance', 'intraday', 'interconnection', 'occtoArea');
+                promises.push(fetchTdgc({ start_date: formattedStartDate, end_date: formattedEndDate, area_name: selectedArea }).catch(catchWithLabel('調整力')));
+                indices.push('imbalance', 'intraday', 'interconnection', 'occtoArea', 'tdgc');
             }
             if (scopesToFetch.has('batteryBid')) {
                 promises.push(fetchBatteryData({ start_date: formattedStartDate, end_date: formattedEndDate }).catch(catchWithLabel('電池')));
@@ -862,6 +869,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                 setIntradayData(newData['intraday'] || []);
                 setInterconnectionData(newData['interconnection'] || []);
                 setOcctoAreaData(newData['occtoArea'] || []);
+                setTdgcData(newData['tdgc'] || []);
             }
             if (activeScopes.has('batteryBid')) {
                 setBatteryData(newData['battery'] || []);
@@ -884,6 +892,7 @@ export const useMarketData = (): UseMarketDataReturn => {
                     occtoAreaData: newData['occtoArea'] || [],
                     batteryData: newData['battery'] || [],
                     bidPlansData: newData['bidPlans'] || [],
+                    tdgcData: newData['tdgc'] || [],
                 }
             };
 
@@ -1237,6 +1246,7 @@ export const useMarketData = (): UseMarketDataReturn => {
         occtoAreaData,
         batteryData,
         bidPlansData,
+        tdgcData,
         selectedSiteIds,
         setSelectedSiteIds,
         availableSiteIds,

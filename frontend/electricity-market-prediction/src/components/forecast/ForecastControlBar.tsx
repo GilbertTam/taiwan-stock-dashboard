@@ -16,7 +16,7 @@ import { usePriceChart } from '@/components/price-chart/context/PriceChartContex
 import { calculateModelMAE, prepareChartData } from '@/utils/chartUtils';
 import {
     occtoStackedFields, weatherFields,
-    INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS,
+    INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES,
 } from '@/components/price-chart/constants';
 import { SOURCE_COLORS } from '@/components/selectors/shared';
 import { PresetSelector } from '@/components/selectors/PresetSelector';
@@ -27,7 +27,7 @@ import type { CalculatingDate } from '@/types';
 
 // ─── Source config ────────────────────────────────────────────────────────────
 
-type SourceKey = 'actual' | 'intraday' | 'imbalance' | 'interconnection' | 'battery' | 'bidPlans' | 'weather' | 'occto';
+type SourceKey = 'actual' | 'intraday' | 'imbalance' | 'interconnection' | 'battery' | 'bidPlans' | 'weather' | 'occto' | 'tdgc';
 
 interface SourceConfig {
     key: SourceKey;
@@ -45,6 +45,7 @@ const SOURCES: SourceConfig[] = [
     { key: 'bidPlans',        labelKey: 'controlBar.bidPlans',         color: SOURCE_COLORS.bidPlans,        hasSubOptions: true  },
     { key: 'weather',         labelKey: 'controlBar.weather',          color: SOURCE_COLORS.weather,         hasSubOptions: true  },
     { key: 'occto',           labelKey: 'controlBar.occto',            color: SOURCE_COLORS.occto,           hasSubOptions: true  },
+    { key: 'tdgc',            labelKey: 'controlBar.tdgc',             color: SOURCE_COLORS.tdgc,            hasSubOptions: true  },
 ];
 
 // OCCTO field groups
@@ -106,7 +107,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
         showWeatherForecast,      setShowWeatherForecast,
         showOcctoArea,            setShowOcctoArea,
         imbalanceData, intradayData, interconnectionData,
-        batteryData, bidPlansData, occtoAreaData,
+        batteryData, bidPlansData, occtoAreaData, tdgcData,
         weatherActual, weatherForecast,
         weatherModelsActual, weatherModelsForecast,
         selectedWeatherModelActual,   setSelectedWeatherModelActual,
@@ -143,6 +144,13 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
     const selectedWeatherFieldsForecast: Set<string> = chartCtxAny.selectedWeatherFieldsForecast ?? new Set<string>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const setSelectedWeatherFieldsForecast: (fn: (p: Set<string>) => Set<string>) => void = chartCtxAny.setSelectedWeatherFieldsForecast ?? (() => {});
+    const selectedTdgcFields: Set<string> = chartCtxAny.selectedTdgcFields ?? new Set<string>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setSelectedTdgcFields: (fn: (p: Set<string>) => Set<string>) => void = chartCtxAny.setSelectedTdgcFields ?? (() => {});
+    const availableTdgcCategories: string[] = chartCtxAny.availableTdgcCategories ?? [];
+    const selectedTdgcCategories: Set<string> = chartCtxAny.selectedTdgcCategories ?? new Set<string>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setSelectedTdgcCategories: (fn: (p: Set<string>) => Set<string>) => void = chartCtxAny.setSelectedTdgcCategories ?? (() => {});
 
     // ── Chart data for MAE ────────────────────────────────────────────────────
     const chartData = useMemo(
@@ -209,6 +217,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'bidPlans':        return selectedBidPlanFields.size > 0;
             case 'weather':         return showWeather;
             case 'occto':           return showOcctoArea;
+            case 'tdgc':            return selectedTdgcFields.size > 0;
         }
     }
 
@@ -222,6 +231,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'bidPlans':        return !!(bidPlansData        && bidPlansData.length > 0);
             case 'weather':         return !!((weatherActual?.length ?? 0) > 0 || (weatherForecast?.length ?? 0) > 0);
             case 'occto':           return !!(occtoAreaData       && occtoAreaData.length > 0);
+            case 'tdgc':            return !!(tdgcData            && tdgcData.length > 0);
         }
     }
 
@@ -280,6 +290,19 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     setShowOcctoArea(true);
                     setSelectedOcctoFields(new Set(['area_demand']));
                 }
+                break;
+            case 'tdgc':
+                setSelectedTdgcFields(prev => {
+                    if (prev.size > 0) {
+                        return new Set();
+                    } else {
+                        // 確保至少有一個 category 被選取
+                        if (selectedTdgcCategories.size === 0 && availableTdgcCategories.length > 0) {
+                            setSelectedTdgcCategories(() => new Set([availableTdgcCategories[0]]));
+                        }
+                        return new Set(TDGC_FIELDS.map(f => f.key));
+                    }
+                });
                 break;
         }
     }
@@ -646,6 +669,55 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                 </Box>
                             </Box>
                         ))}
+                    </Box>
+                );
+
+            case 'tdgc':
+                return (
+                    <Box sx={{ py: 0.75, minWidth: 260 }}>
+                        {availableTdgcCategories.length > 0 && (
+                            <>
+                                <PopoverLabel>{t('dataSourceSections.marketCategory')}</PopoverLabel>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', px: 1.5, pb: 0.75 }}>
+                                    {availableTdgcCategories.map(cat => {
+                                        const sel = selectedTdgcCategories.has(cat);
+                                        const catCfg = TDGC_CATEGORIES[cat];
+                                        const catColor = catCfg?.color ?? SOURCE_COLORS.tdgc;
+                                        return (
+                                            <Chip key={cat} label={catCfg ? t(catCfg.labelKey) : cat} size="small"
+                                                onClick={() => setSelectedTdgcCategories(prev => {
+                                                    const next = new Set(prev);
+                                                    sel ? next.delete(cat) : next.add(cat);
+                                                    return next;
+                                                })}
+                                                sx={{
+                                                    height: 22, fontSize: '0.7rem', cursor: 'pointer',
+                                                    bgcolor: sel ? `${catColor}20` : 'transparent',
+                                                    border: `1px solid ${sel ? catColor : 'var(--card-border)'}`,
+                                                    color: sel ? catColor : 'var(--text-secondary)',
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            </>
+                        )}
+                        <PopoverLabel>{t('controlBar.displayFields')}</PopoverLabel>
+                        {TDGC_FIELDS.map(f => {
+                            const on = selectedTdgcFields.has(f.key);
+                            return (
+                                <Box key={f.key} sx={rowSx} onClick={() =>
+                                    setSelectedTdgcFields(prev => {
+                                        const next = new Set(prev);
+                                        on ? next.delete(f.key) : next.add(f.key);
+                                        return next;
+                                    })
+                                }>
+                                    <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
+                                    <Typography sx={{ fontSize: '0.75rem' }}>{t(f.labelKey)}</Typography>
+                                </Box>
+                            );
+                        })}
                     </Box>
                 );
 

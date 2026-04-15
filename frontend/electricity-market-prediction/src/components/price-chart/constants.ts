@@ -66,6 +66,25 @@ export const weatherFields = [
     { value: 'pressure_msl', labelKey: 'fields.weather.pressure', unit: 'hPa', color: '#e91e63' },
 ];
 
+/** TDGC (調整力市場) 商品分類定義 — 共用常數 (TdgcPanel + overlay) */
+export const TDGC_CATEGORIES: Record<string, { labelKey: string; color: string }> = {
+    '1000': { labelKey: 'tdgcTab.categories.primary',          color: '#e53935' },
+    '1100': { labelKey: 'tdgcTab.categories.secondary1',       color: '#fb8c00' },
+    '2100': { labelKey: 'tdgcTab.categories.secondary2',       color: '#fdd835' },
+    '2200': { labelKey: 'tdgcTab.categories.tertiary1',        color: '#43a047' },
+    '3100': { labelKey: 'tdgcTab.categories.tertiary2',        color: '#1e88e5' },
+    '3200': { labelKey: 'tdgcTab.categories.supplyDemandAdj',  color: '#8e24aa' },
+    '4000': { labelKey: 'tdgcTab.categories.forward',          color: '#00897b' },
+};
+
+/** TDGC (調整力市場) 可選欄位 — type: 'price' 為折線 (Y1/Y2 可切換), 'quantity' 為柱狀圖 (獨立副圖) */
+export const TDGC_FIELDS = [
+    { key: 'corrected_unit_price_ave', labelKey: 'fields.tdgc.correctedPrice', pointKey: 'tdgc_corrected_price_ave' as const, color: '#e91e63', type: 'price' as const },
+    { key: 'tso_price_ave',            labelKey: 'fields.tdgc.tsoPrice',       pointKey: 'tdgc_tso_price_ave' as const,       color: '#9c27b0', type: 'price' as const },
+    { key: 'total_contract_quantity',  labelKey: 'fields.tdgc.contractQty',    pointKey: 'tdgc_contract_qty' as const,        color: '#7e57c2', type: 'quantity' as const },
+    { key: 'reserve_requirement',      labelKey: 'fields.tdgc.reserveReq',     pointKey: 'tdgc_reserve_req' as const,         color: '#5c6bc0', type: 'quantity' as const },
+];
+
 /** 投標計畫 (bid_plans) 基礎欄位定義 */
 export const BID_PLAN_BASE_FIELDS = [
     { key: 'bid_buy_price', labelKey: 'fields.bidPlan.buyPrice', color: '#fbc02d' },

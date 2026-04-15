@@ -7,7 +7,7 @@
  */
 import React, { createContext, useContext, useState, useMemo, ReactNode, useEffect } from 'react';
 import { ChartDataPoint } from '@/utils/chartUtils';
-import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData } from '@/types';
+import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, BatteryData, BidPlanData, TdgcData } from '@/types';
 import { useChartData } from '../hooks/useChartData';
 import { useMarketDataContext } from '@/context/MarketDataContext';
 
@@ -82,6 +82,11 @@ interface PriceChartState {
     setSelectedBatteryFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     selectedBidPlanFields: Set<string>;
     setSelectedBidPlanFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedTdgcFields: Set<string>;
+    setSelectedTdgcFields: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    availableTdgcCategories: string[];
+    selectedTdgcCategories: Set<string>;
+    setSelectedTdgcCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     availableBidPlanCategories: string[];
     selectedBidPlanCategories: Set<string>;
     setSelectedBidPlanCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -105,6 +110,7 @@ interface PriceChartState {
     hasOcctoAreaData: boolean;
     hasBatteryData: boolean;
     hasBidPlansData: boolean;
+    hasTdgcData: boolean;
     hasWeatherData: boolean;
     weatherY1Field: string | null;
     setWeatherY1Field: React.Dispatch<React.SetStateAction<string | null>>;
@@ -163,6 +169,7 @@ interface PriceChartProviderProps {
     occtoAreaData?: OcctoAreaData[];
     batteryData?: BatteryData[];
     bidPlansData?: BidPlanData[];
+    tdgcData?: TdgcData[];
     weatherActual?: any[];
     weatherForecast?: any[];
     selectedWeatherModelActual?: string | null;
@@ -196,6 +203,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     occtoAreaData = EMPTY_ARRAY,
     batteryData = EMPTY_ARRAY,
     bidPlansData = EMPTY_ARRAY,
+    tdgcData = EMPTY_ARRAY,
     weatherActual = EMPTY_ARRAY, // Destructure weatherActual
     weatherForecast = EMPTY_ARRAY, // Destructure weatherForecast
     selectedWeatherModelActual = null,
@@ -256,6 +264,13 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedInterconnectionFields, setSelectedInterconnectionFields] = useState<Set<string>>(new Set(['flow_diff']));
     const [selectedBatteryFields, setSelectedBatteryFields] = useState<Set<string>>(new Set(['spot_value']));
     const [selectedBidPlanFields, setSelectedBidPlanFields] = useState<Set<string>>(new Set(['buy_price'])); // 存储去掉 'bid_' 前缀的字段名
+    const [selectedTdgcFields, setSelectedTdgcFields] = useState<Set<string>>(new Set());
+    const [selectedTdgcCategories, setSelectedTdgcCategories] = useState<Set<string>>(new Set(['1000']));
+
+    const availableTdgcCategories = useMemo(() => {
+        if (!tdgcData || tdgcData.length === 0) return [];
+        return Array.from(new Set(tdgcData.map(d => d.commodity_category).filter(Boolean))).sort();
+    }, [tdgcData]);
     const [selectedWeatherFieldsActualLocal, setSelectedWeatherFieldsActualLocal] = useState<Set<string>>(new Set(['temperature']));
     const [selectedWeatherFieldsForecastLocal, setSelectedWeatherFieldsForecastLocal] = useState<Set<string>>(new Set(['temperature']));
 
@@ -307,6 +322,13 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         }
     }, [availableSiteIds, selectedSiteIds]);
 
+    // 當 TDGC fields 已啟用但 category 為空時，自動選取第一個可用 category
+    useEffect(() => {
+        if (availableTdgcCategories.length > 0 && selectedTdgcCategories.size === 0 && selectedTdgcFields.size > 0) {
+            setSelectedTdgcCategories(new Set([availableTdgcCategories[0]]));
+        }
+    }, [availableTdgcCategories, selectedTdgcCategories, selectedTdgcFields]);
+
 
     // Hover state for info panel
     const [hoveredData, setHoveredData] = useState<ProcessedDataPoint | null>(null);
@@ -334,6 +356,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         batteryData,
         bidPlansData: filteredBidPlansData,
         selectedBidPlanCategories,
+        tdgcData,
+        selectedTdgcCategories,
         weatherActual: filteredWeatherActual,
         weatherForecast: filteredWeatherForecast,
         areaName,
@@ -378,6 +402,9 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedInterconnectionFields, setSelectedInterconnectionFields,
         selectedBatteryFields, setSelectedBatteryFields,
         selectedBidPlanFields, setSelectedBidPlanFields,
+        selectedTdgcFields, setSelectedTdgcFields,
+        availableTdgcCategories,
+        selectedTdgcCategories, setSelectedTdgcCategories,
         availableBidPlanCategories,
         selectedBidPlanCategories, setSelectedBidPlanCategories,
         selectedSiteIds, setSelectedSiteIds,
@@ -395,6 +422,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hasOcctoAreaData: occtoAreaData && occtoAreaData.length > 0,
         hasBatteryData: batteryData && batteryData.length > 0,
         hasBidPlansData: bidPlansData && bidPlansData.length > 0,
+        hasTdgcData: tdgcData && tdgcData.length > 0,
         hasWeatherData: weatherActual && weatherActual.length > 0,
         weatherY1Field, setWeatherY1Field,
         weatherY2Field, setWeatherY2Field,
@@ -419,7 +447,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hoveredData,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore, showRightAxisLabels,
         chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields, availableBidPlanCategories, selectedBidPlanCategories, selectedSiteIds, setSelectedSiteIds, availableSiteIds, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
-        bidPlansData, // 添加 bidPlansData 到依赖
+        bidPlansData, tdgcData, selectedTdgcFields, availableTdgcCategories, selectedTdgcCategories,
         imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, filteredBidPlansData, weatherActual,
         weatherY1Field, weatherY2Field, weatherAxisScale, seriesAxisConfig,
         globalPrimaryRange, globalSecondaryRange, subchartLayout,

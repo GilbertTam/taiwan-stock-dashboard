@@ -412,7 +412,7 @@ class ESService:
         s = Search(using=self.client, index=self.tdgc_index)
         s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         if area_name:
-            s = s.query(Q('match', Area=area_name))
+            s = s.filter('term', area=area_name)
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()

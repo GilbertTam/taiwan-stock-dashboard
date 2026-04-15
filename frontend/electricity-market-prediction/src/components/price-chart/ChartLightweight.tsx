@@ -31,6 +31,8 @@ export const ChartLightweight: React.FC = () => {
         showOcctoArea, occtoChartType, selectedOcctoFields,
         selectedInterconnectionFields,
         selectedBatteryFields,
+        selectedTdgcFields,
+        selectedTdgcCategories,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showWeather, showWeatherActual, showWeatherForecast,
@@ -52,6 +54,8 @@ export const ChartLightweight: React.FC = () => {
 
     const deferredInterconnectionFields = useDeferredValue(selectedInterconnectionFields);
     const deferredBatteryFields = useDeferredValue(selectedBatteryFields);
+    const deferredTdgcFields = useDeferredValue(selectedTdgcFields);
+    const deferredTdgcCategories = useDeferredValue(selectedTdgcCategories);
     const deferredBidPlanFields = useDeferredValue(selectedBidPlanFields);
 
     const transformedData = useChartDataTransformers({
@@ -65,6 +69,8 @@ export const ChartLightweight: React.FC = () => {
         showImbalanceDeficitRate,
         selectedInterconnectionFields: deferredInterconnectionFields,
         selectedBatteryFields: deferredBatteryFields,
+        selectedTdgcFields: deferredTdgcFields,
+        selectedTdgcCategories: deferredTdgcCategories,
         selectedBidPlanFields: deferredBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,
@@ -178,11 +184,14 @@ export const ChartLightweight: React.FC = () => {
                 colors={colors}
                 areaName={areaName}
                 showImbalance={showImbalance}
+                showImbalanceQuantity={showImbalanceQuantity}
                 showIntraday={showIntraday}
                 selectedInterconnectionFields={selectedInterconnectionFields}
                 selectedBatteryFields={selectedBatteryFields}
                 selectedBidPlanFields={selectedBidPlanFields}
                 selectedBidPlanCategories={selectedBidPlanCategories}
+                selectedTdgcFields={selectedTdgcFields}
+                selectedTdgcCategories={selectedTdgcCategories}
                 showOcctoArea={showOcctoArea}
                 showWeather={showWeather}
                 showWeatherActual={showWeatherActual}

@@ -25,6 +25,8 @@ interface WeatherChartSectionProps {
   weatherActual: any[];
   weatherForecast: any[];
   weatherChartData: ExtendedWeatherData[];
+  /** compact 模式：只顯示 Period Summary + Forecast Accuracy，不顯示 3×3 分析圖 */
+  compact?: boolean;
 }
 
 function getSummaryStats(sortedData: ExtendedWeatherData[]) {
@@ -185,6 +187,7 @@ const WeatherChartSection = ({
   weatherActual,
   weatherForecast,
   weatherChartData,
+  compact = false,
 }: WeatherChartSectionProps) => {
   const { darkMode } = useTheme();
   const colors = useChartColors();
@@ -473,6 +476,9 @@ const WeatherChartSection = ({
         </Grid>
       </Paper>
 
+      {/* 以下分析圖表：compact 模式隱藏 */}
+      {!compact && (
+      <>
       {/* 3. 預報誤差時序（實際 − 預報） */}
       <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>
         {t('weatherTab.errorTimeSeries')}
@@ -608,6 +614,8 @@ const WeatherChartSection = ({
           {t('weatherTab.overlayHint')}
         </Typography>
       </Alert>
+      </>
+      )}
     </Box>
   );
 };

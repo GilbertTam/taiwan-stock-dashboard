@@ -173,6 +173,7 @@ export const useChartSeries = ({
             imbalanceDeficitData,
             interconnectionSeries,
             batterySeries,
+            tdgcSeries,
             bidPlanSeries,
             occtoData,
         } = transformedData;
@@ -238,6 +239,32 @@ export const useChartSeries = ({
                     title: showRightAxisLabels ? fieldKey : '',
                 });
                 usedSubCharts.add('battery');
+            }
+        });
+
+        tdgcSeries.forEach(({ fieldKey, data, color, label, seriesType }: { fieldKey: string; data: any[]; color: string; label?: string; seriesType?: string }) => {
+            if (data.length === 0) return;
+            const isQty = seriesType === 'histogram';
+
+            if (isQty) {
+                // 量 → HistogramSeries，固定到 'tdgc_qty' 副圖
+                updateOrAdd(`tdgc_${fieldKey}`, HistogramSeries, data, {
+                    color,
+                    priceScaleId: 'tdgc_qty',
+                    title: showRightAxisLabels ? (label || fieldKey) : '',
+                });
+                usedSubCharts.add('tdgc_qty');
+            } else {
+                // 價格 → LineSeries，支援 Y1/Y2 軸切換（疊加在主圖上）
+                const configKey = `tdgc_${fieldKey}`;
+                const targetScale = seriesAxisConfig?.[configKey]?.axis === 'Y2' ? 'left' : 'right';
+                updateOrAdd(`tdgc_${fieldKey}`, LineSeries, data, {
+                    color,
+                    lineWidth: 1,
+                    priceScaleId: targetScale,
+                    title: showRightAxisLabels ? (label || fieldKey) : '',
+                });
+                usedSubCharts.add(targetScale);
             }
         });
 
@@ -597,7 +624,7 @@ export const useChartSeries = ({
         // --- Layout Configuration (SubCharts) ---
         // 雙 Y 軸：投標電量用左軸 (left)、投標價格用右側 overlay (bidPlan_price)
         try {
-            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'occto', 'weather', 'weather_secondary', 'bidPlan_price'];
+            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'tdgc_qty', 'occto', 'weather', 'weather_secondary', 'bidPlan_price'];
             const activeSubCharts = knownSubCharts.filter(k => usedSubCharts.has(k));
 
             // In split mode on weather-only page, also treat each weather_overlay scale as a subchart panel

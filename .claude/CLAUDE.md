@@ -81,7 +81,7 @@ JWT tokens are stored client-side; the Axios instance in `frontend/.../src/servi
 Key API routes:
 - `POST /api/auth/login` — JWT token
 - `GET /api/area/list` — Japanese grid regions (Hokkaido → Kyushu)
-- `GET /api/market-info/*` — JEPX spot, imbalance, intraday, OCCTO supply/demand
+- `GET /api/market-info/*` — JEPX spot, imbalance, intraday, OCCTO supply/demand, TDGC balancing market
 - `GET /api/custom-spot-market-predict/*` — Price forecasts with CSV export
 - `POST /api/revenue/` — Battery revenue optimization via LP solver
 - `POST /api/revenue/manual` — Manual schedule simulation (user-defined charge/discharge)
@@ -100,6 +100,23 @@ Swagger UI available at `/api/docs` (requires authentication).
 - **`types/`** — Shared TypeScript interfaces; `dateRange.ts` defines `DateRangeSelection` with version counter
 - **`utils/manualSimulationClient.ts`** — Client-side battery simulation for instant UI preview (no API roundtrip); TypeScript port of Python backend algorithm
 - **`utils/scenarioGenerators.ts`** — 8 algorithmic scenario generators (`nday-avg`, `percentile`, `fixed-window`, `cycle-target`, `spread-threshold`, `peak-valley`, `price-momentum`, `conservative`)
+- **`components/price-chart/overlays/`** — Overlay data source plugin system; `types.ts` defines `OverlayDataSource` interface, `tdgc.ts` is the reference implementation
+
+### React Hooks — No Hooks After Early Returns
+
+**CRITICAL: Never place `useState`, `useMemo`, `useEffect`, or any hook call after a conditional early `return` in a component.** React requires hooks to be called in the same order every render. Violating this causes "Rendered more hooks than during the previous render" crashes.
+
+**Wrong:**
+```tsx
+if (!hasData) return <Empty />;      // ← early return
+const summary = useMemo(() => …);    // ← hook after return = CRASH
+```
+
+**Correct:**
+```tsx
+const summary = useMemo(() => …);    // ← all hooks first
+if (!hasData) return <Empty />;      // ← early returns after all hooks
+```
 
 ### Dashboard Pages
 
@@ -140,6 +157,7 @@ The primary data store for all market and operational data:
 | `occto_area`, `occto_inter`, `occto_event` | Grid operator data |
 | `weather_actual_hourly/daily`, `weather_forecast_hourly/daily` | Weather data |
 | `battery_data`, `bid_plans` | Battery operations |
+| `tdgc` | Balancing market (調整力市場) data |
 
 See `data-mapping.md` for full index schema documentation.
 
@@ -201,6 +219,58 @@ const startTime: number = Number(toDisplayTime(o.start_datetime));
 - This only applies to **data going into LWC chart series**. Displayed labels (Typography, etc.) can use raw datetime strings directly (e.g., `datetime.slice(0, 16).replace('T', ' ')`).
 
 **Files using this correctly:** `AllAreasPriceChart.tsx`, `price-chart/utils/transformers.ts`, `chart/converters.ts`, `WeatherTimeSeriesChart.tsx`, `GenerationMixLightweightChart.tsx`, `InterconnectionChartLightweight.tsx`, `IntradayPanel.tsx`.
+
+### LWC Overlay Data Source — Two-Layer Architecture Rule
+
+**CRITICAL: New overlay data sources on the LWC price chart MUST follow the two-layer pattern. Violating this causes the entire chart to disappear when toggling data sources.**
+
+The price chart's data pipeline is split into two layers:
+
+| Layer | File | Role | Recompute cost |
+|-------|------|------|----------------|
+| **Merge layer** | `useChartData.ts` | Merges raw API data into `processedChartData` (one unified timeline) | **High** — rebuilds ALL data points, triggers every downstream memo and chart series redraw |
+| **Transform layer** | `useChartDataTransformers.ts` | Extracts selected fields from `processedChartData` into LWC-ready series arrays | **Low** — only regenerates the affected series |
+
+**The rule:** In the merge layer (`useChartData`), always process **ALL fields** of a data source unconditionally. Never gate field processing behind a `selectedXxxFields` Set. Field selection must only happen in the transform layer.
+
+**Why:** If `selectedXxxFields` is a dependency of the `processedChartData` useMemo, toggling a field triggers a full recompute of the entire merged dataset. This causes all chart series (spot price, models, imbalance, etc.) to be rebuilt and redrawn simultaneously, which makes the chart visually disappear. By keeping field selection out of the merge layer, toggling fields only triggers a lightweight series-level update.
+
+**Correct pattern (interconnection, battery, TDGC):**
+```typescript
+// useChartData.ts — merge layer: process ALL fields, no selection filter
+interconnectionData.forEach(item => {
+    const point = ensurePoint(ts);
+    point.interconnection_flow_diff = forward - reverse;
+    point.interconnection_forward = forward;
+    // ... all fields stored unconditionally
+});
+
+// useChartDataTransformers.ts — transform layer: filter by selection
+INTERCONNECTION_FIELDS.forEach(f => {
+    if (!selectedInterconnectionFields.has(f.key)) return; // ← selection here
+    const data = convertToLineSeriesData(processedChartData, p => p[f.pointKey], timezone);
+    out.push({ fieldKey: f.key, data, ... });
+});
+```
+
+**When adding a new overlay data source (preferred — plugin approach):**
+
+A plugin interface (`OverlayDataSource`) is defined in `components/price-chart/overlays/types.ts`. New sources should implement this interface so that merge + transform + field metadata live in a **single file** under `overlays/`. See `overlays/tdgc.ts` as the reference implementation.
+
+1. **Create `overlays/<source>.ts`** — implement `OverlayDataSource<TRaw>` with `fields`, `categories` (optional), `merge()`, and `transform()`.
+2. **Re-export** from `overlays/index.ts`.
+3. **Wire into existing hooks** (until the generic `useOverlayDataSources` hook is built):
+   - `useChartData.ts` — call `source.merge()` in the merge layer.
+   - `useChartDataTransformers.ts` — call `source.transform()` in a `useMemo`.
+   - `useChartSeries.ts` — render returned `TransformedSeries[]` and add subchart IDs to `knownSubCharts`.
+   - `ChartInfoPanel.tsx` — add tooltip DataChip section.
+   - `PriceChartSeriesLegend.tsx` — add legend items.
+   - `ForecastControlBar.tsx` — add source chip + popover.
+   - `PriceChartContext.tsx` — add selection state.
+   - `useForecastPresets.ts` + `presets.ts` — add to preset capture/restore.
+
+**Legacy (manual) approach** (existing sources not yet migrated):
+Steps 3's sub-items above are the same 9-file touch pattern used by interconnection, battery, bid plans, and imbalance. These will be migrated to the plugin interface incrementally.
 
 ### Environment Variables
 

@@ -8,13 +8,14 @@ import {
 } from '@/utils/lightweightChartsHelpers';
 import { transformOcctoData } from '../utils/transformers';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from '../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES } from '../constants';
 
 export interface InterconnectionSeriesItem {
     fieldKey: string;
     data: { time: UTCTimestamp; value: number }[];
     label: string;
     color: string;
+    seriesType?: 'line' | 'histogram';
 }
 
 interface UseChartDataTransformersParams {
@@ -28,6 +29,8 @@ interface UseChartDataTransformersParams {
     showImbalanceDeficitRate: boolean;
     selectedInterconnectionFields: Set<string>;
     selectedBatteryFields: Set<string>;
+    selectedTdgcFields: Set<string>;
+    selectedTdgcCategories: Set<string>;
     selectedBidPlanFields: Set<string>;
     selectedBidPlanCategories: Set<string>;
     showOcctoArea: boolean;
@@ -46,6 +49,8 @@ export const useChartDataTransformers = ({
     showImbalanceDeficitRate,
     selectedInterconnectionFields,
     selectedBatteryFields,
+    selectedTdgcFields,
+    selectedTdgcCategories,
     selectedBidPlanFields,
     selectedBidPlanCategories,
     showOcctoArea,
@@ -104,6 +109,38 @@ export const useChartDataTransformers = ({
         return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [processedChartData, selectedBatteryFields, timezone, t]);
+
+    const tdgcSeries = useMemo((): InterconnectionSeriesItem[] => {
+        const out: InterconnectionSeriesItem[] = [];
+        // Iterate selected categories × selected fields (like bid plan pattern)
+        selectedTdgcCategories.forEach(category => {
+            const catCfg = TDGC_CATEGORIES[category];
+            const catLabel = catCfg ? t(catCfg.labelKey) : category;
+            const catColor = catCfg?.color ?? '#999';
+
+            TDGC_FIELDS.forEach(f => {
+                if (!selectedTdgcFields.has(f.key)) return;
+                // pointKey in ProcessedDataPoint: tdgc_{category}_{shortKey}
+                const shortKey = f.pointKey.replace('tdgc_', '');
+                const dynamicPointKey = `tdgc_${category}_${shortKey}`;
+                const isQty = f.type === 'quantity';
+                const data = isQty
+                    ? convertToHistogramData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
+                    : convertToLineSeriesData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, timezone);
+                if (data.length > 0) {
+                    out.push({
+                        fieldKey: `${category}_${f.key}`,
+                        data,
+                        label: `${catLabel} ${t(f.labelKey)}`,
+                        color: catColor,
+                        seriesType: isQty ? 'histogram' : 'line',
+                    });
+                }
+            });
+        });
+        return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [processedChartData, selectedTdgcFields, selectedTdgcCategories, timezone, t]);
 
     const occtoData = useMemo(() =>
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),
@@ -178,6 +215,7 @@ export const useChartDataTransformers = ({
         imbalanceDeficitData,
         interconnectionSeries,
         batterySeries,
+        tdgcSeries,
         bidPlanSeries,
         occtoData,
     }), [
@@ -189,6 +227,7 @@ export const useChartDataTransformers = ({
         imbalanceDeficitData,
         interconnectionSeries,
         batterySeries,
+        tdgcSeries,
         bidPlanSeries,
         occtoData,
     ]);

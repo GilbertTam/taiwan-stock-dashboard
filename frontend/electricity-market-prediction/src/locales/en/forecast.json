@@ -78,33 +78,49 @@
     "manualRange": "Manual"
   },
   "emptyState": {
-    "selectAreaAndModel": "Select an area and forecast model on the left to view revenue analysis and MAE metrics.",
+    "selectAreaAndModel": "Select an area and forecast model on the left to view price spread and MAE metrics.",
     "selectModelForMae": "Select an area and forecast model on the left to view MAE metrics.",
     "loadingPerformance": "Loading model performance data...",
     "noAreaSelected": "No area selected",
-    "noProfitData": "No revenue analysis data for this period",
-    "selectModelForProfit": "Select a model to perform model profit comparison analysis"
+    "noProfitData": "No price spread data for this period",
+    "selectModelForProfit": "Select a model to compare price spread performance"
   },
   "tabs": {
     "expand": "Expand",
     "collapse": "Collapse",
-    "profitAnalysis": "Profit Analysis",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "profitAnalysis": "Price Spread",
     "maeAnalysis": "MAE Analysis",
     "outageInfo": "Outage Info",
     "interconnFlow": "Interconnection Flow",
     "weatherData": "Weather Data",
     "intradayMarketTab": "Intraday Market",
     "supplyDemandBalance": "Supply-Demand Balance",
+    "tdgcMarket": "Balancing Market",
     "systemEvents": "System Events"
+  },
+  "tabGroups": {
+    "modelAnalysis": "Analysis",
+    "marketReference": "Market"
+  },
+  "compactSummary": {
+    "optimalSpread": "Optimal Spread ¥{{value}}",
+    "bestModel": "Best: {{name}} ¥{{value}} ({{percent}}%)",
+    "bestMae": "Best: {{name}} (MAE {{value}})",
+    "worstMae": "Worst: {{name}} (MAE {{value}})",
+    "outageCount": "{{count}} outage events",
+    "affectedCapacity": "Affected: {{value}} MW"
   },
   "marketInfo": {
     "currentArea": "Current Area: "
   },
   "profitAnalysis": {
-    "title": "Profit Analysis (Daily & Cumulative)",
-    "dailyProfitYAxis": "Daily Profit (¥)",
-    "cumulativeProfitYAxis": "Cumulative Profit (¥)",
-    "tooltipTitle": "{{date}} Profit",
+    "title": "Price Spread (Daily & Cumulative)",
+    "subtitle": "Theoretical spread from buying at the lowest N slots and selling at the highest N slots each day. Does not account for battery constraints.",
+    "dailyProfitYAxis": "Daily Spread (¥)",
+    "cumulativeProfitYAxis": "Cumulative Spread (¥)",
+    "tooltipTitle": "{{date}} Spread",
     "tooltipType": "Type",
     "tooltipDaily": "Daily",
     "tooltipCumulative": "Cumulative",
@@ -113,12 +129,12 @@
     "seriesModelDaily": "{{model}} (Daily)",
     "seriesOptimalCumulative": "Optimal (Cumulative)",
     "seriesModelCumulative": "{{model}} (Cumulative)",
-    "summaryTitle": "Total Profit Summary",
+    "summaryTitle": "Spread Summary",
     "optimalActual": "Optimal (Actual)",
     "baseline100": "Baseline 100%",
     "pairsLabel": "Top & Bottom Pairs (N): {{count}}",
     "pairsValue": "{{count}} Pairs ({{hours}} h)",
-    "pairsDescription": "Calculate profit by buying at the lowest {{count}} slots and selling at the highest {{count}} slots each day."
+    "pairsDescription": "Calculate spread by buying at the lowest {{count}} slots and selling at the highest {{count}} slots each day."
   },
   "maeAnalysis": {
     "title": "MAE Indicators",
@@ -168,6 +184,7 @@
     "bidPlans": "Bid Plans",
     "weather": "Weather",
     "occto": "OCCTO",
+    "tdgc": "Balancing",
     "latest": "Latest",
     "changeCalcDate": "Change Calculation Date",
     "occtoGroups": {
@@ -250,6 +267,12 @@
       "interconnection": "Interconnection",
       "others": "Others"
     },
+    "tdgc": {
+      "correctedPrice": "Corrected Price",
+      "tsoPrice": "TSO Price",
+      "contractQty": "Contract Qty",
+      "reserveReq": "Reserve Req."
+    },
     "bidPlan": {
       "buyPrice": "Buy Price",
       "buyVolume": "Buy Volume",
@@ -310,6 +333,31 @@
     "totalVolume": "Total Volume {{value}} MWh",
     "totalContracts": "{{count}} contracts",
     "colorHint": "Red = up, Green = down (Japan market convention)"
+  },
+  "tdgcTab": {
+    "selectDateRange": "Please select a date range",
+    "noData": "No balancing market data for this period",
+    "categories": {
+      "primary": "Primary",
+      "secondary1": "Secondary-1",
+      "secondary2": "Secondary-2",
+      "tertiary1": "Tertiary-1",
+      "tertiary2": "Tertiary-2",
+      "supplyDemandAdj": "S&D Adjustment",
+      "forward": "Forward"
+    },
+    "correctedPrice": "Corrected Price",
+    "tsoPrice": "TSO Price",
+    "contractQuantity": "Contract Qty",
+    "reserveRequirement": "Reserve Req.",
+    "avgPrice": "Avg Price {{value}} JPY/kWh",
+    "totalContract": "Total Contract {{value}} MWh",
+    "offerCount": "Offers {{value}}",
+    "chartHint": "Lines = avg price (JPY/kWh), Bars = contracted quantity (MWh)",
+    "tooltipCorrectedPrice": "Corrected Price",
+    "tooltipTsoPrice": "TSO Price",
+    "tooltipContract": "Contract",
+    "tooltipReserve": "Reserve"
   },
   "supplyDemandTab": {
     "selectDateRange": "Please select a date range",

@@ -15,7 +15,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Box, Typography } from '@mui/material';
 import { usePriceChart } from './context/PriceChartContext';
-import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS } from './constants';
+import { occtoStackedFields, weatherFields, INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES } from './constants';
 import { WEATHER_FIELD_DISPLAY, DAILY_CATEGORIES } from '@/constants/weatherCategories';
 
 export const PriceChartSeriesLegend: React.FC = () => {
@@ -31,6 +31,8 @@ export const PriceChartSeriesLegend: React.FC = () => {
         showIntradayAverage,
         selectedInterconnectionFields,
         selectedBatteryFields,
+        selectedTdgcFields,
+        selectedTdgcCategories,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,
@@ -145,7 +147,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
             )}
 
             {/* --- Intraday Section --- */}
-            {!hideObsAndPriceRow && (showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0 || selectedBidPlanFields.size > 0) && (
+            {!hideObsAndPriceRow && (showIntraday || showIntradayAverage || showImbalanceQuantity || showImbalanceSurplusRate || showImbalanceDeficitRate || selectedInterconnectionFields.size > 0 || selectedBatteryFields.size > 0 || selectedTdgcFields.size > 0 || selectedBidPlanFields.size > 0) && (
                 <>
                     <GroupSeparator label={t('legend.market')} />
                     {showIntraday && <LegendItem color={colors.intraday} label={t('legend.intraday')} type="candlestick" />}
@@ -159,6 +161,21 @@ export const PriceChartSeriesLegend: React.FC = () => {
                     {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
                         <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} />
                     ))}
+                    {TDGC_FIELDS.filter(f => selectedTdgcFields.has(f.key)).flatMap(f =>
+                        Array.from(selectedTdgcCategories).map(cat => {
+                            const catCfg = TDGC_CATEGORIES[cat];
+                            const catLabel = catCfg ? t(catCfg.labelKey) : cat;
+                            const catColor = catCfg?.color ?? '#999';
+                            return (
+                                <LegendItem
+                                    key={`tdgc-${cat}-${f.key}`}
+                                    color={catColor}
+                                    label={`${catLabel} ${t(f.labelKey)}`}
+                                    type={f.type === 'quantity' ? 'box' : 'line'}
+                                />
+                            );
+                        })
+                    )}
                     {/* Bid Plan Fields - 根据选中的 category 显示 */}
                     {selectedBidPlanCategories.has('spot') && BID_PLAN_SPOT_FIELDS.filter(f => {
                         const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
