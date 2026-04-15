@@ -127,8 +127,8 @@ export function useForecastPresets() {
         if (data.selectedBidPlanFields) setSelectedBidPlanFields(() => new Set(data.selectedBidPlanFields));
         if (data.selectedBidPlanCategories) setSelectedBidPlanCategories(() => new Set(data.selectedBidPlanCategories));
         if (data.selectedSiteIds) setSelectedSiteIds(() => new Set(data.selectedSiteIds));
-        if (data.selectedTdgcFields) setSelectedTdgcFields(() => new Set(data.selectedTdgcFields));
-        if (data.selectedTdgcCategories) setSelectedTdgcCategories(() => new Set(data.selectedTdgcCategories));
+        setSelectedTdgcFields(() => new Set(data.selectedTdgcFields ?? []));
+        setSelectedTdgcCategories(() => new Set(data.selectedTdgcCategories ?? ['1000']));
         if (data.selectedWeatherFieldsActual) setSelectedWeatherFieldsActual(() => new Set(data.selectedWeatherFieldsActual));
         if (data.selectedWeatherFieldsForecast) setSelectedWeatherFieldsForecast(() => new Set(data.selectedWeatherFieldsForecast));
 

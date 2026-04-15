@@ -10,6 +10,8 @@ import {
     INTERCONNECTION_FIELDS,
     BATTERY_FIELDS,
     BID_PLAN_BASE_FIELDS,
+    TDGC_FIELDS,
+    TDGC_CATEGORIES,
     weatherFields as forecastWeatherFields,
 } from '@/components/price-chart/constants';
 import type { ForecastPresetData, WeatherPresetData, DailyComparePresetData } from '@/types/presets';
@@ -126,6 +128,7 @@ export function ForecastPreview({ data }: { data: ForecastPresetData }) {
     if (data.showImbalance) layers.push({ label: t('forecast:controlBar.imbalance'), color: '#8884d8' });
     if (data.showWeather) layers.push({ label: t('forecast:controlBar.weather'), color: '#2196f3' });
     if (data.showOcctoArea) layers.push({ label: t('forecast:controlBar.occto'), color: '#009688' });
+    if (data.selectedTdgcFields?.length) layers.push({ label: t('forecast:controlBar.tdgc'), color: '#8e24aa' });
 
     // Translate field names for each category
     const resolveFields = (
@@ -172,6 +175,20 @@ export function ForecastPreview({ data }: { data: ForecastPresetData }) {
         fieldGroups.push({
             label: t('forecast:controlBar.weather') + ' (F)',
             items: resolveFields(data.selectedWeatherFieldsForecast, forecastWeatherFields),
+        });
+    }
+    if (data.selectedTdgcFields?.length) {
+        const catLabels = (data.selectedTdgcCategories ?? [])
+            .map(cat => {
+                const cfg = TDGC_CATEGORIES[cat];
+                return cfg ? t(`forecast:${cfg.labelKey}`) : cat;
+            })
+            .join(', ');
+        fieldGroups.push({
+            label: catLabels
+                ? `${t('forecast:controlBar.tdgc')} (${catLabels})`
+                : t('forecast:controlBar.tdgc'),
+            items: resolveFields(data.selectedTdgcFields, TDGC_FIELDS),
         });
     }
 

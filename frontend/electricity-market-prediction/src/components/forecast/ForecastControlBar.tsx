@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
+import RemoveIcon from '@mui/icons-material/Remove';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import StackedLineChartIcon from '@mui/icons-material/StackedLineChart';
 import { useTranslation } from 'react-i18next';
@@ -825,12 +826,12 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             <Box sx={{
                                 display: 'flex', alignItems: 'stretch',
                                 height: 26,
-                                border: `1px solid ${isActive ? color : 'var(--card-border)'}`,
+                                border: `1px ${hasData ? 'solid' : 'dashed'} ${isActive ? color : 'var(--card-border)'}`,
                                 bgcolor: isActive ? `color-mix(in srgb, ${color}, transparent 85%)` : 'transparent',
                                 borderRadius: '3px',
                                 overflow: 'hidden',
-                                opacity: hasData ? 1 : 0.4,
-                                transition: 'border-color 0.12s, background-color 0.12s',
+                                opacity: hasData ? 1 : 0.65,
+                                transition: 'border-color 0.12s, background-color 0.12s, opacity 0.15s',
                             }}>
                                 {/* Toggle area */}
                                 <Box
@@ -843,6 +844,14 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                         transition: 'background-color 0.1s',
                                     }}
                                 >
+                                    {!hasData && (
+                                        <RemoveIcon sx={{
+                                            fontSize: '0.65rem',
+                                            color: 'var(--text-secondary)',
+                                            opacity: 0.7,
+                                            ml: -0.25,
+                                        }} />
+                                    )}
                                     <Box sx={{
                                         width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
                                         bgcolor: isActive ? color : 'var(--card-border)',
