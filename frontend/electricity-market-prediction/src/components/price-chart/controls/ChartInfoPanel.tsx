@@ -164,7 +164,7 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
     hideObsAndPriceRow = false,
-    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), selectedTdgcFields = new Set(), selectedTdgcCategories = new Set(), showOcctoArea,
+    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), selectedTdgcFields = new Set(), selectedTdgcCategories = new Set(), selectedTdgcDataTypes = new Set(['prompt']), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
     onDownload, onFullscreen, timezone,
@@ -386,16 +386,21 @@ export const ChartInfoPanel: React.FC<any> = ({
 
                                 // TDGC price fields — Y1/Y2 axis control
                                 if (!hideObsAndPriceRow) {
-                                    Array.from(selectedTdgcCategories as Set<string>).forEach((category: string) => {
-                                        const catCfg = TDGC_CATEGORIES[category];
-                                        const catLabel = catCfg ? t(catCfg.labelKey) : category;
-                                        const catColor = catCfg?.color ?? '#999';
-                                        TDGC_FIELDS.filter(f => f.type === 'price').forEach(f => {
-                                            if (!(selectedTdgcFields as Set<string>).has(f.key)) return;
-                                            activeItems.push({
-                                                key: `tdgc_${category}_${f.key}`,
-                                                label: `${catLabel} ${t(f.labelKey)}`,
-                                                color: catColor,
+                                    const tdgcDts = (selectedTdgcDataTypes as Set<string>).size > 0 ? selectedTdgcDataTypes as Set<string> : new Set(['prompt']);
+                                    const showTdgcDtLabel = tdgcDts.size > 1;
+                                    tdgcDts.forEach((dataType: string) => {
+                                        const dtSuffix = showTdgcDtLabel ? ` (${t(`controlBar.${dataType}`)})` : '';
+                                        Array.from(selectedTdgcCategories as Set<string>).forEach((category: string) => {
+                                            const catCfg = TDGC_CATEGORIES[category];
+                                            const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                                            const catColor = catCfg?.color ?? '#999';
+                                            TDGC_FIELDS.filter(f => f.type === 'price').forEach(f => {
+                                                if (!(selectedTdgcFields as Set<string>).has(f.key)) return;
+                                                activeItems.push({
+                                                    key: `tdgc_${dataType}_${category}_${f.key}`,
+                                                    label: `${catLabel} ${t(f.labelKey)}${dtSuffix}`,
+                                                    color: catColor,
+                                                });
                                             });
                                         });
                                     });
@@ -599,22 +604,26 @@ export const ChartInfoPanel: React.FC<any> = ({
                         })}
 
                         {/* TDGC Fields */}
-                        {Array.from(selectedTdgcCategories as Set<string>).map((category) => {
-                            const catCfg = TDGC_CATEGORIES[category];
-                            const catLabel = catCfg ? t(catCfg.labelKey) : category;
-                            const catColor = catCfg?.color ?? '#999';
-                            return Array.from(selectedTdgcFields as Set<string>).map((fieldKey) => {
-                                const f = TDGC_FIELDS.find(x => x.key === fieldKey);
-                                if (!f) return null;
-                                const shortKey = f.pointKey.replace('tdgc_', '');
-                                const dynamicPointKey = `tdgc_${category}_${shortKey}`;
-                                const val = (hoveredData as any)[dynamicPointKey];
-                                if (val == null) return null;
-                                return (
-                                    <DataChip key={`tdgc-${category}-${fieldKey}`} icon={ElectricBoltIcon}
-                                        label={`${catLabel} ${t(f.labelKey)}`} value={val} unit=""
-                                        color={catColor} decimals={fieldKey.includes('price') ? 2 : 0} />
-                                );
+                        {Array.from((selectedTdgcDataTypes as Set<string>).size > 0 ? selectedTdgcDataTypes as Set<string> : new Set(['prompt'])).map((dataType) => {
+                            const showDtLabel = (selectedTdgcDataTypes as Set<string>).size > 1;
+                            const dtLabel = showDtLabel ? ` (${t(`controlBar.${dataType}`)})` : '';
+                            return Array.from(selectedTdgcCategories as Set<string>).map((category) => {
+                                const catCfg = TDGC_CATEGORIES[category];
+                                const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                                const catColor = catCfg?.color ?? '#999';
+                                return Array.from(selectedTdgcFields as Set<string>).map((fieldKey) => {
+                                    const f = TDGC_FIELDS.find(x => x.key === fieldKey);
+                                    if (!f) return null;
+                                    const shortKey = f.pointKey.replace('tdgc_', '');
+                                    const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                                    const val = (hoveredData as any)[dynamicPointKey];
+                                    if (val == null) return null;
+                                    return (
+                                        <DataChip key={`tdgc-${dataType}-${category}-${fieldKey}`} icon={ElectricBoltIcon}
+                                            label={`${catLabel} ${t(f.labelKey)}${dtLabel}`} value={val} unit=""
+                                            color={catColor} decimals={fieldKey.includes('price') ? 2 : 0} />
+                                    );
+                                });
                             });
                         })}
 

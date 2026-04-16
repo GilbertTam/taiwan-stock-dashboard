@@ -16,6 +16,8 @@ export interface InterconnectionSeriesItem {
     label: string;
     color: string;
     seriesType?: 'line' | 'histogram';
+    lineStyle?: number;
+    opacity?: number;
 }
 
 interface UseChartDataTransformersParams {
@@ -31,6 +33,7 @@ interface UseChartDataTransformersParams {
     selectedBatteryFields: Set<string>;
     selectedTdgcFields: Set<string>;
     selectedTdgcCategories: Set<string>;
+    selectedTdgcDataTypes: Set<string>;
     selectedBidPlanFields: Set<string>;
     selectedBidPlanCategories: Set<string>;
     showOcctoArea: boolean;
@@ -51,6 +54,7 @@ export const useChartDataTransformers = ({
     selectedBatteryFields,
     selectedTdgcFields,
     selectedTdgcCategories,
+    selectedTdgcDataTypes,
     selectedBidPlanFields,
     selectedBidPlanCategories,
     showOcctoArea,
@@ -112,35 +116,53 @@ export const useChartDataTransformers = ({
 
     const tdgcSeries = useMemo((): InterconnectionSeriesItem[] => {
         const out: InterconnectionSeriesItem[] = [];
-        // Iterate selected categories × selected fields (like bid plan pattern)
-        selectedTdgcCategories.forEach(category => {
-            const catCfg = TDGC_CATEGORIES[category];
-            const catLabel = catCfg ? t(catCfg.labelKey) : category;
-            const catColor = catCfg?.color ?? '#999';
+        const dataTypes = selectedTdgcDataTypes.size > 0 ? selectedTdgcDataTypes : new Set(['prompt']);
+        const showDtLabel = dataTypes.size > 1;
 
-            TDGC_FIELDS.forEach(f => {
-                if (!selectedTdgcFields.has(f.key)) return;
-                // pointKey in ProcessedDataPoint: tdgc_{category}_{shortKey}
-                const shortKey = f.pointKey.replace('tdgc_', '');
-                const dynamicPointKey = `tdgc_${category}_${shortKey}`;
-                const isQty = f.type === 'quantity';
-                const data = isQty
-                    ? convertToHistogramData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
-                    : convertToLineSeriesData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, timezone);
-                if (data.length > 0) {
-                    out.push({
-                        fieldKey: `${category}_${f.key}`,
-                        data,
-                        label: `${catLabel} ${t(f.labelKey)}`,
-                        color: catColor,
-                        seriesType: isQty ? 'histogram' : 'line',
-                    });
-                }
+        const DATA_TYPE_STYLES: Record<string, { labelKey: string; lineStyle: number; opacity: number }> = {
+            'result': { labelKey: 'controlBar.result', lineStyle: 0, opacity: 1 },
+            'prompt': { labelKey: 'controlBar.prompt', lineStyle: 2, opacity: 0.6 },
+        };
+
+        // Iterate data types × categories × fields
+        dataTypes.forEach(dataType => {
+            const dtCfg = DATA_TYPE_STYLES[dataType];
+            const dtLabel = dtCfg ? t(dtCfg.labelKey) : dataType;
+
+            selectedTdgcCategories.forEach(category => {
+                const catCfg = TDGC_CATEGORIES[category];
+                const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                const catColor = catCfg?.color ?? '#999';
+
+                TDGC_FIELDS.forEach(f => {
+                    if (!selectedTdgcFields.has(f.key)) return;
+                    // pointKey in ProcessedDataPoint: tdgc_{dataType}_{category}_{shortKey}
+                    const shortKey = f.pointKey.replace('tdgc_', '');
+                    const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                    const isQty = f.type === 'quantity';
+                    const data = isQty
+                        ? convertToHistogramData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
+                        : convertToLineSeriesData(processedChartData, p => (p as any)[dynamicPointKey] ?? null, timezone);
+                    if (data.length > 0) {
+                        const label = showDtLabel
+                            ? `${catLabel} ${t(f.labelKey)} (${dtLabel})`
+                            : `${catLabel} ${t(f.labelKey)}`;
+                        out.push({
+                            fieldKey: `${dataType}_${category}_${f.key}`,
+                            data,
+                            label,
+                            color: catColor,
+                            seriesType: isQty ? 'histogram' : 'line',
+                            lineStyle: dtCfg?.lineStyle,
+                            opacity: dtCfg?.opacity,
+                        });
+                    }
+                });
             });
         });
         return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [processedChartData, selectedTdgcFields, selectedTdgcCategories, timezone, t]);
+    }, [processedChartData, selectedTdgcFields, selectedTdgcCategories, selectedTdgcDataTypes, timezone, t]);
 
     const occtoData = useMemo(() =>
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),

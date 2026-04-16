@@ -50,6 +50,10 @@ export interface TransformedSeries {
     color: string;
     /** Rendering type */
     seriesType: 'line' | 'histogram';
+    /** Optional line style: 0=Solid (default), 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted */
+    lineStyle?: number;
+    /** Optional opacity override (0–1). Useful for secondary/preliminary data. */
+    opacity?: number;
 }
 
 // ─── Merge Layer Helper ──────────────────────────────────────────────────────
@@ -89,7 +93,7 @@ export interface OverlayDataSource<TRaw = any> {
         raw: TRaw[],
         ensurePoint: EnsurePointFn,
         parseTimestamp: ParseTimestampFn,
-        config: { selectedCategories: Set<string> },
+        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string> },
     ): void;
 
     /**
@@ -98,6 +102,7 @@ export interface OverlayDataSource<TRaw = any> {
      * toggles change.
      *
      * @param t - i18n translation function for resolving label keys
+     * @param selectedDataTypes - optional data type filter (e.g. 'result', 'prompt')
      */
     transform(
         data: ProcessedDataPoint[],
@@ -106,6 +111,7 @@ export interface OverlayDataSource<TRaw = any> {
         timezone: string,
         t: (key: string) => string,
         converters: OverlayConverters,
+        selectedDataTypes?: Set<string>,
     ): TransformedSeries[];
 }
 

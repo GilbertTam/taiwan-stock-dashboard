@@ -146,7 +146,21 @@
     "tdgc_2200": "Tertiary Regulation ①",
     "tdgc_3100": "Tertiary Regulation ②",
     "tdgc_3200": "Supply-Demand Adj. ②",
-    "tdgc_4000": "Forward"
+    "tdgc_4000": "Forward",
+    "tdgc_1000_result": "Primary Regulation (Result)",
+    "tdgc_1000_prompt": "Primary Regulation (Prompt)",
+    "tdgc_1100_result": "Secondary Regulation ① (Result)",
+    "tdgc_1100_prompt": "Secondary Regulation ① (Prompt)",
+    "tdgc_2100_result": "Secondary Regulation ② (Result)",
+    "tdgc_2100_prompt": "Secondary Regulation ② (Prompt)",
+    "tdgc_2200_result": "Tertiary Regulation ① (Result)",
+    "tdgc_2200_prompt": "Tertiary Regulation ① (Prompt)",
+    "tdgc_3100_result": "Tertiary Regulation ② (Result)",
+    "tdgc_3100_prompt": "Tertiary Regulation ② (Prompt)",
+    "tdgc_3200_result": "Supply-Demand Adj. ② (Result)",
+    "tdgc_3200_prompt": "Supply-Demand Adj. ② (Prompt)",
+    "tdgc_4000_result": "Forward (Result)",
+    "tdgc_4000_prompt": "Forward (Prompt)"
   },
 
   "categories": {

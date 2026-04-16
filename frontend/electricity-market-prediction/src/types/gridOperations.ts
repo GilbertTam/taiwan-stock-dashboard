@@ -268,6 +268,8 @@ export interface TdgcData {
     datetime: string;
     /** Area name (e.g. "hokkaido", "tokyo") */
     area: string;
+    /** Data type: "result" (確報) or "prompt" (速報) */
+    data_type?: string;
     /** Corrected unit price average (yen/kWh) */
     corrected_unit_price_ave: number;
     /** Corrected unit price maximum (yen/kWh) */

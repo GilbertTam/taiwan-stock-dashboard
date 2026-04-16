@@ -173,11 +173,12 @@ def tdgc(
     start_date: str,
     end_date: str,
     area_name: Optional[str] = None,
+    data_type: Optional[str] = None,
     current_user = Depends(get_current_user)
 ):
     validate_dates(start_date, end_date)
     es = es_service
-    data = es.get_tdgc_data(start_date, end_date, area_name)
+    data = es.get_tdgc_data(start_date, end_date, area_name, data_type)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
 
 @router.get("/weather-actual", response_model=APIResponse)

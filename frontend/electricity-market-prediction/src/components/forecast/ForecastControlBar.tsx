@@ -152,6 +152,9 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
     const selectedTdgcCategories: Set<string> = chartCtxAny.selectedTdgcCategories ?? new Set<string>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const setSelectedTdgcCategories: (fn: (p: Set<string>) => Set<string>) => void = chartCtxAny.setSelectedTdgcCategories ?? (() => {});
+    const selectedTdgcDataTypes: Set<string> = chartCtxAny.selectedTdgcDataTypes ?? new Set(['prompt']);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setSelectedTdgcDataTypes: (fn: Set<string> | ((p: Set<string>) => Set<string>)) => void = chartCtxAny.setSelectedTdgcDataTypes ?? (() => {});
 
     // ── Chart data for MAE ────────────────────────────────────────────────────
     const chartData = useMemo(
@@ -676,6 +679,40 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
             case 'tdgc':
                 return (
                     <Box sx={{ py: 0.75, minWidth: 260 }}>
+                        {/* Result / Prompt data type toggles */}
+                        <Box sx={{ px: 1.5, pt: 0.25, pb: 0.75, borderBottom: '1px solid var(--card-border)', display: 'flex', gap: 0.75 }}>
+                            {([
+                                { key: 'result', label: t('controlBar.result'), color: SOURCE_COLORS.tdgc },
+                                { key: 'prompt', label: t('controlBar.prompt'), color: '#78909c' },
+                            ] as const).map(({ key, label, color }) => {
+                                const active = selectedTdgcDataTypes.has(key);
+                                return (
+                                    <Box key={key} onClick={() => {
+                                        setSelectedTdgcDataTypes(prev => {
+                                            const next = new Set(prev);
+                                            if (active) {
+                                                // Don't allow deselecting the last one
+                                                if (next.size > 1) next.delete(key);
+                                            } else {
+                                                next.add(key);
+                                            }
+                                            return next;
+                                        });
+                                    }} sx={{
+                                        display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.35,
+                                        borderRadius: '3px', cursor: 'pointer',
+                                        border: `1px solid ${active ? color : 'var(--card-border)'}`,
+                                        bgcolor: active ? `color-mix(in srgb, ${color}, transparent 82%)` : 'transparent',
+                                        color: active ? color : 'var(--text-secondary)',
+                                        transition: 'all 0.1s',
+                                    }}>
+                                        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: active ? color : 'var(--card-border)', flexShrink: 0 }} />
+                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: active ? 600 : 400 }}>{label}</Typography>
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+
                         {availableTdgcCategories.length > 0 && (
                             <>
                                 <PopoverLabel>{t('dataSourceSections.marketCategory')}</PopoverLabel>

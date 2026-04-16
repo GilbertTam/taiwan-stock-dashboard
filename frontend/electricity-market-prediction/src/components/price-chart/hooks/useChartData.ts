@@ -373,21 +373,23 @@ export const useChartData = ({
             });
         }
 
-        // E3. TDGC Data (group by commodity_category, then aggregate by datetime — like bid plans)
-        // Process ALL fields unconditionally (like interconnection/battery) so that
-        // toggling selectedTdgcFields doesn't trigger a full processedChartData recompute.
-        // Field filtering happens downstream in useChartDataTransformers.
+        // E3. TDGC Data (group by data_type × commodity_category, then aggregate by datetime)
+        // Process ALL fields and ALL data types unconditionally so that
+        // toggling selectedTdgcFields/selectedTdgcDataTypes doesn't trigger a full recompute.
+        // Field and data type filtering happens downstream in useChartDataTransformers.
         const filteredTdgc = selectedTdgcCategories.size > 0
             ? tdgcData.filter(item => selectedTdgcCategories.has(item.commodity_category))
             : tdgcData;
 
         if (filteredTdgc && filteredTdgc.length > 0) {
-            // Group by commodity_category
-            const byCategory: Record<string, TdgcData[]> = {};
+            // Group by data_type → commodity_category
+            const byTypeAndCategory: Record<string, Record<string, TdgcData[]>> = {};
             filteredTdgc.forEach(item => {
+                const dt = item.data_type || 'result'; // backward compat
                 const cat = item.commodity_category;
-                if (!byCategory[cat]) byCategory[cat] = [];
-                byCategory[cat].push(item);
+                if (!byTypeAndCategory[dt]) byTypeAndCategory[dt] = {};
+                if (!byTypeAndCategory[dt][cat]) byTypeAndCategory[dt][cat] = [];
+                byTypeAndCategory[dt][cat].push(item);
             });
 
             const tdgcAllFields: { key: string; shortKey: string; isMwh: boolean }[] = [
@@ -397,33 +399,37 @@ export const useChartData = ({
                 { key: 'reserve_requirement',      shortKey: 'reserve_req',         isMwh: true },
             ];
 
-            Object.keys(byCategory).forEach(category => {
-                const categoryData = byCategory[category];
-                const byTs: Record<number, Record<string, number[]>> = {};
+            Object.keys(byTypeAndCategory).forEach(dataType => {
+                const byCategory = byTypeAndCategory[dataType];
+                Object.keys(byCategory).forEach(category => {
+                    const categoryData = byCategory[category];
+                    const byTs: Record<number, Record<string, number[]>> = {};
 
-                categoryData.forEach(item => {
-                    const ts = parseToTimestamp(item.datetime);
-                    if (!ts) return;
-                    if (!byTs[ts]) byTs[ts] = {};
-                    tdgcAllFields.forEach(({ key }) => {
-                        const value = (item as any)[key];
-                        if (typeof value === 'number' && !isNaN(value)) {
-                            if (!byTs[ts][key]) byTs[ts][key] = [];
-                            byTs[ts][key].push(value);
-                        }
+                    categoryData.forEach(item => {
+                        const ts = parseToTimestamp(item.datetime);
+                        if (!ts) return;
+                        if (!byTs[ts]) byTs[ts] = {};
+                        tdgcAllFields.forEach(({ key }) => {
+                            const value = (item as any)[key];
+                            if (typeof value === 'number' && !isNaN(value)) {
+                                if (!byTs[ts][key]) byTs[ts][key] = [];
+                                byTs[ts][key].push(value);
+                            }
+                        });
                     });
-                });
 
-                Object.keys(byTs).forEach(tsStr => {
-                    const ts = Number(tsStr);
-                    const point = ensurePoint(ts);
-                    tdgcAllFields.forEach(({ key, shortKey, isMwh }) => {
-                        const values = byTs[ts][key];
-                        if (values && values.length > 0) {
-                            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                            const pointFieldKey = `tdgc_${category}_${shortKey}`;
-                            (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
-                        }
+                    Object.keys(byTs).forEach(tsStr => {
+                        const ts = Number(tsStr);
+                        const point = ensurePoint(ts);
+                        tdgcAllFields.forEach(({ key, shortKey, isMwh }) => {
+                            const values = byTs[ts][key];
+                            if (values && values.length > 0) {
+                                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                                // Point key format: tdgc_{dataType}_{category}_{shortKey}
+                                const pointFieldKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                                (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
+                            }
+                        });
                     });
                 });
             });

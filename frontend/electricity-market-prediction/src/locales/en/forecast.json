@@ -209,7 +209,9 @@
     "actualModel": "Actual Model",
     "actualFields": "Actual Fields",
     "forecastModel": "Forecast Model",
-    "forecastFields": "Forecast Fields"
+    "forecastFields": "Forecast Fields",
+    "result": "Result",
+    "prompt": "Prompt"
   },
   "fields": {
     "interconnection": {

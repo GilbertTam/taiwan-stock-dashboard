@@ -87,6 +87,8 @@ interface PriceChartState {
     availableTdgcCategories: string[];
     selectedTdgcCategories: Set<string>;
     setSelectedTdgcCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedTdgcDataTypes: Set<string>;
+    setSelectedTdgcDataTypes: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     availableBidPlanCategories: string[];
     selectedBidPlanCategories: Set<string>;
     setSelectedBidPlanCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -266,6 +268,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedBidPlanFields, setSelectedBidPlanFields] = useState<Set<string>>(new Set(['buy_price'])); // 存储去掉 'bid_' 前缀的字段名
     const [selectedTdgcFields, setSelectedTdgcFields] = useState<Set<string>>(new Set());
     const [selectedTdgcCategories, setSelectedTdgcCategories] = useState<Set<string>>(new Set(['1000']));
+    const [selectedTdgcDataTypes, setSelectedTdgcDataTypes] = useState<Set<string>>(new Set(['prompt']));
 
     const availableTdgcCategories = useMemo(() => {
         if (!tdgcData || tdgcData.length === 0) return [];
@@ -405,6 +408,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         selectedTdgcFields, setSelectedTdgcFields,
         availableTdgcCategories,
         selectedTdgcCategories, setSelectedTdgcCategories,
+        selectedTdgcDataTypes, setSelectedTdgcDataTypes,
         availableBidPlanCategories,
         selectedBidPlanCategories, setSelectedBidPlanCategories,
         selectedSiteIds, setSelectedSiteIds,
@@ -447,7 +451,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hoveredData,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore, showRightAxisLabels,
         chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields, availableBidPlanCategories, selectedBidPlanCategories, selectedSiteIds, setSelectedSiteIds, availableSiteIds, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
-        bidPlansData, tdgcData, selectedTdgcFields, availableTdgcCategories, selectedTdgcCategories,
+        bidPlansData, tdgcData, selectedTdgcFields, availableTdgcCategories, selectedTdgcCategories, selectedTdgcDataTypes,
         imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, filteredBidPlansData, weatherActual,
         weatherY1Field, weatherY2Field, weatherAxisScale, seriesAxisConfig,
         globalPrimaryRange, globalSecondaryRange, subchartLayout,

@@ -242,14 +242,18 @@ export const useChartSeries = ({
             }
         });
 
-        tdgcSeries.forEach(({ fieldKey, data, color, label, seriesType }: { fieldKey: string; data: any[]; color: string; label?: string; seriesType?: string }) => {
+        tdgcSeries.forEach(({ fieldKey, data, color, label, seriesType, lineStyle: seriesLineStyle, opacity: seriesOpacity }: { fieldKey: string; data: any[]; color: string; label?: string; seriesType?: string; lineStyle?: number; opacity?: number }) => {
             if (data.length === 0) return;
             const isQty = seriesType === 'histogram';
 
             if (isQty) {
                 // 量 → HistogramSeries，固定到 'tdgc_qty' 副圖
+                // Apply opacity for prompt data type
+                const effectiveColor = seriesOpacity != null && seriesOpacity < 1
+                    ? `${color}${Math.round(seriesOpacity * 255).toString(16).padStart(2, '0')}`
+                    : color;
                 updateOrAdd(`tdgc_${fieldKey}`, HistogramSeries, data, {
-                    color,
+                    color: effectiveColor,
                     priceScaleId: 'tdgc_qty',
                     title: showRightAxisLabels ? (label || fieldKey) : '',
                 });
@@ -261,6 +265,8 @@ export const useChartSeries = ({
                 updateOrAdd(`tdgc_${fieldKey}`, LineSeries, data, {
                     color,
                     lineWidth: 1,
+                    lineStyle: seriesLineStyle ?? 0,
+                    ...(seriesOpacity != null && seriesOpacity < 1 ? { crosshairMarkerVisible: true } : {}),
                     priceScaleId: targetScale,
                     title: showRightAxisLabels ? (label || fieldKey) : '',
                 });

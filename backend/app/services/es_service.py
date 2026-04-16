@@ -406,13 +406,15 @@ class ESService:
         _warn_if_truncated(results)
         return results
 
-    def get_tdgc_data(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_tdgc_data(self, start_date: str, end_date: str, area_name: Optional[str] = None, data_type: Optional[str] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
         s = Search(using=self.client, index=self.tdgc_index)
         s = s.filter('range', **{'datetime': {'gte': s_date + ' 00:00:00', 'lte': e_date + ' 23:59:59'}})
         if area_name:
             s = s.filter('term', area=area_name)
+        if data_type:
+            s = s.filter('term', data_type=data_type)
         s = s.extra(size=MAX_ES_RESULTS)
         s = s.sort('datetime')
         response = s.execute()
@@ -605,50 +607,55 @@ class ESService:
         """
         Shared source configuration for data-coverage queries.
         Each tuple: (key, label, category, index, date_field, area_field_or_None, fmt,
-                     filter_field, filter_value, interval, validation_type, expected_per_day)
+                     filters, interval, validation_type, expected_per_day)
         area_field: ES field for terms agg — text fields need '.keyword' sub-field;
                     weather 'area' is already keyword type so no sub-field needed.
         fmt: 'space' = 'YYYY-MM-DD HH:MM:SS', 'iso' = 'YYYY-MM-DDTHH:MM:SS', 'jst' = ISO+09:00
-        filter_field/filter_value: optional extra must-term filter (e.g. source.keyword=mersol)
+        filters: list of (field, value) tuples for must-term filters (e.g. [('source.keyword', 'mersol')])
         interval: 'hour' (24 slots/day), '30m' (48 slots/day, one コマ per slot), or 'day' (1 doc/day)
         validation_type: 'fixed' (explicit expected count), 'variable' (use median), 'event' (binary present/absent)
         expected_per_day: expected doc count per day for 'fixed' sources; None for 'variable'/'event'
         """
         p = self.prediction_index
         t = self.tdgc_index
-        return [
-            # (key, label, category, index, date_field, area_field, fmt, filter_field, filter_value, interval, validation_type, expected_per_day)
-            ('spot_price',      '現貨價格',   '現貨市場',   self.jepx_index,             'event_time', 'area.keyword', 'space', None, None, 'hour', 'fixed',    24),
-            ('jepx_system',     '系統現貨',   '現貨市場',   self.jepx_system_index,      'event_time', None,           'space', None, None, 'hour', 'fixed',    24),
-            ('intraday',        '日內交易',   '日內市場',   self.intraday_index,         'datetime',   None,           'space', None, None, 'hour', 'variable', None),
-            ('imbalance',       '不平衡費率', '不平衡市場', self.imbalance_index,        'datetime',   'area.keyword', 'space', None, None, 'hour', 'fixed',    24),
-            ('occto_area',      'OCCTO供需',  '電力供需',   self.occto_area_index,       'datetime',   'area.keyword', 'space', None, None, 'hour', 'fixed',    24),
-            ('occto_inter',     'OCCTO連絡線','電力供需',   self.occto_inter_index,      'datetime',   None,           'space', None, None, 'hour', 'fixed',    24),
-            ('occto_event',     'OCCTO事件',  '電力供需',   self.occto_event_index,      'datetime',   'area.keyword', 'space', None, None, 'hour', 'event',    None),
+        _DT = self._TDGC_DATA_TYPES
+        configs = [
+            # (key, label, category, index, date_field, area_field, fmt, filters, interval, validation_type, expected_per_day)
+            ('spot_price',      '現貨價格',   '現貨市場',   self.jepx_index,             'event_time', 'area.keyword', 'space', [], 'hour', 'fixed',    24),
+            ('jepx_system',     '系統現貨',   '現貨市場',   self.jepx_system_index,      'event_time', None,           'space', [], 'hour', 'fixed',    24),
+            ('intraday',        '日內交易',   '日內市場',   self.intraday_index,         'datetime',   None,           'space', [], 'hour', 'variable', None),
+            ('imbalance',       '不平衡費率', '不平衡市場', self.imbalance_index,        'datetime',   'area.keyword', 'space', [], 'hour', 'fixed',    24),
+            ('occto_area',      'OCCTO供需',  '電力供需',   self.occto_area_index,       'datetime',   'area.keyword', 'space', [], 'hour', 'fixed',    24),
+            ('occto_inter',     'OCCTO連絡線','電力供需',   self.occto_inter_index,      'datetime',   None,           'space', [], 'hour', 'fixed',    24),
+            ('occto_event',     'OCCTO事件',  '電力供需',   self.occto_event_index,      'datetime',   'area.keyword', 'space', [], 'hour', 'event',    None),
             # weather area field is ES keyword type — use 'area' directly (no .keyword needed)
             # hourly (24/day) and daily (1/day) are separate indices
-            ('weather_actual',          '氣象實績(時別)', '氣象', self.weather_actual_index,         'datetime', 'area', 'jst', None, None, 'hour', 'variable', None),
-            ('weather_actual_daily',    '氣象實績(日別)', '氣象', self.weather_actual_daily_index,   'datetime', 'area', 'jst', None, None, 'day',  'fixed',    1),
-            ('weather_forecast',        '氣象預測(時別)', '氣象', self.weather_forecast_index,       'datetime', 'area', 'jst', None, None, 'hour', 'variable', None),
-            ('weather_forecast_daily',  '氣象預測(日別)', '氣象', self.weather_forecast_daily_index, 'datetime', 'area', 'jst', None, None, 'day',  'fixed',    1),
-            # TDGC — split by commodity_category; 1 doc per 30-min コマ → 48 slots/day
-            ('tdgc_1000', '一次調整力',  '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '1000', '30m', 'fixed', 48),
-            ('tdgc_1100', '二次調整力①', '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '1100', '30m', 'fixed', 48),
-            ('tdgc_2100', '二次調整力②', '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '2100', '30m', 'fixed', 48),
-            ('tdgc_2200', '三次調整力①', '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '2200', '30m', 'fixed', 48),
-            ('tdgc_3100', '三次調整力②', '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '3100', '30m', 'fixed', 48),
-            ('tdgc_3200', '需給調整②',   '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '3200', '30m', 'fixed', 48),
-            ('tdgc_4000', '先渡し',       '調整市場', t, 'datetime', 'area.keyword', 'space', 'commodity_category.keyword', '4000', '30m', 'fixed', 48),
-            # Prediction — split by source/model; 1 doc per 30-min コマ → 48 slots/day; ISO-T format
-            ('prediction_quick',     'Quick',     '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'quick',     '30m', 'fixed', 48),
-            ('prediction_volue',     'Volue',     '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'volue',     '30m', 'fixed', 48),
-            ('prediction_d-price',   'D-Price',   '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'd-price',   '30m', 'fixed', 48),
-            ('prediction_mersol',    'Mersol',    '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'mersol',    '30m', 'fixed', 48),
-            ('prediction_matsumoto', 'Matsumoto', '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'matsumoto', '30m', 'fixed', 48),
-            ('prediction_hdre_mod',  'HDRE Mod',  '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'hdre_mod',  '30m', 'fixed', 48),
-            ('prediction_hdre_new',  'HDRE New',  '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'hdre_new',  '30m', 'fixed', 48),
-            ('prediction_hdre_old',  'HDRE Old',  '價格預測', p, 'datetime', 'area.keyword', 'iso', 'source.keyword', 'hdre_old',  '30m', 'fixed', 48),
+            ('weather_actual',          '氣象實績(時別)', '氣象', self.weather_actual_index,         'datetime', 'area', 'jst', [], 'hour', 'variable', None),
+            ('weather_actual_daily',    '氣象實績(日別)', '氣象', self.weather_actual_daily_index,   'datetime', 'area', 'jst', [], 'day',  'fixed',    1),
+            ('weather_forecast',        '氣象預測(時別)', '氣象', self.weather_forecast_index,       'datetime', 'area', 'jst', [], 'hour', 'variable', None),
+            ('weather_forecast_daily',  '氣象預測(日別)', '氣象', self.weather_forecast_daily_index, 'datetime', 'area', 'jst', [], 'day',  'fixed',    1),
         ]
+        # TDGC — split by commodity_category × data_type; 1 doc per 30-min コマ → 48 slots/day
+        for cat, cat_label in self._TDGC_CATEGORY_LABELS.items():
+            for dt, dt_label in _DT.items():
+                configs.append((
+                    f'tdgc_{cat}_{dt}', f'{cat_label}({dt_label})', '調整市場', t,
+                    'datetime', 'area.keyword', 'space',
+                    [('commodity_category.keyword', cat), ('data_type.keyword', dt)],
+                    '30m', 'fixed', 48,
+                ))
+        # Prediction — split by source/model; 1 doc per 30-min コマ → 48 slots/day; ISO-T format
+        configs.extend([
+            ('prediction_quick',     'Quick',     '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'quick')],     '30m', 'fixed', 48),
+            ('prediction_volue',     'Volue',     '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'volue')],     '30m', 'fixed', 48),
+            ('prediction_d-price',   'D-Price',   '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'd-price')],   '30m', 'fixed', 48),
+            ('prediction_mersol',    'Mersol',    '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'mersol')],    '30m', 'fixed', 48),
+            ('prediction_matsumoto', 'Matsumoto', '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'matsumoto')], '30m', 'fixed', 48),
+            ('prediction_hdre_mod',  'HDRE Mod',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_mod')],  '30m', 'fixed', 48),
+            ('prediction_hdre_new',  'HDRE New',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_new')],  '30m', 'fixed', 48),
+            ('prediction_hdre_old',  'HDRE Old',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_old')],  '30m', 'fixed', 48),
+        ])
+        return configs
 
     @staticmethod
     def _coverage_bounds(date_str: str, fmt: str, end_of_day: bool = False) -> str:
@@ -672,7 +679,7 @@ class ESService:
         """
         results: List[Dict[str, Any]] = []
 
-        for (key, label, category, index, date_field, area_field, fmt, filter_field, filter_value, _interval, _vtype, _epd) in self._coverage_source_configs():
+        for (key, label, category, index, date_field, area_field, fmt, filters, _interval, _vtype, _epd) in self._coverage_source_configs():
             s_bound = self._coverage_bounds(start_date, fmt, end_of_day=False)
             e_bound = self._coverage_bounds(end_date,   fmt, end_of_day=True)
 
@@ -685,10 +692,10 @@ class ESService:
             if fmt == 'jst':
                 hist_params["time_zone"] = "+09:00"
 
-            # Build base query (range + optional extra filter term)
+            # Build base query (range + extra filter terms)
             base_must: List[Dict[str, Any]] = [{"range": {date_field: {"gte": s_bound, "lte": e_bound}}}]
-            if filter_field:
-                base_must.append({"term": {filter_field: filter_value}})
+            for ff, fv in filters:
+                base_must.append({"term": {ff: fv}})
             base_query: Dict[str, Any] = {"bool": {"filter": base_must}} if len(base_must) > 1 else base_must[0]
 
             try:
@@ -746,6 +753,9 @@ class ESService:
         '1000': '一次調整力', '1100': '二次調整力①', '2100': '二次調整力②',
         '2200': '三次調整力①', '3100': '三次調整力②', '3200': '需給調整②', '4000': '先渡し',
     }
+    _TDGC_DATA_TYPES: Dict[str, str] = {
+        'result': '確報', 'prompt': '速報',
+    }
 
     def get_coverage_sources(self) -> Dict[str, Any]:
         """
@@ -786,19 +796,22 @@ class ESService:
                 index=self.tdgc_index,
                 body={"size": 0, "aggs": {"cats": {"terms": {"field": "commodity_category.keyword", "size": 50}}}},
             )
-            result["tdgc_categories"] = [
-                {
-                    "key": f"tdgc_{b['key']}",
-                    "label": self._TDGC_CATEGORY_LABELS.get(b['key'], b['key']),
-                    "labelKey": f"sources.tdgc_{b['key']}",
-                    "category": "調整市場",
-                    "categoryKey": "categories.adjustmentMarket",
-                    "interval": "30m",
-                    "validation_type": "fixed",
-                    "expected_per_day": 48,
-                }
-                for b in sorted(resp['aggregations']['cats']['buckets'], key=lambda x: x['key'])
-            ]
+            tdgc_entries = []
+            for b in sorted(resp['aggregations']['cats']['buckets'], key=lambda x: x['key']):
+                cat = b['key']
+                cat_label = self._TDGC_CATEGORY_LABELS.get(cat, cat)
+                for dt, dt_label in self._TDGC_DATA_TYPES.items():
+                    tdgc_entries.append({
+                        "key": f"tdgc_{cat}_{dt}",
+                        "label": f"{cat_label}({dt_label})",
+                        "labelKey": f"sources.tdgc_{cat}_{dt}",
+                        "category": "調整市場",
+                        "categoryKey": "categories.adjustmentMarket",
+                        "interval": "30m",
+                        "validation_type": "fixed",
+                        "expected_per_day": 48,
+                    })
+            result["tdgc_categories"] = tdgc_entries
         except Exception as e:
             logger.warning(f"get_coverage_sources: tdgc categories query failed: {e}")
 
@@ -822,17 +835,17 @@ class ESService:
             logger.warning(f"get_coverage_detail: unknown source_key '{source_key}'")
             return [{'slot': h, 'label': f"{h:02d}:00", 'doc_count': 0} for h in range(24)], 'hour'
 
-        _, _label, _category, index, date_field, area_field, fmt, filter_field, filter_value, interval, _vtype, _epd = cfg
+        _, _label, _category, index, date_field, area_field, fmt, filters, interval, _vtype, _epd = cfg
 
         s_bound = self._coverage_bounds(date, fmt, end_of_day=False)
         e_bound = self._coverage_bounds(date, fmt, end_of_day=True)
 
-        # Build query — filter by area, plus optional sub-source filter (must be before interval branch)
+        # Build query — filter by area, plus extra sub-source filters
         must_clauses: List[Dict[str, Any]] = [{"range": {date_field: {"gte": s_bound, "lte": e_bound}}}]
         if area_field and area != 'system':
             must_clauses.append({"term": {area_field: area}})
-        if filter_field:
-            must_clauses.append({"term": {filter_field: filter_value}})
+        for ff, fv in filters:
+            must_clauses.append({"term": {ff: fv}})
         query: Dict[str, Any] = {"bool": {"filter": must_clauses}} if len(must_clauses) > 1 else must_clauses[0]
 
         # Daily sources: single count query — no time histogram needed
@@ -920,28 +933,38 @@ class ESService:
         Map a source_key to an ES query config and chart group definitions used by
         get_coverage_preview(). Returns None for unsupported / system-only sources.
         """
-        # ── TDGC (dynamic: tdgc_1000, tdgc_1100, …) ─────────────────────────────
+        # ── TDGC (dynamic: tdgc_1000_result, tdgc_1000_prompt, …) ────────────────
         if source_key.startswith('tdgc_'):
-            category = source_key[5:]
+            # Parse key: tdgc_{category}_{data_type}
+            parts = source_key[5:].rsplit('_', 1)  # e.g. "1000_result" → ["1000", "result"]
+            if len(parts) == 2:
+                category, data_type = parts
+            else:
+                category, data_type = parts[0], None
             label_map = self._TDGC_CATEGORY_LABELS
+            dt_label_map = self._TDGC_DATA_TYPES
             cat_label = label_map.get(category, category)
+            dt_label = dt_label_map.get(data_type, data_type) if data_type else ''
+            full_label = f'{cat_label}({dt_label})' if dt_label else cat_label
+            filters = [('commodity_category.keyword', category)]
+            if data_type:
+                filters.append(('data_type.keyword', data_type))
             return {
                 'index': self.tdgc_index,
                 'date_field': 'datetime',
                 'fmt': 'space',
                 'area_field': 'area.keyword',
-                'filter_field': 'commodity_category.keyword',
-                'filter_value': category,
+                'filters': filters,
                 'groups': [
                     {
-                        'id': 'prices', 'label': f'{cat_label} — 成交價格',
+                        'id': 'prices', 'label': f'{full_label} — 成交價格',
                         'fields': [
                             {'field': 'CorrectedUnitPriceAve', 'name': '補正後單價 (Ave)', 'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
                             {'field': 'TsoPriceAve',           'name': 'TSO 價格 (Ave)',   'unit': '¥/kWh', 'type': 'line', 'color': '#ffa000'},
                         ],
                     },
                     {
-                        'id': 'quantities', 'label': f'{cat_label} — 數量',
+                        'id': 'quantities', 'label': f'{full_label} — 數量',
                         'fields': [
                             {'field': 'InAreaQuantity',       'name': '地區需求量',   'unit': 'kWh', 'type': 'bar', 'color': '#42a5f5'},
                             {'field': 'TotalContractQuantity', 'name': '總成交量',    'unit': 'kWh', 'type': 'bar', 'color': '#66bb6a'},
@@ -959,8 +982,7 @@ class ESService:
                 'date_field': 'datetime',
                 'fmt': 'iso',
                 'area_field': 'area.keyword',
-                'filter_field': 'source.keyword',
-                'filter_value': model,
+                'filters': [('source.keyword', model)],
                 'expand_additional_data': True,   # price_5/price_95 are nested in additional_data
                 'groups': [
                     {
@@ -1117,8 +1139,7 @@ class ESService:
         date_field  = cfg['date_field']
         fmt         = cfg['fmt']
         area_field   = cfg.get('area_field')
-        filter_field  = cfg.get('filter_field')
-        filter_value  = cfg.get('filter_value')
+        filters       = cfg.get('filters', [])
         is_event      = cfg.get('is_event', False)
         groups_cfg    = cfg.get('groups', [])
         group_by_field = cfg.get('group_by_field')  # for occto_inter: 'interconnection_name'
@@ -1130,8 +1151,8 @@ class ESService:
         must: List[Dict[str, Any]] = [{"range": {date_field: {"gte": s_bound, "lte": e_bound}}}]
         if area_field and area != 'system':
             must.append({"term": {area_field: area}})
-        if filter_field:
-            must.append({"term": {filter_field: filter_value}})
+        for ff, fv in filters:
+            must.append({"term": {ff: fv}})
 
         # Fix A: For prediction sources, auto-filter to the latest calculate_time so
         # multiple forecasting runs for the same target date don't overlap on the chart.
@@ -1342,7 +1363,7 @@ class ESService:
             logger.warning(f"get_coverage_records: unknown source_key '{source_key}'")
             return {**base, 'total': 0, 'interval': 'hour', 'rows': []}
 
-        _, _label, _category, index, date_field, area_field, fmt, filter_field, filter_value, interval, _vtype, _epd = cfg
+        _, _label, _category, index, date_field, area_field, fmt, filters, interval, _vtype, _epd = cfg
         is_prediction = source_key.startswith('prediction_')
 
         # Build time bounds — narrow to a slot window if requested
@@ -1379,8 +1400,8 @@ class ESService:
         must: List[Dict[str, Any]] = [{"range": {date_field: {"gte": s_bound, "lte": e_bound}}}]
         if area_field and area != 'system':
             must.append({"term": {area_field: area}})
-        if filter_field:
-            must.append({"term": {filter_field: filter_value}})
+        for ff, fv in filters:
+            must.append({"term": {ff: fv}})
         if calculate_time and is_prediction:
             must.append({"term": {"calculate_time.keyword": calculate_time}})
         query: Dict[str, Any] = {"bool": {"filter": must}} if len(must) > 1 else must[0]

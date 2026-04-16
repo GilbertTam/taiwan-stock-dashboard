@@ -209,7 +209,9 @@
     "actualModel": "實際模型",
     "actualFields": "實際欄位",
     "forecastModel": "預報模型",
-    "forecastFields": "預報欄位"
+    "forecastFields": "預報欄位",
+    "result": "確報",
+    "prompt": "速報"
   },
   "fields": {
     "interconnection": {

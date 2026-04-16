@@ -209,7 +209,9 @@
     "actualModel": "実績モデル",
     "actualFields": "実績フィールド",
     "forecastModel": "予報モデル",
-    "forecastFields": "予報フィールド"
+    "forecastFields": "予報フィールド",
+    "result": "確報",
+    "prompt": "速報"
   },
   "fields": {
     "interconnection": {

@@ -33,6 +33,7 @@ export const ChartLightweight: React.FC = () => {
         selectedBatteryFields,
         selectedTdgcFields,
         selectedTdgcCategories,
+        selectedTdgcDataTypes,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showWeather, showWeatherActual, showWeatherForecast,
@@ -56,6 +57,7 @@ export const ChartLightweight: React.FC = () => {
     const deferredBatteryFields = useDeferredValue(selectedBatteryFields);
     const deferredTdgcFields = useDeferredValue(selectedTdgcFields);
     const deferredTdgcCategories = useDeferredValue(selectedTdgcCategories);
+    const deferredTdgcDataTypes = useDeferredValue(selectedTdgcDataTypes);
     const deferredBidPlanFields = useDeferredValue(selectedBidPlanFields);
 
     const transformedData = useChartDataTransformers({
@@ -71,6 +73,7 @@ export const ChartLightweight: React.FC = () => {
         selectedBatteryFields: deferredBatteryFields,
         selectedTdgcFields: deferredTdgcFields,
         selectedTdgcCategories: deferredTdgcCategories,
+        selectedTdgcDataTypes: deferredTdgcDataTypes,
         selectedBidPlanFields: deferredBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,
@@ -192,6 +195,7 @@ export const ChartLightweight: React.FC = () => {
                 selectedBidPlanCategories={selectedBidPlanCategories}
                 selectedTdgcFields={selectedTdgcFields}
                 selectedTdgcCategories={selectedTdgcCategories}
+                selectedTdgcDataTypes={selectedTdgcDataTypes}
                 showOcctoArea={showOcctoArea}
                 showWeather={showWeather}
                 showWeatherActual={showWeatherActual}

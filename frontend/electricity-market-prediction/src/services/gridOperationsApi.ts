@@ -129,8 +129,14 @@ export const fetchOcctoEvents = async (params: DateRangeParams): Promise<OcctoEv
     return response.data.data;
 };
 
+/** Params for TDGC data fetch with optional data_type filter. */
+export interface TdgcParams extends AreaDateRangeParams {
+    /** Filter by data type: "result" (確報) or "prompt" (速報). Omit for all. */
+    data_type?: string;
+}
+
 /** Fetch TDGC (balancing market) data. */
-export const fetchTdgc = async (params: AreaDateRangeParams): Promise<TdgcData[]> => {
+export const fetchTdgc = async (params: TdgcParams): Promise<TdgcData[]> => {
     const api = createAuthenticatedApi();
     const response = await api.get<ApiResponse<TdgcData[]>>('/market-info/tdgc', { params });
     return response.data.data;

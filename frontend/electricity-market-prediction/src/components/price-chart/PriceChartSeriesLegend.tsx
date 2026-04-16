@@ -33,6 +33,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
         selectedBatteryFields,
         selectedTdgcFields,
         selectedTdgcCategories,
+        selectedTdgcDataTypes,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,
@@ -161,21 +162,28 @@ export const PriceChartSeriesLegend: React.FC = () => {
                     {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
                         <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} />
                     ))}
-                    {TDGC_FIELDS.filter(f => selectedTdgcFields.has(f.key)).flatMap(f =>
-                        Array.from(selectedTdgcCategories).map(cat => {
-                            const catCfg = TDGC_CATEGORIES[cat];
-                            const catLabel = catCfg ? t(catCfg.labelKey) : cat;
-                            const catColor = catCfg?.color ?? '#999';
-                            return (
-                                <LegendItem
-                                    key={`tdgc-${cat}-${f.key}`}
-                                    color={catColor}
-                                    label={`${catLabel} ${t(f.labelKey)}`}
-                                    type={f.type === 'quantity' ? 'box' : 'line'}
-                                />
-                            );
-                        })
-                    )}
+                    {TDGC_FIELDS.filter(f => selectedTdgcFields.has(f.key)).flatMap(f => {
+                        const dataTypes = selectedTdgcDataTypes.size > 0 ? selectedTdgcDataTypes : new Set(['prompt']);
+                        const showDtLabel = dataTypes.size > 1;
+                        return Array.from(dataTypes).flatMap(dt =>
+                            Array.from(selectedTdgcCategories).map(cat => {
+                                const catCfg = TDGC_CATEGORIES[cat];
+                                const catLabel = catCfg ? t(catCfg.labelKey) : cat;
+                                const catColor = catCfg?.color ?? '#999';
+                                const dtSuffix = showDtLabel ? ` (${t(`controlBar.${dt}`)})` : '';
+                                const isPrompt = dt === 'prompt';
+                                return (
+                                    <LegendItem
+                                        key={`tdgc-${dt}-${cat}-${f.key}`}
+                                        color={catColor}
+                                        label={`${catLabel} ${t(f.labelKey)}${dtSuffix}`}
+                                        type={f.type === 'quantity' ? 'box' : isPrompt ? 'dashed' : 'line'}
+                                        opacity={isPrompt ? 0.6 : 1}
+                                    />
+                                );
+                            })
+                        );
+                    })}
                     {/* Bid Plan Fields - 根据选中的 category 显示 */}
                     {selectedBidPlanCategories.has('spot') && BID_PLAN_SPOT_FIELDS.filter(f => {
                         const fieldKeyWithoutPrefix = f.key.replace('bid_', '');

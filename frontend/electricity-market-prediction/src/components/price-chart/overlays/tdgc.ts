@@ -3,6 +3,10 @@
  *
  * Reference implementation of the OverlayDataSource plugin interface.
  * Self-contained: field metadata, merge logic, and transform logic in one file.
+ *
+ * Supports two data types:
+ * - result (確報): confirmed/final values — rendered as solid lines
+ * - prompt (速報): preliminary values — rendered as dashed lines with reduced opacity
  */
 
 import type { TdgcData } from '@/types';
@@ -44,6 +48,12 @@ const RAW_FIELD_MAP: { key: string; shortKey: string; isMwh: boolean }[] = [
     { key: 'reserve_requirement',       shortKey: 'reserve_req',         isMwh: true },
 ];
 
+/** Data types with their display properties */
+const DATA_TYPES: Record<string, { labelKey: string; lineStyle: number; opacity: number }> = {
+    'result': { labelKey: 'controlBar.result', lineStyle: 0, opacity: 1 },    // Solid
+    'prompt': { labelKey: 'controlBar.prompt', lineStyle: 2, opacity: 0.6 },  // Dashed
+};
+
 // ─── Plugin Implementation ───────────────────────────────────────────────────
 
 export const tdgcOverlay: OverlayDataSource<TdgcData> = {
@@ -57,7 +67,7 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
         raw: TdgcData[],
         ensurePoint: EnsurePointFn,
         parseTimestamp: ParseTimestampFn,
-        config: { selectedCategories: Set<string> },
+        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string> },
     ): void {
         const filtered = config.selectedCategories.size > 0
             ? raw.filter(item => config.selectedCategories.has(item.commodity_category))
@@ -65,42 +75,48 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
 
         if (!filtered || filtered.length === 0) return;
 
-        // Group by commodity_category
-        const byCategory: Record<string, TdgcData[]> = {};
+        // Group by data_type → commodity_category
+        const byTypeAndCategory: Record<string, Record<string, TdgcData[]>> = {};
         filtered.forEach(item => {
+            const dt = item.data_type || 'result'; // backward compat: docs without data_type are result
             const cat = item.commodity_category;
-            if (!byCategory[cat]) byCategory[cat] = [];
-            byCategory[cat].push(item);
+            if (!byTypeAndCategory[dt]) byTypeAndCategory[dt] = {};
+            if (!byTypeAndCategory[dt][cat]) byTypeAndCategory[dt][cat] = [];
+            byTypeAndCategory[dt][cat].push(item);
         });
 
-        // For each category, aggregate by timestamp then write onto data points
-        Object.keys(byCategory).forEach(category => {
-            const categoryData = byCategory[category];
-            const byTs: Record<number, Record<string, number[]>> = {};
+        // For each data_type × category, aggregate by timestamp then write onto data points
+        Object.keys(byTypeAndCategory).forEach(dataType => {
+            const byCategory = byTypeAndCategory[dataType];
+            Object.keys(byCategory).forEach(category => {
+                const categoryData = byCategory[category];
+                const byTs: Record<number, Record<string, number[]>> = {};
 
-            categoryData.forEach(item => {
-                const ts = parseTimestamp(item.datetime);
-                if (!ts) return;
-                if (!byTs[ts]) byTs[ts] = {};
-                RAW_FIELD_MAP.forEach(({ key }) => {
-                    const value = (item as any)[key];
-                    if (typeof value === 'number' && !isNaN(value)) {
-                        if (!byTs[ts][key]) byTs[ts][key] = [];
-                        byTs[ts][key].push(value);
-                    }
+                categoryData.forEach(item => {
+                    const ts = parseTimestamp(item.datetime);
+                    if (!ts) return;
+                    if (!byTs[ts]) byTs[ts] = {};
+                    RAW_FIELD_MAP.forEach(({ key }) => {
+                        const value = (item as any)[key];
+                        if (typeof value === 'number' && !isNaN(value)) {
+                            if (!byTs[ts][key]) byTs[ts][key] = [];
+                            byTs[ts][key].push(value);
+                        }
+                    });
                 });
-            });
 
-            Object.keys(byTs).forEach(tsStr => {
-                const ts = Number(tsStr);
-                const point = ensurePoint(ts);
-                RAW_FIELD_MAP.forEach(({ key, shortKey, isMwh }) => {
-                    const values = byTs[ts][key];
-                    if (values && values.length > 0) {
-                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                        const pointFieldKey = `tdgc_${category}_${shortKey}`;
-                        (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
-                    }
+                Object.keys(byTs).forEach(tsStr => {
+                    const ts = Number(tsStr);
+                    const point = ensurePoint(ts);
+                    RAW_FIELD_MAP.forEach(({ key, shortKey, isMwh }) => {
+                        const values = byTs[ts][key];
+                        if (values && values.length > 0) {
+                            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                            // Point key format: tdgc_{dataType}_{category}_{shortKey}
+                            const pointFieldKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                            (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
+                        }
+                    });
                 });
             });
         });
@@ -113,33 +129,48 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
         timezone: string,
         t: (key: string) => string,
         converters: OverlayConverters,
+        selectedDataTypes?: Set<string>,
     ): TransformedSeries[] {
         const out: TransformedSeries[] = [];
+        const dataTypes = selectedDataTypes && selectedDataTypes.size > 0
+            ? selectedDataTypes
+            : new Set(['prompt']);
 
-        selectedCategories.forEach(category => {
-            const catCfg = CATEGORIES[category];
-            const catLabel = catCfg ? t(catCfg.labelKey) : category;
-            const catColor = catCfg?.color ?? '#999';
+        dataTypes.forEach(dataType => {
+            const dtCfg = DATA_TYPES[dataType];
+            const dtLabel = dtCfg ? t(dtCfg.labelKey) : dataType;
+            const showDtLabel = dataTypes.size > 1; // only show data type label when both are active
 
-            FIELDS.forEach(f => {
-                if (!selectedFields.has(f.key)) return;
-                const shortKey = f.pointKey.replace('tdgc_', '');
-                const dynamicPointKey = `tdgc_${category}_${shortKey}`;
-                const isQty = f.type === 'histogram';
+            selectedCategories.forEach(category => {
+                const catCfg = CATEGORIES[category];
+                const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                const catColor = catCfg?.color ?? '#999';
 
-                const seriesData = isQty
-                    ? converters.toHistogram(data, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
-                    : converters.toLine(data, p => (p as any)[dynamicPointKey] ?? null, timezone);
+                FIELDS.forEach(f => {
+                    if (!selectedFields.has(f.key)) return;
+                    const shortKey = f.pointKey.replace('tdgc_', '');
+                    const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                    const isQty = f.type === 'histogram';
 
-                if (seriesData.length > 0) {
-                    out.push({
-                        fieldKey: `${category}_${f.key}`,
-                        data: seriesData as any,
-                        label: `${catLabel} ${t(f.labelKey)}`,
-                        color: catColor,
-                        seriesType: isQty ? 'histogram' : 'line',
-                    });
-                }
+                    const seriesData = isQty
+                        ? converters.toHistogram(data, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
+                        : converters.toLine(data, p => (p as any)[dynamicPointKey] ?? null, timezone);
+
+                    if (seriesData.length > 0) {
+                        const label = showDtLabel
+                            ? `${catLabel} ${t(f.labelKey)} (${dtLabel})`
+                            : `${catLabel} ${t(f.labelKey)}`;
+                        out.push({
+                            fieldKey: `${dataType}_${category}_${f.key}`,
+                            data: seriesData as any,
+                            label,
+                            color: catColor,
+                            seriesType: isQty ? 'histogram' : 'line',
+                            lineStyle: dtCfg?.lineStyle,
+                            opacity: dtCfg?.opacity,
+                        });
+                    }
+                });
             });
         });
 
