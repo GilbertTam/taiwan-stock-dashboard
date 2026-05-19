@@ -286,7 +286,7 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
                             </ListItemButton>
                         </ListItem>
 
-                        {/* 日前市場 - 子項：即時 K 線、平均價格線（與不平衡市場同結構） */}
+                        {/* 時間前市場 - 子項：即時 K 線、平均價格線（與不平衡市場同結構） */}
                         <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                             <ListItemButton
                                 onClick={() => setFocusedDataSource(focusedDataSource === 'intraday' ? null : 'intraday')}

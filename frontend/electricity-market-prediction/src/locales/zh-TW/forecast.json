@@ -10,12 +10,12 @@
   "dataSources": {
     "spotActualPrice": "現貨實際價格",
     "spotActualPriceDesc": "JEPX 現貨市場實際成交價格（每 30 分鐘），依所選區域顯示。",
-    "intradayMarket": "日前市場",
-    "intradayMarketDesc": "JEPX 日前市場的 K 線（開高低收）與平均價，可分別勾選疊加於圖表。",
+    "intradayMarket": "時間前市場",
+    "intradayMarketDesc": "JEPX 時間前市場的 K 線（開高低收）與平均價，可分別勾選疊加於圖表。",
     "intradayCandle": "即時 K 線（開高低收）",
-    "intradayCandleDesc": "日前市場每 30 分鐘的 K 線（開盤、最高、最低、收盤價）。",
+    "intradayCandleDesc": "時間前市場每 30 分鐘的 K 線（開盤、最高、最低、收盤價）。",
     "intradayAvgLine": "平均價格線",
-    "intradayAvgLineDesc": "日前市場該時段平均成交價的折線。",
+    "intradayAvgLineDesc": "時間前市場該時段平均成交價的折線。",
     "imbalanceMarket": "不平衡市場",
     "imbalanceMarketDesc": "電力系統不平衡量與不平衡單價（剩餘／不足），可分別勾選數量、剩餘單價、不足單價疊加於圖表。",
     "imbalanceQuantity": "不平衡量 (Quantity)",
@@ -95,7 +95,7 @@
     "outageInfo": "停機資訊",
     "interconnFlow": "互連流量",
     "weatherData": "天氣資料",
-    "intradayMarketTab": "日内市場",
+    "intradayMarketTab": "時間前市場",
     "supplyDemandBalance": "供需平衡",
     "tdgcMarket": "調整力市場",
     "systemEvents": "系統事件"
@@ -176,8 +176,12 @@
     "forecastSuffix": "(預)"
   },
   "controlBar": {
+    "topBottomLabels": "高低點標籤",
+    "topBottomLabelsHint": "在圖表上以數字標出每日最高與最低 k 個價格點（實際價格與已選預測模型）；點右側齒輪調整 k 值",
+    "topBottomKLabel": "每日標籤數 k = {{k}}",
+    "topBottomKHint": "k 越小標籤越少，較不易重疊",
     "spotActual": "現貨實際",
-    "intradayMarket": "日內市場",
+    "intradayMarket": "時間前市場",
     "imbalance": "不平衡",
     "interconnection": "互連",
     "battery": "電池",
@@ -232,7 +236,7 @@
     },
     "battery": {
       "spotValue": "現貨電量",
-      "intradayValue": "日前電量",
+      "intradayValue": "時間前電量",
       "primaryValue": "一次調整力",
       "socKwh": "虛擬 SOC (kWh)",
       "actualSocKwh": "實測 SOC (kWh)"
@@ -281,7 +285,7 @@
       "sellPrice": "賣出價格",
       "sellVolume": "賣出電量",
       "spotPrefix": "現貨-",
-      "intradayPrefix": "日內-"
+      "intradayPrefix": "時間前-"
     }
   },
   "chartPanel": {
@@ -295,8 +299,8 @@
     "noDataSources": "無可用資料源",
     "surplusRate": "剩餘單價",
     "deficitRate": "不足單價",
-    "intradayCandle": "日前 K 線",
-    "intradayAvgLine": "日前均線",
+    "intradayCandle": "時間前 K 線",
+    "intradayAvgLine": "時間前均線",
     "weatherActual": "實測",
     "weatherForecast": "預測",
     "daily": "日",

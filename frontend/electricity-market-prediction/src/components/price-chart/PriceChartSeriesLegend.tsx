@@ -1,7 +1,7 @@
 /**
  * 價格圖表系列圖例 | Price chart series legend — toggleable legend for all chart overlays.
  *
- * 顯示當前啟用的所有圖表系列（現貨價格、預測模型、日前市場、不平衡、
+ * 顯示當前啟用的所有圖表系列（現貨價格、預測模型、時間前市場、不平衡、
  * 互連、電池、OCCTO、天氣等）的圖例項目。
  * 與 dashboard 的 AreaChartLegend（僅顯示「區域顏色＋名稱」）不同，
  * 此元件負責全資料源的可視化圖例。

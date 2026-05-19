@@ -37,6 +37,7 @@ function ForecastContent() {
     handleAreaChange, handleModelChange, handleModelCalculatingDateChange,
     handleDateRangePreset, commitDateSelection, refreshData, registerPageNeeds, unregisterPageNeeds,
     selectedWeatherModelActual, selectedWeatherModelForecast,
+    topBottomPairs,
   } = useMarketDataContext();
 
   // Register scopes required for ForecastPage
@@ -93,7 +94,7 @@ function ForecastContent() {
         chartData={chartData}
         areaName={selectedArea}
         selectedModels={selectedModels}
-        topBottomPairs={5}
+        topBottomPairs={topBottomPairs}
         imbalanceData={imbalanceData}
         intradayData={intradayData}
         interconnectionData={interconnectionData}

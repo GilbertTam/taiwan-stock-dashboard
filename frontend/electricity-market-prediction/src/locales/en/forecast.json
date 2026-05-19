@@ -176,6 +176,10 @@
     "forecastSuffix": "(Fct)"
   },
   "controlBar": {
+    "topBottomLabels": "Peak/Trough Labels",
+    "topBottomLabelsHint": "Label the highest and lowest k price points per day on the chart (actual + selected models). Click the gear to adjust k.",
+    "topBottomKLabel": "Labels per day  k = {{k}}",
+    "topBottomKHint": "Smaller k means fewer labels and less overlap.",
     "spotActual": "Spot Actual",
     "intradayMarket": "Intraday Market",
     "imbalance": "Imbalance",

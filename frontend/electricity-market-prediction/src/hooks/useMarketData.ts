@@ -179,6 +179,10 @@ export interface UseMarketDataReturn {
     setShowOcctoArea: React.Dispatch<React.SetStateAction<boolean>>;
     showActualPrice: boolean;
     setShowActualPrice: React.Dispatch<React.SetStateAction<boolean>>;
+    showTopBottomLabels: boolean;
+    setShowTopBottomLabels: React.Dispatch<React.SetStateAction<boolean>>;
+    topBottomPairs: number;
+    setTopBottomPairs: React.Dispatch<React.SetStateAction<number>>;
 }
 
 /**
@@ -488,6 +492,8 @@ export const useMarketData = (): UseMarketDataReturn => {
     const [showWeatherForecast, setShowWeatherForecast] = useState<boolean>(false);
     const [showOcctoArea, setShowOcctoArea] = useState<boolean>(false);
     const [showActualPrice, setShowActualPrice] = useState<boolean>(true);
+    const [showTopBottomLabels, setShowTopBottomLabels] = useState<boolean>(true);
+    const [topBottomPairs, setTopBottomPairs] = useState<number>(3);
 
     // ==========================================================================
     // Race Condition Prevention Refs
@@ -1297,6 +1303,8 @@ export const useMarketData = (): UseMarketDataReturn => {
         showWeatherActual, setShowWeatherActual,
         showWeatherForecast, setShowWeatherForecast,
         showOcctoArea, setShowOcctoArea,
-        showActualPrice, setShowActualPrice
+        showActualPrice, setShowActualPrice,
+        showTopBottomLabels, setShowTopBottomLabels,
+        topBottomPairs, setTopBottomPairs
     };
 };

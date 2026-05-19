@@ -10,6 +10,8 @@ import {
     Time,
     LineStyle,
     LineType,
+    createSeriesMarkers,
+    ISeriesMarkersPluginApi,
 } from 'lightweight-charts';
 import {
     convertToLineSeriesData,
@@ -17,6 +19,7 @@ import {
     dateToJstTimestamp,
     ProcessedDataPoint,
 } from '@/utils/lightweightChartsHelpers';
+import { buildTopBottomMarkers } from '@/utils/chart/topBottomMarkers';
 import { StackedBarSeries } from '../plugins/StackedBarSeries';
 import { StackedAreaSeries } from '../plugins/StackedAreaSeries';
 import { DayBackgroundPrimitive } from '@/components/charts';
@@ -60,6 +63,7 @@ interface UseChartSeriesParams {
     selectedWeatherFieldsActual: Set<string>;
     selectedWeatherFieldsForecast: Set<string>;
     showActualPrice: boolean;
+    showTopBottomLabels: boolean;
 
     // Display Options
     showRightAxisLabels: boolean;
@@ -96,6 +100,7 @@ export const useChartSeries = ({
     selectedWeatherFieldsActual,
     selectedWeatherFieldsForecast,
     showActualPrice,
+    showTopBottomLabels,
     showRightAxisLabels,
     seriesAxisConfig,
     hideObsAndPriceRow,
@@ -106,6 +111,7 @@ export const useChartSeries = ({
 
     const { t } = useTranslation('forecast');
     const seriesRefs = useRef<Map<string, ISeriesApi<any>>>(new Map());
+    const markersRefs = useRef<Map<string, ISeriesMarkersPluginApi<Time>>>(new Map());
     const dayBackgroundRef = useRef<DayBackgroundPrimitive | null>(null);
     const seriesWithBackgroundRef = useRef(new WeakSet<ISeriesApi<any>>());
     const occtoChartTypeRef = useRef<'area' | 'stacked' | undefined>(undefined);
@@ -120,6 +126,7 @@ export const useChartSeries = ({
         const currentChart = chartRef.current;
         if (prevChartRef.current !== currentChart) {
             seriesRefs.current.clear();
+            markersRefs.current.clear();
             seriesWithBackgroundRef.current = new WeakSet();
             dayBackgroundRef.current = null;
             occtoChartTypeRef.current = undefined;
@@ -162,6 +169,20 @@ export const useChartSeries = ({
             try { if (data.length > 0) s.setData(data); }
             catch (e) { console.warn(`SetData failed for ${key}`, e); }
             return s;
+        };
+
+        // Top-K / Bottom-K price-value label markers (series-level, transform layer).
+        const applyMarkers = (key: string, series: ISeriesApi<any>, markers: any[]) => {
+            let plugin = markersRefs.current.get(key);
+            if (!plugin) {
+                plugin = createSeriesMarkers(series, markers);
+                markersRefs.current.set(key, plugin);
+            } else {
+                plugin.setMarkers(markers);
+            }
+        };
+        const clearMarkers = (key: string) => {
+            markersRefs.current.get(key)?.setMarkers([]);
         };
 
         const {
@@ -543,7 +564,7 @@ export const useChartSeries = ({
 
             if (lineData.length > 0) {
                 const targetScale = seriesAxisConfig?.[`model-${modelKey}`]?.axis === 'Y2' ? 'left' : 'right';
-                updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
+                const ms = updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
                     color: color,
                     lineWidth: isHighlighted ? 3 : 1,
                     priceScaleId: targetScale,
@@ -570,6 +591,18 @@ export const useChartSeries = ({
                     }
                 });
                 usedSubCharts.add(targetScale);
+
+                if (showTopBottomLabels) {
+                    applyMarkers(`model-${modelKey}`, ms, buildTopBottomMarkers(
+                        processedChartData,
+                        p => p.modelPredictions.find(mp => `${mp.modelId}|${mp.modelName}` === modelKey)?.predictedPrice ?? null,
+                        p => (p as any).markerInfo?.models?.[modelKey],
+                        color,
+                        timezone,
+                    ));
+                } else {
+                    clearMarkers(`model-${modelKey}`);
+                }
             }
         });
 
@@ -607,6 +640,18 @@ export const useChartSeries = ({
                 s.attachPrimitive(dayBackgroundRef.current);
                 seriesWithBackgroundRef.current.add(s);
             }
+
+            if (showTopBottomLabels) {
+                applyMarkers('actual', s, buildTopBottomMarkers(
+                    processedChartData,
+                    p => p.actualPrice,
+                    p => (p as any).markerInfo?.actualType,
+                    colors.actual,
+                    timezone,
+                ));
+            } else {
+                clearMarkers('actual');
+            }
         } else if (activeKeys.size > 0 && dayBackgroundRef.current) {
             const firstSeriesKey = activeKeys.values().next().value as string | undefined;
             const s = firstSeriesKey != null ? seriesMap.get(firstSeriesKey) : undefined;
@@ -624,6 +669,11 @@ export const useChartSeries = ({
             if (s) {
                 try { chart.removeSeries(s); } catch (e) { /* Chart may be disposed */ }
                 seriesMap.delete(k);
+                const mp = markersRefs.current.get(k);
+                if (mp) {
+                    try { mp.detach(); } catch (e) { /* plugin may already be detached */ }
+                    markersRefs.current.delete(k);
+                }
             }
         });
 
@@ -868,6 +918,6 @@ export const useChartSeries = ({
         showImbalance, showOcctoArea, occtoChartType,
         showWeather, showWeatherActual, showWeatherForecast, selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
         seriesAxisConfig,
-        startDate, endDate, showActualPrice, showRightAxisLabels, subchartLayout
+        startDate, endDate, showActualPrice, showTopBottomLabels, showRightAxisLabels, subchartLayout
     ]);
 };

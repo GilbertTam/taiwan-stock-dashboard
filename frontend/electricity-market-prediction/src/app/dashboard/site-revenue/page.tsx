@@ -54,6 +54,7 @@ function SiteRevenueContent() {
     handleDateRangePreset, refreshData, registerPageNeeds, unregisterPageNeeds,
     selectionVersion, commitDateSelection,
     selectedWeatherModelActual, selectedWeatherModelForecast,
+    topBottomPairs,
   } = useMarketDataContext();
 
   const revenueData = useRevenuePageData({
@@ -764,7 +765,7 @@ function SiteRevenueContent() {
         chartData={chartData}
         areaName={selectedArea}
         selectedModels={selectedModels}
-        topBottomPairs={5}
+        topBottomPairs={topBottomPairs}
         imbalanceData={imbalanceData}
         intradayData={intradayData}
         interconnectionData={interconnectionData}

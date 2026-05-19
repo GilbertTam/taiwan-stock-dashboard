@@ -48,7 +48,7 @@ export const ChartLightweight: React.FC = () => {
     } = usePriceChart();
 
     const {
-        highlightedModelId, startDate, endDate, showActualPrice,
+        highlightedModelId, startDate, endDate, showActualPrice, showTopBottomLabels,
     } = useMarketDataContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -119,6 +119,7 @@ export const ChartLightweight: React.FC = () => {
         selectedWeatherFieldsActual,
         selectedWeatherFieldsForecast,
         showActualPrice: !!showActualPrice,
+        showTopBottomLabels: !!showTopBottomLabels,
         showRightAxisLabels,
         seriesAxisConfig,
         hideObsAndPriceRow,

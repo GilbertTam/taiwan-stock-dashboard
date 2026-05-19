@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Box, Paper, Chip, Typography, IconButton, Tooltip, Divider,
-    Popover, List, ListItemButton, Checkbox, Menu, MenuItem,
+    Popover, List, ListItemButton, Checkbox, Menu, MenuItem, Slider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -97,6 +97,8 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
         handleModelCalculatingDateChange,
         actualPrices, predictionsByModel,
         showActualPrice, setShowActualPrice,
+        showTopBottomLabels, setShowTopBottomLabels,
+        topBottomPairs, setTopBottomPairs,
         showImbalance,            setShowImbalance,
         showImbalanceQuantity,    setShowImbalanceQuantity,
         showImbalanceSurplusRate, setShowImbalanceSurplusRate,
@@ -186,6 +188,7 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
 
     // ── Source popover state ──────────────────────────────────────────────────
     const [sourcePopover, setSourcePopover] = useState<{ anchor: HTMLElement; key: SourceKey } | null>(null);
+    const [labelsPopoverAnchor, setLabelsPopoverAnchor] = useState<HTMLElement | null>(null);
 
     // ── Model popover & calculating date menu ─────────────────────────────────
     const [modelPopoverAnchor, setModelPopoverAnchor] = useState<HTMLElement | null>(null);
@@ -949,6 +952,106 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                 onSetDefault={setForecastAsDefault}
                 renderPreview={(data) => <ForecastPreview data={data} />}
             />
+
+            {/* ── Display Options: Peak/Trough Labels ─────────────────────── */}
+            <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
+            {(() => {
+                const color = '#f59e0b';
+                const isActive = !!showTopBottomLabels;
+                return (
+                    <Tooltip title={t('controlBar.topBottomLabelsHint')} arrow>
+                        <Box sx={{
+                            display: 'flex', alignItems: 'stretch',
+                            height: 26,
+                            border: `1px solid ${isActive ? color : 'var(--card-border)'}`,
+                            bgcolor: isActive ? `color-mix(in srgb, ${color}, transparent 85%)` : 'transparent',
+                            borderRadius: '3px',
+                            overflow: 'hidden',
+                            transition: 'border-color 0.12s, background-color 0.12s',
+                        }}>
+                            {/* Toggle area */}
+                            <Box
+                                onClick={() => setShowTopBottomLabels(!showTopBottomLabels)}
+                                sx={{
+                                    display: 'flex', alignItems: 'center', gap: 0.5,
+                                    px: 0.75,
+                                    cursor: 'pointer',
+                                    '&:hover': { bgcolor: `color-mix(in srgb, ${color}, transparent 78%)` },
+                                    transition: 'background-color 0.1s',
+                                }}
+                            >
+                                <Box sx={{
+                                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                                    bgcolor: isActive ? color : 'var(--card-border)',
+                                    transition: 'background-color 0.12s',
+                                }} />
+                                <Typography sx={{
+                                    fontSize: '0.72rem',
+                                    fontWeight: isActive ? 600 : 400,
+                                    color: isActive ? color : 'var(--text-secondary)',
+                                    userSelect: 'none',
+                                    lineHeight: 1,
+                                    transition: 'color 0.12s',
+                                }}>
+                                    {t('controlBar.topBottomLabels')} ({topBottomPairs})
+                                </Typography>
+                            </Box>
+                            {/* k slider trigger */}
+                            <Box
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLabelsPopoverAnchor(e.currentTarget as HTMLElement);
+                                }}
+                                sx={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 18,
+                                    borderLeft: `1px solid ${isActive ? `color-mix(in srgb, ${color}, transparent 55%)` : 'var(--card-border)'}`,
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.1s',
+                                    '&:hover': {
+                                        bgcolor: `color-mix(in srgb, ${color}, transparent 72%)`,
+                                        color,
+                                    },
+                                }}
+                            >
+                                <TuneIcon sx={{ fontSize: '0.72rem' }} />
+                            </Box>
+                        </Box>
+                    </Tooltip>
+                );
+            })()}
+
+            {/* ── Peak/Trough k-value popover ──────────────────────────────── */}
+            <Popover
+                open={Boolean(labelsPopoverAnchor)}
+                anchorEl={labelsPopoverAnchor}
+                onClose={() => setLabelsPopoverAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{
+                    elevation: 4,
+                    sx: { width: 240, mt: 0.5, p: 1.5, border: '1px solid var(--card-border)', bgcolor: 'var(--card-bg)', borderRadius: '4px' },
+                }}
+            >
+                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.7rem', letterSpacing: '0.5px', display: 'block', mb: 0.5 }}>
+                    {t('controlBar.topBottomKLabel', { k: topBottomPairs })}
+                </Typography>
+                <Slider
+                    value={topBottomPairs}
+                    onChange={(_, v) => setTopBottomPairs(Array.isArray(v) ? v[0] : v)}
+                    min={1}
+                    max={10}
+                    step={1}
+                    marks
+                    size="small"
+                    valueLabelDisplay="auto"
+                    sx={{ color: '#f59e0b', mx: 0.5 }}
+                />
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', display: 'block', mt: 0.5 }}>
+                    {t('controlBar.topBottomKHint')}
+                </Typography>
+            </Popover>
 
             {/* ── Model add/manage popover ─────────────────────────────────── */}
             <Popover
