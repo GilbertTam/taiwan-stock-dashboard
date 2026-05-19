@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.config import settings
 
 from app.core.logging import setup_logging
@@ -24,6 +25,22 @@ def create_application() -> FastAPI:
 
     # GZip compression for responses > 1KB
     application.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # Trust X-Forwarded-Proto / X-Forwarded-For / X-Forwarded-Host from the
+    # reverse proxy so `request.url.scheme` and `request.base_url` reflect
+    # the ACTUAL public scheme (e.g. https) instead of nginx→backend's hop
+    # (which is always http inside the docker network).
+    #
+    # Without this, OAuth `redirect_uri` URIs built from request.base_url are
+    # http://… → Google/Microsoft redirect the browser back over http → the
+    # entire OAuth callback chain drops to http and the secure session cookie
+    # set by the callback cannot be sent back over the next https request.
+    #
+    # `trusted_hosts="*"` is safe in this deployment: the backend container is
+    # only reachable via the nginx container on the internal docker network.
+    # If the backend ever becomes directly internet-reachable, restrict this
+    # to the nginx container IP/hostname.
+    application.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
     # Protected Documentation Routes
     from fastapi import Depends
@@ -74,9 +91,17 @@ app = create_application()
 
 @app.on_event("startup")
 async def ensure_tables():
-    """Create any missing tables on startup (e.g. user_presets for fresh instances)."""
+    """Create any missing tables on startup (e.g. user_presets for fresh instances).
+
+    NOTE: create_all only CREATES missing tables; it does NOT alter existing
+    ones. Existing deployments that pre-date migration 003 must run
+    `alembic upgrade head` to pick up the `users.hashed_password` nullability
+    change and the new `is_pending` column. Fresh installs get the correct
+    schema from the updated models here.
+    """
     from app.db import engine, Base
-    from app.models import User, UserPreset  # noqa: F401 – ensure models are registered
+    # Import all models so Base.metadata sees them before create_all runs.
+    from app.models import User, UserPreset, OAuthAccount, AppSettings  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

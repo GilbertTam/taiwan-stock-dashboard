@@ -20,11 +20,18 @@ import BoltIcon from '@mui/icons-material/Bolt';
 import { createAdminUser } from '@/services/authApi';
 import { useTranslation } from 'react-i18next';
 
+import { OAuthButtons } from './OAuthButtons';
+import type { OAuthProviders } from '@/types';
+
 interface SetupFormProps {
   onSetupComplete: () => void;
+  oauthProviders?: OAuthProviders;
 }
 
-export function SetupForm({ onSetupComplete }: SetupFormProps) {
+export function SetupForm({
+  onSetupComplete,
+  oauthProviders = { google: false, microsoft: false },
+}: SetupFormProps) {
   const { t } = useTranslation('auth');
   const { t: tCommon } = useTranslation('common');
   const [username, setUsername] = useState('');
@@ -289,6 +296,10 @@ export function SetupForm({ onSetupComplete }: SetupFormProps) {
       >
         {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : t('setup.createAccount')}
       </Button>
+
+      {/* OAuth bootstrap: the first OAuth identity becomes admin while
+          count_users() == 0 (same trust boundary as the password path). */}
+      <OAuthButtons providers={oauthProviders} mode="setup" disabled={isLoading} />
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t('copyright')}</Typography>

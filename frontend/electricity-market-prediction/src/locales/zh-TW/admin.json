@@ -1,0 +1,33 @@
+{
+  "title": "管理頁面",
+  "loadFailed": "載入資料失敗。",
+  "saveFailed": "儲存設定失敗。",
+  "settings": {
+    "title": "註冊設定",
+    "allowRegistration": "開放公開註冊",
+    "allowRegistrationDesc": "關閉時,使用者無法自助註冊,僅管理員可建立帳號。",
+    "requireApproval": "需管理員審核",
+    "requireApprovalDesc": "開啟時,自助註冊的帳號會處於待審核狀態,須管理員啟用後才能登入。"
+  },
+  "pending": {
+    "title": "待審核帳號",
+    "empty": "目前沒有待審核的帳號。",
+    "approve": "核准",
+    "approved": "帳號已核准。",
+    "approveFailed": "核准失敗。"
+  },
+  "users": {
+    "title": "所有使用者",
+    "passwordOnly": "密碼",
+    "noMethod": "無登入方式",
+    "updated": "已更新使用者。",
+    "updateFailed": "更新使用者失敗。",
+    "columns": {
+      "username": "帳號",
+      "email": "Email",
+      "providers": "登入方式",
+      "active": "啟用",
+      "admin": "管理員"
+    }
+  }
+}

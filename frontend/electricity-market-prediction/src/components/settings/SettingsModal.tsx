@@ -1,15 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
   Box,
-  Typography,
-  IconButton,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
-  ToggleButtonGroup,
+  IconButton,
+  Tab,
+  Tabs,
   ToggleButton,
+  ToggleButtonGroup,
+  Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -18,8 +21,10 @@ import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import LanguageIcon from '@mui/icons-material/Language';
 import TuneIcon from '@mui/icons-material/Tune';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useTheme, type LocalePreference, type ThemePreference } from '@/app/ThemeProvider';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import { useTheme, type LocalePreference, type SettingsTab, type ThemePreference } from '@/app/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { AccountSettingsPanel } from '@/components/account';
 
 interface SettingsModalProps {
   open: boolean;
@@ -98,8 +103,18 @@ const toggleButtonGroupSx = {
 };
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { themePreference, setThemePreference, darkMode, localePreference, setLocale } = useTheme();
+  // CLAUDE.md — all hooks before any conditional return.
+  const { themePreference, setThemePreference, localePreference, setLocale, settingsInitialTab } =
+    useTheme();
   const { t } = useTranslation('settings');
+  const [tab, setTab] = useState<SettingsTab>(settingsInitialTab);
+
+  // Resync local tab state every time the modal opens so callers that target
+  // a specific tab (e.g. UserMenu's "Account Settings" → 'account') land on
+  // the right one even if the user previously closed the modal on another tab.
+  useEffect(() => {
+    if (open) setTab(settingsInitialTab);
+  }, [open, settingsInitialTab]);
 
   const ThemeIcon = THEME_ICONS[themePreference];
 
@@ -140,7 +155,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          pb: 1,
+          pb: 0,
           pt: 2,
           px: 3,
         }}
@@ -160,83 +175,124 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ px: 3, pb: 3, pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* Appearance */}
-        <Box sx={sectionCardSx}>
-          <GradientBar />
-          <Typography variant="subtitle2" sx={sectionTitleSx}>
-            <ThemeIcon fontSize="small" />
-            {t('appearance.title')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
-            {t('appearance.description')}
-          </Typography>
-          <ToggleButtonGroup
-            value={themePreference}
-            exclusive
-            onChange={(_, value) => { if (value) setThemePreference(value as ThemePreference); }}
-            size="small"
-            sx={toggleButtonGroupSx}
-          >
-            <ToggleButton value="light">
-              <LightModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              {t('appearance.lightMode')}
-            </ToggleButton>
-            <ToggleButton value="dark">
-              <DarkModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              {t('appearance.darkMode')}
-            </ToggleButton>
-            <ToggleButton value="system">
-              <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              {t('appearance.systemMode')}
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+      {/* Tabs sit between the title and the panel content so they stay visible
+          while the content scrolls if it needs to. */}
+      <Box sx={{ px: 3, pt: 1.5 }}>
+        <Tabs
+          value={tab}
+          onChange={(_, next: SettingsTab) => setTab(next)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 36,
+            '& .MuiTab-root': {
+              minHeight: 36,
+              textTransform: 'none',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--muted)',
+              '&.Mui-selected': { color: 'var(--primary)' },
+            },
+            '& .MuiTabs-indicator': { backgroundColor: 'var(--primary)' },
+          }}
+        >
+          <Tab
+            value="preferences"
+            label={t('tabs.preferences')}
+            icon={<TuneIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+          />
+          <Tab
+            value="account"
+            label={t('tabs.account')}
+            icon={<ManageAccountsIcon sx={{ fontSize: 16 }} />}
+            iconPosition="start"
+          />
+        </Tabs>
+      </Box>
 
-        <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
+      <DialogContent sx={{ px: 3, pb: 3, pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {tab === 'preferences' && (
+          <>
+            {/* Appearance */}
+            <Box sx={sectionCardSx}>
+              <GradientBar />
+              <Typography variant="subtitle2" sx={sectionTitleSx}>
+                <ThemeIcon fontSize="small" />
+                {t('appearance.title')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
+                {t('appearance.description')}
+              </Typography>
+              <ToggleButtonGroup
+                value={themePreference}
+                exclusive
+                onChange={(_, value) => { if (value) setThemePreference(value as ThemePreference); }}
+                size="small"
+                sx={toggleButtonGroupSx}
+              >
+                <ToggleButton value="light">
+                  <LightModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  {t('appearance.lightMode')}
+                </ToggleButton>
+                <ToggleButton value="dark">
+                  <DarkModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  {t('appearance.darkMode')}
+                </ToggleButton>
+                <ToggleButton value="system">
+                  <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  {t('appearance.systemMode')}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
 
-        {/* Language */}
-        <Box sx={sectionCardSx}>
-          <GradientBar />
-          <Typography variant="subtitle2" sx={sectionTitleSx}>
-            <LanguageIcon fontSize="small" />
-            {t('language.title')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
-            {t('language.description')}
-          </Typography>
-          <ToggleButtonGroup
-            value={localePreference}
-            exclusive
-            onChange={(_, value) => { if (value) setLocale(value as LocalePreference); }}
-            size="small"
-            sx={toggleButtonGroupSx}
-          >
-            {(Object.entries(LOCALE_LABELS) as [string, string][]).map(([value, label]) => (
-              <ToggleButton key={value} value={value}>
-                {label}
-              </ToggleButton>
-            ))}
-            <ToggleButton value="system">
-              <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              {t('language.systemLocale')}
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+            <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
 
-        <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
+            {/* Language */}
+            <Box sx={sectionCardSx}>
+              <GradientBar />
+              <Typography variant="subtitle2" sx={sectionTitleSx}>
+                <LanguageIcon fontSize="small" />
+                {t('language.title')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7, mb: 2 }}>
+                {t('language.description')}
+              </Typography>
+              <ToggleButtonGroup
+                value={localePreference}
+                exclusive
+                onChange={(_, value) => { if (value) setLocale(value as LocalePreference); }}
+                size="small"
+                sx={toggleButtonGroupSx}
+              >
+                {(Object.entries(LOCALE_LABELS) as [string, string][]).map(([value, label]) => (
+                  <ToggleButton key={value} value={value}>
+                    {label}
+                  </ToggleButton>
+                ))}
+                <ToggleButton value="system">
+                  <SettingsBrightnessIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  {t('language.systemLocale')}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
 
-        {/* Preferences placeholder */}
-        <Box sx={sectionCardSx}>
-          <GradientBar />
-          <Typography variant="subtitle2" sx={sectionTitleSx}>
-            <TuneIcon fontSize="small" />
-            {t('preferences.title')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-            {t('preferences.comingSoon')}
-          </Typography>
-        </Box>
+            <Divider sx={{ borderColor: 'var(--subtle-border)' }} />
+
+            {/* Preferences placeholder */}
+            <Box sx={sectionCardSx}>
+              <GradientBar />
+              <Typography variant="subtitle2" sx={sectionTitleSx}>
+                <TuneIcon fontSize="small" />
+                {t('preferences.title')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                {t('preferences.comingSoon')}
+              </Typography>
+            </Box>
+          </>
+        )}
+
+        {tab === 'account' && <AccountSettingsPanel />}
       </DialogContent>
     </Dialog>
   );

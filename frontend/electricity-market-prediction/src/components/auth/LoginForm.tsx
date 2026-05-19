@@ -16,14 +16,27 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import BoltIcon from '@mui/icons-material/Bolt';
-import type { LoginCredentials } from '@/types';
+import type { LoginCredentials, OAuthProviders } from '@/types';
 import { useTranslation } from 'react-i18next';
+
+import { OAuthButtons } from './OAuthButtons';
 
 interface LoginFormProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
+  /** OAuth providers configured server-side. Pass {google:false,microsoft:false} to hide all buttons. */
+  oauthProviders?: OAuthProviders;
+  /** Show the "create account" link below the form. Driven by app_settings.allow_registration. */
+  allowRegistration?: boolean;
+  /** Switch the parent card to register mode. */
+  onSwitchToRegister?: () => void;
 }
 
-export function LoginForm({ onSubmit }: LoginFormProps) {
+export function LoginForm({
+  onSubmit,
+  oauthProviders = { google: false, microsoft: false },
+  allowRegistration = false,
+  onSwitchToRegister,
+}: LoginFormProps) {
   const { t } = useTranslation('auth');
   const { t: tCommon } = useTranslation('common');
   const [username, setUsername] = useState('');
@@ -206,6 +219,29 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       >
         {isLoading ? <CircularProgress size={20} sx={{ color: 'var(--primary-foreground)' }} /> : t('login')}
       </Button>
+
+      <OAuthButtons providers={oauthProviders} mode="login" disabled={isLoading} />
+
+      {allowRegistration && onSwitchToRegister && (
+        <Box sx={{ mt: 1.5, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 12, color: 'var(--text-secondary)', display: 'inline' }}>
+            {t('noAccount')}{' '}
+          </Typography>
+          <Typography
+            onClick={onSwitchToRegister}
+            sx={{
+              fontSize: 12,
+              color: 'var(--primary)',
+              display: 'inline',
+              cursor: 'pointer',
+              fontWeight: 600,
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {t('createAccount')}
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography sx={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t('copyright')}</Typography>

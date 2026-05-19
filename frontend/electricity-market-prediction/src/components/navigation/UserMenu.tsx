@@ -16,6 +16,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/app/ThemeProvider';
@@ -31,7 +32,7 @@ export interface UserMenuProps {
 const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { setSettingsOpen } = useTheme();
+  const { setSettingsOpen, openSettings } = useTheme();
   const { t } = useTranslation('navigation');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -126,6 +127,12 @@ const UserMenu = ({ showLabel = false, size = 'small' }: UserMenuProps) => {
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
+        <MenuItem onClick={() => { handleClose(); openSettings('account'); }} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
+          <ListItemIcon>
+            <ManageAccountsIcon fontSize="small" sx={{ color: 'var(--foreground)' }} />
+          </ListItemIcon>
+          {t('userMenu.account')}
+        </MenuItem>
         <MenuItem onClick={() => { handleClose(); setSettingsOpen(true); }} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" sx={{ color: 'var(--foreground)' }} />

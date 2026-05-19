@@ -28,9 +28,32 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     ALGORITHM: str = "HS256"
 
+    # OAUTH (third-party login)
+    # All empty by default — OAuth is disabled unless credentials are set,
+    # which causes the providers endpoint to report it off and the frontend
+    # buttons to be hidden. Set these in .env to enable.
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    # "common" works for multi-tenant + personal Microsoft accounts.
+    MICROSOFT_TENANT: str = "common"
+    # Optional override for post-callback browser redirect. Empty = same-origin
+    # relative path "/oauth/callback" (works because nginx serves frontend +
+    # backend on the same origin in prod).
+    FRONTEND_BASE_URL: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.ENV.lower() == "production"
+
+    @property
+    def google_oauth_enabled(self) -> bool:
+        return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
+
+    @property
+    def microsoft_oauth_enabled(self) -> bool:
+        return bool(self.MICROSOFT_CLIENT_ID and self.MICROSOFT_CLIENT_SECRET)
     
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []

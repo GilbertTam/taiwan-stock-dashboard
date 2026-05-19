@@ -190,6 +190,10 @@ function useSystemLocale(): Locale {
   return systemLocale;
 }
 
+// Tabs supported by the SettingsModal. Adding a new tab here also requires
+// rendering it inside SettingsModal — the union keeps both in sync.
+export type SettingsTab = 'preferences' | 'account';
+
 // 創建上下文
 interface ThemeContextType {
   themePreference: ThemePreference;
@@ -200,6 +204,10 @@ interface ThemeContextType {
   setLocale: (locale: LocalePreference) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  /** Tab to display when the modal opens; reset to 'preferences' on close. */
+  settingsInitialTab: SettingsTab;
+  /** Convenience: open the modal on a specific tab in one call. */
+  openSettings: (tab?: SettingsTab) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -211,6 +219,8 @@ const ThemeContext = createContext<ThemeContextType>({
   setLocale: () => { },
   settingsOpen: false,
   setSettingsOpen: () => { },
+  settingsInitialTab: 'preferences',
+  openSettings: () => { },
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -222,7 +232,20 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [themePreference, setThemePrefState] = useState<ThemePreference>(getSavedThemePreference);
   const [localePreference, setLocalePrefState] = useState<LocalePreference>(getSavedLocalePreference);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpenState] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('preferences');
+
+  // Wrapper that also resets the requested tab on close so the next opener
+  // (e.g. the gear icon) doesn't inherit "account" from a previous call.
+  const setSettingsOpen = (open: boolean) => {
+    setSettingsOpenState(open);
+    if (!open) setSettingsInitialTab('preferences');
+  };
+
+  const openSettings = (tab: SettingsTab = 'preferences') => {
+    setSettingsInitialTab(tab);
+    setSettingsOpenState(true);
+  };
 
   const systemDark = useSystemDarkMode();
   const darkMode = themePreference === 'system' ? systemDark : themePreference === 'dark';
@@ -267,7 +290,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   };
 
   return (
-    <ThemeContext.Provider value={{ themePreference, setThemePreference, darkMode, localePreference, locale, setLocale, settingsOpen, setSettingsOpen }}>
+    <ThemeContext.Provider value={{ themePreference, setThemePreference, darkMode, localePreference, locale, setLocale, settingsOpen, setSettingsOpen, settingsInitialTab, openSettings }}>
       <MuiThemeProvider theme={darkMode ? darkTheme : lightTheme}>
         <CssBaseline />
         {children}

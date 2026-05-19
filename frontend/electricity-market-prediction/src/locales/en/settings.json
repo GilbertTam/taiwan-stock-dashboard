@@ -1,5 +1,9 @@
 {
   "title": "Settings",
+  "tabs": {
+    "preferences": "Preferences",
+    "account": "Account & Security"
+  },
   "appearance": {
     "title": "Appearance",
     "description": "Choose your preferred theme, or sync with your system setting.",

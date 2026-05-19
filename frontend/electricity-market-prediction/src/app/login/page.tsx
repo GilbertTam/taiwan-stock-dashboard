@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Alert, Box, CircularProgress, Snackbar, useMediaQuery, useTheme } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/context/AuthContext';
 import { checkSetupStatus } from '@/services/authApi';
 import {
@@ -10,15 +12,53 @@ import {
   LoginFormCard,
   DevToolSetupButton,
 } from '@/components/auth';
+import type { OAuthProviders, SetupStatus } from '@/types';
 
+const DEFAULT_PROVIDERS: OAuthProviders = { google: false, microsoft: false };
+
+// Next.js 15 requires `useSearchParams()` to live below a <Suspense> boundary
+// because the page would otherwise bail out of static rendering during the
+// `next build` prerender. The inner component is the real implementation;
+// the default export just wraps it in Suspense + a loading fallback that
+// mirrors the spinner used while we fetch /setup/status.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--background)',
+      }}
+    >
+      <CircularProgress size={32} sx={{ color: 'var(--primary)' }} />
+    </Box>
+  );
+}
+
+function LoginPageInner() {
+  // CLAUDE.md: all hooks before any conditional return.
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
+  const { t } = useTranslation('auth');
 
-  // null = loading, true = setup required, false = normal login
-  const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<SetupStatus | null>(null);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  // Surface errors carried by ?error=... when the OAuth bridge redirects here.
+  const oauthError = searchParams?.get('error') ?? null;
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -28,16 +68,37 @@ export default function LoginPage() {
 
   useEffect(() => {
     checkSetupStatus()
-      .then((res) => setSetupRequired(res.setup_required))
-      .catch(() => setSetupRequired(false)); // fallback to normal login on error
+      .then((res) => setStatus(res))
+      .catch(() => setStatus({
+        // Fall back to a normal-login posture if the public config endpoint
+        // is unreachable — surface the error UX but don't strand the user.
+        setup_required: false,
+        allow_registration: false,
+        oauth_providers: DEFAULT_PROVIDERS,
+      }));
   }, []);
 
+  useEffect(() => {
+    if (!oauthError) return;
+    const key = `errors.${oauthError}`;
+    // Fall back to the generic OAuth-failed message if the specific code
+    // doesn't have a localized string (e.g. provider-side weirdness).
+    const translated = t(key, { defaultValue: t('errors.oauthFailed') });
+    setErrorMsg(translated);
+  }, [oauthError, t]);
+
   const handleSetupComplete = () => {
-    setSetupRequired(false);
+    if (status) setStatus({ ...status, setup_required: false });
   };
 
-  // While checking setup status, show a centered spinner
-  if (setupRequired === null) {
+  const oauthProviders = status?.oauth_providers ?? DEFAULT_PROVIDERS;
+  const cardMode: 'login' | 'register' | 'setup' = useMemo(() => {
+    if (!status) return 'login';
+    if (status.setup_required) return 'setup';
+    return mode;
+  }, [status, mode]);
+
+  if (status === null) {
     return (
       <Box
         sx={{
@@ -56,12 +117,15 @@ export default function LoginPage() {
   const formCard = (
     <LoginFormCard
       onSubmit={login}
-      mode={setupRequired ? 'setup' : 'login'}
+      mode={cardMode}
       onSetupComplete={handleSetupComplete}
+      onSwitchMode={(next) => setMode(next)}
+      oauthProviders={oauthProviders}
+      allowRegistration={status.allow_registration}
     />
   );
 
-  const devButton = setupRequired ? (
+  const devButton = status.setup_required ? (
     <DevToolSetupButton onSetupComplete={handleSetupComplete} />
   ) : null;
 
@@ -76,7 +140,22 @@ export default function LoginPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Main content: desktop = circuit + form overlay; mobile = form on top + region strip below */}
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={6000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setErrorMsg(null)}
+          sx={{ maxWidth: 480 }}
+        >
+          {errorMsg}
+        </Alert>
+      </Snackbar>
+
       <Box
         sx={{
           flex: 1,

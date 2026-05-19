@@ -1,0 +1,42 @@
+{
+  "title": "Account Settings",
+  "profile": {
+    "title": "Profile",
+    "username": "Username",
+    "email": "Email",
+    "role": "Role",
+    "admin": "Administrator",
+    "user": "Member"
+  },
+  "providers": {
+    "title": "Linked Sign-in Providers",
+    "linked": "Linked",
+    "notConfigured": "Not configured",
+    "notConfiguredHint": "This provider is not configured on the server. Contact your administrator.",
+    "noneConfigured": "No third-party sign-in providers are currently configured by the administrator. You can still sign in with your username and password.",
+    "link": "Link",
+    "unlink": "Unlink",
+    "unlinked": "{{provider}} unlinked successfully.",
+    "unlinkFailed": "Failed to unlink. Please try again."
+  },
+  "password": {
+    "change": "Change Password",
+    "setInitial": "Set a Password",
+    "setInitialHint": "Setting a password lets you sign in with your username even if you unlink your third-party providers.",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "save": "Save",
+    "mismatch": "New passwords do not match.",
+    "saved": "Password updated.",
+    "saveFailed": "Failed to update password.",
+    "remove": "Remove password",
+    "removeBlockedHint": "Link at least one third-party provider before removing your password — otherwise you'd have no way to sign in.",
+    "removeTitle": "Remove your password?",
+    "removeWarning": "You will only be able to sign in via your linked third-party providers. You can set a password again at any time.",
+    "removeConfirm": "Remove password",
+    "removed": "Password removed. Use a linked provider to sign in next time.",
+    "removeFailed": "Failed to remove password.",
+    "cancel": "Cancel"
+  }
+}

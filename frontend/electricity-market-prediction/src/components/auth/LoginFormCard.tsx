@@ -5,15 +5,28 @@ import { CircuitFlowBar } from './CircuitFlowBar';
 import { CircuitCardTraces } from './CircuitCardTraces';
 import { LoginForm } from './LoginForm';
 import { SetupForm } from './SetupForm';
-import type { LoginCredentials } from '@/types';
+import { RegisterForm } from './RegisterForm';
+import type { LoginCredentials, OAuthProviders } from '@/types';
 
 interface LoginFormCardProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
-  mode?: 'login' | 'setup';
+  mode?: 'login' | 'setup' | 'register';
   onSetupComplete?: () => void;
+  /** Toggle between login and register modes from inside the form. */
+  onSwitchMode?: (next: 'login' | 'register') => void;
+  oauthProviders?: OAuthProviders;
+  /** Show the "create account" link below the login form. */
+  allowRegistration?: boolean;
 }
 
-export function LoginFormCard({ onSubmit, mode = 'login', onSetupComplete }: LoginFormCardProps) {
+export function LoginFormCard({
+  onSubmit,
+  mode = 'login',
+  onSetupComplete,
+  onSwitchMode,
+  oauthProviders = { google: false, microsoft: false },
+  allowRegistration = false,
+}: LoginFormCardProps) {
   return (
     <Box
       sx={{
@@ -37,10 +50,26 @@ export function LoginFormCard({ onSubmit, mode = 'login', onSetupComplete }: Log
     >
       <CircuitFlowBar />
       <CircuitCardTraces />
-      {mode === 'setup' ? (
-        <SetupForm onSetupComplete={onSetupComplete ?? (() => {})} />
-      ) : (
-        <LoginForm onSubmit={onSubmit} />
+      {mode === 'setup' && (
+        <SetupForm
+          onSetupComplete={onSetupComplete ?? (() => {})}
+          oauthProviders={oauthProviders}
+        />
+      )}
+      {mode === 'register' && (
+        <RegisterForm
+          onSubmit={onSubmit}
+          onSwitchToLogin={() => onSwitchMode?.('login')}
+          oauthProviders={oauthProviders}
+        />
+      )}
+      {mode === 'login' && (
+        <LoginForm
+          onSubmit={onSubmit}
+          oauthProviders={oauthProviders}
+          allowRegistration={allowRegistration}
+          onSwitchToRegister={onSwitchMode ? () => onSwitchMode('register') : undefined}
+        />
       )}
     </Box>
   );

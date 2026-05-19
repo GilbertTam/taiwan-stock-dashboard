@@ -13,6 +13,8 @@ import zhTWGenerationMix from '@/locales/zh-TW/generationMix.json';
 import zhTWDataStatus from '@/locales/zh-TW/dataStatus.json';
 import zhTWWeather from '@/locales/zh-TW/weather.json';
 import zhTWDailyCompare from '@/locales/zh-TW/dailyCompare.json';
+import zhTWAccount from '@/locales/zh-TW/account.json';
+import zhTWAdmin from '@/locales/zh-TW/admin.json';
 
 import enCommon from '@/locales/en/common.json';
 import enNavigation from '@/locales/en/navigation.json';
@@ -25,6 +27,8 @@ import enGenerationMix from '@/locales/en/generationMix.json';
 import enDataStatus from '@/locales/en/dataStatus.json';
 import enWeather from '@/locales/en/weather.json';
 import enDailyCompare from '@/locales/en/dailyCompare.json';
+import enAccount from '@/locales/en/account.json';
+import enAdmin from '@/locales/en/admin.json';
 
 import jaCommon from '@/locales/ja/common.json';
 import jaNavigation from '@/locales/ja/navigation.json';
@@ -37,6 +41,8 @@ import jaGenerationMix from '@/locales/ja/generationMix.json';
 import jaDataStatus from '@/locales/ja/dataStatus.json';
 import jaWeather from '@/locales/ja/weather.json';
 import jaDailyCompare from '@/locales/ja/dailyCompare.json';
+import jaAccount from '@/locales/ja/account.json';
+import jaAdmin from '@/locales/ja/admin.json';
 
 i18n
   .use(LanguageDetector)
@@ -55,6 +61,8 @@ i18n
         dataStatus: zhTWDataStatus,
         weather: zhTWWeather,
         dailyCompare: zhTWDailyCompare,
+        account: zhTWAccount,
+        admin: zhTWAdmin,
       },
       en: {
         common: enCommon,
@@ -68,6 +76,8 @@ i18n
         dataStatus: enDataStatus,
         weather: enWeather,
         dailyCompare: enDailyCompare,
+        account: enAccount,
+        admin: enAdmin,
       },
       ja: {
         common: jaCommon,
@@ -81,6 +91,8 @@ i18n
         dataStatus: jaDataStatus,
         weather: jaWeather,
         dailyCompare: jaDailyCompare,
+        account: jaAccount,
+        admin: jaAdmin,
       },
     },
     fallbackLng: 'zh-TW',

@@ -1,5 +1,9 @@
 {
   "title": "設定",
+  "tabs": {
+    "preferences": "環境設定",
+    "account": "アカウント & セキュリティ"
+  },
   "appearance": {
     "title": "表示",
     "description": "お好みのテーマを選択するか、システム設定に合わせます。",

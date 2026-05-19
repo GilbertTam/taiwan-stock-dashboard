@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.config import settings
 from app.db import get_db
 from app.models.user import User
 from app.schemas import user as user_schema
+from app.services import account_service
 from app.core.security import get_password_hash
 
 router = APIRouter()
@@ -19,13 +21,27 @@ async def _has_users(db: AsyncSession) -> bool:
     return result.scalars().first() is not None
 
 
-@router.get("/status")
+@router.get("/status", response_model=user_schema.SetupStatusResponse)
 async def get_setup_status(db: AsyncSession = Depends(get_db)):
     """
     Check if initial setup is required.
-    Returns setup_required=true when no users exist in the database.
+
+    Additionally returns the public app configuration the login/setup page
+    needs on first paint (so it can render OAuth buttons and the register
+    link without a second round-trip):
+
+    - `allow_registration`: whether to show the "create account" link.
+    - `oauth_providers`: which third-party login buttons to render.
     """
-    return {"setup_required": not await _has_users(db)}
+    app_settings = await account_service.get_app_settings(db)
+    return {
+        "setup_required": not await _has_users(db),
+        "allow_registration": bool(app_settings.allow_registration),
+        "oauth_providers": {
+            "google": settings.google_oauth_enabled,
+            "microsoft": settings.microsoft_oauth_enabled,
+        },
+    }
 
 
 @router.post("/create-admin", response_model=user_schema.User, status_code=status.HTTP_201_CREATED)

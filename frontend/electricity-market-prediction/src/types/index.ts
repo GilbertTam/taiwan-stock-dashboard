@@ -16,7 +16,18 @@
 export type { Area, PredictionModel, ApiResponse } from './core';
 
 // Authentication types
-export type { AuthTokens, LoginCredentials } from './auth';
+export type {
+    AuthTokens,
+    LoginCredentials,
+    RegisterCredentials,
+    LinkedProvider,
+    UserProfile,
+    OAuthProviders,
+    SetupStatus,
+    AdminUserRow,
+    AdminUserPatch,
+    AppSettings,
+} from './auth';
 
 // Market data types
 export type { AreaPrice, PricePrediction, CalculatingDate } from './market';

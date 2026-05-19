@@ -13,6 +13,7 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import LayersIcon from '@mui/icons-material/Layers';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
@@ -23,7 +24,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/app/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 
-const NAV_ITEMS: { key: string; labelKey: string; path: string; Icon: React.ElementType }[] = [
+type NavItem = { key: string; labelKey: string; path: string; Icon: React.ElementType };
+
+const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'home',            labelKey: 'sidebar.overview',      path: '/dashboard',                  Icon: DashboardIcon          },
     { key: 'price',           labelKey: 'sidebar.forecast',      path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
     { key: 'generation-mix',  labelKey: 'sidebar.generationMix', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
@@ -32,6 +35,11 @@ const NAV_ITEMS: { key: string; labelKey: string; path: string; Icon: React.Elem
     { key: 'daily-compare',   labelKey: 'sidebar.dailyCompare',  path: '/dashboard/daily-compare',    Icon: LayersIcon             },
     { key: 'data-status',     labelKey: 'sidebar.dataStatus',    path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
 ];
+
+// Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.
+const ADMIN_NAV_ITEM: NavItem = {
+    key: 'admin', labelKey: 'sidebar.adminPage', path: '/dashboard/admin', Icon: AdminPanelSettingsIcon,
+};
 
 const COLLAPSED_W = 60;
 const EXPANDED_W  = 200;
@@ -141,7 +149,10 @@ function SegmentedText<T extends string>({
 export function DashboardSidebar() {
     const router   = useRouter();
     const pathname = usePathname();
-    const { user, logout } = useAuth();
+    const { user, logout, isSuperuser } = useAuth();
+    // Show admin entry only for superusers — guarded again by RouteGuard
+    // on /dashboard/admin paths, so this is just UI gating.
+    const navItems: NavItem[] = isSuperuser ? [...BASE_NAV_ITEMS, ADMIN_NAV_ITEM] : BASE_NAV_ITEMS;
     const { darkMode, themePreference, setThemePreference, localePreference, setLocale, setSettingsOpen } = useTheme();
     const { t } = useTranslation('navigation');
     const [expanded, setExpanded] = useState(false);
@@ -225,14 +236,15 @@ export function DashboardSidebar() {
 
             {/* ── Nav items ── */}
             <Box sx={{ flex: 1, py: 0.5, display: 'flex', flexDirection: 'column' }}>
-                {NAV_ITEMS.map(({ key, labelKey, path, Icon }) => {
+                {navItems.map(({ key, labelKey, path, Icon }) => {
                     const label = t(labelKey);
                     const isActive =
                         pathname === path ||
                         (key === 'price'           && pathname.startsWith('/dashboard/forecast'))          ||
                         (key === 'generation-mix'  && pathname.startsWith('/dashboard/generation-mix'))    ||
                         (key === 'weather'         && pathname.startsWith('/dashboard/weather'))            ||
-                        (key === 'site-revenue'    && pathname.startsWith('/dashboard/site-revenue'));
+                        (key === 'site-revenue'    && pathname.startsWith('/dashboard/site-revenue'))      ||
+                        (key === 'admin'           && pathname.startsWith('/dashboard/admin'));
 
                     return (
                         <ButtonBase
@@ -317,7 +329,7 @@ export function DashboardSidebar() {
                             {user || 'Guest'}
                         </Typography>
                         <Typography sx={{ fontSize: 9, color: 'var(--muted)', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
-                            {t('sidebar.admin')}
+                            {isSuperuser ? t('sidebar.admin') : t('sidebar.user')}
                         </Typography>
                     </Box>
                 </Box>

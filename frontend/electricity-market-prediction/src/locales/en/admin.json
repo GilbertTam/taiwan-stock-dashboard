@@ -1,0 +1,33 @@
+{
+  "title": "Administration",
+  "loadFailed": "Failed to load data.",
+  "saveFailed": "Failed to save changes.",
+  "settings": {
+    "title": "Registration Settings",
+    "allowRegistration": "Allow public registration",
+    "allowRegistrationDesc": "When off, users cannot sign up themselves — only admins can create accounts.",
+    "requireApproval": "Require admin approval",
+    "requireApprovalDesc": "When on, self-registered accounts are pending until an administrator activates them."
+  },
+  "pending": {
+    "title": "Pending Approvals",
+    "empty": "No accounts awaiting approval.",
+    "approve": "Approve",
+    "approved": "Account approved.",
+    "approveFailed": "Failed to approve account."
+  },
+  "users": {
+    "title": "All Users",
+    "passwordOnly": "Password",
+    "noMethod": "No login method",
+    "updated": "User updated.",
+    "updateFailed": "Failed to update user.",
+    "columns": {
+      "username": "Username",
+      "email": "Email",
+      "providers": "Login methods",
+      "active": "Active",
+      "admin": "Admin"
+    }
+  }
+}

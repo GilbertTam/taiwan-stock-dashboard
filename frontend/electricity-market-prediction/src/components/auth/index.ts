@@ -9,4 +9,7 @@ export { CircuitCardTraces } from './CircuitCardTraces';
 export { LoginForm } from './LoginForm';
 export { LoginFormCard } from './LoginFormCard';
 export { SetupForm } from './SetupForm';
+export { RegisterForm } from './RegisterForm';
+export { OAuthButtons } from './OAuthButtons';
+export { RouteGuard } from './RouteGuard';
 export { DevToolSetupButton } from './DevToolSetupButton';

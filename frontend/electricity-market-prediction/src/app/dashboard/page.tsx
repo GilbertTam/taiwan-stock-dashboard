@@ -4,7 +4,6 @@
 'use client';
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Alert, Snackbar, Box, Typography, Tooltip } from '@mui/material';
 import { prepareChartData, ChartDataPoint } from '@/utils/chartUtils';
 import { fetchAreas, fetchAllAreasPrices, fetchHjksOutages, downloadSpotCsv } from '@/services/api';
@@ -28,7 +27,6 @@ import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
-  const router = useRouter();
   const { t } = useTranslation('dashboard');
 
   // 共用日期範圍（與 header 及價格預測頁同步）
@@ -100,12 +98,8 @@ export default function Dashboard() {
     }
   }, [startDate, endDate, areas, highlightedArea]);
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router]);
+  // Auth redirect handled by RouteGuard in app/dashboard/layout.tsx —
+  // this page only needs to read `isAuthenticated` to gate data fetching.
 
   // Fetch areas
   useEffect(() => {
@@ -257,7 +251,9 @@ export default function Dashboard() {
     return activeOutages.reduce((sum, o) => sum + (o.down_capacity || o.max_capacity || 0), 0);
   }, [activeOutages]);
 
-  // Return null while redirecting (avoid flash)
+  // RouteGuard already renders LoadingOverlay during hydration and redirects
+  // unauthenticated users; the local check below is a defensive no-op that
+  // shouldn't trigger in practice.
   if (!isAuthenticated) {
     return <LoadingOverlay />;
   }

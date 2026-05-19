@@ -1,5 +1,9 @@
 {
   "title": "個人設定",
+  "tabs": {
+    "preferences": "偏好",
+    "account": "帳號 & 安全"
+  },
   "appearance": {
     "title": "顯示",
     "description": "選擇偏好的主題，或跟隨系統設定。",

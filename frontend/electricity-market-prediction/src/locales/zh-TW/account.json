@@ -1,0 +1,42 @@
+{
+  "title": "帳戶設定",
+  "profile": {
+    "title": "個人資料",
+    "username": "帳號",
+    "email": "Email",
+    "role": "角色",
+    "admin": "管理員",
+    "user": "一般使用者"
+  },
+  "providers": {
+    "title": "第三方登入綁定",
+    "linked": "已綁定",
+    "notConfigured": "未設定",
+    "notConfiguredHint": "伺服器尚未設定此登入方式,請聯絡管理員。",
+    "noneConfigured": "目前管理員尚未設定任何第三方登入方式。您仍可使用帳號密碼登入。",
+    "link": "綁定",
+    "unlink": "解除綁定",
+    "unlinked": "已解除綁定 {{provider}}。",
+    "unlinkFailed": "解除綁定失敗,請重試。"
+  },
+  "password": {
+    "change": "變更密碼",
+    "setInitial": "設定密碼",
+    "setInitialHint": "設定密碼後,即使將來解除所有第三方綁定,仍可使用帳號密碼登入。",
+    "current": "目前密碼",
+    "new": "新密碼",
+    "confirm": "確認新密碼",
+    "save": "儲存",
+    "mismatch": "新密碼與確認不一致。",
+    "saved": "密碼已更新。",
+    "saveFailed": "密碼更新失敗。",
+    "remove": "刪除密碼",
+    "removeBlockedHint": "請先綁定至少一個第三方登入,再刪除密碼,否則將無法登入。",
+    "removeTitle": "確定要刪除密碼嗎?",
+    "removeWarning": "刪除後,僅能透過已綁定的第三方登入存取帳號。您可以隨時再設定新密碼。",
+    "removeConfirm": "刪除密碼",
+    "removed": "密碼已刪除,下次請使用第三方登入。",
+    "removeFailed": "刪除密碼失敗。",
+    "cancel": "取消"
+  }
+}

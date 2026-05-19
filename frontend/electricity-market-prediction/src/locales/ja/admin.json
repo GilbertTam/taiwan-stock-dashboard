@@ -1,0 +1,33 @@
+{
+  "title": "管理",
+  "loadFailed": "データの読み込みに失敗しました。",
+  "saveFailed": "保存に失敗しました。",
+  "settings": {
+    "title": "登録設定",
+    "allowRegistration": "公開登録を許可",
+    "allowRegistrationDesc": "オフの場合、ユーザーは自分で登録できず、管理者のみがアカウントを作成できます。",
+    "requireApproval": "管理者の承認を要求",
+    "requireApprovalDesc": "オンの場合、自己登録されたアカウントは管理者が有効化するまで承認待ちになります。"
+  },
+  "pending": {
+    "title": "承認待ち",
+    "empty": "承認待ちのアカウントはありません。",
+    "approve": "承認",
+    "approved": "アカウントを承認しました。",
+    "approveFailed": "承認に失敗しました。"
+  },
+  "users": {
+    "title": "全ユーザー",
+    "passwordOnly": "パスワード",
+    "noMethod": "ログイン方法なし",
+    "updated": "ユーザーを更新しました。",
+    "updateFailed": "ユーザーの更新に失敗しました。",
+    "columns": {
+      "username": "アカウント",
+      "email": "メール",
+      "providers": "ログイン方法",
+      "active": "有効",
+      "admin": "管理者"
+    }
+  }
+}
