@@ -2,6 +2,9 @@
   "title": "管理頁面",
   "loadFailed": "載入資料失敗。",
   "saveFailed": "儲存設定失敗。",
+  "actions": {
+    "cancel": "取消"
+  },
   "settings": {
     "title": "註冊設定",
     "allowRegistration": "開放公開註冊",
@@ -9,12 +12,28 @@
     "requireApproval": "需管理員審核",
     "requireApprovalDesc": "開啟時,自助註冊的帳號會處於待審核狀態,須管理員啟用後才能登入。"
   },
+  "create": {
+    "button": "建立使用者",
+    "title": "建立新使用者",
+    "username": "帳號",
+    "email": "Email（選填）",
+    "password": "密碼",
+    "passwordHint": "至少 8 個字元。",
+    "admin": "設為管理員",
+    "submit": "建立",
+    "created": "已建立使用者。",
+    "failed": "建立使用者失敗。"
+  },
   "pending": {
     "title": "待審核帳號",
     "empty": "目前沒有待審核的帳號。",
     "approve": "核准",
     "approved": "帳號已核准。",
-    "approveFailed": "核准失敗。"
+    "approveFailed": "核准失敗。",
+    "reject": "拒絕",
+    "rejected": "已拒絕該註冊申請。",
+    "rejectFailed": "拒絕失敗。",
+    "rejectConfirm": "確定要拒絕 {{name}} 的註冊申請嗎?此操作會刪除該申請。"
   },
   "users": {
     "title": "所有使用者",
@@ -22,12 +41,25 @@
     "noMethod": "無登入方式",
     "updated": "已更新使用者。",
     "updateFailed": "更新使用者失敗。",
+    "you": "你",
+    "selfLockTooltip": "無法變更自己的管理員權限或啟用狀態。",
+    "delete": "刪除",
+    "deleteConfirm": "確定要刪除使用者 {{name}} 嗎?此操作無法復原。",
+    "deleted": "已刪除使用者。",
+    "deleteFailed": "刪除使用者失敗。",
+    "resetPassword": "重設密碼",
+    "resetPasswordTitle": "重設 {{name}} 的密碼",
+    "newPassword": "新密碼",
+    "resetSubmit": "重設",
+    "passwordReset": "已重設密碼。",
+    "resetFailed": "重設密碼失敗。",
     "columns": {
       "username": "帳號",
       "email": "Email",
       "providers": "登入方式",
       "active": "啟用",
-      "admin": "管理員"
+      "admin": "管理員",
+      "actions": "操作"
     }
   }
 }

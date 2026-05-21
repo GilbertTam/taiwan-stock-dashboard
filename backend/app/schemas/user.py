@@ -99,6 +99,25 @@ class AdminUserPatch(BaseModel):
     is_superuser: Optional[bool] = None
 
 
+class AdminCreateUserRequest(BaseModel):
+    """Admin-created account (POST /users).
+
+    Unlike self-registration, an admin-created account is immediately active
+    and bypasses the registration toggles. A password is required because it
+    is the account's only login method at creation time (the admin can't
+    complete an OAuth flow on the new user's behalf).
+    """
+    username: str = Field(min_length=3, max_length=64)
+    email: Optional[EmailStr] = None
+    password: str = Field(min_length=8, max_length=128)
+    is_superuser: bool = False
+
+
+class AdminResetPasswordRequest(BaseModel):
+    """Admin sets a new password for another user (no current password needed)."""
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class AppSettingsSchema(BaseModel):
     """The two runtime registration toggles."""
     allow_registration: bool

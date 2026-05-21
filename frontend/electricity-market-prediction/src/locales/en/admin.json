@@ -2,6 +2,9 @@
   "title": "Administration",
   "loadFailed": "Failed to load data.",
   "saveFailed": "Failed to save changes.",
+  "actions": {
+    "cancel": "Cancel"
+  },
   "settings": {
     "title": "Registration Settings",
     "allowRegistration": "Allow public registration",
@@ -9,12 +12,28 @@
     "requireApproval": "Require admin approval",
     "requireApprovalDesc": "When on, self-registered accounts are pending until an administrator activates them."
   },
+  "create": {
+    "button": "Create user",
+    "title": "Create new user",
+    "username": "Username",
+    "email": "Email (optional)",
+    "password": "Password",
+    "passwordHint": "At least 8 characters.",
+    "admin": "Make administrator",
+    "submit": "Create",
+    "created": "User created.",
+    "failed": "Failed to create user."
+  },
   "pending": {
     "title": "Pending Approvals",
     "empty": "No accounts awaiting approval.",
     "approve": "Approve",
     "approved": "Account approved.",
-    "approveFailed": "Failed to approve account."
+    "approveFailed": "Failed to approve account.",
+    "reject": "Reject",
+    "rejected": "Registration rejected.",
+    "rejectFailed": "Failed to reject.",
+    "rejectConfirm": "Reject {{name}}'s registration request? This deletes the request."
   },
   "users": {
     "title": "All Users",
@@ -22,12 +41,25 @@
     "noMethod": "No login method",
     "updated": "User updated.",
     "updateFailed": "Failed to update user.",
+    "you": "You",
+    "selfLockTooltip": "You can't change your own administrator role or active status.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete user {{name}}? This cannot be undone.",
+    "deleted": "User deleted.",
+    "deleteFailed": "Failed to delete user.",
+    "resetPassword": "Reset password",
+    "resetPasswordTitle": "Reset password for {{name}}",
+    "newPassword": "New password",
+    "resetSubmit": "Reset",
+    "passwordReset": "Password reset.",
+    "resetFailed": "Failed to reset password.",
     "columns": {
       "username": "Username",
       "email": "Email",
       "providers": "Login methods",
       "active": "Active",
-      "admin": "Admin"
+      "admin": "Admin",
+      "actions": "Actions"
     }
   }
 }
