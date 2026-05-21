@@ -78,7 +78,8 @@ export const useChartLifecycle = ({
                 timeVisible: true,
                 secondsVisible: true,
                 tickMarkFormatter: (time: number) => {
-                    return formatInTimezone(time, timezone, {
+                    // time is fake-UTC (real UTC + tz offset), so format as UTC to display correct wall-clock time
+                    return formatInTimezone(time, 'UTC', {
                         month: 'numeric', day: 'numeric',
                         hour: 'numeric', minute: 'numeric', hour12: false
                     }).replace(',', '');
