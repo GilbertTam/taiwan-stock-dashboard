@@ -26,6 +26,7 @@ export type {
     SetupStatus,
     AdminUserRow,
     AdminUserPatch,
+    AdminCreateUserRequest,
     AppSettings,
 } from './auth';
 

@@ -14,6 +14,12 @@ The two invariants enforced here that nobody else enforces:
 2. **Last-superuser guard**: an admin cannot deactivate or demote the last
    remaining active superuser. Without this guard one careless click locks
    the deployment out of its own admin UI.
+
+3. **Self-protection guard**: an admin can never demote, deactivate, or delete
+   their *own* account — independent of how many other admins exist. This is a
+   separate, first-line check from the last-superuser guard: it stops the
+   common "I clicked my own toggle" foot-gun even on a multi-admin deployment.
+   Operations on *other* users fall through to the last-superuser guard.
 """
 from __future__ import annotations
 
@@ -27,7 +33,11 @@ from app.core import security
 from app.models.app_settings import AppSettings
 from app.models.oauth_account import OAuthAccount
 from app.models.user import User
-from app.schemas.user import AdminUserPatch, RegisterRequest
+from app.schemas.user import (
+    AdminCreateUserRequest,
+    AdminUserPatch,
+    RegisterRequest,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -188,16 +198,30 @@ async def approve_user(db: AsyncSession, user: User) -> User:
 
 
 async def admin_patch_user(
-    db: AsyncSession, target: User, patch: AdminUserPatch
+    db: AsyncSession, actor: User, target: User, patch: AdminUserPatch
 ) -> User:
-    """Apply PATCH semantics with last-superuser guards.
+    """Apply PATCH semantics with self-protection + last-superuser guards.
 
-    Refuses to deactivate or demote the last active superuser — without this
-    guard an admin can lock the deployment out of its own management UI.
+    `actor` is the admin performing the change. Two layered guards:
+
+    - **Self-protection (L1)**: the actor cannot demote or deactivate their
+      own account. Caught first so the UX is clear ("you can't change your own
+      role/status") even when other admins exist.
+    - **Last-superuser guard (L2)**: for changes to *other* users, refuses to
+      deactivate or demote the last active superuser.
     """
-    # If we'd be removing this user's active-admin status, ensure another one
-    # remains. Two paths can do that: setting is_active=False on an admin, or
-    # setting is_superuser=False on an active admin.
+    # L1 — self-protection: never let an admin strip their own access.
+    if actor.id == target.id and (
+        patch.is_superuser is False or patch.is_active is False
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot change your own administrator status or deactivate yourself",
+        )
+
+    # L2 — last-superuser guard. If we'd be removing this user's active-admin
+    # status, ensure another one remains. Two paths can do that: setting
+    # is_active=False on an admin, or setting is_superuser=False on an active admin.
     would_lose_admin = (
         target.is_active and target.is_superuser
         and (
@@ -222,6 +246,89 @@ async def admin_patch_user(
     await db.commit()
     await db.refresh(target)
     return target
+
+
+async def create_user_by_admin(
+    db: AsyncSession, data: AdminCreateUserRequest
+) -> User:
+    """Create an account on an admin's behalf — immediately active, password-backed.
+
+    Bypasses the registration toggles (an admin is explicitly provisioning the
+    account) and never enters the pending queue. Username/email conflicts → 409.
+    """
+    if await get_user_by_username(db, data.username) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username already taken"
+        )
+    if data.email and await get_user_by_email(db, data.email) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
+    user = User(
+        username=data.username,
+        email=data.email,
+        hashed_password=security.get_password_hash(data.password),
+        is_active=True,
+        is_superuser=data.is_superuser,
+        is_pending=False,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def admin_reset_password(
+    db: AsyncSession, target: User, new_password: str
+) -> None:
+    """Admin sets a new password for `target` without proving the old one.
+
+    Setting a password can only ADD a login method, so no invariant check is
+    needed (it can never strand an account).
+    """
+    target.hashed_password = security.get_password_hash(new_password)
+    await db.commit()
+
+
+async def delete_user(db: AsyncSession, actor: User, target: User) -> None:
+    """Delete an account, with the same two layered guards as patch.
+
+    - **Self-protection (L1)**: an admin cannot delete their own account.
+    - **Last-superuser guard (L2)**: cannot delete the last active superuser.
+
+    Linked OAuth accounts are removed via the model's ON DELETE CASCADE.
+    """
+    if actor.id == target.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+    if (
+        target.is_active
+        and target.is_superuser
+        and await _active_superuser_count(db) <= 1
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete the last active administrator",
+        )
+    await db.delete(target)
+    await db.commit()
+
+
+async def reject_user(db: AsyncSession, target: User) -> None:
+    """Reject a pending registration by deleting it.
+
+    Only valid for users still awaiting approval — rejecting an already-active
+    account would be a destructive surprise, so route that through delete_user.
+    """
+    if not target.is_pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not pending approval",
+        )
+    await db.delete(target)
+    await db.commit()
 
 
 # ---------------------------------------------------------------------------

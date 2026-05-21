@@ -109,6 +109,16 @@ export interface AdminUserPatch {
 }
 
 /**
+ * Body for `POST /users` — admin-created account (immediately active).
+ */
+export interface AdminCreateUserRequest {
+    username: string;
+    email?: string;
+    password: string;
+    is_superuser: boolean;
+}
+
+/**
  * The two runtime registration toggles.
  */
 export interface AppSettings {

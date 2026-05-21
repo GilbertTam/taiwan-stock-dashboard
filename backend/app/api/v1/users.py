@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth import get_current_admin_user
@@ -67,16 +67,49 @@ async def _load_target(db: AsyncSession, user_id: int) -> User:
     return user
 
 
+@router.post("", response_model=user_schema.AdminUserRow, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    payload: user_schema.AdminCreateUserRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+) -> Any:
+    created = await account_service.create_user_by_admin(db, payload)
+    return account_service.serialize_admin_row(created)
+
+
 @router.patch("/{user_id}", response_model=user_schema.AdminUserRow)
 async def patch_user(
     user_id: int,
     patch: user_schema.AdminUserPatch,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin_user),
+    actor: User = Depends(get_current_admin_user),
 ) -> Any:
     target = await _load_target(db, user_id)
-    updated = await account_service.admin_patch_user(db, target, patch)
+    updated = await account_service.admin_patch_user(db, actor, target, patch)
     return account_service.serialize_admin_row(updated)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_admin_user),
+) -> Response:
+    target = await _load_target(db, user_id)
+    await account_service.delete_user(db, actor, target)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    user_id: int,
+    payload: user_schema.AdminResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+) -> Response:
+    target = await _load_target(db, user_id)
+    await account_service.admin_reset_password(db, target, payload.new_password)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{user_id}/approve", response_model=user_schema.AdminUserRow)
@@ -88,3 +121,14 @@ async def approve_user(
     target = await _load_target(db, user_id)
     approved = await account_service.approve_user(db, target)
     return account_service.serialize_admin_row(approved)
+
+
+@router.post("/{user_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+async def reject_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+) -> Response:
+    target = await _load_target(db, user_id)
+    await account_service.reject_user(db, target)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

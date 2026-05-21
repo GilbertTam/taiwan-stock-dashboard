@@ -7,9 +7,14 @@
  *   1. Registration settings card — the two runtime toggles
  *      (allow_registration + require_admin_approval). Optimistic update with
  *      revert on error.
- *   2. Pending approvals — users with `is_pending=true`. Per-row Approve button.
- *   3. All users table — toggle active/role per user. Last-superuser guard
- *      is enforced backend-side; UI surfaces the 400 verbatim.
+ *   2. Pending approvals — users with `is_pending=true`. Approve / Reject.
+ *   3. All users table — create, toggle active/role, reset password, delete.
+ *
+ * Guards (mirror the backend so the UI fails fast, but the backend is the
+ * source of truth and its 400/403 detail is surfaced verbatim):
+ *   - Self-protection: the signed-in admin can't demote/deactivate/delete
+ *     their own row, so those controls are disabled on the "you" row.
+ *   - Last-superuser guard: enforced backend-side only; we just show the error.
  *
  * RouteGuard already enforces admin access; this page just has to render.
  */
@@ -19,9 +24,15 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
     Chip,
     CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControlLabel,
+    IconButton,
     Paper,
     Snackbar,
     Stack,
@@ -32,29 +43,57 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import LockResetIcon from '@mui/icons-material/LockReset';
+import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 
+import { useAuth } from '@/context/AuthContext';
 import {
     approveUser,
+    createUser,
+    deleteUser,
     getAdminSettings,
     listUsers,
     patchUser,
+    rejectUser,
+    resetUserPassword,
     updateAdminSettings,
 } from '@/services/adminApi';
 import type { AdminUserRow, AppSettings } from '@/types';
 
 type Toast = { severity: 'success' | 'error' | 'info'; msg: string } | null;
 
+const MIN_PASSWORD = 8;
+const MIN_USERNAME = 3;
+
 export default function AdminPage() {
     // CLAUDE.md — all hooks declared first.
     const { t } = useTranslation('admin');
+    const { profile } = useAuth();
+    const selfId = profile?.id ?? null;
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [users, setUsers] = useState<AdminUserRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<Toast>(null);
+
+    // Create-user dialog state.
+    const [createOpen, setCreateOpen] = useState(false);
+    const [newUsername, setNewUsername] = useState('');
+    const [newEmail, setNewEmail] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newIsAdmin, setNewIsAdmin] = useState(false);
+    const [creating, setCreating] = useState(false);
+
+    // Reset-password dialog state (null = closed).
+    const [resetTarget, setResetTarget] = useState<AdminUserRow | null>(null);
+    const [resetPwd, setResetPwd] = useState('');
+    const [resetting, setResetting] = useState(false);
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -123,6 +162,78 @@ export default function AdminPage() {
         }
     };
 
+    const handleReject = async (u: AdminUserRow) => {
+        if (!window.confirm(t('pending.rejectConfirm', { name: u.username }))) return;
+        try {
+            await rejectUser(u.id);
+            setUsers((prev) => prev.filter((x) => x.id !== u.id));
+            setToast({ severity: 'success', msg: t('pending.rejected') });
+        } catch (err) {
+            const msg = axios.isAxiosError(err)
+                ? err.response?.data?.detail ?? t('pending.rejectFailed')
+                : t('pending.rejectFailed');
+            setToast({ severity: 'error', msg });
+        }
+    };
+
+    const handleCreate = async () => {
+        setCreating(true);
+        try {
+            const created = await createUser({
+                username: newUsername.trim(),
+                email: newEmail.trim() || undefined,
+                password: newPassword,
+                is_superuser: newIsAdmin,
+            });
+            setUsers((prev) => [...prev, created]);
+            setCreateOpen(false);
+            setNewUsername('');
+            setNewEmail('');
+            setNewPassword('');
+            setNewIsAdmin(false);
+            setToast({ severity: 'success', msg: t('create.created') });
+        } catch (err) {
+            const msg = axios.isAxiosError(err)
+                ? err.response?.data?.detail ?? t('create.failed')
+                : t('create.failed');
+            setToast({ severity: 'error', msg });
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleDelete = async (u: AdminUserRow) => {
+        if (!window.confirm(t('users.deleteConfirm', { name: u.username }))) return;
+        try {
+            await deleteUser(u.id);
+            setUsers((prev) => prev.filter((x) => x.id !== u.id));
+            setToast({ severity: 'success', msg: t('users.deleted') });
+        } catch (err) {
+            const msg = axios.isAxiosError(err)
+                ? err.response?.data?.detail ?? t('users.deleteFailed')
+                : t('users.deleteFailed');
+            setToast({ severity: 'error', msg });
+        }
+    };
+
+    const handleResetPassword = async () => {
+        if (!resetTarget) return;
+        setResetting(true);
+        try {
+            await resetUserPassword(resetTarget.id, resetPwd);
+            setResetTarget(null);
+            setResetPwd('');
+            setToast({ severity: 'success', msg: t('users.passwordReset') });
+        } catch (err) {
+            const msg = axios.isAxiosError(err)
+                ? err.response?.data?.detail ?? t('users.resetFailed')
+                : t('users.resetFailed');
+            setToast({ severity: 'error', msg });
+        } finally {
+            setResetting(false);
+        }
+    };
+
     const pendingUsers = useMemo(
         () => users.filter((u) => u.is_pending),
         [users],
@@ -130,9 +241,19 @@ export default function AdminPage() {
 
     return (
         <Box sx={{ p: 3, height: '100vh', overflow: 'auto' }}>
-            <Typography variant="h5" sx={{ mb: 3, color: 'var(--foreground)', fontWeight: 700 }}>
-                {t('title')}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                <Typography variant="h5" sx={{ color: 'var(--foreground)', fontWeight: 700 }}>
+                    {t('title')}
+                </Typography>
+                <Button
+                    variant="contained"
+                    startIcon={<PersonAddAlt1Icon />}
+                    onClick={() => setCreateOpen(true)}
+                    sx={{ textTransform: 'none' }}
+                >
+                    {t('create.button')}
+                </Button>
+            </Box>
 
             <Snackbar
                 open={!!toast}
@@ -235,14 +356,25 @@ export default function AdminPage() {
                                                 {u.email ?? '—'}
                                             </Typography>
                                         </Box>
-                                        <Button
-                                            variant="contained"
-                                            size="small"
-                                            onClick={() => void handleApprove(u.id)}
-                                            sx={{ textTransform: 'none' }}
-                                        >
-                                            {t('pending.approve')}
-                                        </Button>
+                                        <Stack direction="row" spacing={1}>
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                onClick={() => void handleApprove(u.id)}
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                {t('pending.approve')}
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                size="small"
+                                                onClick={() => void handleReject(u)}
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                {t('pending.reject')}
+                                            </Button>
+                                        </Stack>
                                     </Box>
                                 ))}
                             </Stack>
@@ -263,12 +395,24 @@ export default function AdminPage() {
                                         <TableCell sx={{ color: 'var(--text-secondary)' }}>{t('users.columns.providers')}</TableCell>
                                         <TableCell sx={{ color: 'var(--text-secondary)' }} align="center">{t('users.columns.active')}</TableCell>
                                         <TableCell sx={{ color: 'var(--text-secondary)' }} align="center">{t('users.columns.admin')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--text-secondary)' }} align="right">{t('users.columns.actions')}</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {users.map((u) => (
+                                    {users.map((u) => {
+                                        const isSelf = u.id === selfId;
+                                        return (
                                         <TableRow key={u.id}>
-                                            <TableCell sx={{ color: 'var(--foreground)' }}>{u.username}</TableCell>
+                                            <TableCell sx={{ color: 'var(--foreground)' }}>
+                                                {u.username}
+                                                {isSelf && (
+                                                    <Chip
+                                                        size="small"
+                                                        label={t('users.you')}
+                                                        sx={{ height: 18, fontSize: 10, ml: 0.75 }}
+                                                    />
+                                                )}
+                                            </TableCell>
                                             <TableCell sx={{ color: 'var(--text-secondary)' }}>{u.email ?? '—'}</TableCell>
                                             <TableCell>
                                                 {u.providers.length === 0 ? (
@@ -289,27 +433,156 @@ export default function AdminPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
-                                                <Switch
-                                                    size="small"
-                                                    checked={u.is_active}
-                                                    onChange={(_, c) => void handlePatch(u.id, { is_active: c })}
-                                                />
+                                                <Tooltip title={isSelf ? t('users.selfLockTooltip') : ''} disableHoverListener={!isSelf}>
+                                                    <span>
+                                                        <Switch
+                                                            size="small"
+                                                            checked={u.is_active}
+                                                            disabled={isSelf}
+                                                            onChange={(_, c) => void handlePatch(u.id, { is_active: c })}
+                                                        />
+                                                    </span>
+                                                </Tooltip>
                                             </TableCell>
                                             <TableCell align="center">
-                                                <Switch
-                                                    size="small"
-                                                    checked={u.is_superuser}
-                                                    onChange={(_, c) => void handlePatch(u.id, { is_superuser: c })}
-                                                />
+                                                <Tooltip title={isSelf ? t('users.selfLockTooltip') : ''} disableHoverListener={!isSelf}>
+                                                    <span>
+                                                        <Switch
+                                                            size="small"
+                                                            checked={u.is_superuser}
+                                                            disabled={isSelf}
+                                                            onChange={(_, c) => void handlePatch(u.id, { is_superuser: c })}
+                                                        />
+                                                    </span>
+                                                </Tooltip>
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <Tooltip title={t('users.resetPassword')}>
+                                                    <span>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => { setResetTarget(u); setResetPwd(''); }}
+                                                            sx={{ color: 'var(--text-secondary)' }}
+                                                        >
+                                                            <LockResetIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                                <Tooltip title={isSelf ? t('users.selfLockTooltip') : t('users.delete')}>
+                                                    <span>
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            disabled={isSelf}
+                                                            onClick={() => void handleDelete(u)}
+                                                        >
+                                                            <DeleteOutlineIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </TableContainer>
                     </Paper>
                 </Stack>
             )}
+
+            {/* ── Create user dialog ── */}
+            <Dialog open={createOpen} onClose={() => !creating && setCreateOpen(false)} fullWidth maxWidth="xs">
+                <DialogTitle>{t('create.title')}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            label={t('create.username')}
+                            value={newUsername}
+                            onChange={(e) => setNewUsername(e.target.value)}
+                            size="small"
+                            fullWidth
+                            autoFocus
+                        />
+                        <TextField
+                            label={t('create.email')}
+                            type="email"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            size="small"
+                            fullWidth
+                        />
+                        <TextField
+                            label={t('create.password')}
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            helperText={t('create.passwordHint')}
+                            size="small"
+                            fullWidth
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={newIsAdmin}
+                                    onChange={(_, c) => setNewIsAdmin(c)}
+                                />
+                            }
+                            label={t('create.admin')}
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCreateOpen(false)} disabled={creating} sx={{ textTransform: 'none' }}>
+                        {t('actions.cancel')}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => void handleCreate()}
+                        disabled={
+                            creating
+                            || newUsername.trim().length < MIN_USERNAME
+                            || newPassword.length < MIN_PASSWORD
+                        }
+                        sx={{ textTransform: 'none' }}
+                    >
+                        {t('create.submit')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ── Reset password dialog ── */}
+            <Dialog open={!!resetTarget} onClose={() => !resetting && setResetTarget(null)} fullWidth maxWidth="xs">
+                <DialogTitle>
+                    {t('users.resetPasswordTitle', { name: resetTarget?.username ?? '' })}
+                </DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label={t('users.newPassword')}
+                        type="password"
+                        value={resetPwd}
+                        onChange={(e) => setResetPwd(e.target.value)}
+                        helperText={t('create.passwordHint')}
+                        size="small"
+                        fullWidth
+                        autoFocus
+                        sx={{ mt: 1 }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setResetTarget(null)} disabled={resetting} sx={{ textTransform: 'none' }}>
+                        {t('actions.cancel')}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => void handleResetPassword()}
+                        disabled={resetting || resetPwd.length < MIN_PASSWORD}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        {t('users.resetSubmit')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }
