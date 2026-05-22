@@ -116,7 +116,7 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.prediction_index)
-        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
 
         if area_name:
             s = s.filter('term', area=area_name)
@@ -127,8 +127,7 @@ class ESService:
             s = s.query(Q('match', source=model_name))
 
         if calculating_date:
-            c_date = datetime.strptime(calculating_date, "%Y%m%d").strftime("%Y-%m-%d")
-            s = s.filter('term', calculate_time=c_date)
+            s = s.filter('term', calculate_time=calculating_date)
 
         s = s.extra(size=MAX_ES_RESULTS)
         response = s.execute()
@@ -140,19 +139,6 @@ class ESService:
                 if not area_en:
                     continue
 
-                additional: Dict[str, Any] = {}
-                if hasattr(hit, 'additional_data') and hit.additional_data:
-                    if isinstance(hit.additional_data, str):
-                        try:
-                            additional = json.loads(hit.additional_data)
-                        except json.JSONDecodeError:
-                            pass
-                    else:
-                        additional = hit.additional_data
-
-                price_5 = additional.get('price_5')
-                price_95 = additional.get('price_95')
-
                 time_code = self._get_time_code(hit.datetime)
                 trade_date = self._get_trade_date(hit.datetime)
 
@@ -163,12 +149,9 @@ class ESService:
                     "time_code": time_code,
                     "calculating_date": hit.calculate_time,
                     "area_name": area_en,
-                    "area_name_ch": AREA_EN_CH_MAP.get(area_en, ""),
-                    "area_name_jp": AREA_EN_JP_MAP.get(area_en, ""),
-                    "price_5": price_5,
+                    "price_5": None,
                     "price_50": float(hit.forecast_price) if hasattr(hit, 'forecast_price') else 0.0,
-                    "price_95": price_95,
-                    "additional_data": additional
+                    "price_95": None,
                 })
             except Exception as e:
                 logger.error(f"Error parsing prediction hit: {e}")
@@ -563,7 +546,7 @@ class ESService:
         e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
 
         s = Search(using=self.client, index=self.prediction_index)
-        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00', 'lte': e_date + 'T23:59:59'})
+        s = s.filter('range', datetime={'gte': s_date + 'T00:00:00+09:00', 'lte': e_date + 'T23:59:59+09:00'})
 
         if area_name:
             s = s.filter('term', area=area_name)
@@ -571,12 +554,19 @@ class ESService:
         if model_name:
             s = s.query(Q('match', source=model_name))
 
-        s.aggs.bucket('dates', 'terms', field='calculate_time.keyword', size=1000, order={'_key': 'desc'})
+        s.aggs.bucket(
+            'dates', 'terms',
+            field='calculate_time', size=1000, order={'_key': 'desc'},
+            format="yyyy-MM-dd'T'HH:mm:ssXXX",
+        )
         s = s.extra(size=0)
 
         response = s.execute()
 
-        return [{"calculating_date": bucket.key} for bucket in response.aggregations.dates.buckets]
+        return [
+            {"calculating_date": bucket.key_as_string or bucket.key}
+            for bucket in response.aggregations.dates.buckets
+        ]
 
     def get_available_models(self) -> List[Dict[str, Any]]:
         s = Search(using=self.client, index=self.prediction_index)
@@ -644,16 +634,16 @@ class ESService:
                     [('commodity_category.keyword', cat), ('data_type.keyword', dt)],
                     '30m', 'fixed', 48,
                 ))
-        # Prediction — split by source/model; 1 doc per 30-min コマ → 48 slots/day; ISO-T format
+        # Prediction — split by source/model; 1 doc per 30-min コマ → 48 slots/day; JST timezone format
         configs.extend([
-            ('prediction_quick',     'Quick',     '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'quick')],     '30m', 'fixed', 48),
-            ('prediction_volue',     'Volue',     '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'volue')],     '30m', 'fixed', 48),
-            ('prediction_d-price',   'D-Price',   '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'd-price')],   '30m', 'fixed', 48),
-            ('prediction_mersol',    'Mersol',    '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'mersol')],    '30m', 'fixed', 48),
-            ('prediction_matsumoto', 'Matsumoto', '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'matsumoto')], '30m', 'fixed', 48),
-            ('prediction_hdre_mod',  'HDRE Mod',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_mod')],  '30m', 'fixed', 48),
-            ('prediction_hdre_new',  'HDRE New',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_new')],  '30m', 'fixed', 48),
-            ('prediction_hdre_old',  'HDRE Old',  '價格預測', p, 'datetime', 'area.keyword', 'iso', [('source.keyword', 'hdre_old')],  '30m', 'fixed', 48),
+            ('prediction_quick',     'Quick',     '價格預測', p, 'datetime', 'area', 'jst', [('source', 'quick')],     '30m', 'fixed', 48),
+            ('prediction_volue',     'Volue',     '價格預測', p, 'datetime', 'area', 'jst', [('source', 'volue')],     '30m', 'fixed', 48),
+            ('prediction_d-price',   'D-Price',   '價格預測', p, 'datetime', 'area', 'jst', [('source', 'd-price')],   '30m', 'fixed', 48),
+            ('prediction_mersol',    'Mersol',    '價格預測', p, 'datetime', 'area', 'jst', [('source', 'mersol')],    '30m', 'fixed', 48),
+            ('prediction_matsumoto', 'Matsumoto', '價格預測', p, 'datetime', 'area', 'jst', [('source', 'matsumoto')], '30m', 'fixed', 48),
+            ('prediction_hdre_mod',  'HDRE Mod',  '價格預測', p, 'datetime', 'area', 'jst', [('source', 'hdre_mod')],  '30m', 'fixed', 48),
+            ('prediction_hdre_new',  'HDRE New',  '價格預測', p, 'datetime', 'area', 'jst', [('source', 'hdre_new')],  '30m', 'fixed', 48),
+            ('prediction_hdre_old',  'HDRE Old',  '價格預測', p, 'datetime', 'area', 'jst', [('source', 'hdre_old')],  '30m', 'fixed', 48),
         ])
         return configs
 
@@ -773,7 +763,7 @@ class ESService:
         try:
             resp = self.client.search(
                 index=self.prediction_index,
-                body={"size": 0, "aggs": {"sources": {"terms": {"field": "source.keyword", "size": 50}}}},
+                body={"size": 0, "aggs": {"sources": {"terms": {"field": "source", "size": 50}}}},
             )
             result["prediction_sources"] = [
                 {
@@ -980,17 +970,14 @@ class ESService:
             return {
                 'index': self.prediction_index,
                 'date_field': 'datetime',
-                'fmt': 'iso',
-                'area_field': 'area.keyword',
-                'filters': [('source.keyword', model)],
-                'expand_additional_data': True,   # price_5/price_95 are nested in additional_data
+                'fmt': 'jst',
+                'area_field': 'area',
+                'filters': [('source', model)],
                 'groups': [
                     {
                         'id': 'prediction', 'label': f'{model_label} — 預測價格',
                         'fields': [
                             {'field': 'forecast_price', 'name': 'P50 (中位數)', 'unit': '¥/kWh', 'type': 'line', 'color': '#ff7043'},
-                            {'field': 'price_5',        'name': 'P5  (低估)',   'unit': '¥/kWh', 'type': 'line', 'color': '#42a5f5'},
-                            {'field': 'price_95',       'name': 'P95 (高估)',   'unit': '¥/kWh', 'type': 'line', 'color': '#ef5350'},
                         ],
                     },
                 ],
@@ -1161,7 +1148,7 @@ class ESService:
             times = self.get_prediction_calculate_times(source_key, area, date)
             if times:
                 latest_calc_time = times[0]   # sorted descending → times[0] is most recent
-                must.append({"term": {"calculate_time.keyword": latest_calc_time}})
+                must.append({"term": {"calculate_time": latest_calc_time}})
 
         query: Dict[str, Any] = {"bool": {"filter": must}} if len(must) > 1 else must[0]
 
@@ -1298,19 +1285,19 @@ class ESService:
         sorted descending (most recent first).
 
         date: YYYYMMDD string
-        Returns list of date strings like ["2026-03-28", "2026-03-27", ...]
+        Returns list of ISO datetime strings like ["2026-03-28T08:30:00+09:00", ...]
         """
         if not source_key.startswith('prediction_'):
             return []
         model = source_key[11:]
-        s_bound = self._coverage_bounds(date, 'iso', end_of_day=False)
-        e_bound = self._coverage_bounds(date, 'iso', end_of_day=True)
+        s_bound = self._coverage_bounds(date, 'jst', end_of_day=False)
+        e_bound = self._coverage_bounds(date, 'jst', end_of_day=True)
         must: List[Dict[str, Any]] = [
             {"range": {"datetime": {"gte": s_bound, "lte": e_bound}}},
-            {"term": {"source.keyword": model}},
+            {"term": {"source": model}},
         ]
         if area and area != 'system':
-            must.append({"term": {"area.keyword": area}})
+            must.append({"term": {"area": area}})
         try:
             resp = self.client.search(
                 index=self.prediction_index,
@@ -1319,12 +1306,20 @@ class ESService:
                     "query": {"bool": {"filter": must}},
                     "aggs": {
                         "calc_times": {
-                            "terms": {"field": "calculate_time.keyword", "size": 100, "order": {"_key": "desc"}},
+                            "terms": {
+                                "field": "calculate_time",
+                                "size": 100,
+                                "order": {"_key": "desc"},
+                                "format": "yyyy-MM-dd'T'HH:mm:ssXXX",
+                            },
                         },
                     },
                 },
             )
-            return [b['key'] for b in resp['aggregations']['calc_times']['buckets']]
+            return [
+                b.get('key_as_string') or b['key']
+                for b in resp['aggregations']['calc_times']['buckets']
+            ]
         except Exception as e:
             logger.warning(f"get_prediction_calculate_times: error for '{source_key}/{area}/{date}': {e}")
             return []
@@ -1403,7 +1398,7 @@ class ESService:
         for ff, fv in filters:
             must.append({"term": {ff: fv}})
         if calculate_time and is_prediction:
-            must.append({"term": {"calculate_time.keyword": calculate_time}})
+            must.append({"term": {"calculate_time": calculate_time}})
         query: Dict[str, Any] = {"bool": {"filter": must}} if len(must) > 1 else must[0]
 
         from_ = page * size

@@ -990,13 +990,12 @@ export const useMarketData = (): UseMarketDataReturn => {
                                 latest_only: true
                             });
                         } else {
-                            const formattedCalculatingDate = format(new Date(model.calculatingDate), 'yyyyMMdd');
                             modelPredictions = await fetchSpecificPredictions({
                                 start_date: formattedStartDate,
                                 end_date: formattedEndDate,
                                 area_name: selectedArea,
                                 model_name: model.name,
-                                calculating_date: formattedCalculatingDate
+                                calculating_date: model.calculatingDate
                             });
                         }
 

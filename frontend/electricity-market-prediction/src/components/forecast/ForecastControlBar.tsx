@@ -64,6 +64,11 @@ function formatCalcDate(dateVal: string, latestLabel: string): string {
     if (dateVal.length === 8 && !isNaN(Number(dateVal))) {
         return `${dateVal.slice(0, 4)}-${dateVal.slice(4, 6)}-${dateVal.slice(6, 8)}`;
     }
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
     return dateVal;
 }
 

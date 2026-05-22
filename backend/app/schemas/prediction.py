@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, ConfigDict
 
 class PredictionResult(BaseModel):
@@ -9,12 +9,9 @@ class PredictionResult(BaseModel):
     time_code: int
     calculating_date: str
     area_name: str
-    area_name_ch: str
-    area_name_jp: str
     price_5: Optional[float]
     price_50: float
     price_95: Optional[float]
-    additional_data: Optional[Dict[str, Any]]
 
 class PredictionResponse(BaseModel):
     result: Union[str, List[Dict[str, str]]]

@@ -48,7 +48,7 @@ const formatCalcDate = (dateVal: string | number, latestLabel = 'Latest') => {
     if (!dateVal) return '';
     const numVal = Number(dateVal);
     if (!isNaN(numVal) && numVal > 100000000) {
-        return format(new Date(numVal), 'yyyy-MM-dd');
+        return format(new Date(numVal), 'yyyy-MM-dd HH:mm');
     }
     const strVal = String(dateVal);
     if (strVal.length === 8 && !isNaN(Number(strVal))) {
@@ -56,7 +56,7 @@ const formatCalcDate = (dateVal: string | number, latestLabel = 'Latest') => {
     }
     try {
         const d = new Date(dateVal);
-        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd HH:mm');
     } catch (e) { }
     return String(dateVal);
 };

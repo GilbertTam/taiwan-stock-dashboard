@@ -42,8 +42,6 @@ export interface PricePrediction {
     trade_date: string;
     /** 30-minute interval code (1-48) */
     time_code: number;
-    /** Area identifier */
-    area_id: number;
     /** Date when prediction was calculated */
     calculating_date: string;
     /** 5th percentile price (low estimate) */
@@ -52,8 +50,6 @@ export interface PricePrediction {
     price_50: number;
     /** 95th percentile price (high estimate) */
     price_95: number;
-    /** Model-specific additional data */
-    additional_data: unknown;
 }
 
 /**
