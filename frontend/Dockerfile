@@ -7,9 +7,13 @@ COPY ./electricity-market-prediction/package*.json ./
 
 # BuildKit cache mount: npm's content-addressable cache persists on the host between builds.
 # Packages unchanged in package-lock.json are served from cache, not re-downloaded.
-# Falls back to npm install --legacy-peer-deps if peer dep conflicts arise.
+# fetch-retries/timeout make the install resilient to transient registry ECONNRESET.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --legacy-peer-deps
+    npm ci --legacy-peer-deps \
+      --fetch-retries=5 \
+      --fetch-retry-mintimeout=20000 \
+      --fetch-retry-maxtimeout=120000 \
+      --fetch-timeout=600000
 
 COPY ./electricity-market-prediction .
 RUN npm run build
