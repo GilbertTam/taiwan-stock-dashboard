@@ -37,6 +37,32 @@ def get_predictions(
         "data": data
     }
 
+@router.get("/specific-calculating-date-predictions", response_model=PredictionResponse)
+def get_specific_calculating_date_predictions(
+    start_date: str,
+    end_date: str,
+    model_name: str,
+    calculating_date: str,
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    validate_dates(start_date, end_date)
+    es = es_service
+    data = es.get_predictions(
+        start_date=start_date,
+        end_date=end_date,
+        area_name=area_name,
+        model_name=model_name,
+        calculating_date=calculating_date,
+        latest_only=False
+    )
+    return {
+        "result": "Success",
+        "code": 0,
+        "count": len(data),
+        "data": data
+    }
+
 @router.get("/available-dates", response_model=List[CalculatingDate])
 def get_available_dates(
     start_date: str,
