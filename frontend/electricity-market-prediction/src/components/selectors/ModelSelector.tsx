@@ -54,6 +54,7 @@ const formatCalcDate = (dateVal: string | number, latestLabel = 'Latest') => {
     if (strVal.length === 8 && !isNaN(Number(strVal))) {
         return `${strVal.substring(0, 4)}-${strVal.substring(4, 6)}-${strVal.substring(6, 8)}`;
     }
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(strVal)) return strVal.slice(0, 16);
     try {
         const d = new Date(dateVal);
         if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd HH:mm');

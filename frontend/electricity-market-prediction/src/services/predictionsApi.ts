@@ -35,7 +35,7 @@ export interface SpecificPredictionsParams {
     area_name: string;
     /** Model/source name */
     model_name: string;
-    /** Specific calculation timestamp (ISO 8601 with timezone, e.g. "2026-05-22T00:00:00+09:00") */
+    /** Specific calculation timestamp (space-separated, no tz, e.g. "2026-05-22 00:00:00") */
     calculating_date: string;
 }
 
