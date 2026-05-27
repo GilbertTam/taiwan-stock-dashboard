@@ -18,6 +18,7 @@ import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
 
 // Feature Components
 import { ForecastControlBar } from '@/components/forecast/ForecastControlBar';
+import { ForecastPreferencesSync } from '@/components/forecast/ForecastPreferencesSync';
 import { MainPriceChartTab } from '@/components/forecast/tabs/MainPriceChartTab';
 
 // Hooks
@@ -109,6 +110,7 @@ function ForecastContent() {
         darkMode={darkMode}
         colors={colors}
       >
+        <ForecastPreferencesSync />
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
           <Box sx={{ flexShrink: 0 }}>
             <DashboardToolbar

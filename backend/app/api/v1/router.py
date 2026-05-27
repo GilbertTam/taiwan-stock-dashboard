@@ -6,6 +6,7 @@ from app.api.v1 import (
     data_status,
     market_info,
     oauth,
+    preferences,
     prediction,
     presets,
     revenue,
@@ -28,3 +29,4 @@ api_router.include_router(revenue.router, prefix="/optimization", tags=["optimiz
 api_router.include_router(prediction.router, prefix="/custom-spot-market-predict", tags=["prediction"])
 api_router.include_router(data_status.router, prefix="/data-status", tags=["data-status"])
 api_router.include_router(presets.router, prefix="/presets", tags=["presets"])
+api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
