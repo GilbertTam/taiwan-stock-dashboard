@@ -39,7 +39,10 @@ export const INTERCONNECTION_FIELDS = [
     { key: 'reverse_margin', labelKey: 'fields.interconnection.reverseMargin', pointKey: 'interconnection_reverse_margin' as const, color: '#ef5350' },
 ];
 
-/** 電池 (battery_data) 可選欄位：負=充電、正=放電。isVolume=true → 以長條呈現 (BatteryStackedFlowSeries)；isVolume=false → 線/面 (SOC 狀態) */
+/** 電池 (battery_data) 可選欄位。
+ *  原始資料：賣出(放電)=正、買入(充電)=負；UI 翻轉符號讓「充電→正→向上→綠」「放電→負→向下→紅」與 SoC 走向一致。
+ *  isVolume=true → 以長條呈現 (BatteryStackedFlowSeries)；isVolume=false → 線/面 (SOC 狀態)。
+ *  欄位 color 為 popover 識別色；圖表 bars 與 tooltip chip 改用 sign-based 綠/紅。 */
 export const BATTERY_FIELDS = [
     { key: 'spot_value', labelKey: 'fields.battery.spotValue', pointKey: 'battery_spot_value' as const, color: '#06b6d4', isVolume: true },
     { key: 'intraday_value', labelKey: 'fields.battery.intradayValue', pointKey: 'battery_intraday_value' as const, color: '#f59e0b', isVolume: true },

@@ -114,15 +114,21 @@ export const useChartDataTransformers = ({
 
     // Battery flow (volumes from spot/intraday/primary) — one row per timestamp,
     // each carrying the selected market items for BatteryStackedFlowSeries to render.
+    // Sign convention: raw data has 賣出(放電)=正、買入(充電)=負. We flip here so charge
+    // shows above zero (green, matching SoC going up) and discharge below (red).
     const batteryFlowData = useMemo(() => {
         const volumeFields = BATTERY_FIELDS.filter(f => f.isVolume && selectedBatteryFields.has(f.key));
         if (volumeFields.length === 0) return [] as { time: UTCTimestamp; items: { value: number; color: string; marketKey: string }[] }[];
+        const CHARGE_COLOR = '#22c55e';     // green-500
+        const DISCHARGE_COLOR = '#ef4444';  // red-500
         const out: { time: UTCTimestamp; items: { value: number; color: string; marketKey: string }[] }[] = [];
         processedChartData.forEach(p => {
             const items: { value: number; color: string; marketKey: string }[] = [];
             volumeFields.forEach(f => {
                 const v = (p as any)[f.pointKey];
-                if (v != null && v !== 0) items.push({ value: v, color: f.color, marketKey: f.key });
+                if (v == null || v === 0) return;
+                const flipped = -v;
+                items.push({ value: flipped, color: flipped > 0 ? CHARGE_COLOR : DISCHARGE_COLOR, marketKey: f.key });
             });
             if (items.length > 0) {
                 out.push({ time: toChartTime(p.timestamp, timezone) as UTCTimestamp, items });

@@ -599,30 +599,37 @@ export const ChartInfoPanel: React.FC<any> = ({
                             );
                         })}
                         {(() => {
+                            // Raw data: 賣出(放電)=正、買入(充電)=負. Flip here so display matches the
+                            // chart: charge → positive (▲ green), discharge → negative (▼ red).
                             const volumeFields = BATTERY_FIELDS.filter(f => f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
                             const socFields = BATTERY_FIELDS.filter(f => !f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
+                            const CHARGE_COLOR = '#22c55e';
+                            const DISCHARGE_COLOR = '#ef4444';
+                            const NEUTRAL_COLOR = '#94a3b8';
                             const out: React.ReactNode[] = [];
-                            let netVolume = 0;
+                            let netFlipped = 0;
                             let visibleVolumeCount = 0;
                             volumeFields.forEach(f => {
-                                const val = (hoveredData as any)[f.pointKey];
-                                if (val == null) return;
-                                netVolume += val;
+                                const raw = (hoveredData as any)[f.pointKey];
+                                if (raw == null) return;
+                                const flipped = -raw;
+                                netFlipped += flipped;
                                 visibleVolumeCount++;
-                                const arrow = val > 0 ? '▲' : val < 0 ? '▼' : '·';
+                                const arrow = flipped > 0 ? '▲' : flipped < 0 ? '▼' : '·';
+                                const color = flipped > 0 ? CHARGE_COLOR : flipped < 0 ? DISCHARGE_COLOR : NEUTRAL_COLOR;
                                 out.push(
                                     <DataChip key={f.key} icon={ElectricBoltIcon}
                                         label={`${arrow} ${t(f.labelKey)}`}
-                                        value={val} unit=" kWh" color={f.color} decimals={1} />
+                                        value={flipped} unit=" kWh" color={color} decimals={1} />
                                 );
                             });
                             if (visibleVolumeCount >= 2) {
-                                const netArrow = netVolume > 0 ? '▲' : netVolume < 0 ? '▼' : '·';
-                                const netColor = netVolume > 0 ? '#22c55e' : netVolume < 0 ? '#06b6d4' : '#94a3b8';
+                                const netArrow = netFlipped > 0 ? '▲' : netFlipped < 0 ? '▼' : '·';
+                                const netColor = netFlipped > 0 ? CHARGE_COLOR : netFlipped < 0 ? DISCHARGE_COLOR : NEUTRAL_COLOR;
                                 out.push(
                                     <DataChip key="battery-net" icon={ElectricBoltIcon}
                                         label={`${netArrow} Net`}
-                                        value={netVolume} unit=" kWh" color={netColor} decimals={1} />
+                                        value={netFlipped} unit=" kWh" color={netColor} decimals={1} />
                                 );
                             }
                             socFields.forEach(f => {
