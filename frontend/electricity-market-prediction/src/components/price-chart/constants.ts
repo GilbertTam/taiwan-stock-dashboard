@@ -42,7 +42,7 @@ export const INTERCONNECTION_FIELDS = [
 /** 電池 (battery_data) 可選欄位。
  *  原始資料：賣出(放電)=正、買入(充電)=負；UI 翻轉符號讓「充電→正→向上→綠」「放電→負→向下→紅」與 SoC 走向一致。
  *  isVolume=true → 以長條呈現 (BatteryStackedFlowSeries)；isVolume=false → 線/面 (SOC 狀態)。
- *  欄位 color 為 popover 識別色；圖表 bars 與 tooltip chip 改用 sign-based 綠/紅。 */
+ *  欄位 color 為 popover 識別色；圖表 bars 與 tooltip chip 改用 BATTERY_FLOW_COLORS（依 sign × market 取色）。 */
 export const BATTERY_FIELDS = [
     { key: 'spot_value', labelKey: 'fields.battery.spotValue', pointKey: 'battery_spot_value' as const, color: '#06b6d4', isVolume: true },
     { key: 'intraday_value', labelKey: 'fields.battery.intradayValue', pointKey: 'battery_intraday_value' as const, color: '#f59e0b', isVolume: true },
@@ -50,6 +50,17 @@ export const BATTERY_FIELDS = [
     { key: 'soc_kwh', labelKey: 'fields.battery.socKwh', pointKey: 'battery_soc_kwh' as const, color: '#14b8a6', isVolume: false },
     { key: 'actual_soc_kwh', labelKey: 'fields.battery.actualSocKwh', pointKey: 'battery_actual_soc_kwh' as const, color: '#22c55e', isVolume: false },
 ];
+
+/** 圖表 bars / tooltip chip 用色：sign 由色族表達（綠=充電 / 紅=放電），
+ *  market 由同色族的明暗區分（spot=深、intraday=中、primary=淺）。 */
+export const BATTERY_FLOW_COLORS: Record<string, { charge: string; discharge: string }> = {
+    spot_value:     { charge: '#15803d', discharge: '#b91c1c' },  // green-700 / red-700
+    intraday_value: { charge: '#22c55e', discharge: '#ef4444' },  // green-500 / red-500
+    primary_value:  { charge: '#86efac', discharge: '#fca5a5' },  // green-300 / red-300
+};
+
+/** Net 匯總用（不對應單一 market）：使用中間明度。 */
+export const BATTERY_FLOW_NET_COLORS = { charge: '#22c55e', discharge: '#ef4444', neutral: '#94a3b8' };
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色
 export const weatherFields = [

@@ -36,7 +36,7 @@ import BoltIcon from '@mui/icons-material/Bolt'; // Thermal/Nuclear
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 // --- Constants ---
-import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES, weatherFields } from '../constants';
+import { INTERCONNECTION_FIELDS, BATTERY_FIELDS, BATTERY_FLOW_COLORS, BATTERY_FLOW_NET_COLORS, BID_PLAN_SPOT_FIELDS, BID_PLAN_INTRADAY_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES, weatherFields } from '../constants';
 import { useTranslation } from 'react-i18next';
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -601,11 +601,9 @@ export const ChartInfoPanel: React.FC<any> = ({
                         {(() => {
                             // Raw data: 賣出(放電)=正、買入(充電)=負. Flip here so display matches the
                             // chart: charge → positive (▲ green), discharge → negative (▼ red).
+                            // Per-market shade within green/red family (see BATTERY_FLOW_COLORS).
                             const volumeFields = BATTERY_FIELDS.filter(f => f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
                             const socFields = BATTERY_FIELDS.filter(f => !f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
-                            const CHARGE_COLOR = '#22c55e';
-                            const DISCHARGE_COLOR = '#ef4444';
-                            const NEUTRAL_COLOR = '#94a3b8';
                             const out: React.ReactNode[] = [];
                             let netFlipped = 0;
                             let visibleVolumeCount = 0;
@@ -616,7 +614,10 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 netFlipped += flipped;
                                 visibleVolumeCount++;
                                 const arrow = flipped > 0 ? '▲' : flipped < 0 ? '▼' : '·';
-                                const color = flipped > 0 ? CHARGE_COLOR : flipped < 0 ? DISCHARGE_COLOR : NEUTRAL_COLOR;
+                                const palette = BATTERY_FLOW_COLORS[f.key];
+                                const color = palette
+                                    ? (flipped > 0 ? palette.charge : palette.discharge)
+                                    : (flipped > 0 ? BATTERY_FLOW_NET_COLORS.charge : BATTERY_FLOW_NET_COLORS.discharge);
                                 out.push(
                                     <DataChip key={f.key} icon={ElectricBoltIcon}
                                         label={`${arrow} ${t(f.labelKey)}`}
@@ -625,7 +626,11 @@ export const ChartInfoPanel: React.FC<any> = ({
                             });
                             if (visibleVolumeCount >= 2) {
                                 const netArrow = netFlipped > 0 ? '▲' : netFlipped < 0 ? '▼' : '·';
-                                const netColor = netFlipped > 0 ? CHARGE_COLOR : netFlipped < 0 ? DISCHARGE_COLOR : NEUTRAL_COLOR;
+                                const netColor = netFlipped > 0
+                                    ? BATTERY_FLOW_NET_COLORS.charge
+                                    : netFlipped < 0
+                                        ? BATTERY_FLOW_NET_COLORS.discharge
+                                        : BATTERY_FLOW_NET_COLORS.neutral;
                                 out.push(
                                     <DataChip key="battery-net" icon={ElectricBoltIcon}
                                         label={`${netArrow} Net`}
