@@ -56,6 +56,8 @@ export interface ForecastPresetData {
     selectedTdgcFields: string[];
     selectedTdgcCategories: string[];
     selectedTdgcDataTypes?: string[];
+    selectedTdgcGroups?: string[];
+    tdgcBarStacking?: boolean;
     selectedWeatherFieldsActual: string[];
     selectedWeatherFieldsForecast: string[];
 }

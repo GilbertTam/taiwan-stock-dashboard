@@ -17,7 +17,7 @@ import { usePriceChart } from '@/components/price-chart/context/PriceChartContex
 import { calculateModelMAE, prepareChartData } from '@/utils/chartUtils';
 import {
     occtoStackedFields, weatherFields,
-    INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES,
+    INTERCONNECTION_FIELDS, BATTERY_FIELDS, BID_PLAN_BASE_FIELDS, TDGC_FIELDS, TDGC_CATEGORIES, TDGC_DEFAULT_FIELDS,
 } from '@/components/price-chart/constants';
 import { SOURCE_COLORS } from '@/components/selectors/shared';
 import { PresetSelector } from '@/components/selectors/PresetSelector';
@@ -163,6 +163,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
     const selectedTdgcDataTypes: Set<string> = chartCtxAny.selectedTdgcDataTypes ?? new Set(['prompt']);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const setSelectedTdgcDataTypes: (fn: Set<string> | ((p: Set<string>) => Set<string>)) => void = chartCtxAny.setSelectedTdgcDataTypes ?? (() => {});
+    const selectedTdgcGroups: Set<string> = chartCtxAny.selectedTdgcGroups ?? new Set(['origin']);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setSelectedTdgcGroups: (fn: Set<string> | ((p: Set<string>) => Set<string>)) => void = chartCtxAny.setSelectedTdgcGroups ?? (() => {});
+    const tdgcBarStacking: boolean = chartCtxAny.tdgcBarStacking ?? false;
+    const setTdgcBarStacking: (v: boolean) => void = chartCtxAny.setTdgcBarStacking ?? (() => {});
 
     // ── Chart data for MAE ────────────────────────────────────────────────────
     const chartData = useMemo(
@@ -313,7 +318,11 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                         if (selectedTdgcCategories.size === 0 && availableTdgcCategories.length > 0) {
                             setSelectedTdgcCategories(() => new Set([availableTdgcCategories[0]]));
                         }
-                        return new Set(TDGC_FIELDS.map(f => f.key));
+                        // 預設只開啟 origin 群組的 band trio + 落札量合計
+                        if (selectedTdgcGroups.size === 0) {
+                            setSelectedTdgcGroups(() => new Set(['origin']));
+                        }
+                        return new Set(TDGC_DEFAULT_FIELDS);
                     }
                 });
                 break;
@@ -685,9 +694,14 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                     </Box>
                 );
 
-            case 'tdgc':
+            case 'tdgc': {
+                const tdgcGroupConfig = [
+                    { key: 'origin' as const, label: t('tdgcTab.groups.origin'), color: SOURCE_COLORS.tdgc },
+                    { key: 'tso' as const,    label: t('tdgcTab.groups.tso'),    color: '#5c6bc0' },
+                ];
+                const visibleFields = TDGC_FIELDS.filter(f => selectedTdgcGroups.has(f.group));
                 return (
-                    <Box sx={{ py: 0.75, minWidth: 260 }}>
+                    <Box sx={{ py: 0.75, minWidth: 280 }}>
                         {/* Result / Prompt data type toggles */}
                         <Box sx={{ px: 1.5, pt: 0.25, pb: 0.75, borderBottom: '1px solid var(--card-border)', display: 'flex', gap: 0.75 }}>
                             {([
@@ -700,7 +714,6 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                         setSelectedTdgcDataTypes(prev => {
                                             const next = new Set(prev);
                                             if (active) {
-                                                // Don't allow deselecting the last one
                                                 if (next.size > 1) next.delete(key);
                                             } else {
                                                 next.add(key);
@@ -720,6 +733,50 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                                     </Box>
                                 );
                             })}
+                        </Box>
+
+                        {/* Group toggles (origin / tso) */}
+                        <PopoverLabel>{t('tdgcTab.priceRange')}</PopoverLabel>
+                        <Box sx={{ px: 1.5, pb: 0.75, display: 'flex', gap: 0.5 }}>
+                            {tdgcGroupConfig.map(({ key, label, color }) => {
+                                const active = selectedTdgcGroups.has(key);
+                                return (
+                                    <Box key={key} onClick={() => {
+                                        setSelectedTdgcGroups(prev => {
+                                            const next = new Set(prev);
+                                            if (active) {
+                                                if (next.size > 1) next.delete(key);
+                                            } else {
+                                                next.add(key);
+                                            }
+                                            return next;
+                                        });
+                                    }} sx={{
+                                        display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.3,
+                                        borderRadius: '3px', cursor: 'pointer',
+                                        border: `1px solid ${active ? color : 'var(--card-border)'}`,
+                                        bgcolor: active ? `color-mix(in srgb, ${color}, transparent 82%)` : 'transparent',
+                                        color: active ? color : 'var(--text-secondary)',
+                                    }}>
+                                        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: active ? color : 'var(--card-border)' }} />
+                                        <Typography sx={{ fontSize: '0.72rem', fontWeight: active ? 600 : 400 }}>{label}</Typography>
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+
+                        {/* Bar stacking switch */}
+                        <Box sx={{ px: 1.5, pb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box onClick={() => setTdgcBarStacking(!tdgcBarStacking)} sx={{
+                                display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.3,
+                                borderRadius: '3px', cursor: 'pointer',
+                                border: `1px solid ${tdgcBarStacking ? SOURCE_COLORS.tdgc : 'var(--card-border)'}`,
+                                bgcolor: tdgcBarStacking ? `color-mix(in srgb, ${SOURCE_COLORS.tdgc}, transparent 82%)` : 'transparent',
+                                color: tdgcBarStacking ? SOURCE_COLORS.tdgc : 'var(--text-secondary)',
+                            }}>
+                                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: tdgcBarStacking ? SOURCE_COLORS.tdgc : 'var(--card-border)' }} />
+                                <Typography sx={{ fontSize: '0.72rem', fontWeight: tdgcBarStacking ? 600 : 400 }}>{t('tdgcTab.stackBars')}</Typography>
+                            </Box>
                         </Box>
 
                         {availableTdgcCategories.length > 0 && (
@@ -750,23 +807,39 @@ export const ForecastControlBar: React.FC<ForecastControlBarProps> = ({ onModelT
                             </>
                         )}
                         <PopoverLabel>{t('controlBar.displayFields')}</PopoverLabel>
-                        {TDGC_FIELDS.map(f => {
-                            const on = selectedTdgcFields.has(f.key);
+                        {tdgcGroupConfig.map(({ key: gKey, label: gLabel }) => {
+                            if (!selectedTdgcGroups.has(gKey)) return null;
+                            const groupFields = visibleFields.filter(f => f.group === gKey);
+                            if (groupFields.length === 0) return null;
                             return (
-                                <Box key={f.key} sx={rowSx} onClick={() =>
-                                    setSelectedTdgcFields(prev => {
-                                        const next = new Set(prev);
-                                        on ? next.delete(f.key) : next.add(f.key);
-                                        return next;
-                                    })
-                                }>
-                                    <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
-                                    <Typography sx={{ fontSize: '0.75rem' }}>{t(f.labelKey)}</Typography>
+                                <Box key={gKey} sx={{ pt: 0.25, pb: 0.5 }}>
+                                    <Typography sx={{
+                                        px: 1.5, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase',
+                                        letterSpacing: '0.4px', color: 'text.disabled', pb: 0.25,
+                                    }}>
+                                        {gLabel}
+                                    </Typography>
+                                    {groupFields.map(f => {
+                                        const on = selectedTdgcFields.has(f.key);
+                                        return (
+                                            <Box key={f.key} sx={rowSx} onClick={() =>
+                                                setSelectedTdgcFields(prev => {
+                                                    const next = new Set(prev);
+                                                    on ? next.delete(f.key) : next.add(f.key);
+                                                    return next;
+                                                })
+                                            }>
+                                                <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: on ? f.color : 'transparent', border: `1.5px solid ${f.color}`, flexShrink: 0 }} />
+                                                <Typography sx={{ fontSize: '0.74rem' }}>{t(f.labelKey)}</Typography>
+                                            </Box>
+                                        );
+                                    })}
                                 </Box>
                             );
                         })}
                     </Box>
                 );
+            }
 
             default: return null;
         }

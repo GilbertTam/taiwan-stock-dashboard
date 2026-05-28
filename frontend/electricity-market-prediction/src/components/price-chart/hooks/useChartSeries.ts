@@ -22,6 +22,7 @@ import {
 import { buildTopBottomMarkers } from '@/utils/chart/topBottomMarkers';
 import { StackedBarSeries } from '../plugins/StackedBarSeries';
 import { StackedAreaSeries } from '../plugins/StackedAreaSeries';
+import { RangeBandSeries } from '../plugins/RangeBandSeries';
 import { DayBackgroundPrimitive } from '@/components/charts';
 import { hexToRgba } from '../utils';
 // import { weatherFields } from '../constants'; // Pass this as prop or import? Import is fine.
@@ -263,36 +264,141 @@ export const useChartSeries = ({
             }
         });
 
-        tdgcSeries.forEach(({ fieldKey, data, color, label, seriesType, lineStyle: seriesLineStyle, opacity: seriesOpacity }: { fieldKey: string; data: any[]; color: string; label?: string; seriesType?: string; lineStyle?: number; opacity?: number }) => {
-            if (data.length === 0) return;
-            const isQty = seriesType === 'histogram';
+        // ── TDGC rendering ─────────────────────────────────────────────────
+        // Pre-pass: bucket band trios, regular lines, individual histograms, stacked histograms.
+        type TdgcItem = { fieldKey: string; data: any[]; color: string; label?: string;
+                          seriesType?: string; lineStyle?: number; opacity?: number;
+                          bandRole?: 'min'|'max'|'ave'; bandKey?: string; stackingKey?: string };
+        const tdgcAll = tdgcSeries as TdgcItem[];
 
-            if (isQty) {
-                // 量 → HistogramSeries，固定到 'tdgc_qty' 副圖
-                // Apply opacity for prompt data type
-                const effectiveColor = seriesOpacity != null && seriesOpacity < 1
-                    ? `${color}${Math.round(seriesOpacity * 255).toString(16).padStart(2, '0')}`
-                    : color;
-                updateOrAdd(`tdgc_${fieldKey}`, HistogramSeries, data, {
+        const bandsByKey = new Map<string, { min?: any[]; max?: any[]; color: string; opacity: number }>();
+        const tdgcLines: TdgcItem[] = [];
+        const tdgcHistogramsByStack = new Map<string, TdgcItem[]>(); // stackingKey ('' if none) → items
+        tdgcHistogramsByStack.set('', []);
+
+        tdgcAll.forEach(s => {
+            if (s.data.length === 0) return;
+            if (s.bandRole === 'min' || s.bandRole === 'max') {
+                if (!s.bandKey) return;
+                const entry = bandsByKey.get(s.bandKey) ?? { color: s.color, opacity: s.opacity ?? 1 };
+                if (s.bandRole === 'min') entry.min = s.data;
+                else entry.max = s.data;
+                entry.color = s.color;
+                entry.opacity = s.opacity ?? 1;
+                bandsByKey.set(s.bandKey, entry);
+            } else if (s.seriesType === 'histogram') {
+                const key = s.stackingKey ?? '';
+                const arr = tdgcHistogramsByStack.get(key) ?? [];
+                arr.push(s);
+                tdgcHistogramsByStack.set(key, arr);
+            } else {
+                tdgcLines.push(s);
+            }
+        });
+
+        // 1. Render bands (min↔max polygon, ave drawn separately as a LineSeries below).
+        bandsByKey.forEach((band, bandKey) => {
+            if (!band.min || !band.max) return;
+            const minMap = new Map(band.min.map((p: any) => [p.time, p.value]));
+            const maxMap = new Map(band.max.map((p: any) => [p.time, p.value]));
+            const times = Array.from(new Set([...minMap.keys(), ...maxMap.keys()])).sort((a, b) => (a as number) - (b as number));
+            const bandData = times
+                .map(t => {
+                    const mn = minMap.get(t);
+                    const mx = maxMap.get(t);
+                    if (mn == null || mx == null) return null;
+                    return {
+                        time: t,
+                        min: Math.min(mn, mx),
+                        max: Math.max(mn, mx),
+                        lineColor: hexToRgba(band.color, 0.35 * band.opacity),
+                        areaColor: hexToRgba(band.color, 0.18 * band.opacity),
+                    };
+                })
+                .filter((d): d is NonNullable<typeof d> => d != null);
+
+            if (bandData.length === 0) return;
+            const configKey = `tdgc_band_${bandKey}`;
+            const targetScale = seriesAxisConfig?.[configKey]?.axis === 'Y2' ? 'left' : 'right';
+            updateOrAdd(configKey, 'Custom', bandData, {
+                customSeriesInstance: new RangeBandSeries(),
+                priceScaleId: targetScale,
+                priceLineVisible: false,
+                lastValueVisible: false,
+            });
+            usedSubCharts.add(targetScale);
+        });
+
+        // 2. Render lines (price ave + any non-band line).
+        tdgcLines.forEach(s => {
+            const configKey = `tdgc_${s.fieldKey}`;
+            const targetScale = seriesAxisConfig?.[configKey]?.axis === 'Y2' ? 'left' : 'right';
+            updateOrAdd(configKey, LineSeries, s.data, {
+                color: s.color,
+                lineWidth: 1,
+                lineStyle: s.lineStyle ?? 0,
+                ...(s.opacity != null && s.opacity < 1 ? { crosshairMarkerVisible: true } : {}),
+                priceScaleId: targetScale,
+                title: showRightAxisLabels ? (s.label || s.fieldKey) : '',
+            });
+            usedSubCharts.add(targetScale);
+        });
+
+        // 3a. Render non-stacked histograms individually (existing behavior).
+        (tdgcHistogramsByStack.get('') ?? []).forEach(s => {
+            const effectiveColor = s.opacity != null && s.opacity < 1
+                ? hexToRgba(s.color, s.opacity)
+                : s.color;
+            updateOrAdd(`tdgc_${s.fieldKey}`, HistogramSeries, s.data, {
+                color: effectiveColor,
+                priceScaleId: 'tdgc_qty',
+                title: showRightAxisLabels ? (s.label || s.fieldKey) : '',
+            });
+            usedSubCharts.add('tdgc_qty');
+        });
+
+        // 3b. Render stacked histograms per stackingKey via StackedBarSeries.
+        // Single-entry groups fall back to a normal HistogramSeries.
+        tdgcHistogramsByStack.forEach((items, stackKey) => {
+            if (stackKey === '' || items.length === 0) return;
+            if (items.length === 1) {
+                const s = items[0];
+                const effectiveColor = s.opacity != null && s.opacity < 1
+                    ? hexToRgba(s.color, s.opacity)
+                    : s.color;
+                updateOrAdd(`tdgc_${s.fieldKey}`, HistogramSeries, s.data, {
                     color: effectiveColor,
                     priceScaleId: 'tdgc_qty',
-                    title: showRightAxisLabels ? (label || fieldKey) : '',
+                    title: showRightAxisLabels ? (s.label || s.fieldKey) : '',
                 });
                 usedSubCharts.add('tdgc_qty');
-            } else {
-                // 價格 → LineSeries，支援 Y1/Y2 軸切換（疊加在主圖上）
-                const configKey = `tdgc_${fieldKey}`;
-                const targetScale = seriesAxisConfig?.[configKey]?.axis === 'Y2' ? 'left' : 'right';
-                updateOrAdd(`tdgc_${fieldKey}`, LineSeries, data, {
-                    color,
-                    lineWidth: 1,
-                    lineStyle: seriesLineStyle ?? 0,
-                    ...(seriesOpacity != null && seriesOpacity < 1 ? { crosshairMarkerVisible: true } : {}),
-                    priceScaleId: targetScale,
-                    title: showRightAxisLabels ? (label || fieldKey) : '',
-                });
-                usedSubCharts.add(targetScale);
+                return;
             }
+            // Multi-entry: zip by time into StackedBarSeries items.
+            const allTimes = new Set<number>();
+            const lookups = items.map(s => {
+                const m = new Map<number, number>();
+                s.data.forEach((p: any) => { allTimes.add(p.time); m.set(p.time, p.value); });
+                return m;
+            });
+            const sortedTimes = Array.from(allTimes).sort((a, b) => a - b);
+            const stackData = sortedTimes.map(t => ({
+                time: t as any,
+                items: items.map((s, i) => {
+                    const v = lookups[i].get(t);
+                    const opa = s.opacity ?? 1;
+                    return {
+                        value: v ?? 0,
+                        color: hexToRgba(s.color, 0.85 * opa),
+                    };
+                }),
+            }));
+            updateOrAdd(`tdgc_stack_${stackKey}`, 'Custom', stackData, {
+                customSeriesInstance: new StackedBarSeries(),
+                priceScaleId: 'tdgc_qty',
+                priceFormat: { type: 'volume' },
+            });
+            usedSubCharts.add('tdgc_qty');
         });
 
         // 投標電量使用左 Y 軸（買賣電共用），投標價格使用右側 overlay

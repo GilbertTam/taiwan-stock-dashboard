@@ -77,13 +77,57 @@ export const TDGC_CATEGORIES: Record<string, { labelKey: string; color: string }
     '4000': { labelKey: 'tdgcTab.categories.forward',          color: '#00897b' },
 };
 
-/** TDGC (調整力市場) 可選欄位 — type: 'price' 為折線 (Y1/Y2 可切換), 'quantity' 為柱狀圖 (獨立副圖) */
-export const TDGC_FIELDS = [
-    { key: 'corrected_unit_price_ave', labelKey: 'fields.tdgc.correctedPrice', pointKey: 'tdgc_corrected_price_ave' as const, color: '#e91e63', type: 'price' as const },
-    { key: 'tso_price_ave',            labelKey: 'fields.tdgc.tsoPrice',       pointKey: 'tdgc_tso_price_ave' as const,       color: '#9c27b0', type: 'price' as const },
-    { key: 'total_contract_quantity',  labelKey: 'fields.tdgc.contractQty',    pointKey: 'tdgc_contract_qty' as const,        color: '#7e57c2', type: 'quantity' as const },
-    { key: 'reserve_requirement',      labelKey: 'fields.tdgc.reserveReq',     pointKey: 'tdgc_reserve_req' as const,         color: '#5c6bc0', type: 'quantity' as const },
+/**
+ * TDGC (調整力市場) — 對應 EPRX 調整力市場表格的 13 個指標。
+ *
+ *  - group: 'origin' = 電源属地別、'tso' = TSO別
+ *  - bandRole/bandKey: 同 bandKey 的 min/max/ave 在圖上合成透明上下區間 (band) + 平均線
+ *  - type: 'price' = 折線 (band 中心線)，'quantity' = 直方圖
+ *  - isMwh: true 表示原始值為 kWh，呈現時需 / 1000 轉成 MWh
+ *
+ *  pointKey 命名格式: `tdgc_<group>_<shortKey>`，merge 層再加 dataType+category prefix。
+ */
+export interface TdgcFieldDef {
+    key: string;
+    labelKey: string;
+    pointKey: string;
+    color: string;
+    type: 'price' | 'quantity';
+    group: 'origin' | 'tso';
+    bandRole?: 'min' | 'max' | 'ave';
+    bandKey?: string;
+    isMwh: boolean;
+}
+
+export const TDGC_FIELDS: TdgcFieldDef[] = [
+    // ── Origin (電源属地別) — 7 fields ────────────────────────────────────────
+    { key: 'corrected_unit_price_ave',         labelKey: 'fields.tdgc.origin.priceAve',   pointKey: 'tdgc_origin_price_ave',     color: '#e91e63', type: 'price',    group: 'origin', bandRole: 'ave', bandKey: 'origin_price', isMwh: false },
+    { key: 'corrected_unit_price_max',         labelKey: 'fields.tdgc.origin.priceMax',   pointKey: 'tdgc_origin_price_max',     color: '#e91e63', type: 'price',    group: 'origin', bandRole: 'max', bandKey: 'origin_price', isMwh: false },
+    { key: 'corrected_unit_price_min',         labelKey: 'fields.tdgc.origin.priceMin',   pointKey: 'tdgc_origin_price_min',     color: '#e91e63', type: 'price',    group: 'origin', bandRole: 'min', bandKey: 'origin_price', isMwh: false },
+    { key: 'offer_count_quantity_in_total',    labelKey: 'fields.tdgc.origin.offerQty',   pointKey: 'tdgc_origin_offer_qty',     color: '#fb8c00', type: 'quantity', group: 'origin', isMwh: true  },
+    { key: 'offer_id_count_quantity_in_total', labelKey: 'fields.tdgc.origin.awardQty',   pointKey: 'tdgc_origin_award_qty',     color: '#7e57c2', type: 'quantity', group: 'origin', isMwh: true  },
+    { key: 'offer_count',                      labelKey: 'fields.tdgc.origin.offerCount', pointKey: 'tdgc_origin_offer_count',   color: '#ef5350', type: 'quantity', group: 'origin', isMwh: false },
+    { key: 'offer_id_count',                   labelKey: 'fields.tdgc.origin.awardCount', pointKey: 'tdgc_origin_award_count',   color: '#66bb6a', type: 'quantity', group: 'origin', isMwh: false },
+
+    // ── TSO (TSO別) — 6 fields ─────────────────────────────────────────────────
+    { key: 'tso_price_ave',                    labelKey: 'fields.tdgc.tso.priceAve',      pointKey: 'tdgc_tso_price_ave',        color: '#9c27b0', type: 'price',    group: 'tso',    bandRole: 'ave', bandKey: 'tso_price',    isMwh: false },
+    { key: 'tso_price_max',                    labelKey: 'fields.tdgc.tso.priceMax',      pointKey: 'tdgc_tso_price_max',        color: '#9c27b0', type: 'price',    group: 'tso',    bandRole: 'max', bandKey: 'tso_price',    isMwh: false },
+    { key: 'tso_price_min',                    labelKey: 'fields.tdgc.tso.priceMin',      pointKey: 'tdgc_tso_price_min',        color: '#9c27b0', type: 'price',    group: 'tso',    bandRole: 'min', bandKey: 'tso_price',    isMwh: false },
+    { key: 'reserve_requirement',              labelKey: 'fields.tdgc.tso.reserveReq',    pointKey: 'tdgc_tso_reserve_req',      color: '#5c6bc0', type: 'quantity', group: 'tso',    isMwh: true  },
+    { key: 'total_contract_quantity',          labelKey: 'fields.tdgc.tso.contractQty',   pointKey: 'tdgc_tso_contract_qty',     color: '#7e57c2', type: 'quantity', group: 'tso',    isMwh: true  },
+    { key: 'in_area_quantity',                 labelKey: 'fields.tdgc.tso.inAreaQty',     pointKey: 'tdgc_tso_in_area_qty',      color: '#26a69a', type: 'quantity', group: 'tso',    isMwh: true  },
 ];
+
+/** 預設選取的 TDGC 群組 (電源属地別預設開、TSO別預設關) */
+export const TDGC_DEFAULT_GROUPS = ['origin'] as const;
+
+/** 預設選取的 TDGC 欄位 (band trio + 落札量合計) */
+export const TDGC_DEFAULT_FIELDS = [
+    'corrected_unit_price_ave',
+    'corrected_unit_price_max',
+    'corrected_unit_price_min',
+    'offer_id_count_quantity_in_total',
+] as const;
 
 /** 投標計畫 (bid_plans) 基礎欄位定義 */
 export const BID_PLAN_BASE_FIELDS = [

@@ -7,12 +7,18 @@
  * Supports two data types:
  * - result (確報): confirmed/final values — rendered as solid lines
  * - prompt (速報): preliminary values — rendered as dashed lines with reduced opacity
+ *
+ * Supports two groups (EPRX terminology):
+ * - origin (電源属地別): unit prices/quantities classified by power source location
+ * - tso    (TSO別):       unit prices/quantities classified by transmission system operator
+ *
+ * Price max/min/ave triplets are emitted with bandRole/bandKey so the renderer can
+ * pair them and draw a transparent min↔max band with the avg line on top.
  */
 
 import type { TdgcData } from '@/types';
 import type {
     OverlayDataSource,
-    OverlayField,
     OverlayCategory,
     TransformedSeries,
     EnsurePointFn,
@@ -20,15 +26,7 @@ import type {
     OverlayConverters,
 } from './types';
 import { ProcessedDataPoint } from '@/utils/chart/types';
-
-// ─── Field & Category Definitions ────────────────────────────────────────────
-
-const FIELDS: OverlayField[] = [
-    { key: 'corrected_unit_price_ave', labelKey: 'fields.tdgc.correctedPrice', pointKey: 'tdgc_corrected_price_ave', color: '#e91e63', type: 'line' },
-    { key: 'tso_price_ave',            labelKey: 'fields.tdgc.tsoPrice',       pointKey: 'tdgc_tso_price_ave',       color: '#9c27b0', type: 'line' },
-    { key: 'total_contract_quantity',   labelKey: 'fields.tdgc.contractQty',    pointKey: 'tdgc_contract_qty',        color: '#7e57c2', type: 'histogram', priceScaleId: 'tdgc_qty' },
-    { key: 'reserve_requirement',       labelKey: 'fields.tdgc.reserveReq',     pointKey: 'tdgc_reserve_req',         color: '#5c6bc0', type: 'histogram', priceScaleId: 'tdgc_qty' },
-];
+import { TDGC_FIELDS, TDGC_DEFAULT_FIELDS } from '../constants';
 
 const CATEGORIES: Record<string, OverlayCategory> = {
     '1000': { labelKey: 'tdgcTab.categories.primary',          color: '#e53935' },
@@ -40,52 +38,54 @@ const CATEGORIES: Record<string, OverlayCategory> = {
     '4000': { labelKey: 'tdgcTab.categories.forward',          color: '#00897b' },
 };
 
-/** Internal mapping from raw ES field → short key used in pointKey */
-const RAW_FIELD_MAP: { key: string; shortKey: string; isMwh: boolean }[] = [
-    { key: 'corrected_unit_price_ave', shortKey: 'corrected_price_ave', isMwh: false },
-    { key: 'tso_price_ave',            shortKey: 'tso_price_ave',       isMwh: false },
-    { key: 'total_contract_quantity',   shortKey: 'contract_qty',        isMwh: true },
-    { key: 'reserve_requirement',       shortKey: 'reserve_req',         isMwh: true },
-];
-
-/** Data types with their display properties */
 const DATA_TYPES: Record<string, { labelKey: string; lineStyle: number; opacity: number }> = {
-    'result': { labelKey: 'controlBar.result', lineStyle: 0, opacity: 1 },    // Solid
-    'prompt': { labelKey: 'controlBar.prompt', lineStyle: 2, opacity: 0.6 },  // Dashed
+    'result': { labelKey: 'controlBar.result', lineStyle: 0, opacity: 1 },
+    'prompt': { labelKey: 'controlBar.prompt', lineStyle: 2, opacity: 0.6 },
 };
 
-// ─── Plugin Implementation ───────────────────────────────────────────────────
+/** Short key extracted from pointKey by stripping the 'tdgc_' prefix. */
+const shortOf = (pointKey: string) => pointKey.replace(/^tdgc_/, '');
 
 export const tdgcOverlay: OverlayDataSource<TdgcData> = {
     id: 'tdgc',
-    fields: FIELDS,
+    // OverlayField requires `type: 'line' | 'histogram'`; map TDGC's 'price' → 'line', 'quantity' → 'histogram'.
+    fields: TDGC_FIELDS.map(f => ({
+        key: f.key,
+        labelKey: f.labelKey,
+        pointKey: f.pointKey,
+        color: f.color,
+        type: f.type === 'price' ? 'line' as const : 'histogram' as const,
+        priceScaleId: f.type === 'quantity' ? 'tdgc_qty' : undefined,
+        group: f.group,
+        bandRole: f.bandRole,
+        bandKey: f.bandKey,
+    })),
     categories: CATEGORIES,
-    defaultFields: [],
+    defaultFields: [...TDGC_DEFAULT_FIELDS],
     defaultCategories: ['1000'],
 
     merge(
         raw: TdgcData[],
         ensurePoint: EnsurePointFn,
         parseTimestamp: ParseTimestampFn,
-        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string> },
+        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string>; selectedGroups?: Set<string> },
     ): void {
+        // CRITICAL per CLAUDE.md: merge processes ALL fields unconditionally.
+        // Category filter is acceptable here to limit data volume; group/field filtering is downstream.
         const filtered = config.selectedCategories.size > 0
             ? raw.filter(item => config.selectedCategories.has(item.commodity_category))
             : raw;
-
         if (!filtered || filtered.length === 0) return;
 
-        // Group by data_type → commodity_category
         const byTypeAndCategory: Record<string, Record<string, TdgcData[]>> = {};
         filtered.forEach(item => {
-            const dt = item.data_type || 'result'; // backward compat: docs without data_type are result
+            const dt = item.data_type || 'result';
             const cat = item.commodity_category;
             if (!byTypeAndCategory[dt]) byTypeAndCategory[dt] = {};
             if (!byTypeAndCategory[dt][cat]) byTypeAndCategory[dt][cat] = [];
             byTypeAndCategory[dt][cat].push(item);
         });
 
-        // For each data_type × category, aggregate by timestamp then write onto data points
         Object.keys(byTypeAndCategory).forEach(dataType => {
             const byCategory = byTypeAndCategory[dataType];
             Object.keys(byCategory).forEach(category => {
@@ -96,7 +96,7 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
                     const ts = parseTimestamp(item.datetime);
                     if (!ts) return;
                     if (!byTs[ts]) byTs[ts] = {};
-                    RAW_FIELD_MAP.forEach(({ key }) => {
+                    TDGC_FIELDS.forEach(({ key }) => {
                         const value = (item as any)[key];
                         if (typeof value === 'number' && !isNaN(value)) {
                             if (!byTs[ts][key]) byTs[ts][key] = [];
@@ -108,12 +108,13 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
                 Object.keys(byTs).forEach(tsStr => {
                     const ts = Number(tsStr);
                     const point = ensurePoint(ts);
-                    RAW_FIELD_MAP.forEach(({ key, shortKey, isMwh }) => {
+                    TDGC_FIELDS.forEach(({ key, pointKey, isMwh }) => {
                         const values = byTs[ts][key];
                         if (values && values.length > 0) {
                             const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                            // Point key format: tdgc_{dataType}_{category}_{shortKey}
-                            const pointFieldKey = `tdgc_${dataType}_${category}_${shortKey}`;
+                            // Point key format: tdgc_{dataType}_{category}_{shortKey}, where shortKey
+                            // already contains the group token (e.g. 'origin_price_ave').
+                            const pointFieldKey = `tdgc_${dataType}_${category}_${shortOf(pointKey)}`;
                             (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
                         }
                     });
@@ -130,31 +131,37 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
         t: (key: string) => string,
         converters: OverlayConverters,
         selectedDataTypes?: Set<string>,
+        selectedGroups?: Set<string>,
+        barStacking?: boolean,
     ): TransformedSeries[] {
         const out: TransformedSeries[] = [];
         const dataTypes = selectedDataTypes && selectedDataTypes.size > 0
             ? selectedDataTypes
             : new Set(['prompt']);
+        const groups = selectedGroups && selectedGroups.size > 0
+            ? selectedGroups
+            : new Set(['origin']);
 
         dataTypes.forEach(dataType => {
             const dtCfg = DATA_TYPES[dataType];
             const dtLabel = dtCfg ? t(dtCfg.labelKey) : dataType;
-            const showDtLabel = dataTypes.size > 1; // only show data type label when both are active
+            const showDtLabel = dataTypes.size > 1;
 
             selectedCategories.forEach(category => {
                 const catCfg = CATEGORIES[category];
                 const catLabel = catCfg ? t(catCfg.labelKey) : category;
                 const catColor = catCfg?.color ?? '#999';
 
-                FIELDS.forEach(f => {
+                TDGC_FIELDS.forEach(f => {
                     if (!selectedFields.has(f.key)) return;
-                    const shortKey = f.pointKey.replace('tdgc_', '');
-                    const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
-                    const isQty = f.type === 'histogram';
+                    if (!groups.has(f.group)) return;
+
+                    const pointFieldKey = `tdgc_${dataType}_${category}_${shortOf(f.pointKey)}`;
+                    const isQty = f.type === 'quantity';
 
                     const seriesData = isQty
-                        ? converters.toHistogram(data, p => (p as any)[dynamicPointKey] ?? null, 0, timezone)
-                        : converters.toLine(data, p => (p as any)[dynamicPointKey] ?? null, timezone);
+                        ? converters.toHistogram(data, p => (p as any)[pointFieldKey] ?? null, 0, timezone)
+                        : converters.toLine(data, p => (p as any)[pointFieldKey] ?? null, timezone);
 
                     if (seriesData.length > 0) {
                         const label = showDtLabel
@@ -168,6 +175,9 @@ export const tdgcOverlay: OverlayDataSource<TdgcData> = {
                             seriesType: isQty ? 'histogram' : 'line',
                             lineStyle: dtCfg?.lineStyle,
                             opacity: dtCfg?.opacity,
+                            bandRole: f.bandRole,
+                            bandKey: f.bandKey ? `${dataType}_${category}_${f.bandKey}` : undefined,
+                            stackingKey: isQty && barStacking ? `tdgc_${dataType}_${f.key}` : undefined,
                         });
                     }
                 });

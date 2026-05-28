@@ -64,11 +64,23 @@ export const SOURCE_RECORD_COLUMNS: Record<string, RecordColumn[]> = {
 };
 
 // Columns for all tdgc_* sources (commodity_category varies but fields are the same)
+// Layout mirrors EPRX 調整力市場 table: origin-area metrics first, then TSO-side metrics.
 export const TDGC_RECORD_COLUMNS: RecordColumn[] = [
-    { field: 'corrected_unit_price_ave', labelKey: 'columns.corrected_unit_price_ave', unit: '¥/kWh' },
-    { field: 'tso_price_ave',            labelKey: 'columns.tso_price_ave',            unit: '¥/kWh' },
-    { field: 'in_area_quantity',         labelKey: 'columns.in_area_quantity',         unit: 'kWh'    },
-    { field: 'total_contract_quantity',  labelKey: 'columns.total_contract_quantity',  unit: 'kWh'    },
+    // ── Origin area (電源属地別) ───────────────────────────────────────────────
+    { field: 'corrected_unit_price_ave',         labelKey: 'columns.corrected_unit_price_ave',         unit: '¥/kWh' },
+    { field: 'corrected_unit_price_max',         labelKey: 'columns.corrected_unit_price_max',         unit: '¥/kWh' },
+    { field: 'corrected_unit_price_min',         labelKey: 'columns.corrected_unit_price_min',         unit: '¥/kWh' },
+    { field: 'offer_count',                      labelKey: 'columns.offer_count',                      unit: ''       },
+    { field: 'offer_id_count',                   labelKey: 'columns.offer_id_count',                   unit: ''       },
+    { field: 'offer_count_quantity_in_total',    labelKey: 'columns.offer_count_quantity_in_total',    unit: 'kWh'    },
+    { field: 'offer_id_count_quantity_in_total', labelKey: 'columns.offer_id_count_quantity_in_total', unit: 'kWh'    },
+    // ── TSO side (TSO別) ─────────────────────────────────────────────────────
+    { field: 'tso_price_ave',                    labelKey: 'columns.tso_price_ave',                    unit: '¥/kWh' },
+    { field: 'tso_price_max',                    labelKey: 'columns.tso_price_max',                    unit: '¥/kWh' },
+    { field: 'tso_price_min',                    labelKey: 'columns.tso_price_min',                    unit: '¥/kWh' },
+    { field: 'reserve_requirement',              labelKey: 'columns.reserve_requirement',              unit: 'kWh'    },
+    { field: 'total_contract_quantity',          labelKey: 'columns.total_contract_quantity',          unit: 'kWh'    },
+    { field: 'in_area_quantity',                 labelKey: 'columns.in_area_quantity',                 unit: 'kWh'    },
 ];
 
 // Columns for all prediction_* sources (P50 is stored as forecast_price after expansion)

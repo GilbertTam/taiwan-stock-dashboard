@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ChartDataPoint, ModelPrediction, generateColor, hashString, parseToTimestamp, formatTimestamp, normalizeWeatherDatetimeToJST } from '@/utils/chartUtils';
 import { ImbalanceData, IntradayData, InterconnectionFlow, OcctoAreaData, WeatherData, BatteryData, BidPlanData, TdgcData } from '@/types';
+import { TDGC_FIELDS } from '../constants';
 
 /**
  * Extract an OCCTO field value from an API item, supporting both:
@@ -392,13 +393,9 @@ export const useChartData = ({
                 byTypeAndCategory[dt][cat].push(item);
             });
 
-            const tdgcAllFields: { key: string; shortKey: string; isMwh: boolean }[] = [
-                { key: 'corrected_unit_price_ave', shortKey: 'corrected_price_ave', isMwh: false },
-                { key: 'tso_price_ave',            shortKey: 'tso_price_ave',       isMwh: false },
-                { key: 'total_contract_quantity',  shortKey: 'contract_qty',        isMwh: true },
-                { key: 'reserve_requirement',      shortKey: 'reserve_req',         isMwh: true },
-            ];
-
+            // Use the single source of truth from constants.ts.
+            // Point key format: tdgc_{dataType}_{category}_{shortKey} where
+            // shortKey already encodes the group token (e.g. 'origin_price_ave').
             Object.keys(byTypeAndCategory).forEach(dataType => {
                 const byCategory = byTypeAndCategory[dataType];
                 Object.keys(byCategory).forEach(category => {
@@ -409,7 +406,7 @@ export const useChartData = ({
                         const ts = parseToTimestamp(item.datetime);
                         if (!ts) return;
                         if (!byTs[ts]) byTs[ts] = {};
-                        tdgcAllFields.forEach(({ key }) => {
+                        TDGC_FIELDS.forEach(({ key }) => {
                             const value = (item as any)[key];
                             if (typeof value === 'number' && !isNaN(value)) {
                                 if (!byTs[ts][key]) byTs[ts][key] = [];
@@ -421,11 +418,11 @@ export const useChartData = ({
                     Object.keys(byTs).forEach(tsStr => {
                         const ts = Number(tsStr);
                         const point = ensurePoint(ts);
-                        tdgcAllFields.forEach(({ key, shortKey, isMwh }) => {
+                        TDGC_FIELDS.forEach(({ key, pointKey, isMwh }) => {
                             const values = byTs[ts][key];
                             if (values && values.length > 0) {
                                 const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                                // Point key format: tdgc_{dataType}_{category}_{shortKey}
+                                const shortKey = pointKey.replace(/^tdgc_/, '');
                                 const pointFieldKey = `tdgc_${dataType}_${category}_${shortKey}`;
                                 (point as any)[pointFieldKey] = isMwh ? avg / 1000 : avg;
                             }

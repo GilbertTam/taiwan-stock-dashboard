@@ -34,6 +34,8 @@ export const ChartLightweight: React.FC = () => {
         selectedTdgcFields,
         selectedTdgcCategories,
         selectedTdgcDataTypes,
+        selectedTdgcGroups,
+        tdgcBarStacking,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showWeather, showWeatherActual, showWeatherForecast,
@@ -58,6 +60,8 @@ export const ChartLightweight: React.FC = () => {
     const deferredTdgcFields = useDeferredValue(selectedTdgcFields);
     const deferredTdgcCategories = useDeferredValue(selectedTdgcCategories);
     const deferredTdgcDataTypes = useDeferredValue(selectedTdgcDataTypes);
+    const deferredTdgcGroups = useDeferredValue(selectedTdgcGroups);
+    const deferredTdgcBarStacking = useDeferredValue(tdgcBarStacking);
     const deferredBidPlanFields = useDeferredValue(selectedBidPlanFields);
 
     const transformedData = useChartDataTransformers({
@@ -74,6 +78,8 @@ export const ChartLightweight: React.FC = () => {
         selectedTdgcFields: deferredTdgcFields,
         selectedTdgcCategories: deferredTdgcCategories,
         selectedTdgcDataTypes: deferredTdgcDataTypes,
+        selectedTdgcGroups: deferredTdgcGroups,
+        tdgcBarStacking: deferredTdgcBarStacking,
         selectedBidPlanFields: deferredBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,

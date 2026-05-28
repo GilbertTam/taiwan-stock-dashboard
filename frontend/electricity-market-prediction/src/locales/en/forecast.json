@@ -274,10 +274,23 @@
       "others": "Others"
     },
     "tdgc": {
-      "correctedPrice": "Corrected Price",
-      "tsoPrice": "TSO Price",
-      "contractQty": "Contract Qty",
-      "reserveReq": "Reserve Req."
+      "origin": {
+        "priceAve": "Avg Awarded Price (Origin Area)",
+        "priceMax": "Max Awarded Price (Origin Area)",
+        "priceMin": "Min Awarded Price (Origin Area)",
+        "offerQty": "Total Offer Vol. (Origin Area)",
+        "awardQty": "Total Awarded Vol. (Origin Area)",
+        "offerCount": "Offer Count (Origin Area)",
+        "awardCount": "Awarded Count (Origin Area)"
+      },
+      "tso": {
+        "priceAve": "Avg Awarded Price (by TSO)",
+        "priceMax": "Max Awarded Price (by TSO)",
+        "priceMin": "Min Awarded Price (by TSO)",
+        "reserveReq": "Reserve Req. (by TSO)",
+        "contractQty": "Total Awarded Vol. (by TSO)",
+        "inAreaQty": "In-Area Awarded Vol."
+      }
     },
     "bidPlan": {
       "buyPrice": "Buy Price",
@@ -352,18 +365,25 @@
       "supplyDemandAdj": "S&D Adjustment",
       "forward": "Forward"
     },
-    "correctedPrice": "Corrected Price",
-    "tsoPrice": "TSO Price",
-    "contractQuantity": "Contract Qty",
-    "reserveRequirement": "Reserve Req.",
-    "avgPrice": "Avg Price {{value}} JPY/kWh",
-    "totalContract": "Total Contract {{value}} MWh",
+    "groups": {
+      "origin": "Origin Area",
+      "tso": "by TSO"
+    },
+    "stackBars": "Stack Bars",
+    "priceRange": "Awarded Price Range",
+    "avgPrice": "Avg {{value}} JPY/kWh",
+    "maxPrice": "Max {{value}} JPY/kWh",
+    "minPrice": "Min {{value}} JPY/kWh",
+    "totalAwarded": "Total Awarded {{value}} MWh",
+    "totalOffered": "Total Offered {{value}} MWh",
+    "totalReserve": "Reserve Req. {{value}} MWh",
     "offerCount": "Offers {{value}}",
-    "chartHint": "Lines = avg price (JPY/kWh), Bars = contracted quantity (MWh)",
-    "tooltipCorrectedPrice": "Corrected Price",
-    "tooltipTsoPrice": "TSO Price",
-    "tooltipContract": "Contract",
-    "tooltipReserve": "Reserve"
+    "awardCount": "Awarded {{value}}",
+    "chartHint": "Band = max/min awarded, Line = avg awarded, Bars = volume",
+    "yAxisPrice": "JPY/kWh",
+    "yAxisQty": "MWh",
+    "yAxisCount": "Count",
+    "tooltipPriceBand": "Awarded Price (min/avg/max)"
   },
   "supplyDemandTab": {
     "selectDateRange": "Please select a date range",

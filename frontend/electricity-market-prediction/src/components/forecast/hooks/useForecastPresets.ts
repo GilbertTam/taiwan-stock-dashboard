@@ -54,6 +54,10 @@ export function useForecastPresets() {
     const setSelectedTdgcCategories = chartCtx.setSelectedTdgcCategories ?? (() => {});
     const selectedTdgcDataTypes: Set<string> = chartCtx.selectedTdgcDataTypes ?? new Set(['prompt']);
     const setSelectedTdgcDataTypes = chartCtx.setSelectedTdgcDataTypes ?? (() => {});
+    const selectedTdgcGroups: Set<string> = chartCtx.selectedTdgcGroups ?? new Set(['origin']);
+    const setSelectedTdgcGroups = chartCtx.setSelectedTdgcGroups ?? (() => {});
+    const tdgcBarStacking: boolean = chartCtx.tdgcBarStacking ?? false;
+    const setTdgcBarStacking = chartCtx.setTdgcBarStacking ?? (() => {});
     const selectedWeatherFieldsActual: Set<string> = chartCtx.selectedWeatherFieldsActual ?? new Set();
     const setSelectedWeatherFieldsActual = chartCtx.setSelectedWeatherFieldsActual ?? (() => {});
     const selectedWeatherFieldsForecast: Set<string> = chartCtx.selectedWeatherFieldsForecast ?? new Set();
@@ -92,6 +96,8 @@ export function useForecastPresets() {
         selectedTdgcFields: Array.from(selectedTdgcFields),
         selectedTdgcCategories: Array.from(selectedTdgcCategories),
         selectedTdgcDataTypes: Array.from(selectedTdgcDataTypes),
+        selectedTdgcGroups: Array.from(selectedTdgcGroups),
+        tdgcBarStacking,
         selectedWeatherFieldsActual: Array.from(selectedWeatherFieldsActual),
         selectedWeatherFieldsForecast: Array.from(selectedWeatherFieldsForecast),
     }), [
@@ -100,7 +106,7 @@ export function useForecastPresets() {
         selectedModels, selectedWeatherModelActual, selectedWeatherModelForecast,
         selectedOcctoFields, occtoChartType, selectedInterconnectionFields, selectedBatteryFields,
         selectedBidPlanFields, selectedBidPlanCategories, selectedSiteIds,
-        selectedTdgcFields, selectedTdgcCategories, selectedTdgcDataTypes,
+        selectedTdgcFields, selectedTdgcCategories, selectedTdgcDataTypes, selectedTdgcGroups, tdgcBarStacking,
         selectedWeatherFieldsActual, selectedWeatherFieldsForecast,
     ]);
 
@@ -133,6 +139,8 @@ export function useForecastPresets() {
         setSelectedTdgcFields(() => new Set(data.selectedTdgcFields ?? []));
         setSelectedTdgcCategories(() => new Set(data.selectedTdgcCategories ?? ['1000']));
         setSelectedTdgcDataTypes(() => new Set(data.selectedTdgcDataTypes ?? ['prompt']));
+        setSelectedTdgcGroups(() => new Set(data.selectedTdgcGroups ?? ['origin']));
+        setTdgcBarStacking(data.tdgcBarStacking ?? false);
         if (data.selectedWeatherFieldsActual) setSelectedWeatherFieldsActual(() => new Set(data.selectedWeatherFieldsActual));
         if (data.selectedWeatherFieldsForecast) setSelectedWeatherFieldsForecast(() => new Set(data.selectedWeatherFieldsForecast));
 
@@ -145,7 +153,7 @@ export function useForecastPresets() {
         setSelectedWeatherModelActual, setSelectedWeatherModelForecast,
         setSelectedOcctoFields, setOcctoChartType, setSelectedInterconnectionFields, setSelectedBatteryFields,
         setSelectedBidPlanFields, setSelectedBidPlanCategories, setSelectedSiteIds,
-        setSelectedTdgcFields, setSelectedTdgcCategories, setSelectedTdgcDataTypes,
+        setSelectedTdgcFields, setSelectedTdgcCategories, setSelectedTdgcDataTypes, setSelectedTdgcGroups, setTdgcBarStacking,
         setSelectedWeatherFieldsActual, setSelectedWeatherFieldsForecast,
     ]);
 

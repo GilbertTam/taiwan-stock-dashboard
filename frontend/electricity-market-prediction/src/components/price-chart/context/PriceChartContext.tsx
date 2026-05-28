@@ -89,6 +89,10 @@ interface PriceChartState {
     setSelectedTdgcCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
     selectedTdgcDataTypes: Set<string>;
     setSelectedTdgcDataTypes: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    selectedTdgcGroups: Set<string>;
+    setSelectedTdgcGroups: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+    tdgcBarStacking: boolean;
+    setTdgcBarStacking: (val: boolean) => void;
     availableBidPlanCategories: string[];
     selectedBidPlanCategories: Set<string>;
     setSelectedBidPlanCategories: (val: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -269,6 +273,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [selectedTdgcFields, setSelectedTdgcFields] = useState<Set<string>>(new Set());
     const [selectedTdgcCategories, setSelectedTdgcCategories] = useState<Set<string>>(new Set(['1000']));
     const [selectedTdgcDataTypes, setSelectedTdgcDataTypes] = useState<Set<string>>(new Set(['prompt']));
+    const [selectedTdgcGroups, setSelectedTdgcGroups] = useState<Set<string>>(new Set(['origin']));
+    const [tdgcBarStacking, setTdgcBarStacking] = useState(false);
 
     const availableTdgcCategories = useMemo(() => {
         if (!tdgcData || tdgcData.length === 0) return [];
@@ -409,6 +415,8 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         availableTdgcCategories,
         selectedTdgcCategories, setSelectedTdgcCategories,
         selectedTdgcDataTypes, setSelectedTdgcDataTypes,
+        selectedTdgcGroups, setSelectedTdgcGroups,
+        tdgcBarStacking, setTdgcBarStacking,
         availableBidPlanCategories,
         selectedBidPlanCategories, setSelectedBidPlanCategories,
         selectedSiteIds, setSelectedSiteIds,
@@ -451,7 +459,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
         hoveredData,
         showPredictionRange, showImbalance, showIntraday, showInterconnection, showOcctoArea, showWeather, showWeatherActual, showWeatherForecast, showZScore, showRightAxisLabels,
         chartType, occtoChartType, selectedOcctoField, selectedOcctoFields, selectedInterconnectionFields, selectedBatteryFields, selectedBidPlanFields, availableBidPlanCategories, selectedBidPlanCategories, selectedSiteIds, setSelectedSiteIds, availableSiteIds, selectedWeatherFields, selectedWeatherFieldsActual, selectedWeatherFieldsForecast, adjacentPointsCount, showSettings,
-        bidPlansData, tdgcData, selectedTdgcFields, availableTdgcCategories, selectedTdgcCategories, selectedTdgcDataTypes,
+        bidPlansData, tdgcData, selectedTdgcFields, availableTdgcCategories, selectedTdgcCategories, selectedTdgcDataTypes, selectedTdgcGroups, tdgcBarStacking,
         imbalanceData, intradayData, interconnectionData, occtoAreaData, batteryData, filteredBidPlansData, weatherActual,
         weatherY1Field, weatherY2Field, weatherAxisScale, seriesAxisConfig,
         globalPrimaryRange, globalSecondaryRange, subchartLayout,

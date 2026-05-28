@@ -28,6 +28,12 @@ export interface OverlayField {
     type: 'line' | 'histogram';
     /** If histogram, which subchart priceScaleId to use */
     priceScaleId?: string;
+    /** Logical grouping (e.g. 'origin' vs 'tso' for TDGC). Used by group toggles. */
+    group?: string;
+    /** If this field is part of a min/ave/max band trio, which role it plays. */
+    bandRole?: 'min' | 'max' | 'ave';
+    /** Stable key shared by the three band members so renderers can pair them. */
+    bandKey?: string;
 }
 
 export interface OverlayCategory {
@@ -54,6 +60,12 @@ export interface TransformedSeries {
     lineStyle?: number;
     /** Optional opacity override (0–1). Useful for secondary/preliminary data. */
     opacity?: number;
+    /** Member of a min/ave/max band trio (set on series whose field has bandRole). */
+    bandRole?: 'min' | 'max' | 'ave';
+    /** Shared identifier for band members (with dataType+category prefix to keep unique). */
+    bandKey?: string;
+    /** If set, histogram series should stack with peers sharing the same stackingKey. */
+    stackingKey?: string;
 }
 
 // ─── Merge Layer Helper ──────────────────────────────────────────────────────
@@ -93,7 +105,7 @@ export interface OverlayDataSource<TRaw = any> {
         raw: TRaw[],
         ensurePoint: EnsurePointFn,
         parseTimestamp: ParseTimestampFn,
-        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string> },
+        config: { selectedCategories: Set<string>; selectedDataTypes?: Set<string>; selectedGroups?: Set<string> },
     ): void;
 
     /**
@@ -103,6 +115,8 @@ export interface OverlayDataSource<TRaw = any> {
      *
      * @param t - i18n translation function for resolving label keys
      * @param selectedDataTypes - optional data type filter (e.g. 'result', 'prompt')
+     * @param selectedGroups - optional group filter (e.g. 'origin', 'tso')
+     * @param barStacking - if true, histogram series of same metric should stack
      */
     transform(
         data: ProcessedDataPoint[],
@@ -112,6 +126,8 @@ export interface OverlayDataSource<TRaw = any> {
         t: (key: string) => string,
         converters: OverlayConverters,
         selectedDataTypes?: Set<string>,
+        selectedGroups?: Set<string>,
+        barStacking?: boolean,
     ): TransformedSeries[];
 }
 

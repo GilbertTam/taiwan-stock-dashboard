@@ -18,6 +18,12 @@ export interface InterconnectionSeriesItem {
     seriesType?: 'line' | 'histogram';
     lineStyle?: number;
     opacity?: number;
+    /** TDGC band trio role: 'min'/'max' feed the band plugin; 'ave' is the overlaid line. */
+    bandRole?: 'min' | 'max' | 'ave';
+    /** Shared key for band members within the same (dataType, category, metric). */
+    bandKey?: string;
+    /** If set, histogram series sharing this key should stack together. */
+    stackingKey?: string;
 }
 
 interface UseChartDataTransformersParams {
@@ -34,6 +40,8 @@ interface UseChartDataTransformersParams {
     selectedTdgcFields: Set<string>;
     selectedTdgcCategories: Set<string>;
     selectedTdgcDataTypes: Set<string>;
+    selectedTdgcGroups: Set<string>;
+    tdgcBarStacking: boolean;
     selectedBidPlanFields: Set<string>;
     selectedBidPlanCategories: Set<string>;
     showOcctoArea: boolean;
@@ -55,6 +63,8 @@ export const useChartDataTransformers = ({
     selectedTdgcFields,
     selectedTdgcCategories,
     selectedTdgcDataTypes,
+    selectedTdgcGroups,
+    tdgcBarStacking,
     selectedBidPlanFields,
     selectedBidPlanCategories,
     showOcctoArea,
@@ -117,6 +127,7 @@ export const useChartDataTransformers = ({
     const tdgcSeries = useMemo((): InterconnectionSeriesItem[] => {
         const out: InterconnectionSeriesItem[] = [];
         const dataTypes = selectedTdgcDataTypes.size > 0 ? selectedTdgcDataTypes : new Set(['prompt']);
+        const groups = selectedTdgcGroups.size > 0 ? selectedTdgcGroups : new Set(['origin']);
         const showDtLabel = dataTypes.size > 1;
 
         const DATA_TYPE_STYLES: Record<string, { labelKey: string; lineStyle: number; opacity: number }> = {
@@ -124,7 +135,8 @@ export const useChartDataTransformers = ({
             'prompt': { labelKey: 'controlBar.prompt', lineStyle: 2, opacity: 0.6 },
         };
 
-        // Iterate data types × categories × fields
+        // Iterate data types × categories × fields, filtering by group + selectedFields.
+        // Bar stacking key is per-metric to prevent unrelated metrics from stacking together.
         dataTypes.forEach(dataType => {
             const dtCfg = DATA_TYPE_STYLES[dataType];
             const dtLabel = dtCfg ? t(dtCfg.labelKey) : dataType;
@@ -136,8 +148,10 @@ export const useChartDataTransformers = ({
 
                 TDGC_FIELDS.forEach(f => {
                     if (!selectedTdgcFields.has(f.key)) return;
-                    // pointKey in ProcessedDataPoint: tdgc_{dataType}_{category}_{shortKey}
-                    const shortKey = f.pointKey.replace('tdgc_', '');
+                    if (!groups.has(f.group)) return;
+
+                    // pointKey already includes group token: tdgc_origin_price_ave → shortKey 'origin_price_ave'
+                    const shortKey = f.pointKey.replace(/^tdgc_/, '');
                     const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
                     const isQty = f.type === 'quantity';
                     const data = isQty
@@ -155,6 +169,9 @@ export const useChartDataTransformers = ({
                             seriesType: isQty ? 'histogram' : 'line',
                             lineStyle: dtCfg?.lineStyle,
                             opacity: dtCfg?.opacity,
+                            bandRole: f.bandRole,
+                            bandKey: f.bandKey ? `${dataType}_${category}_${f.bandKey}` : undefined,
+                            stackingKey: isQty && tdgcBarStacking ? `tdgc_${dataType}_${f.key}` : undefined,
                         });
                     }
                 });
@@ -162,7 +179,7 @@ export const useChartDataTransformers = ({
         });
         return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [processedChartData, selectedTdgcFields, selectedTdgcCategories, selectedTdgcDataTypes, timezone, t]);
+    }, [processedChartData, selectedTdgcFields, selectedTdgcCategories, selectedTdgcDataTypes, selectedTdgcGroups, tdgcBarStacking, timezone, t]);
 
     const occtoData = useMemo(() =>
         transformOcctoData(processedChartData, showOcctoArea, selectedOcctoFields, timezone),

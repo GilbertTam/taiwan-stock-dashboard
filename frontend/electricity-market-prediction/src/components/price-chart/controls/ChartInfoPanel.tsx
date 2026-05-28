@@ -164,7 +164,7 @@ const ActionButtons = ({ onDownload, onFullscreen, showRightAxisLabels, onToggle
 export const ChartInfoPanel: React.FC<any> = ({
     hoveredData, selectedModels, colors, areaName,
     hideObsAndPriceRow = false,
-    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), selectedTdgcFields = new Set(), selectedTdgcCategories = new Set(), selectedTdgcDataTypes = new Set(['prompt']), showOcctoArea,
+    showImbalance, showImbalanceQuantity, showImbalanceSurplusRate, showImbalanceDeficitRate, showIntraday, selectedInterconnectionFields = new Set(), selectedBatteryFields = new Set(), selectedBidPlanFields = new Set(), selectedBidPlanCategories = new Set(['spot']), selectedTdgcFields = new Set(), selectedTdgcCategories = new Set(), selectedTdgcDataTypes = new Set(['prompt']), selectedTdgcGroups = new Set(['origin']), showOcctoArea,
     showWeather, showWeatherActual, showWeatherForecast,
     selectedOcctoFields = new Set(), selectedWeatherFieldsActual = new Set(), selectedWeatherFieldsForecast = new Set(),
     onDownload, onFullscreen, timezone,
@@ -384,9 +384,10 @@ export const ChartInfoPanel: React.FC<any> = ({
                                     }
                                 });
 
-                                // TDGC price fields — Y1/Y2 axis control
+                                // TDGC price fields — Y1/Y2 axis control (only the band's ave + bands themselves)
                                 if (!hideObsAndPriceRow) {
                                     const tdgcDts = (selectedTdgcDataTypes as Set<string>).size > 0 ? selectedTdgcDataTypes as Set<string> : new Set(['prompt']);
+                                    const tdgcGroups = (selectedTdgcGroups as Set<string>).size > 0 ? selectedTdgcGroups as Set<string> : new Set(['origin']);
                                     const showTdgcDtLabel = tdgcDts.size > 1;
                                     tdgcDts.forEach((dataType: string) => {
                                         const dtSuffix = showTdgcDtLabel ? ` (${t(`controlBar.${dataType}`)})` : '';
@@ -394,14 +395,17 @@ export const ChartInfoPanel: React.FC<any> = ({
                                             const catCfg = TDGC_CATEGORIES[category];
                                             const catLabel = catCfg ? t(catCfg.labelKey) : category;
                                             const catColor = catCfg?.color ?? '#999';
-                                            TDGC_FIELDS.filter(f => f.type === 'price').forEach(f => {
-                                                if (!(selectedTdgcFields as Set<string>).has(f.key)) return;
-                                                activeItems.push({
-                                                    key: `tdgc_${dataType}_${category}_${f.key}`,
-                                                    label: `${catLabel} ${t(f.labelKey)}${dtSuffix}`,
-                                                    color: catColor,
+                                            TDGC_FIELDS
+                                                .filter(f => f.type === 'price' && tdgcGroups.has(f.group))
+                                                .filter(f => !f.bandRole || f.bandRole === 'ave')
+                                                .forEach(f => {
+                                                    if (!(selectedTdgcFields as Set<string>).has(f.key)) return;
+                                                    activeItems.push({
+                                                        key: `tdgc_${dataType}_${category}_${f.key}`,
+                                                        label: `${catLabel} ${t(f.labelKey)}${dtSuffix}`,
+                                                        color: catColor,
+                                                    });
                                                 });
-                                            });
                                         });
                                     });
                                 }
@@ -603,29 +607,64 @@ export const ChartInfoPanel: React.FC<any> = ({
                             );
                         })}
 
-                        {/* TDGC Fields */}
-                        {Array.from((selectedTdgcDataTypes as Set<string>).size > 0 ? selectedTdgcDataTypes as Set<string> : new Set(['prompt'])).map((dataType) => {
-                            const showDtLabel = (selectedTdgcDataTypes as Set<string>).size > 1;
-                            const dtLabel = showDtLabel ? ` (${t(`controlBar.${dataType}`)})` : '';
-                            return Array.from(selectedTdgcCategories as Set<string>).map((category) => {
-                                const catCfg = TDGC_CATEGORIES[category];
-                                const catLabel = catCfg ? t(catCfg.labelKey) : category;
-                                const catColor = catCfg?.color ?? '#999';
-                                return Array.from(selectedTdgcFields as Set<string>).map((fieldKey) => {
-                                    const f = TDGC_FIELDS.find(x => x.key === fieldKey);
-                                    if (!f) return null;
-                                    const shortKey = f.pointKey.replace('tdgc_', '');
-                                    const dynamicPointKey = `tdgc_${dataType}_${category}_${shortKey}`;
-                                    const val = (hoveredData as any)[dynamicPointKey];
-                                    if (val == null) return null;
-                                    return (
-                                        <DataChip key={`tdgc-${dataType}-${category}-${fieldKey}`} icon={ElectricBoltIcon}
-                                            label={`${catLabel} ${t(f.labelKey)}${dtLabel}`} value={val} unit=""
-                                            color={catColor} decimals={fieldKey.includes('price') ? 2 : 0} />
-                                    );
+                        {/* TDGC Fields — band trio collapses to one min/avg/max chip */}
+                        {(() => {
+                            const tdgcDts = (selectedTdgcDataTypes as Set<string>).size > 0 ? selectedTdgcDataTypes as Set<string> : new Set(['prompt']);
+                            const tdgcGroups = (selectedTdgcGroups as Set<string>).size > 0 ? selectedTdgcGroups as Set<string> : new Set(['origin']);
+                            const showDtLabel = tdgcDts.size > 1;
+                            const out: React.ReactNode[] = [];
+                            const visibleFields = TDGC_FIELDS.filter(f =>
+                                (selectedTdgcFields as Set<string>).has(f.key) && tdgcGroups.has(f.group)
+                            );
+
+                            tdgcDts.forEach((dataType: string) => {
+                                const dtLabel = showDtLabel ? ` (${t(`controlBar.${dataType}`)})` : '';
+                                Array.from(selectedTdgcCategories as Set<string>).forEach((category: string) => {
+                                    const catCfg = TDGC_CATEGORIES[category];
+                                    const catLabel = catCfg ? t(catCfg.labelKey) : category;
+                                    const catColor = catCfg?.color ?? '#999';
+
+                                    const readVal = (f: typeof TDGC_FIELDS[number]) => {
+                                        const short = f.pointKey.replace(/^tdgc_/, '');
+                                        return (hoveredData as any)?.[`tdgc_${dataType}_${category}_${short}`];
+                                    };
+
+                                    // 1. Band trios — show as "{min} / {avg} / {max}" chip when 2+ roles present.
+                                    const handledBandKeys = new Set<string>();
+                                    visibleFields.forEach(f => {
+                                        if (!f.bandKey) return;
+                                        if (handledBandKeys.has(f.bandKey)) return;
+                                        const trio = visibleFields.filter(x => x.bandKey === f.bandKey);
+                                        if (trio.length < 2) return;
+                                        const byRole: Record<string, number | null> = { min: null, ave: null, max: null };
+                                        trio.forEach(x => { byRole[x.bandRole!] = readVal(x); });
+                                        if (byRole.min == null && byRole.ave == null && byRole.max == null) return;
+                                        handledBandKeys.add(f.bandKey);
+                                        const fmt = (v: number | null) => v == null ? '–' : v.toFixed(2);
+                                        const groupLabel = f.group === 'tso' ? t('tdgcTab.groups.tso') : t('tdgcTab.groups.origin');
+                                        const display = `${fmt(byRole.min)} / ${fmt(byRole.ave)} / ${fmt(byRole.max)}`;
+                                        out.push(
+                                            <DataChip key={`tdgc-band-${dataType}-${category}-${f.bandKey}`} icon={ElectricBoltIcon}
+                                                label={`${catLabel} ${t('tdgcTab.priceRange')} ${groupLabel}${dtLabel}`}
+                                                value={display} unit="" color={catColor} decimals={0} />
+                                        );
+                                    });
+
+                                    // 2. Remaining selected fields (excluding band members already shown).
+                                    visibleFields.forEach(f => {
+                                        if (f.bandKey && handledBandKeys.has(f.bandKey)) return;
+                                        const val = readVal(f);
+                                        if (val == null) return;
+                                        out.push(
+                                            <DataChip key={`tdgc-${dataType}-${category}-${f.key}`} icon={ElectricBoltIcon}
+                                                label={`${catLabel} ${t(f.labelKey)}${dtLabel}`} value={val} unit=""
+                                                color={catColor} decimals={f.type === 'price' ? 2 : 0} />
+                                        );
+                                    });
                                 });
                             });
-                        })}
+                            return out;
+                        })()}
 
                         {/* 2. OCCTO (Fixed: Using specific colors) */}
                         {showOcctoArea && hoveredData.occto_values && Array.from(selectedOcctoFields).map((field: any) => {

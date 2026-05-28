@@ -274,10 +274,23 @@
       "others": "その他"
     },
     "tdgc": {
-      "correctedPrice": "補正単価",
-      "tsoPrice": "TSO価格",
-      "contractQty": "約定量",
-      "reserveReq": "必要量"
+      "origin": {
+        "priceAve": "平均落札価格（電源属地別）",
+        "priceMax": "最高落札価格（電源属地別）",
+        "priceMin": "最低落札価格（電源属地別）",
+        "offerQty": "応札量合計（電源属地別）",
+        "awardQty": "落札量合計（電源属地別）",
+        "offerCount": "応札件数（電源属地別）",
+        "awardCount": "落札件数（電源属地別）"
+      },
+      "tso": {
+        "priceAve": "平均落札価格（TSO別）",
+        "priceMax": "最高落札価格（TSO別）",
+        "priceMin": "最低落札価格（TSO別）",
+        "reserveReq": "募集量（TSO別）",
+        "contractQty": "落札量合計（TSO別）",
+        "inAreaQty": "（内訳）自エリアからの落札量"
+      }
     },
     "bidPlan": {
       "buyPrice": "買い入札価格",
@@ -352,18 +365,25 @@
       "supplyDemandAdj": "需給調整②",
       "forward": "先渡し"
     },
-    "correctedPrice": "補正単価",
-    "tsoPrice": "TSO価格",
-    "contractQuantity": "約定量",
-    "reserveRequirement": "必要量",
-    "avgPrice": "平均単価 {{value}} 円/kWh",
-    "totalContract": "総約定量 {{value}} MWh",
-    "offerCount": "応札数 {{value}} 件",
-    "chartHint": "線 = 平均単価（円/kWh）、棒 = 約定量（MWh）",
-    "tooltipCorrectedPrice": "補正単価",
-    "tooltipTsoPrice": "TSO価格",
-    "tooltipContract": "約定量",
-    "tooltipReserve": "必要量"
+    "groups": {
+      "origin": "電源属地別",
+      "tso": "TSO別"
+    },
+    "stackBars": "バー積み上げ",
+    "priceRange": "落札価格レンジ",
+    "avgPrice": "平均 {{value}} 円/kWh",
+    "maxPrice": "最高 {{value}} 円/kWh",
+    "minPrice": "最低 {{value}} 円/kWh",
+    "totalAwarded": "落札量合計 {{value}} MWh",
+    "totalOffered": "応札量合計 {{value}} MWh",
+    "totalReserve": "募集量 {{value}} MWh",
+    "offerCount": "応札件数 {{value}} 件",
+    "awardCount": "落札件数 {{value}} 件",
+    "chartHint": "帯 = 最高/最低落札価格、線 = 平均落札価格、棒 = 量",
+    "yAxisPrice": "円/kWh",
+    "yAxisQty": "MWh",
+    "yAxisCount": "件",
+    "tooltipPriceBand": "落札価格（最低/平均/最高）"
   },
   "supplyDemandTab": {
     "selectDateRange": "日付範囲を選択してください",

@@ -34,6 +34,7 @@ export const PriceChartSeriesLegend: React.FC = () => {
         selectedTdgcFields,
         selectedTdgcCategories,
         selectedTdgcDataTypes,
+        selectedTdgcGroups,
         selectedBidPlanFields,
         selectedBidPlanCategories,
         showOcctoArea,
@@ -162,28 +163,61 @@ export const PriceChartSeriesLegend: React.FC = () => {
                     {BATTERY_FIELDS.filter(f => selectedBatteryFields.has(f.key)).map(f => (
                         <LegendItem key={f.key} color={f.color} label={t(f.labelKey)} />
                     ))}
-                    {TDGC_FIELDS.filter(f => selectedTdgcFields.has(f.key)).flatMap(f => {
+                    {(() => {
                         const dataTypes = selectedTdgcDataTypes.size > 0 ? selectedTdgcDataTypes : new Set(['prompt']);
+                        const groups = selectedTdgcGroups.size > 0 ? selectedTdgcGroups : new Set(['origin']);
                         const showDtLabel = dataTypes.size > 1;
-                        return Array.from(dataTypes).flatMap(dt =>
-                            Array.from(selectedTdgcCategories).map(cat => {
+                        const visibleFields = TDGC_FIELDS.filter(f => selectedTdgcFields.has(f.key) && groups.has(f.group));
+                        const items: React.ReactNode[] = [];
+
+                        Array.from(dataTypes).forEach(dt => {
+                            const isPrompt = dt === 'prompt';
+                            const dtSuffix = showDtLabel ? ` (${t(`controlBar.${dt}`)})` : '';
+
+                            Array.from(selectedTdgcCategories).forEach(cat => {
                                 const catCfg = TDGC_CATEGORIES[cat];
                                 const catLabel = catCfg ? t(catCfg.labelKey) : cat;
                                 const catColor = catCfg?.color ?? '#999';
-                                const dtSuffix = showDtLabel ? ` (${t(`controlBar.${dt}`)})` : '';
-                                const isPrompt = dt === 'prompt';
-                                return (
-                                    <LegendItem
-                                        key={`tdgc-${dt}-${cat}-${f.key}`}
-                                        color={catColor}
-                                        label={`${catLabel} ${t(f.labelKey)}${dtSuffix}`}
-                                        type={f.type === 'quantity' ? 'box' : isPrompt ? 'dashed' : 'line'}
-                                        opacity={isPrompt ? 0.6 : 1}
-                                    />
-                                );
-                            })
-                        );
-                    })}
+
+                                // Collapse band trio (min+max+ave) into a single legend row per bandKey.
+                                const handledBandKeys = new Set<string>();
+                                visibleFields.forEach(f => {
+                                    if (!f.bandKey || !f.bandRole) return;
+                                    if (handledBandKeys.has(f.bandKey)) return;
+                                    const trio = visibleFields.filter(x => x.bandKey === f.bandKey);
+                                    const roles = new Set(trio.map(x => x.bandRole));
+                                    if (roles.has('min') && roles.has('max')) {
+                                        handledBandKeys.add(f.bandKey);
+                                        const groupCfg = f.group === 'tso' ? t('tdgcTab.groups.tso') : t('tdgcTab.groups.origin');
+                                        items.push(
+                                            <LegendItem
+                                                key={`tdgc-band-${dt}-${cat}-${f.bandKey}`}
+                                                color={catColor}
+                                                label={`${catLabel} ${t('tdgcTab.priceRange')} ${groupCfg}${dtSuffix}`}
+                                                type={isPrompt ? 'dashed' : 'line'}
+                                                opacity={isPrompt ? 0.6 : 1}
+                                            />
+                                        );
+                                    }
+                                });
+
+                                // Render fields not absorbed by a band collapse.
+                                visibleFields.forEach(f => {
+                                    if (f.bandKey && handledBandKeys.has(f.bandKey) && (f.bandRole === 'min' || f.bandRole === 'max')) return;
+                                    items.push(
+                                        <LegendItem
+                                            key={`tdgc-${dt}-${cat}-${f.key}`}
+                                            color={catColor}
+                                            label={`${catLabel} ${t(f.labelKey)}${dtSuffix}`}
+                                            type={f.type === 'quantity' ? 'box' : isPrompt ? 'dashed' : 'line'}
+                                            opacity={isPrompt ? 0.6 : 1}
+                                        />
+                                    );
+                                });
+                            });
+                        });
+                        return items;
+                    })()}
                     {/* Bid Plan Fields - 根据选中的 category 显示 */}
                     {selectedBidPlanCategories.has('spot') && BID_PLAN_SPOT_FIELDS.filter(f => {
                         const fieldKeyWithoutPrefix = f.key.replace('bid_', '');
