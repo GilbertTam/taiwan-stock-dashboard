@@ -203,7 +203,7 @@
     "selectModels": "モデル選択",
     "calculationDate": "計算日",
     "latestForecast": "最新予測",
-    "addManageModels": "モデルを追加 / 管理",
+    "addManageModels": "予測モデルを選択",
     "noDataAvailable": "データなし",
     "chartType": "チャートタイプ",
     "stacked": "積み上げ",

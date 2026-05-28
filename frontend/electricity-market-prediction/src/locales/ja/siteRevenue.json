@@ -6,7 +6,7 @@
   "noManualDataError": "この期間のデータがありません。手動シミュレーションを実行する前に市場データを読み込んでください。",
   "controlBar": {
     "latest": "最新",
-    "addManageModels": "追加 / 管理モデル",
+    "addManageModels": "予測モデルを選択",
     "batteryConfigTooltip": "電池パラメータ設定",
     "batteryParamsBtn": "電池パラメータ",
     "selectModel": "モデル選択",

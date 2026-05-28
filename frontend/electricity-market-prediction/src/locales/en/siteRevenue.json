@@ -6,7 +6,7 @@
   "noManualDataError": "No data available for this period. Please load market data before running manual simulation.",
   "controlBar": {
     "latest": "Latest",
-    "addManageModels": "Add / Manage Models",
+    "addManageModels": "Select Models",
     "batteryConfigTooltip": "Battery Config",
     "batteryParamsBtn": "Battery Params",
     "selectModel": "Select Model",

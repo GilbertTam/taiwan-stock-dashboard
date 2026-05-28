@@ -6,7 +6,7 @@
   "noManualDataError": "此期間無可用資料。請先載入市場資料後再執行手動模擬。",
   "controlBar": {
     "latest": "最新",
-    "addManageModels": "追加 / 管理模型",
+    "addManageModels": "選擇預測模型",
     "batteryConfigTooltip": "電池參數設定",
     "batteryParamsBtn": "電池參數",
     "selectModel": "選擇模型",
