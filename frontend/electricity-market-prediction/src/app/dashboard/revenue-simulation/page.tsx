@@ -789,7 +789,7 @@ function SiteRevenueContent() {
               onDateRangePreset={handleDateRangePreset}
               onRefresh={handleRefresh}
               downloadActions={ganttData ? [{ label: t('downloadCsv'), onClick: handleDownloadRevenueCsv }] : []}
-              currentTab="site-revenue"
+              currentTab="revenue-simulation"
               isLoading={revenueData.isFetching || isSimulating}
             />
           </Box>

@@ -196,7 +196,7 @@
     "resetDefaults": "デフォルトに戻す"
   },
   "emptyState": {
-    "title": "サイト収益シミュレーション",
+    "title": "収益シミュレーション",
     "step1Label": "エリアと日付を選択",
     "step1Desc": "サイドバーで分析する日本の電力エリアと期間を選択してください。",
     "step2Label": "予測モデルを選択",
@@ -260,7 +260,7 @@
     "realtimeHint": "スケジュール変更後、グラフは即時更新されます（SoC制限と収益計算を含む）。"
   },
   "csv": {
-    "reportTitle": "サイト収益レポート",
+    "reportTitle": "収益シミュレーションレポート",
     "dateRange": "日付範囲",
     "area": "エリア",
     "capacityMwh": "蓄電容量(MWh)",

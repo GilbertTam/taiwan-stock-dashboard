@@ -92,7 +92,7 @@ Swagger UI available at `/api/docs` (requires authentication).
 
 - **`app/`** — Next.js App Router pages; `/dashboard/*` is the protected area
 - **`hooks/useMarketData.ts`** — Central data-fetching hook; manages all market/weather/battery state, date ranges, area selection, and prevents race conditions via request IDs
-- **`hooks/useRevenuePageData.ts`** — Atomic fetch coordination for site-revenue page; single `sessionKey` dependency, `isReady` only after `Promise.allSettled`, individual model failures non-blocking
+- **`hooks/useRevenuePageData.ts`** — Atomic fetch coordination for revenue-simulation page; single `sessionKey` dependency, `isReady` only after `Promise.allSettled`, individual model failures non-blocking
 - **`hooks/useVersionedDateSelection.ts`** — Date range with monotonic version counter; `commit()`, `applyPreset()`, `shiftByDays()` methods; version increments even when dates unchanged to force re-fetches
 - **`services/`** — Typed API client functions (`marketApi.ts`, `predictionsApi.ts`, `weatherApi.ts`, `gridOperationsApi.ts`)
 - **`context/AuthContext.tsx`** — Auth state; `context/MarketDataContext.tsx` — shared market state
@@ -124,7 +124,7 @@ if (!hasData) return <Empty />;      // ← early returns after all hooks
 |-------|---------|
 | `/dashboard` | Live spot prices, key metrics overview |
 | `/dashboard/forecast` | Multi-model predictions (Mersol, Volue) with P5/P50/P95 |
-| `/dashboard/site-revenue` | Battery optimization: LP solver + manual scheduling + scenario suggestions + KPI metrics |
+| `/dashboard/revenue-simulation` | Battery optimization: LP solver + manual scheduling + scenario suggestions + KPI metrics |
 | `/dashboard/generation-mix` | Grid generation by energy source |
 | `/dashboard/daily-compare` | Multi-area day-over-day comparison with small multiples |
 | `/dashboard/data-status` | Data availability timeline and coverage |

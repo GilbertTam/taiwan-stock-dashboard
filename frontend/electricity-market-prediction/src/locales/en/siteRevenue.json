@@ -196,7 +196,7 @@
     "resetDefaults": "Reset to Defaults"
   },
   "emptyState": {
-    "title": "Site Revenue Simulation",
+    "title": "Revenue Simulation",
     "step1Label": "Select Region & Date",
     "step1Desc": "Select the Japanese power region and time range to analyze in the sidebar.",
     "step2Label": "Select Prediction Model",
@@ -260,7 +260,7 @@
     "realtimeHint": "Chart updates instantly after schedule changes (including SoC limits and revenue calculation)."
   },
   "csv": {
-    "reportTitle": "Site Revenue Report",
+    "reportTitle": "Revenue Simulation Report",
     "dateRange": "Date Range",
     "area": "Area",
     "capacityMwh": "Storage Capacity(MWh)",

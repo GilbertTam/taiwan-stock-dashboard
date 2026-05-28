@@ -30,7 +30,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'home',            labelKey: 'sidebar.overview',      path: '/dashboard',                  Icon: DashboardIcon          },
     { key: 'price',           labelKey: 'sidebar.forecast',      path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
     { key: 'generation-mix',  labelKey: 'sidebar.generationMix', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
-    { key: 'site-revenue',    labelKey: 'sidebar.siteRevenue',   path: '/dashboard/site-revenue',     Icon: StorefrontIcon         },
+    { key: 'revenue-simulation', labelKey: 'sidebar.siteRevenue', path: '/dashboard/revenue-simulation', Icon: StorefrontIcon         },
     { key: 'weather',         labelKey: 'sidebar.weather',       path: '/dashboard/weather',          Icon: WbSunnyIcon            },
     { key: 'daily-compare',   labelKey: 'sidebar.dailyCompare',  path: '/dashboard/daily-compare',    Icon: LayersIcon             },
     { key: 'data-status',     labelKey: 'sidebar.dataStatus',    path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
@@ -243,7 +243,7 @@ export function DashboardSidebar() {
                         (key === 'price'           && pathname.startsWith('/dashboard/forecast'))          ||
                         (key === 'generation-mix'  && pathname.startsWith('/dashboard/generation-mix'))    ||
                         (key === 'weather'         && pathname.startsWith('/dashboard/weather'))            ||
-                        (key === 'site-revenue'    && pathname.startsWith('/dashboard/site-revenue'))      ||
+                        (key === 'revenue-simulation' && pathname.startsWith('/dashboard/revenue-simulation')) ||
                         (key === 'admin'           && pathname.startsWith('/dashboard/admin'));
 
                     return (

@@ -196,7 +196,7 @@
     "resetDefaults": "恢復預設值"
   },
   "emptyState": {
-    "title": "案場收益模擬分析",
+    "title": "收益模擬分析",
     "step1Label": "選擇區域與日期",
     "step1Desc": "在側邊欄選擇您要分析的日本電力區域與時間範圍。",
     "step2Label": "選擇預測模型",
@@ -260,7 +260,7 @@
     "realtimeHint": "排程變更後圖表即時更新（含 SoC 限制與收益計算）。"
   },
   "csv": {
-    "reportTitle": "案場收益報表",
+    "reportTitle": "收益模擬報表",
     "dateRange": "日期範圍",
     "area": "區域",
     "capacityMwh": "儲能容量(MWh)",

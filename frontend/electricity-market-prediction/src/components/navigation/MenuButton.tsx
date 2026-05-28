@@ -141,7 +141,7 @@ export const MenuDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ o
           </ListItem>
 
           <ListItem disablePadding>
-            <ListItemButton onClick={() => handleNavigate('/dashboard/site-revenue')}>
+            <ListItemButton onClick={() => handleNavigate('/dashboard/revenue-simulation')}>
               <ListItemIcon>
                 <TrendingUpIcon />
               </ListItemIcon>
