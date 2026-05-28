@@ -39,13 +39,13 @@ export const INTERCONNECTION_FIELDS = [
     { key: 'reverse_margin', labelKey: 'fields.interconnection.reverseMargin', pointKey: 'interconnection_reverse_margin' as const, color: '#ef5350' },
 ];
 
-/** 電池 (battery_data) 可選欄位：負=充電、正=放電 */
+/** 電池 (battery_data) 可選欄位：負=充電、正=放電。isVolume=true → 以長條呈現 (BatteryStackedFlowSeries)；isVolume=false → 線/面 (SOC 狀態) */
 export const BATTERY_FIELDS = [
-    { key: 'spot_value', labelKey: 'fields.battery.spotValue', pointKey: 'battery_spot_value' as const, color: '#7e57c2' },
-    { key: 'intraday_value', labelKey: 'fields.battery.intradayValue', pointKey: 'battery_intraday_value' as const, color: '#5c6bc0' },
-    { key: 'primary_value', labelKey: 'fields.battery.primaryValue', pointKey: 'battery_primary_value' as const, color: '#7986cb' },
-    { key: 'soc_kwh', labelKey: 'fields.battery.socKwh', pointKey: 'battery_soc_kwh' as const, color: '#26a69a' },
-    { key: 'actual_soc_kwh', labelKey: 'fields.battery.actualSocKwh', pointKey: 'battery_actual_soc_kwh' as const, color: '#66bb6a' },
+    { key: 'spot_value', labelKey: 'fields.battery.spotValue', pointKey: 'battery_spot_value' as const, color: '#06b6d4', isVolume: true },
+    { key: 'intraday_value', labelKey: 'fields.battery.intradayValue', pointKey: 'battery_intraday_value' as const, color: '#f59e0b', isVolume: true },
+    { key: 'primary_value', labelKey: 'fields.battery.primaryValue', pointKey: 'battery_primary_value' as const, color: '#8b5cf6', isVolume: true },
+    { key: 'soc_kwh', labelKey: 'fields.battery.socKwh', pointKey: 'battery_soc_kwh' as const, color: '#14b8a6', isVolume: false },
+    { key: 'actual_soc_kwh', labelKey: 'fields.battery.actualSocKwh', pointKey: 'battery_actual_soc_kwh' as const, color: '#22c55e', isVolume: false },
 ];
 
 // Weather field definitions - 使用與其他資料來源明顯不同的調色

@@ -598,15 +598,43 @@ export const ChartInfoPanel: React.FC<any> = ({
                                 <DataChip key={f.key} icon={CompareArrowsIcon} label={t(f.labelKey)} value={val} unit="MW" color={f.color} />
                             );
                         })}
-                        {Array.from(selectedBatteryFields).map((fieldKey) => {
-                            const f = BATTERY_FIELDS.find(x => x.key === fieldKey);
-                            if (!f) return null;
-                            const val = (hoveredData as any)[f.pointKey];
-                            if (val == null) return null;
-                            return (
-                                <DataChip key={f.key} icon={ElectricBoltIcon} label={t(f.labelKey)} value={val} unit="" color={f.color} />
-                            );
-                        })}
+                        {(() => {
+                            const volumeFields = BATTERY_FIELDS.filter(f => f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
+                            const socFields = BATTERY_FIELDS.filter(f => !f.isVolume && (selectedBatteryFields as Set<string>).has(f.key));
+                            const out: React.ReactNode[] = [];
+                            let netVolume = 0;
+                            let visibleVolumeCount = 0;
+                            volumeFields.forEach(f => {
+                                const val = (hoveredData as any)[f.pointKey];
+                                if (val == null) return;
+                                netVolume += val;
+                                visibleVolumeCount++;
+                                const arrow = val > 0 ? '▲' : val < 0 ? '▼' : '·';
+                                out.push(
+                                    <DataChip key={f.key} icon={ElectricBoltIcon}
+                                        label={`${arrow} ${t(f.labelKey)}`}
+                                        value={val} unit=" kWh" color={f.color} decimals={1} />
+                                );
+                            });
+                            if (visibleVolumeCount >= 2) {
+                                const netArrow = netVolume > 0 ? '▲' : netVolume < 0 ? '▼' : '·';
+                                const netColor = netVolume > 0 ? '#22c55e' : netVolume < 0 ? '#06b6d4' : '#94a3b8';
+                                out.push(
+                                    <DataChip key="battery-net" icon={ElectricBoltIcon}
+                                        label={`${netArrow} Net`}
+                                        value={netVolume} unit=" kWh" color={netColor} decimals={1} />
+                                );
+                            }
+                            socFields.forEach(f => {
+                                const val = (hoveredData as any)[f.pointKey];
+                                if (val == null) return;
+                                out.push(
+                                    <DataChip key={f.key} icon={ElectricBoltIcon}
+                                        label={t(f.labelKey)} value={val} unit=" kWh" color={f.color} decimals={0} />
+                                );
+                            });
+                            return out;
+                        })()}
                         {/* Bid Plan Fields - 根据选中的 category 显示 */}
                         {selectedBidPlanCategories.has('spot') && Array.from(selectedBidPlanFields as Set<string>).map((fieldKey) => {
                             // fieldKey 是 'buy_price' 等（去掉 'bid_' 前缀）

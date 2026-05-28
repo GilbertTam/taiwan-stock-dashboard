@@ -23,6 +23,7 @@ import { buildTopBottomMarkers } from '@/utils/chart/topBottomMarkers';
 import { StackedBarSeries } from '../plugins/StackedBarSeries';
 import { StackedAreaSeries } from '../plugins/StackedAreaSeries';
 import { RangeBandSeries } from '../plugins/RangeBandSeries';
+import { BatteryStackedFlowSeries } from '../plugins/BatteryStackedFlowSeries';
 import { DayBackgroundPrimitive } from '@/components/charts';
 import { hexToRgba } from '../utils';
 // import { weatherFields } from '../constants'; // Pass this as prop or import? Import is fine.
@@ -200,7 +201,8 @@ export const useChartSeries = ({
             imbalanceSurplusData,
             imbalanceDeficitData,
             interconnectionSeries,
-            batterySeries,
+            batteryFlowData,
+            batterySocSeries,
             tdgcSeries,
             bidPlanSeries,
             occtoData,
@@ -258,16 +260,41 @@ export const useChartSeries = ({
             }
         });
 
-        batterySeries.forEach(({ fieldKey, data, color }: { fieldKey: string; data: any[]; color: string }) => {
-            if (data.length > 0) {
+        // Battery flow (volumes from spot/intraday/primary) — single custom plugin series,
+        // stacks positive/negative on its own scale so SoC doesn't dominate.
+        if (batteryFlowData && batteryFlowData.length > 0) {
+            updateOrAdd('battery_flow', 'Custom', batteryFlowData, {
+                customSeriesInstance: new BatteryStackedFlowSeries(),
+                priceScaleId: 'battery_flow',
+                priceLineVisible: false,
+                lastValueVisible: false,
+            });
+            usedSubCharts.add('battery_flow');
+        }
+
+        // Battery SoC: virtual SoC as gradient area, actual SoC as dashed line for comparison.
+        // Separate priceScaleId ('battery_soc') keeps them off the flow scale.
+        batterySocSeries.forEach(({ fieldKey, data, color, label }: { fieldKey: string; data: any[]; color: string; label: string }) => {
+            if (data.length === 0) return;
+            if (fieldKey === 'soc_kwh') {
+                updateOrAdd(`battery_${fieldKey}`, AreaSeries, data, {
+                    lineColor: color,
+                    topColor: hexToRgba(color, 0.35),
+                    bottomColor: hexToRgba(color, 0.02),
+                    lineWidth: 2,
+                    priceScaleId: 'battery_soc',
+                    title: showRightAxisLabels ? label : '',
+                });
+            } else {
                 updateOrAdd(`battery_${fieldKey}`, LineSeries, data, {
                     color,
+                    lineStyle: LineStyle.Dashed,
                     lineWidth: 1,
-                    priceScaleId: 'battery',
-                    title: showRightAxisLabels ? fieldKey : '',
+                    priceScaleId: 'battery_soc',
+                    title: showRightAxisLabels ? label : '',
                 });
-                usedSubCharts.add('battery');
             }
+            usedSubCharts.add('battery_soc');
         });
 
         // ── TDGC rendering ─────────────────────────────────────────────────
@@ -798,7 +825,7 @@ export const useChartSeries = ({
         // --- Layout Configuration (SubCharts) ---
         // 雙 Y 軸：投標電量用左軸 (left)、投標價格用右側 overlay (bidPlan_price)
         try {
-            const knownSubCharts = ['imbalance', 'interconnection', 'battery', 'tdgc_qty', 'occto', 'weather', 'weather_secondary', 'bidPlan_price'];
+            const knownSubCharts = ['imbalance', 'interconnection', 'battery_flow', 'battery_soc', 'tdgc_qty', 'occto', 'weather', 'weather_secondary', 'bidPlan_price'];
             const activeSubCharts = knownSubCharts.filter(k => usedSubCharts.has(k));
 
             // In split mode on weather-only page, also treat each weather_overlay scale as a subchart panel

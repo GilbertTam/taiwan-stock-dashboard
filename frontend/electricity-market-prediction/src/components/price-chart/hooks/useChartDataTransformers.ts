@@ -5,6 +5,7 @@ import {
     convertToLineSeriesData,
     convertToCandlestickData,
     convertToHistogramData,
+    toChartTime,
 } from '@/utils/lightweightChartsHelpers';
 import { transformOcctoData } from '../utils/transformers';
 import { ProcessedDataPoint } from '@/utils/lightweightChartsHelpers';
@@ -111,14 +112,33 @@ export const useChartDataTransformers = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [processedChartData, selectedInterconnectionFields, timezone, t]);
 
-    const batterySeries = useMemo((): InterconnectionSeriesItem[] => {
-        const out: InterconnectionSeriesItem[] = [];
-        BATTERY_FIELDS.forEach(f => {
+    // Battery flow (volumes from spot/intraday/primary) — one row per timestamp,
+    // each carrying the selected market items for BatteryStackedFlowSeries to render.
+    const batteryFlowData = useMemo(() => {
+        const volumeFields = BATTERY_FIELDS.filter(f => f.isVolume && selectedBatteryFields.has(f.key));
+        if (volumeFields.length === 0) return [] as { time: UTCTimestamp; items: { value: number; color: string; marketKey: string }[] }[];
+        const out: { time: UTCTimestamp; items: { value: number; color: string; marketKey: string }[] }[] = [];
+        processedChartData.forEach(p => {
+            const items: { value: number; color: string; marketKey: string }[] = [];
+            volumeFields.forEach(f => {
+                const v = (p as any)[f.pointKey];
+                if (v != null && v !== 0) items.push({ value: v, color: f.color, marketKey: f.key });
+            });
+            if (items.length > 0) {
+                out.push({ time: toChartTime(p.timestamp, timezone) as UTCTimestamp, items });
+            }
+        });
+        return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [processedChartData, selectedBatteryFields, timezone]);
+
+    // Battery SoC lines — kept separately so they get their own priceScaleId.
+    const batterySocSeries = useMemo((): { fieldKey: string; data: any[]; color: string; label: string }[] => {
+        const out: { fieldKey: string; data: any[]; color: string; label: string }[] = [];
+        BATTERY_FIELDS.filter(f => !f.isVolume).forEach(f => {
             if (!selectedBatteryFields.has(f.key)) return;
             const data = convertToLineSeriesData(processedChartData, p => (p as any)[f.pointKey] ?? null, timezone);
-            if (data.length > 0) {
-                out.push({ fieldKey: f.key, data, label: t(f.labelKey), color: f.color });
-            }
+            if (data.length > 0) out.push({ fieldKey: f.key, data, color: f.color, label: t(f.labelKey) });
         });
         return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +273,8 @@ export const useChartDataTransformers = ({
         imbalanceSurplusData,
         imbalanceDeficitData,
         interconnectionSeries,
-        batterySeries,
+        batteryFlowData,
+        batterySocSeries,
         tdgcSeries,
         bidPlanSeries,
         occtoData,
@@ -265,7 +286,8 @@ export const useChartDataTransformers = ({
         imbalanceSurplusData,
         imbalanceDeficitData,
         interconnectionSeries,
-        batterySeries,
+        batteryFlowData,
+        batterySocSeries,
         tdgcSeries,
         bidPlanSeries,
         occtoData,
