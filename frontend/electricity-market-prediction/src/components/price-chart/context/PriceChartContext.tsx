@@ -126,8 +126,8 @@ interface PriceChartState {
     setWeatherAxisAssignment: React.Dispatch<React.SetStateAction<Record<string, 'Y1' | 'Y2'>>>;
     weatherAxisScale: Record<string, { min?: number, max?: number }>;
     setWeatherAxisScale: React.Dispatch<React.SetStateAction<Record<string, { min?: number, max?: number }>>>;
-    seriesAxisConfig: Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>;
-    setSeriesAxisConfig: React.Dispatch<React.SetStateAction<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>>>;
+    seriesAxisConfig: Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number }, lineType?: 'line' | 'steps' }>;
+    setSeriesAxisConfig: React.Dispatch<React.SetStateAction<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number }, lineType?: 'line' | 'steps' }>>>;
     areaName: string;
     selectedModels: any[];
     colors: any;
@@ -301,7 +301,7 @@ export const PriceChartProvider: React.FC<PriceChartProviderProps> = ({
     const [weatherY2Field, setWeatherY2Field] = useState<string | null>(null);
     const [weatherAxisAssignment, setWeatherAxisAssignment] = useState<Record<string, 'Y1' | 'Y2'>>({});
     const [weatherAxisScale, setWeatherAxisScale] = useState<Record<string, { min?: number, max?: number }>>({});
-    const [seriesAxisConfig, setSeriesAxisConfig] = useState<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number } }>>({});
+    const [seriesAxisConfig, setSeriesAxisConfig] = useState<Record<string, { axis?: 'Y1' | 'Y2', scale?: { min?: number, max?: number }, lineType?: 'line' | 'steps' }>>({});
 
     // Global Y-Axis Range Overrides
     const [globalPrimaryRange, setGlobalPrimaryRange] = useState<{ min: number; max: number } | null>(null);

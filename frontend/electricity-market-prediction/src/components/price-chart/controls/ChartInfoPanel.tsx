@@ -16,6 +16,8 @@ import LabelOffOutlinedIcon from '@mui/icons-material/LabelOffOutlined';
 import TuneIcon from '@mui/icons-material/Tune';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CompressIcon from '@mui/icons-material/Compress';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
+import StairsIcon from '@mui/icons-material/Stairs';
 
 // Data Icons
 import ThermostatIcon from '@mui/icons-material/Thermostat';
@@ -351,15 +353,15 @@ export const ChartInfoPanel: React.FC<any> = ({
                             '&::-webkit-scrollbar-thumb': { bgcolor: 'var(--scrollbar-thumb)', borderRadius: 2 }
                         }}>
                             {(() => {
-                                const activeItems: { key: string; label: string; color: string; hasRange?: boolean }[] = [];
-                                if (showActualPrice && !hideObsAndPriceRow) activeItems.push({ key: 'price', label: t('chartPanel.actualPrice'), color: colors.actual, hasRange: true });
-                                selectedModels.forEach((m: any) => activeItems.push({ key: `model-${m.id}|${m.name}`, label: m.name, color: m.color, hasRange: true }));
+                                const activeItems: { key: string; label: string; color: string; hasRange?: boolean; supportsLineType?: boolean }[] = [];
+                                if (showActualPrice && !hideObsAndPriceRow) activeItems.push({ key: 'price', label: t('chartPanel.actualPrice'), color: colors.actual, hasRange: true, supportsLineType: true });
+                                selectedModels.forEach((m: any) => activeItems.push({ key: `model-${m.id}|${m.name}`, label: m.name, color: m.color, hasRange: true, supportsLineType: true }));
 
                                 if (!hideObsAndPriceRow) {
-                                    if (showImbalanceSurplusRate) activeItems.push({ key: 'imbalance_surplus', label: t('chartPanel.surplusRate'), color: '#4caf50' });
-                                    if (showImbalanceDeficitRate) activeItems.push({ key: 'imbalance_deficit', label: t('chartPanel.deficitRate'), color: '#e65100' });
+                                    if (showImbalanceSurplusRate) activeItems.push({ key: 'imbalance_surplus', label: t('chartPanel.surplusRate'), color: '#4caf50', supportsLineType: true });
+                                    if (showImbalanceDeficitRate) activeItems.push({ key: 'imbalance_deficit', label: t('chartPanel.deficitRate'), color: '#e65100', supportsLineType: true });
                                     if (showIntraday) activeItems.push({ key: 'intraday', label: t('chartPanel.intradayCandle'), color: '#ffa726' });
-                                    if (showIntradayAverage) activeItems.push({ key: 'intraday_avg', label: t('chartPanel.intradayAvgLine'), color: '#ffa726' });
+                                    if (showIntradayAverage) activeItems.push({ key: 'intraday_avg', label: t('chartPanel.intradayAvgLine'), color: '#ffa726', supportsLineType: true });
                                 }
 
                                 const activeWeatherFieldsActual = Array.from(selectedWeatherFieldsActual) as string[];
@@ -404,6 +406,7 @@ export const ChartInfoPanel: React.FC<any> = ({
                                                         key: `tdgc_${dataType}_${category}_${f.key}`,
                                                         label: `${catLabel} ${t(f.labelKey)}${dtSuffix}`,
                                                         color: catColor,
+                                                        supportsLineType: true,
                                                     });
                                                 });
                                         });
@@ -445,6 +448,25 @@ export const ChartInfoPanel: React.FC<any> = ({
                                             <ToggleButton value="Y1">Y1</ToggleButton>
                                             <ToggleButton value="Y2">Y2</ToggleButton>
                                         </ToggleButtonGroup>
+
+                                        {item.supportsLineType && (
+                                            <ToggleButtonGroup
+                                                size="small"
+                                                exclusive
+                                                value={seriesAxisConfig?.[item.key]?.lineType ?? 'steps'}
+                                                onChange={(_, val) => {
+                                                    if (val) setSeriesAxisConfig?.((prev: any) => ({ ...prev, [item.key]: { ...prev[item.key], lineType: val } }));
+                                                }}
+                                                sx={{ '& .MuiToggleButton-root': { py: 0, px: 0.3, height: 15, minWidth: 18 } }}
+                                            >
+                                                <ToggleButton value="line" title={t('chartPanel.lineTypeLine')}>
+                                                    <ShowChartIcon sx={{ fontSize: '0.7rem' }} />
+                                                </ToggleButton>
+                                                <ToggleButton value="steps" title={t('chartPanel.lineTypeSteps')}>
+                                                    <StairsIcon sx={{ fontSize: '0.7rem' }} />
+                                                </ToggleButton>
+                                            </ToggleButtonGroup>
+                                        )}
 
                                         {item.hasRange && (
                                             <Box sx={{ display: 'flex', gap: 0.2, width: 52 }}>

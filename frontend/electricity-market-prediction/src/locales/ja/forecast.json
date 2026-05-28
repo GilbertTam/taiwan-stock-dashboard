@@ -338,7 +338,9 @@
     "seriesIntraday": "日前",
     "seriesIntradayAvg": "日前(平均)",
     "bidPlanVolume": "入札計画 電力量",
-    "bidPlanPrice": "入札計画 価格"
+    "bidPlanPrice": "入札計画 価格",
+    "lineTypeLine": "折れ線",
+    "lineTypeSteps": "階段線"
   },
   "interconnectionTab": {
     "selectDateRange": "日付範囲を選択してください",

@@ -19,7 +19,10 @@ export function ForecastPreferencesSync() {
         showTopBottomLabels, setShowTopBottomLabels,
         topBottomPairs, setTopBottomPairs,
     } = useMarketDataContext();
-    const { showRightAxisLabels, setShowRightAxisLabels } = usePriceChart();
+    const {
+        showRightAxisLabels, setShowRightAxisLabels,
+        seriesAxisConfig, setSeriesAxisConfig,
+    } = usePriceChart();
     const { loaded, prefsRef, updatePreferences } = useBackendUserPreferences();
 
     const hydratedRef = useRef(false);
@@ -36,17 +39,31 @@ export function ForecastPreferencesSync() {
         if (typeof prefs.showRightAxisLabels === 'boolean') {
             setShowRightAxisLabels(prefs.showRightAxisLabels);
         }
+        if (prefs.seriesLineTypes) {
+            setSeriesAxisConfig(prev => {
+                const next = { ...prev };
+                Object.entries(prefs.seriesLineTypes!).forEach(([k, v]) => {
+                    next[k] = { ...next[k], lineType: v };
+                });
+                return next;
+            });
+        }
         hydratedRef.current = true;
-    }, [loaded, prefsRef, setShowTopBottomLabels, setTopBottomPairs, setShowRightAxisLabels]);
+    }, [loaded, prefsRef, setShowTopBottomLabels, setTopBottomPairs, setShowRightAxisLabels, setSeriesAxisConfig]);
 
     useEffect(() => {
         if (!hydratedRef.current) return;
+        const seriesLineTypes: Record<string, 'line' | 'steps'> = {};
+        Object.entries(seriesAxisConfig).forEach(([k, v]) => {
+            if (v?.lineType) seriesLineTypes[k] = v.lineType;
+        });
         updatePreferences({
             showTopBottomLabels,
             topBottomPairs,
             showRightAxisLabels,
+            seriesLineTypes,
         } satisfies ForecastChartPreferences);
-    }, [showTopBottomLabels, topBottomPairs, showRightAxisLabels, updatePreferences]);
+    }, [showTopBottomLabels, topBottomPairs, showRightAxisLabels, seriesAxisConfig, updatePreferences]);
 
     return null;
 }

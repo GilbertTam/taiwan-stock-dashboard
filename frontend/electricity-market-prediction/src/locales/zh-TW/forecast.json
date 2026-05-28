@@ -338,7 +338,9 @@
     "seriesIntraday": "即時",
     "seriesIntradayAvg": "即時(平均)",
     "bidPlanVolume": "投標計畫 電量",
-    "bidPlanPrice": "投標計畫 價格"
+    "bidPlanPrice": "投標計畫 價格",
+    "lineTypeLine": "折線",
+    "lineTypeSteps": "階梯線"
   },
   "interconnectionTab": {
     "selectDateRange": "請選擇日期範圍",

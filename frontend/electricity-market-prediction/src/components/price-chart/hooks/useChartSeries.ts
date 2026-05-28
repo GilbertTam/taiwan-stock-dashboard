@@ -70,7 +70,7 @@ interface UseChartSeriesParams {
     showRightAxisLabels: boolean;
 
     // Series Axis Configuration
-    seriesAxisConfig?: Record<string, { axis?: 'Y1' | 'Y2'; scale?: { min?: number; max?: number } }>;
+    seriesAxisConfig?: Record<string, { axis?: 'Y1' | 'Y2'; scale?: { min?: number; max?: number }; lineType?: 'line' | 'steps' }>;
     hideObsAndPriceRow?: boolean;
 
     // Range params
@@ -171,6 +171,12 @@ export const useChartSeries = ({
             catch (e) { console.warn(`SetData failed for ${key}`, e); }
             return s;
         };
+
+        // Per-series line type: default to step (matches 30-min market interval),
+        // explicit 'line' choice → LineType.Simple. Must pass an enum value (not undefined)
+        // so applyOptions on an existing series correctly switches back.
+        const resolveLineType = (key: string) =>
+            seriesAxisConfig?.[key]?.lineType === 'line' ? LineType.Simple : LineType.WithSteps;
 
         // Top-K / Bottom-K price-value label markers (series-level, transform layer).
         const applyMarkers = (key: string, series: ISeriesApi<any>, markers: any[]) => {
@@ -337,6 +343,7 @@ export const useChartSeries = ({
                 color: s.color,
                 lineWidth: 1,
                 lineStyle: s.lineStyle ?? 0,
+                lineType: resolveLineType(configKey),
                 ...(s.opacity != null && s.opacity < 1 ? { crosshairMarkerVisible: true } : {}),
                 priceScaleId: targetScale,
                 title: showRightAxisLabels ? (s.label || s.fieldKey) : '',
@@ -614,6 +621,7 @@ export const useChartSeries = ({
                 color: colors.imbalanceSurplus,
                 priceScaleId: targetScale,
                 lineWidth: 2,
+                lineType: resolveLineType('imbalance_surplus'),
                 // Use title on the right price scale to show the line name;
                 // toggle it via showRightAxisLabels.
                 title: showRightAxisLabels ? t('chartPanel.surplusRate') : '',
@@ -626,6 +634,7 @@ export const useChartSeries = ({
                 color: colors.imbalanceDeficit,
                 priceScaleId: targetScale,
                 lineWidth: 2,
+                lineType: resolveLineType('imbalance_deficit'),
                 title: showRightAxisLabels ? t('chartPanel.deficitRate') : '',
             });
             usedSubCharts.add(targetScale);
@@ -651,6 +660,7 @@ export const useChartSeries = ({
                 color: '#ffa726',
                 lineWidth: 2,
                 lineStyle: LineStyle.Dashed,
+                lineType: resolveLineType('intraday_avg'),
                 priceScaleId: targetScale,
                 title: showRightAxisLabels ? t('chartPanel.seriesIntradayAvg') : '',
             });
@@ -673,6 +683,7 @@ export const useChartSeries = ({
                 const ms = updateOrAdd(`model-${modelKey}`, LineSeries, lineData, {
                     color: color,
                     lineWidth: isHighlighted ? 3 : 1,
+                    lineType: resolveLineType(`model-${modelKey}`),
                     priceScaleId: targetScale,
                     visible: true,
                     title: showRightAxisLabels ? model.name : '',
@@ -718,6 +729,7 @@ export const useChartSeries = ({
             const s = updateOrAdd('actual', LineSeries, actualData, {
                 color: colors.actual,
                 lineWidth: 2,
+                lineType: resolveLineType('price'),
                 priceScaleId: targetScale,
                 title: showRightAxisLabels ? t('chartPanel.seriesActual') : '',
                 autoscaleInfoProvider: (original: () => any) => {

@@ -338,7 +338,9 @@
     "seriesIntraday": "Intraday",
     "seriesIntradayAvg": "Intraday Avg",
     "bidPlanVolume": "Bid Plan Volume",
-    "bidPlanPrice": "Bid Plan Price"
+    "bidPlanPrice": "Bid Plan Price",
+    "lineTypeLine": "Line",
+    "lineTypeSteps": "Step Line"
   },
   "interconnectionTab": {
     "selectDateRange": "Please select a date range",
