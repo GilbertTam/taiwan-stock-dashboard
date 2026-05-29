@@ -43,6 +43,7 @@
     "updateFailed": "更新使用者失敗。",
     "you": "你",
     "selfLockTooltip": "無法變更自己的管理員權限或啟用狀態。",
+    "lastAdminLockTooltip": "系統中僅剩您一位管理員，無法將自己降級。",
     "delete": "刪除",
     "deleteConfirm": "確定要刪除使用者 {{name}} 嗎?此操作無法復原。",
     "deleted": "已刪除使用者。",

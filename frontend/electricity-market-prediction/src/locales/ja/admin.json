@@ -43,6 +43,7 @@
     "updateFailed": "ユーザーの更新に失敗しました。",
     "you": "あなた",
     "selfLockTooltip": "自分の管理者権限や有効状態は変更できません。",
+    "lastAdminLockTooltip": "あなたが唯一の管理者のため、自分の権限を解除できません。",
     "delete": "削除",
     "deleteConfirm": "ユーザー {{name}} を削除しますか？この操作は取り消せません。",
     "deleted": "ユーザーを削除しました。",

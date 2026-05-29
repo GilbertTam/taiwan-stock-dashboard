@@ -239,6 +239,13 @@ export default function AdminPage() {
         [users],
     );
 
+    // Drives the "last admin can't self-demote" guard. Mirrors the backend's
+    // L2 check (account_service._active_superuser_count) so the UI fails fast.
+    const activeAdminCount = useMemo(
+        () => users.filter((u) => u.is_active && u.is_superuser).length,
+        [users],
+    );
+
     return (
         <Box sx={{ p: 3, height: '100vh', overflow: 'auto' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
@@ -401,6 +408,10 @@ export default function AdminPage() {
                                 <TableBody>
                                     {users.map((u) => {
                                         const isSelf = u.id === selfId;
+                                        // Self-demotion is allowed unless the actor is the only
+                                        // active admin left — mirrors backend L2.
+                                        const isLastAdmin =
+                                            isSelf && u.is_active && u.is_superuser && activeAdminCount <= 1;
                                         return (
                                         <TableRow key={u.id}>
                                             <TableCell sx={{ color: 'var(--foreground)' }}>
@@ -445,12 +456,15 @@ export default function AdminPage() {
                                                 </Tooltip>
                                             </TableCell>
                                             <TableCell align="center">
-                                                <Tooltip title={isSelf ? t('users.selfLockTooltip') : ''} disableHoverListener={!isSelf}>
+                                                <Tooltip
+                                                    title={isLastAdmin ? t('users.lastAdminLockTooltip') : ''}
+                                                    disableHoverListener={!isLastAdmin}
+                                                >
                                                     <span>
                                                         <Switch
                                                             size="small"
                                                             checked={u.is_superuser}
-                                                            disabled={isSelf}
+                                                            disabled={isLastAdmin}
                                                             onChange={(_, c) => void handlePatch(u.id, { is_superuser: c })}
                                                         />
                                                     </span>

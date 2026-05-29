@@ -43,6 +43,7 @@
     "updateFailed": "Failed to update user.",
     "you": "You",
     "selfLockTooltip": "You can't change your own administrator role or active status.",
+    "lastAdminLockTooltip": "You're the only active administrator — you can't demote yourself.",
     "delete": "Delete",
     "deleteConfirm": "Delete user {{name}}? This cannot be undone.",
     "deleted": "User deleted.",

@@ -204,19 +204,20 @@ async def admin_patch_user(
 
     `actor` is the admin performing the change. Two layered guards:
 
-    - **Self-protection (L1)**: the actor cannot demote or deactivate their
-      own account. Caught first so the UX is clear ("you can't change your own
-      role/status") even when other admins exist.
-    - **Last-superuser guard (L2)**: for changes to *other* users, refuses to
-      deactivate or demote the last active superuser.
+    - **Self-protection (L1)**: the actor cannot deactivate their own account
+      (it would immediately invalidate their session — confusing UX).
+      Self-demotion is intentionally NOT blocked here; it falls through to L2,
+      which permits it as long as another active superuser remains.
+    - **Last-superuser guard (L2)**: refuses any change (self or other) that
+      would leave the system without an active superuser.
     """
-    # L1 — self-protection: never let an admin strip their own access.
-    if actor.id == target.id and (
-        patch.is_superuser is False or patch.is_active is False
-    ):
+    # L1 — self-protection: never let an admin deactivate their own account.
+    # Self-demotion is allowed (delegated to L2) so a retiring admin can step
+    # down once another admin is in place.
+    if actor.id == target.id and patch.is_active is False:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You cannot change your own administrator status or deactivate yourself",
+            detail="You cannot deactivate yourself",
         )
 
     # L2 — last-superuser guard. If we'd be removing this user's active-admin
