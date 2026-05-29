@@ -23,7 +23,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { format, subDays, subMonths, addMonths, isValid } from 'date-fns';
+import { format, subDays, subMonths, addDays, addMonths, isValid } from 'date-fns';
 import {
     fetchAreas,
     fetchPredictionModels,
@@ -254,11 +254,22 @@ export const useMarketData = (): UseMarketDataReturn => {
         return start;
     });
 
-    /** End date for data queries (defaults to today) */
+    /**
+     * End date for data queries.
+     *
+     * Defaults to **tomorrow** (today + 1 day) rather than today, so every
+     * dashboard page lands with a +1-day forecast window visible by default.
+     * Traders use forecast data to plan, so the "out of the box" view should
+     * already include tomorrow's predicted values.
+     *
+     * Note: presets and `handleDateRangePreset` mirror this offset — see the
+     * preset switch below.
+     */
     const [endDate, setEndDate] = useState<Date | null>(() => {
         const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        return today;
+        const end = addDays(today, 1);
+        end.setHours(23, 59, 59, 999);
+        return end;
     });
 
     /** Active date range preset identifier (e.g., '3D', 'week', 'month') */
@@ -1163,7 +1174,8 @@ export const useMarketData = (): UseMarketDataReturn => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         let start: Date;
-        // N 天 = 含今日往前 N 天（1D=1天, 3D=3天, week=7天）
+        // Preset names describe the lookback window (how many days back).
+        // 1D = 含今日往前 1 天、3D = 含今日往前 3 天、week = 7 天 … etc.
         switch (preset) {
             case '1D': start = new Date(today); break;                    // 今天 = 1 天
             case '3D': start = subDays(today, 2); break;                  // 今日～2 天前 = 3 天
@@ -1178,7 +1190,11 @@ export const useMarketData = (): UseMarketDataReturn => {
             default: start = subDays(today, 6);                           // 預設 7 天
         }
         start.setHours(0, 0, 0, 0);
-        commitDateSelection(start, today, preset);
+        // Every preset extends one day forward so the +1-day forecast is
+        // always visible. See the initial-endDate comment for rationale.
+        const end = addDays(today, 1);
+        end.setHours(23, 59, 59, 999);
+        commitDateSelection(start, end, preset);
     };
 
     /**

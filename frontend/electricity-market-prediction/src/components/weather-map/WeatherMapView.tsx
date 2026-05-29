@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Snackbar, Stack, Typography } from '@mui/material';
-import { addDays, startOfDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
@@ -52,17 +51,9 @@ function pickValueAt(
 export function WeatherMapView() {
     const { t } = useTranslation(['weatherMap', 'common']);
 
-    // Initialize with placeholder dates; replaced on mount with today→tomorrow.
-    const { selection, commit, applyPreset } = useVersionedDateSelection({ initialPreset: '3D' });
-    const didInitRange = useRef(false);
-
-    useEffect(() => {
-        if (didInitRange.current) return;
-        didInitRange.current = true;
-        const today = startOfDay(new Date());
-        const tomorrow = startOfDay(addDays(today, 1));
-        commit(today, tomorrow, null);
-    }, [commit]);
+    // Default range ends at tomorrow globally — see `buildPresetDates` in
+    // useVersionedDateSelection. '1D' here means today + tomorrow.
+    const { selection, commit, applyPreset } = useVersionedDateSelection({ initialPreset: '1D' });
 
     const handleDateRangePreset = (preset: string | null) => {
         if (preset) applyPreset(preset);

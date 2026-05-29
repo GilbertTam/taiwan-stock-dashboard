@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { subDays, subMonths } from 'date-fns';
+import { subDays, subMonths, addDays } from 'date-fns';
 import { DateRangeSelection } from '@/types/dateRange';
 
 interface UseVersionedDateSelectionOptions {
@@ -42,7 +42,10 @@ function buildPresetDates(preset: string): { start: Date; end: Date } {
     case 'all':         start = subMonths(today, 24); break;
     default:            start = subDays(today, 6);
   }
-  return { start: startOfDay(start), end: startOfDay(today) };
+  // Preset names describe the lookback only; the window always ends at
+  // tomorrow so the +1-day forecast is in view by default (see useMarketData
+  // for the same convention).
+  return { start: startOfDay(start), end: startOfDay(addDays(today, 1)) };
 }
 
 export function useVersionedDateSelection(
