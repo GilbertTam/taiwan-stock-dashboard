@@ -342,18 +342,18 @@ async def fetch_userinfo(provider: str, tokens: Dict[str, Any]) -> Dict[str, Any
 def derive_redirect_uri(request: Request, provider: str) -> str:
     """Build the callback URL the OAuth provider redirects the browser to.
 
-    Uses Starlette's `request.url_for("oauth_callback", ...)` so:
-
-    1. The scheme is whatever the request's ASGI scope says — which is the
-       PUBLIC scheme thanks to ProxyHeadersMiddleware (which honors
-       `X-Forwarded-Proto` from nginx, which in turn honors what the outer
-       TLS terminator sent). No `OAUTH_REDIRECT_BASE_URL` override needed.
-    2. The path is resolved from the route table by the route's stable name
-       (`oauth_callback`), so renaming the callback function — or moving the
-       router prefix — fails loudly at request time instead of silently
-       hand-rolling a wrong path.
+    Host is taken from the request so multiple public hostnames work without
+    config changes (each one just needs to be registered in the provider's
+    redirect URI allowlist). Scheme is forced to `https` for everything except
+    localhost — relying on `X-Forwarded-Proto` is brittle when an outer proxy
+    (e.g. AWS ALB) doesn't forward it, and OAuth providers do exact-match on
+    the registered redirect URIs so an attacker-supplied `Host` can't produce
+    a working redirect to an unregistered domain.
     """
-    return str(request.url_for("oauth_callback", provider=provider))
+    url = request.url_for("oauth_callback", provider=provider)
+    if url.hostname not in ("localhost", "127.0.0.1"):
+        url = url.replace(scheme="https")
+    return str(url)
 
 
 def frontend_callback_url(path_with_query: str) -> str:
