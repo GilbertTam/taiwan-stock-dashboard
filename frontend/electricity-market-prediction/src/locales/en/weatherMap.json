@@ -1,0 +1,52 @@
+{
+  "title": "Weather Map",
+  "subtitle": "9-area weather data × map visualization (default today + tomorrow forecast)",
+  "leftPanelTitle": "Regional Value Map",
+  "rightPanelTitle": "Windy Satellite Map",
+  "windyDisclaimer": "Source: Windy.com (ECMWF model) | Windy's timeline is independent — use its bottom control bar",
+  "dataset": {
+    "label": "Granularity",
+    "hourly": "Hourly",
+    "daily": "Daily"
+  },
+  "fieldPicker": {
+    "label": "Display field",
+    "placeholder": "Pick a field",
+    "unsupported": "(not suitable for map)",
+    "noFieldSelected": "No field selected"
+  },
+  "windyOverlay": {
+    "label": "Windy layer",
+    "clouds": "Clouds",
+    "temp": "Temperature",
+    "rain": "Rain",
+    "wind": "Wind",
+    "rh": "Humidity",
+    "pressure": "Pressure",
+    "gust": "Gust",
+    "snow": "Snow",
+    "syncHint": "Switch to {{overlay}}",
+    "syncHintTooltip": "Map field suggests Windy layer \"{{overlay}}\". Click to switch.",
+    "noMatch": "No matching Windy layer",
+    "noMatchTooltip": "\"{{field}}\" has no direct Windy overlay — pick a related one manually"
+  },
+  "slider": {
+    "play": "Play",
+    "pause": "Pause",
+    "speed": "Speed",
+    "currentTime": "Time"
+  },
+  "tooltip": {
+    "areaName": "Region",
+    "value": "Value",
+    "noData": "No data",
+    "dataSource": "Source"
+  },
+  "loading": "Loading...",
+  "noData": "No data in selected range",
+  "fetchError": "Some regions failed to load: {{areas}}",
+  "legend": {
+    "low": "Low",
+    "high": "High"
+  }
+}

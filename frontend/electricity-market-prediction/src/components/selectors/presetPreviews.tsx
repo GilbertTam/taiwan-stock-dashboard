@@ -14,7 +14,7 @@ import {
     TDGC_CATEGORIES,
     weatherFields as forecastWeatherFields,
 } from '@/components/price-chart/constants';
-import type { ForecastPresetData, WeatherPresetData, DailyComparePresetData } from '@/types/presets';
+import type { ForecastPresetData, WeatherPresetData, DailyComparePresetData, WeatherMapPresetData } from '@/types/presets';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -64,6 +64,35 @@ export function DailyComparePreview({ data }: { data: DailyComparePresetData }) 
                 {data.selectedAreas.map(area => (
                     <TagChip key={area} label={getAreaName(t, area)} />
                 ))}
+            </PreviewRow>
+        </Box>
+    );
+}
+
+// ─── Weather-Map Preview ─────────────────────────────────────────────────────
+
+export function WeatherMapPreview({ data }: { data: WeatherMapPresetData }) {
+    const { t } = useTranslation(['weatherMap', 'forecast', 'common']);
+
+    const fieldDisplay = WEATHER_FIELD_DISPLAY[data.field];
+    const fieldLabel = fieldDisplay?.shortLabelKey
+        ? t(`forecast:${fieldDisplay.shortLabelKey}`, { defaultValue: data.field })
+        : data.field;
+    const unit = fieldDisplay?.unit;
+
+    const overlayLabel = t(`weatherMap:windyOverlay.${data.windyOverlay}`, { defaultValue: data.windyOverlay });
+    const datasetLabel = t(`weatherMap:dataset.${data.dataset}`);
+
+    return (
+        <Box>
+            <PreviewRow label={t('weatherMap:dataset.label')}>
+                <TagChip label={datasetLabel} />
+            </PreviewRow>
+            <PreviewRow label={t('weatherMap:fieldPicker.label')}>
+                <TagChip label={unit ? `${fieldLabel} (${unit})` : fieldLabel} />
+            </PreviewRow>
+            <PreviewRow label={t('weatherMap:windyOverlay.label')}>
+                <TagChip label={overlayLabel} />
             </PreviewRow>
         </Box>
     );

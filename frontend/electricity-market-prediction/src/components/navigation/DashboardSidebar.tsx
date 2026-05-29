@@ -5,6 +5,7 @@ import { Box, Typography, ButtonBase, Avatar, Divider } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import PublicIcon from '@mui/icons-material/Public';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -32,6 +33,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'generation-mix',  labelKey: 'sidebar.generationMix', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
     { key: 'revenue-simulation', labelKey: 'sidebar.siteRevenue', path: '/dashboard/revenue-simulation', Icon: StorefrontIcon         },
     { key: 'weather',         labelKey: 'sidebar.weather',       path: '/dashboard/weather',          Icon: WbSunnyIcon            },
+    { key: 'weather-map',     labelKey: 'sidebar.weatherMap',    path: '/dashboard/weather-map',      Icon: PublicIcon             },
     { key: 'daily-compare',   labelKey: 'sidebar.dailyCompare',  path: '/dashboard/daily-compare',    Icon: LayersIcon             },
     { key: 'data-status',     labelKey: 'sidebar.dataStatus',    path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
 ];
@@ -238,13 +240,20 @@ export function DashboardSidebar() {
             <Box sx={{ flex: 1, py: 0.5, display: 'flex', flexDirection: 'column' }}>
                 {navItems.map(({ key, labelKey, path, Icon }) => {
                     const label = t(labelKey);
+                    // Match either the exact path or a direct sub-path (`/path/...`).
+                    // A bare startsWith would incorrectly mark `/dashboard/weather` active
+                    // when visiting sibling routes like `/dashboard/weather-map`.
+                    const matchesPathOrSubpath = (base: string) =>
+                        pathname === base || pathname.startsWith(`${base}/`);
+
                     const isActive =
                         pathname === path ||
-                        (key === 'price'           && pathname.startsWith('/dashboard/forecast'))          ||
-                        (key === 'generation-mix'  && pathname.startsWith('/dashboard/generation-mix'))    ||
-                        (key === 'weather'         && pathname.startsWith('/dashboard/weather'))            ||
-                        (key === 'revenue-simulation' && pathname.startsWith('/dashboard/revenue-simulation')) ||
-                        (key === 'admin'           && pathname.startsWith('/dashboard/admin'));
+                        (key === 'price'              && matchesPathOrSubpath('/dashboard/forecast'))            ||
+                        (key === 'generation-mix'     && matchesPathOrSubpath('/dashboard/generation-mix'))      ||
+                        (key === 'weather'            && matchesPathOrSubpath('/dashboard/weather'))             ||
+                        (key === 'weather-map'        && matchesPathOrSubpath('/dashboard/weather-map'))         ||
+                        (key === 'revenue-simulation' && matchesPathOrSubpath('/dashboard/revenue-simulation')) ||
+                        (key === 'admin'              && matchesPathOrSubpath('/dashboard/admin'));
 
                     return (
                         <ButtonBase

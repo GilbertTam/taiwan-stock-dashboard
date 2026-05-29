@@ -12,6 +12,7 @@ import zhTWSiteRevenue from '@/locales/zh-TW/siteRevenue.json';
 import zhTWGenerationMix from '@/locales/zh-TW/generationMix.json';
 import zhTWDataStatus from '@/locales/zh-TW/dataStatus.json';
 import zhTWWeather from '@/locales/zh-TW/weather.json';
+import zhTWWeatherMap from '@/locales/zh-TW/weatherMap.json';
 import zhTWDailyCompare from '@/locales/zh-TW/dailyCompare.json';
 import zhTWAccount from '@/locales/zh-TW/account.json';
 import zhTWAdmin from '@/locales/zh-TW/admin.json';
@@ -26,6 +27,7 @@ import enSiteRevenue from '@/locales/en/siteRevenue.json';
 import enGenerationMix from '@/locales/en/generationMix.json';
 import enDataStatus from '@/locales/en/dataStatus.json';
 import enWeather from '@/locales/en/weather.json';
+import enWeatherMap from '@/locales/en/weatherMap.json';
 import enDailyCompare from '@/locales/en/dailyCompare.json';
 import enAccount from '@/locales/en/account.json';
 import enAdmin from '@/locales/en/admin.json';
@@ -40,6 +42,7 @@ import jaSiteRevenue from '@/locales/ja/siteRevenue.json';
 import jaGenerationMix from '@/locales/ja/generationMix.json';
 import jaDataStatus from '@/locales/ja/dataStatus.json';
 import jaWeather from '@/locales/ja/weather.json';
+import jaWeatherMap from '@/locales/ja/weatherMap.json';
 import jaDailyCompare from '@/locales/ja/dailyCompare.json';
 import jaAccount from '@/locales/ja/account.json';
 import jaAdmin from '@/locales/ja/admin.json';
@@ -60,6 +63,7 @@ i18n
         generationMix: zhTWGenerationMix,
         dataStatus: zhTWDataStatus,
         weather: zhTWWeather,
+        weatherMap: zhTWWeatherMap,
         dailyCompare: zhTWDailyCompare,
         account: zhTWAccount,
         admin: zhTWAdmin,
@@ -75,6 +79,7 @@ i18n
         generationMix: enGenerationMix,
         dataStatus: enDataStatus,
         weather: enWeather,
+        weatherMap: enWeatherMap,
         dailyCompare: enDailyCompare,
         account: enAccount,
         admin: enAdmin,
@@ -90,6 +95,7 @@ i18n
         generationMix: jaGenerationMix,
         dataStatus: jaDataStatus,
         weather: jaWeather,
+        weatherMap: jaWeatherMap,
         dailyCompare: jaDailyCompare,
         account: jaAccount,
         admin: jaAdmin,

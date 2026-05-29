@@ -1,0 +1,52 @@
+{
+  "title": "天氣地圖",
+  "subtitle": "9 區天氣資料 × 地圖視覺化（預設今天 + 明天預測）",
+  "leftPanelTitle": "區域數值地圖",
+  "rightPanelTitle": "Windy 衛星雲圖",
+  "windyDisclaimer": "資料來源：Windy.com（ECMWF 模型）｜Windy 時間軸獨立，請用其下方控制列播放",
+  "dataset": {
+    "label": "資料粒度",
+    "hourly": "每小時",
+    "daily": "每日"
+  },
+  "fieldPicker": {
+    "label": "顯示欄位",
+    "placeholder": "選擇欄位",
+    "unsupported": "（不適合地圖呈現）",
+    "noFieldSelected": "尚未選擇欄位"
+  },
+  "windyOverlay": {
+    "label": "Windy 圖層",
+    "clouds": "雲量",
+    "temp": "溫度",
+    "rain": "降雨",
+    "wind": "風速",
+    "rh": "相對濕度",
+    "pressure": "氣壓",
+    "gust": "陣風",
+    "snow": "降雪",
+    "syncHint": "切換到 {{overlay}}",
+    "syncHintTooltip": "目前地圖欄位對應 Windy 圖層為「{{overlay}}」，點此切換",
+    "noMatch": "無對應 Windy 圖層",
+    "noMatchTooltip": "「{{field}}」沒有對應的 Windy overlay，請手動挑選相近圖層"
+  },
+  "slider": {
+    "play": "播放",
+    "pause": "暫停",
+    "speed": "速度",
+    "currentTime": "目前時間"
+  },
+  "tooltip": {
+    "areaName": "區域",
+    "value": "數值",
+    "noData": "無資料",
+    "dataSource": "資料源"
+  },
+  "loading": "載入中...",
+  "noData": "選定區間內無資料",
+  "fetchError": "部分區域資料抓取失敗：{{areas}}",
+  "legend": {
+    "low": "低",
+    "high": "高"
+  }
+}

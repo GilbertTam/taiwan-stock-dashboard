@@ -79,3 +79,12 @@ export interface DailyComparePresetData {
     selectedAreas: string[];
     selectedMetric: MetricKey;
 }
+
+export interface WeatherMapPresetData {
+    /** 'hourly' | 'daily' — which weather dataset family is rendered. */
+    dataset: 'hourly' | 'daily';
+    /** Selected weather field rendered on the choropleth (e.g. 'cloud_cover'). */
+    field: string;
+    /** Manually-chosen Windy overlay key (clouds/temp/rain/wind/rh/pressure/gust/snow). */
+    windyOverlay: string;
+}
