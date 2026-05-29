@@ -17,8 +17,8 @@ const TIME_DEBOUNCE_MS = 1500;
 export interface WindyOverlayPanelProps {
     overlay: WindyOverlayKey;
     onOverlayChange: (overlay: WindyOverlayKey) => void;
-    /** Currently-selected JST timestamp (epoch ms). Passed to Windy as `calendar=<seconds>`.
-     *  embed2.html may not strictly seek to this time, but the request is sent. */
+    /** Currently-selected JST timestamp (epoch ms). Translated into a Windy
+     *  `calendar=<hourOffset>` param when remounting the iframe. */
     timestampMs: number | null;
     /** Suggested overlay derived from the choropleth's selected field. When set
      *  and different from `overlay`, a "Sync to {suggestion}?" hint appears. */
@@ -31,6 +31,18 @@ export interface WindyOverlayPanelProps {
     zoom?: number;
 }
 
+/** Windy embed2 accepts `calendar` as an integer hour offset from wall-clock
+ *  now (positive = forecast hours into the future, negative = hours into the
+ *  past). It does NOT accept unix timestamps. ECMWF's forecast window is ~240h
+ *  forward and free past data is up to 24h back, so we clamp accordingly. */
+const WINDY_PAST_HOURS_LIMIT = 24;
+const WINDY_FORECAST_HOURS_LIMIT = 240;
+
+function timestampToHourOffset(timestampMs: number, nowMs: number): number {
+    const raw = Math.round((timestampMs - nowMs) / 3_600_000);
+    return Math.max(-WINDY_PAST_HOURS_LIMIT, Math.min(WINDY_FORECAST_HOURS_LIMIT, raw));
+}
+
 function buildWindyUrl(
     overlay: WindyOverlayKey,
     timestampMs: number | null,
@@ -39,7 +51,7 @@ function buildWindyUrl(
     zoom: number,
 ): string {
     const calendar = timestampMs != null
-        ? String(Math.floor(timestampMs / 1000)) // Windy embed2 historically accepts unix seconds
+        ? String(timestampToHourOffset(timestampMs, Date.now()))
         : 'now';
     const params = new URLSearchParams({
         lat: lat.toFixed(3),
