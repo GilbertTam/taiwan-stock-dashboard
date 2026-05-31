@@ -20,6 +20,7 @@ import {
     TdgcData,
     BidPlanData,
     JepxSystemData,
+    UnitAvailabilityTimeline,
 } from '@/types';
 
 // =============================================================================
@@ -77,6 +78,24 @@ export const fetchImbalance = async (params: AreaDateRangeParams): Promise<Imbal
 export const fetchHjksOutages = async (params: AreaDateRangeParams): Promise<HjksOutage[]> => {
     const api = createAuthenticatedApi();
     const response = await api.get<ApiResponse<HjksOutage[]>>('/market-info/hjks', { params });
+    return response.data.data;
+};
+
+/** Date range + sampling interval for the unit availability timeline. */
+export interface UnitAvailabilityParams extends AreaDateRangeParams {
+    /** Bucket size in minutes (default 30, matching the OCCTO/JEPX cadence). */
+    interval_minutes?: number;
+}
+
+/** Fetch the fleet operating/stopped capacity timeline (hjks_unit ⋈ hjks_outage). */
+export const fetchUnitAvailabilityTimeline = async (
+    params: UnitAvailabilityParams,
+): Promise<UnitAvailabilityTimeline> => {
+    const api = createAuthenticatedApi();
+    const response = await api.get<ApiResponse<UnitAvailabilityTimeline>>(
+        '/market-info/hjks-unit-availability',
+        { params },
+    );
     return response.data.data;
 };
 

@@ -82,5 +82,6 @@ export {
     fetchTdgc,
     fetchBidPlans,
     fetchJepxSystem,
+    fetchUnitAvailabilityTimeline,
 } from './gridOperationsApi';
-export type { DateRangeParams, AreaDateRangeParams, InterconnectionParams, BatteryDataParams, BidPlanParams } from './gridOperationsApi';
+export type { DateRangeParams, AreaDateRangeParams, InterconnectionParams, BatteryDataParams, BidPlanParams, UnitAvailabilityParams } from './gridOperationsApi';

@@ -36,10 +36,11 @@ import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 
 import { useTheme } from '@/app/ThemeProvider';
-import { fetchOcctoArea, fetchHjksOutages } from '@/services';
+import { fetchOcctoArea, fetchHjksOutages, fetchUnitAvailabilityTimeline } from '@/services';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
-import type { OcctoAreaData, HjksOutage } from '@/types';
+import type { OcctoAreaData, HjksOutage, UnitAvailabilityTimeline } from '@/types';
 import GenerationMixLightweightChart, { GEN_SOURCES as GEN_SOURCES_LW } from '@/components/market/generation-mix/GenerationMixLightweightChart';
+import UnitCapacityTimelineChart, { type UnitCapacityMetric } from '@/components/market/generation-mix/UnitCapacityTimelineChart';
 import { useTranslation } from 'react-i18next';
 import { getAreaName } from '@/utils/areaI18n';
 
@@ -55,6 +56,8 @@ const RENEWABLE_KEYS: (keyof OcctoAreaData)[] = [
 ];
 
 type PageMode = 'timeseries' | 'comparison';
+/** Which chart fills the main panel in timeseries mode. */
+type ChartTab = 'mix' | 'capacity';
 
 // ─── Helper: compute values for one data point ───────────────────────────────
 function computeGenValues(row: OcctoAreaData | Record<string, number>) {
@@ -178,6 +181,11 @@ export default function GenerationMixPage() {
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
   const [lockedOutages, setLockedOutages] = useState<HjksOutage[]>([]);
   const [lockedTime, setLockedTime] = useState<number | null>(null);
+  // Unit operating/stopped capacity timeline (all 9 areas; hjks_unit ⋈ hjks_outage)
+  const [unitAvailability, setUnitAvailability] = useState<UnitAvailabilityTimeline | null>(null);
+  const [unitMetric, setUnitMetric] = useState<UnitCapacityMetric>('operating');
+  // Which chart fills the main panel (timeseries mode): OCCTO mix vs fuel capacity
+  const [chartTab, setChartTab] = useState<ChartTab>('mix');
 
   // ── Timeseries data (fetched independently per area, not via context scope) ──
   const [timeseriesOcctoData, setTimeseriesOcctoData] = useState<OcctoAreaData[]>([]);
@@ -253,6 +261,27 @@ export default function GenerationMixPage() {
       setOutagesExpanded(true);
     }
   }, [outages.length]);
+
+  // ── Unit availability timeline (selected area, stacked by fuel; timeseries) ──
+  const unitAvailAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (pageMode !== 'timeseries' || !startDate || !endDate || !selectedArea) {
+      setUnitAvailability(null);
+      return;
+    }
+    unitAvailAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    unitAvailAbortRef.current = ctrl;
+    fetchUnitAvailabilityTimeline({
+      start_date: format(startDate, 'yyyyMMdd'),
+      end_date: format(endDate, 'yyyyMMdd'),
+      area_name: selectedArea,
+      interval_minutes: 30,
+    })
+      .then((data) => { if (!ctrl.signal.aborted) setUnitAvailability(data); })
+      .catch((err) => { if (!ctrl.signal.aborted) { console.error('Failed to fetch unit availability:', err); setUnitAvailability(null); } });
+    return () => ctrl.abort();
+  }, [pageMode, startDate, endDate, selectedArea]);
 
   // ── Timeseries: sort the independently-fetched area data ───────────────────
   const areaData: OcctoAreaData[] = useMemo(() => {
@@ -386,7 +415,7 @@ export default function GenerationMixPage() {
   return (
     <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0.5, p: 0.5 }}>
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0 }}>
           <DashboardToolbar
@@ -521,7 +550,7 @@ export default function GenerationMixPage() {
           </Box>
         )}
 
-        {/* Charts area */}
+        {/* Charts area — tabbed active chart + donut detail panel */}
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 1 }}>
           {!hasData && !activeLoading ? (
             <Alert severity="info" sx={{ mx: 0.5, alignSelf: 'flex-start' }}>
@@ -546,13 +575,61 @@ export default function GenerationMixPage() {
                   borderRadius: 1.5,
                 }}
               >
-                {/* Title + inline legend */}
+                {/* Header: chart tabs (timeseries) or title (comparison) + metric + legend */}
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                    {pageMode === 'timeseries' ? t('sourceTimeseries') : t('regionAvgMix')}
-                  </Typography>
+                  {pageMode === 'timeseries' ? (
+                    <Box sx={{ display: 'inline-flex', border: '1px solid var(--card-border)', borderRadius: 1, overflow: 'hidden', height: 24, flexShrink: 0 }}>
+                      {([['mix', t('tabGeneration')], ['capacity', t('tabCapacity')]] as [ChartTab, string][]).map(([tab, label], i) => (
+                        <React.Fragment key={tab}>
+                          {i > 0 && <Box sx={{ width: '1px', backgroundColor: 'var(--card-border)' }} />}
+                          <ButtonBase
+                            onClick={() => setChartTab(tab)}
+                            sx={{
+                              px: 1.5, fontSize: 11, fontFamily: 'monospace', height: '100%', whiteSpace: 'nowrap',
+                              ...(chartTab === tab
+                                ? { backgroundColor: 'rgba(0,255,157,0.12)', color: 'var(--primary)', fontWeight: 700 }
+                                : { color: 'var(--muted)' }),
+                            }}
+                          >
+                            {label}
+                          </ButtonBase>
+                        </React.Fragment>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {t('regionAvgMix')}
+                    </Typography>
+                  )}
+
+                  {/* Metric toggle — capacity tab only: 停止 / 稼動 */}
+                  {pageMode === 'timeseries' && chartTab === 'capacity' && (
+                    <Box sx={{ display: 'inline-flex', border: '1px solid var(--card-border)', borderRadius: 1, overflow: 'hidden', height: 22, flexShrink: 0 }}>
+                      {(['stopped', 'operating'] as UnitCapacityMetric[]).map((m, i) => (
+                        <React.Fragment key={m}>
+                          {i > 0 && <Box sx={{ width: '1px', backgroundColor: 'var(--card-border)' }} />}
+                          <ButtonBase
+                            onClick={() => setUnitMetric(m)}
+                            sx={{
+                              px: 1.25, fontSize: 10, fontFamily: 'monospace', height: '100%', whiteSpace: 'nowrap',
+                              ...(unitMetric === m
+                                ? { backgroundColor: 'rgba(0,255,157,0.12)', color: 'var(--primary)', fontWeight: 700 }
+                                : { color: 'var(--muted)' }),
+                            }}
+                          >
+                            {m === 'stopped' ? t('metricStopped') : t('metricOperating')}
+                          </ButtonBase>
+                        </React.Fragment>
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Legend — fuel sources; capacity tab shows only fuels present */}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px' }}>
-                    {GEN_SOURCES.map((s) => (
+                    {(pageMode === 'timeseries' && chartTab === 'capacity'
+                      ? GEN_SOURCES.filter((s) => (unitAvailability?.keys ?? []).includes(s.key as string))
+                      : GEN_SOURCES
+                    ).map((s) => (
                       <Box key={s.key as string} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                         <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: s.color, flexShrink: 0 }} />
                         <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t(s.labelKey)}</Typography>
@@ -561,17 +638,31 @@ export default function GenerationMixPage() {
                   </Box>
                 </Box>
                 <Box sx={{ flex: 1, minHeight: 0 }}>
-                  <GenerationMixLightweightChart
-                    timeseriesData={areaData}
-                    comparisonItems={comparisonItems}
-                    mode={pageMode}
-                    isDark={isDark}
-                    onHoverIndexChange={setHoverIndex}
-                    onHoverOutagesChange={setHoveredOutages}
-                    onClickChange={handleChartClick}
-                    outages={outages}
-                    lockedBarTime={lockedTime}
-                  />
+                  {pageMode === 'timeseries' && chartTab === 'capacity' ? (
+                    unitAvailability && unitAvailability.timeline.length > 0 ? (
+                      <UnitCapacityTimelineChart
+                        timeline={unitAvailability}
+                        metric={unitMetric}
+                        isDark={isDark}
+                      />
+                    ) : (
+                      <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('unitCapacityNoData')}</Typography>
+                      </Box>
+                    )
+                  ) : (
+                    <GenerationMixLightweightChart
+                      timeseriesData={areaData}
+                      comparisonItems={comparisonItems}
+                      mode={pageMode}
+                      isDark={isDark}
+                      onHoverIndexChange={setHoverIndex}
+                      onHoverOutagesChange={setHoveredOutages}
+                      onClickChange={handleChartClick}
+                      outages={outages}
+                      lockedBarTime={lockedTime}
+                    />
+                  )}
                 </Box>
               </Paper>
 
@@ -679,7 +770,7 @@ export default function GenerationMixPage() {
 
         {/* Outages panel tab — collapsible, timeseries mode only */}
         {pageMode === 'timeseries' && (
-          <Paper variant="outlined" sx={{ flexShrink: 0, borderRadius: 1.5, overflow: 'hidden' }}>
+          <Paper variant="outlined" sx={{ flexShrink: 0, maxHeight: 280, borderRadius: 1.5, overflow: 'hidden' }}>
             <Box
               sx={{
                 display: 'flex',
@@ -717,7 +808,7 @@ export default function GenerationMixPage() {
               </IconButton>
             </Box>
             <Collapse in={outagesExpanded} timeout={0}>
-              <Box sx={{ px: 1.5, pb: 1.5, maxHeight: 480, overflowY: 'auto' }}>
+              <Box sx={{ px: 1.5, pb: 1.5, maxHeight: 240, overflowY: 'auto' }}>
                 <OutagesPanel
                   startDate={startDate}
                   endDate={endDate}

@@ -71,6 +71,48 @@ export interface HjksOutage {
 }
 
 /**
+ * One area's operating/stopped capacity at a single timestamp (all MW).
+ */
+export interface UnitAvailabilityDataPoint {
+    /** Total installed capacity of active units in this area (MW) */
+    total_capacity_mw: number;
+    /** Capacity removed by overlapping outages (MW) */
+    stopped_capacity_mw: number;
+    /** Operating capacity = max(0, total - stopped) (MW) */
+    available_capacity_mw: number;
+    /** Number of active units in this area */
+    unit_count: number;
+    /** Number of outage records overlapping this bucket */
+    stopped_unit_count: number;
+}
+
+/**
+ * One timestamp bucket of the availability timeline, keyed by fuel-category key.
+ */
+export interface UnitAvailabilityTimestamp {
+    /** Bucket start, JST-local string "YYYY-MM-DD HH:MM:SS" */
+    datetime: string;
+    /** Per-fuel capacity breakdown (key = GEN_SOURCES fuel key, e.g. "thermal") */
+    data: Record<string, UnitAvailabilityDataPoint>;
+}
+
+/**
+ * Fleet operating/stopped capacity timeline derived from hjks_unit + hjks_outage,
+ * scoped to one area and broken down by fuel type.
+ */
+export interface UnitAvailabilityTimeline {
+    start_date: string;
+    end_date: string;
+    interval_minutes: number;
+    /** Area scope (lowercase EN code); null = all areas */
+    area?: string | null;
+    /** Fuel-category keys present, ordered to match GEN_SOURCES */
+    keys: string[];
+    timeline: UnitAvailabilityTimestamp[];
+    meta?: { dropped_outages?: number; unit_total?: number };
+}
+
+/**
  * Interconnection line flow data.
  */
 export interface InterconnectionFlow {

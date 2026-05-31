@@ -155,6 +155,7 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     const chart = createChart(
       containerRef.current,
       createFullChartOptions(colors, isDark, {
+        autoSize: true,
         rightPriceScale: {
           borderVisible: false,
           scaleMargins: { top: 0.05, bottom: 0.05 },
@@ -296,7 +297,7 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     prim.setZones(outagesToZones(outages));
   }, [outages, mode]);
 
-  return <Box ref={containerRef} sx={{ width: '100%', height: '100%', minHeight: 300 }} />;
+  return <Box ref={containerRef} sx={{ width: '100%', height: '100%', minHeight: 180 }} />;
 };
 
 export default GenerationMixLightweightChart;

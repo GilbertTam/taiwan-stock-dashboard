@@ -38,6 +38,9 @@ export { TimeSlot, TimeSlotDescription } from './market';
 export type {
     ImbalanceData,
     HjksOutage,
+    UnitAvailabilityDataPoint,
+    UnitAvailabilityTimestamp,
+    UnitAvailabilityTimeline,
     InterconnectionFlow,
     IntradayData,
     OcctoAreaData,

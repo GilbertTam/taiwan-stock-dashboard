@@ -102,6 +102,52 @@ class Tdgc(BaseModel):
     class Config:
         extra = "allow"
 
+class HjksUnit(BaseModel):
+    """A generator unit from the hjks_unit master registry.
+
+    ``max_capacity`` is the raw kW value from ES; ``max_capacity_mw`` is the
+    normalized MW value injected by ESService.get_hjks_units.
+    """
+    plantcd: Optional[str] = None
+    unitcd: Optional[str] = None
+    unit_name: Optional[str] = None
+    name: Optional[str] = None
+    company: Optional[str] = None
+    area: Optional[str] = None
+    format: Optional[str] = None
+    max_capacity_mw: float = 0.0
+    is_active: Optional[bool] = None
+    class Config:
+        extra = "allow"
+
+class UnitAvailabilityDataPoint(BaseModel):
+    total_capacity_mw: float
+    stopped_capacity_mw: float
+    available_capacity_mw: float
+    unit_count: int = 0
+    stopped_unit_count: int = 0
+
+class UnitAvailabilityTimestamp(BaseModel):
+    datetime: str
+    data: Dict[str, UnitAvailabilityDataPoint]
+
+class UnitAvailabilityTimeline(BaseModel):
+    start_date: str
+    end_date: str
+    interval_minutes: int
+    # Area scope (lowercase EN code) the timeline was computed for; null = all areas.
+    area: Optional[str] = None
+    # Fuel-category keys present, ordered to match the frontend GEN_SOURCES.
+    keys: List[str]
+    timeline: List[UnitAvailabilityTimestamp]
+    meta: Dict[str, Any] = {}
+
+class UnitAvailabilityResponse(BaseModel):
+    result: Union[str, List[Dict[str, str]]]
+    code: int = 0
+    count: Optional[int] = None
+    data: UnitAvailabilityTimeline
+
 class Weather(BaseModel):
     weather_datetime: str
     region: str
