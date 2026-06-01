@@ -29,6 +29,7 @@ import {
 } from '@/components/price-chart/plugins/StackedBarSeries';
 import { createFullChartOptions, useChartColors, parseToTimestamp, toChartTime } from '@/utils/chartUtils';
 import { GEN_SOURCES } from './GenerationMixLightweightChart';
+import type { LinkedChartHandle } from '@/hooks/useLinkedTimeScales';
 import type { UnitAvailabilityTimeline } from '@/types';
 
 const JST = 'Asia/Tokyo';
@@ -47,17 +48,30 @@ export interface UnitCapacityTimelineChartProps {
     timeline: UnitAvailabilityTimeline | null;
     metric: UnitCapacityMetric;
     isDark: boolean;
+    /** When false, only fit the chart once per instance (the linked layout drives the window after). */
+    autoFit?: boolean;
+    /** When false, hide this chart's time axis (the linked bottom chart owns the shared axis). */
+    showTimeAxis?: boolean;
+    /** Exposes the chart + main series so the linked layout can sync time-scale & crosshair. */
+    onChartReady?: (handle: LinkedChartHandle | null) => void;
 }
 
 export const UnitCapacityTimelineChart: React.FC<UnitCapacityTimelineChartProps> = ({
     timeline,
     metric,
     isDark,
+    autoFit = true,
+    showTimeAxis = true,
+    onChartReady,
 }) => {
     const colors = useChartColors();
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const seriesRef = useRef<ReturnType<IChartApi['addCustomSeries']> | null>(null);
+    const chartDataRef = useRef<StackedBarData[]>([]);
+    const didFitRef = useRef(false);
+    const onChartReadyRef = useRef(onChartReady);
+    onChartReadyRef.current = onChartReady;
 
     // ── Build fuel-stacked bar data for the selected metric ─────────────────────
     const chartData: StackedBarData[] = useMemo(() => {
@@ -87,16 +101,19 @@ export const UnitCapacityTimelineChart: React.FC<UnitCapacityTimelineChartProps>
                 autoSize: true,
                 rightPriceScale: {
                     borderVisible: false,
+                    minimumWidth: 72, // keep aligned with the linked OutageTimelineChart's price scale
                     scaleMargins: { top: 0.05, bottom: 0.05 },
                 },
                 timeScale: {
                     borderVisible: false,
+                    visible: showTimeAxis,
                     timeVisible: true,
                     secondsVisible: false,
                 },
             }),
         );
         chartRef.current = chart;
+        didFitRef.current = false;
 
         const series = chart.addCustomSeries(new StackedBarSeries(), {
             priceScaleId: 'right',
@@ -106,7 +123,15 @@ export const UnitCapacityTimelineChart: React.FC<UnitCapacityTimelineChartProps>
         } as any);
         seriesRef.current = series as any;
 
+        const priceAtTime = (time: number): number | null => {
+            const d = chartDataRef.current.find((x: any) => x.time === time);
+            if (!d) return null;
+            return (d.items as any[]).reduce((s: number, it: any) => s + (it.value || 0), 0);
+        };
+        onChartReadyRef.current?.({ chart, series: series as any, priceAtTime });
+
         return () => {
+            onChartReadyRef.current?.(null);
             chart.remove();
             chartRef.current = null;
             seriesRef.current = null;
@@ -116,10 +141,15 @@ export const UnitCapacityTimelineChart: React.FC<UnitCapacityTimelineChartProps>
 
     // ── Push data without recreating the chart ──────────────────────────────────
     useEffect(() => {
+        chartDataRef.current = chartData;
         if (!seriesRef.current || !chartRef.current) return;
         seriesRef.current.setData(chartData);
-        chartRef.current.timeScale().fitContent();
-    }, [chartData]);
+        // autoFit=false (linked layout) fits only once per instance so it doesn't fight the linked window.
+        if (autoFit || !didFitRef.current) {
+            chartRef.current.timeScale().fitContent();
+            didFitRef.current = true;
+        }
+    }, [chartData, autoFit]);
 
     return <Box ref={containerRef} sx={{ width: '100%', height: '100%', minHeight: 160 }} />;
 };
