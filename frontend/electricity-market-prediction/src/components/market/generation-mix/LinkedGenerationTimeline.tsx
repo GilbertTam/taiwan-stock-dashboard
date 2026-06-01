@@ -149,18 +149,23 @@ export const LinkedGenerationTimeline: React.FC<LinkedGenerationTimelineProps> =
     <Paper
       variant="outlined"
       sx={{
-        flex: '3 1 500px',
+        flex: { xs: '0 0 auto', md: '3 1 500px' },
+        // min-width:0 lets the flex item shrink to its container so the LWC
+        // canvas (and its Y-axis labels) resize instead of overflowing & clipping.
+        minWidth: 0,
         minHeight: 0,
         p: 1.5,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        // On small screens the panes drive height and the page scrolls;
+        // on desktop the panel is fixed-height with overflow clipped.
+        overflow: { xs: 'visible', md: 'hidden' },
         borderRadius: 1.5,
         gap: 0.25,
       }}
     >
       {/* ── 1. OCCTO generation mix ─────────────────────────────────────────── */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', flex: '3 1 0', minHeight: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', flex: '3 1 0', minWidth: 0, minHeight: { xs: 240, md: 0 } }}>
         <PaneHeader source="OCCTO" accent="var(--primary)" descriptor={t('paneOcctoDesc')}>
           <Legend items={occtoLegend} />
           {ceilingData && (
@@ -186,7 +191,7 @@ export const LinkedGenerationTimeline: React.FC<LinkedGenerationTimelineProps> =
             {outages.length > 0 ? ` (${outages.length})` : ''}
           </ButtonBase>
         </PaneHeader>
-        <Box sx={{ flex: 1, minHeight: 0 }}>
+        <Box sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
           <GenerationMixLightweightChart
             timeseriesData={areaData}
             comparisonItems={[]}
@@ -210,7 +215,7 @@ export const LinkedGenerationTimeline: React.FC<LinkedGenerationTimelineProps> =
       <Divider sx={{ my: 0.5 }} />
 
       {/* ── 2. HJKS operating/stopped capacity ──────────────────────────────── */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', flex: '3 1 0', minHeight: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', flex: '3 1 0', minWidth: 0, minHeight: { xs: 240, md: 0 } }}>
         <PaneHeader source="HJKS" accent="var(--secondary)" descriptor={t('paneHjksDesc')}>
           <Box sx={{ display: 'inline-flex', border: '1px solid var(--card-border)', borderRadius: 1, overflow: 'hidden', height: 22, flexShrink: 0 }}>
             {(['stopped', 'operating'] as UnitCapacityMetric[]).map((m, i) => (
@@ -232,7 +237,7 @@ export const LinkedGenerationTimeline: React.FC<LinkedGenerationTimelineProps> =
           </Box>
           <Legend items={hjksLegend} />
         </PaneHeader>
-        <Box sx={{ flex: 1, minHeight: 0 }}>
+        <Box sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
           {hasCapacity ? (
             <UnitCapacityTimelineChart
               timeline={unitAvailability}
@@ -254,11 +259,11 @@ export const LinkedGenerationTimeline: React.FC<LinkedGenerationTimelineProps> =
       {showOutages && (
         <>
           <Divider sx={{ my: 0.5 }} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', flex: '2 1 0', minHeight: 0 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: '2 1 0', minWidth: 0, minHeight: { xs: 220, md: 0 } }}>
             <PaneHeader source="HJKS" accent="#ffa726" descriptor={t('outageTimelineTitle')}>
               <Legend items={stopTypeLegend} />
             </PaneHeader>
-            <Box sx={{ flex: 1, minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
               {outages.length > 0 ? (
                 <OutageTimelineChart
                   outages={outages}

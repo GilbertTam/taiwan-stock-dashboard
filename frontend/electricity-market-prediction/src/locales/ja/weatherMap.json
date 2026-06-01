@@ -3,6 +3,16 @@
   "subtitle": "9エリア気象データ × マップ可視化（デフォルト：今日＋明日の予測）",
   "leftPanelTitle": "エリア値マップ",
   "rightPanelTitle": "Windy衛星マップ",
+  "leftPanelSource": "各エリア実測＋数値予報",
+  "rightPanelSource": "Windy · ECMWFモデル",
+  "whyDiffer": {
+    "trigger": "Windyと異なる理由",
+    "title": "Windyと値が異なる理由",
+    "intro": "両パネルは用途が異なり、セル単位での比較は想定していません：",
+    "source": "ソース／モデルの違い：左＝各エリアの実測＋数値予報、右＝WindyのECMWF連続モデル。",
+    "resolution": "空間解像度の違い：左＝9エリア代表値、右＝連続グリッドの補間。",
+    "time": "タイムライン独立：Windyは独自の時間バーを使用し、左のスライダーと一致しない場合があります。"
+  },
   "windyDisclaimer": "データソース：Windy.com（ECMWFモデル）｜Windyのタイムラインは独立。下部コントロールで再生してください",
   "dataset": {
     "label": "粒度",

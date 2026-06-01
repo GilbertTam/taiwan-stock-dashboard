@@ -3,6 +3,16 @@
   "subtitle": "9 區天氣資料 × 地圖視覺化（預設今天 + 明天預測）",
   "leftPanelTitle": "區域數值地圖",
   "rightPanelTitle": "Windy 衛星雲圖",
+  "leftPanelSource": "各區實測＋數值預報",
+  "rightPanelSource": "Windy · ECMWF 模型",
+  "whyDiffer": {
+    "trigger": "為何與 Windy 不同？",
+    "title": "為何與 Windy 數值不同？",
+    "intro": "兩側為不同用途的天氣資訊，不建議逐格比對：",
+    "source": "來源／模型不同：左側為各區實測與數值預報，右側為 Windy 的 ECMWF 連續模型。",
+    "resolution": "空間解析度不同：左側為 9 區代表值，右側為連續網格逐點內插。",
+    "time": "時間軸獨立：Windy 使用自身的時間控制列，與左側滑桿不一定同步。"
+  },
   "windyDisclaimer": "資料來源：Windy.com（ECMWF 模型）｜Windy 時間軸獨立，請用其下方控制列播放",
   "dataset": {
     "label": "資料粒度",

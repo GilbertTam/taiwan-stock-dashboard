@@ -36,11 +36,11 @@ function MetricRow({
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
             <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0, mt: '3px' }} />
             <Box sx={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 0.3, minWidth: 0, overflow: 'hidden' }}>
-                <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
                     {label}
                 </Typography>
                 {hint && (
-                    <Typography sx={{ fontSize: '0.62rem', color: 'text.disabled', whiteSpace: 'nowrap', opacity: 0.85 }}>
+                    <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
                         ({hint})
                     </Typography>
                 )}
@@ -86,7 +86,7 @@ function KpiBlock({ label, description, value, sub, accentColor, badge, tooltip,
             {/* ── Title row ─────────────────────────────────────────────── */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.2 }}>
                 <Typography sx={{
-                    fontSize: '0.65rem',
+                    fontSize: '0.72rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
@@ -137,13 +137,13 @@ function KpiBlock({ label, description, value, sub, accentColor, badge, tooltip,
 
             {/* ── Description — always visible ───────────────────────── */}
             <Typography sx={{
-                fontSize: '0.62rem',
-                color: 'text.disabled',
+                fontSize: '0.72rem',
+                color: 'text.secondary',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 mb: 0.6,
-                lineHeight: 1.3,
+                lineHeight: 1.4,
             }}>
                 {description}
             </Typography>
@@ -164,7 +164,7 @@ function KpiBlock({ label, description, value, sub, accentColor, badge, tooltip,
             {/* ── Sub text (e.g. model name) ─────────────────────────── */}
             {sub && (
                 <Typography sx={{
-                    fontSize: '0.62rem',
+                    fontSize: '0.7rem',
                     color: 'text.secondary',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -419,7 +419,7 @@ export default function RevenueKpiHeader({
                         {/* Efficiency vs optimal */}
                         {showManualEff && (
                             <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                <Typography sx={{ fontSize: '0.6rem', color: 'text.disabled', mb: 0.25 }}>
+                                <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary', mb: 0.25 }}>
                                     {t('kpi.manual.vsOptimal')}
                                 </Typography>
                                 {manualEfficiencyActual != null && (
@@ -445,7 +445,7 @@ export default function RevenueKpiHeader({
                         {/* Cycle limit warning */}
                         {optimalRev !== null && manualRev > optimalRev && (
                             <Box sx={{ mt: 0.6, px: 0.75, py: 0.4, bgcolor: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.35)', borderRadius: 1 }}>
-                                <Typography sx={{ fontSize: '0.62rem', color: '#f97316', lineHeight: 1.5 }}>
+                                <Typography sx={{ fontSize: '0.7rem', color: '#f97316', lineHeight: 1.5 }}>
                                     {t('kpi.manual.cycleLimitWarning', { limit: cycleLimit ?? '?' })}
                                     {manualEffectiveCycles != null && t('kpi.manual.effectiveCycles', { cycles: manualEffectiveCycles.toFixed(2) })}
                                 </Typography>

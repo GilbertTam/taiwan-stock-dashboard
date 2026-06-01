@@ -205,7 +205,7 @@ export function WindyOverlayPanel({
 
             <Typography
                 variant="caption"
-                sx={{ px: 1, py: 0.5, color: 'text.secondary', fontSize: '0.7rem', textAlign: 'right', flexShrink: 0 }}
+                sx={{ px: 1, py: 0.5, color: 'text.secondary', fontSize: '0.72rem', textAlign: 'right', flexShrink: 0 }}
             >
                 {t('windyDisclaimer')}
             </Typography>

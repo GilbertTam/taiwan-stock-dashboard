@@ -411,9 +411,19 @@ export default function GenerationMixPage() {
   const hasData = pageMode === 'timeseries' ? areaData.length > 0 : comparisonItems.length > 0;
 
   return (
-    <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+    <Box sx={{
+      width: '100%',
+      // App-shell (no page scroll) on desktop; scrollable stacked layout on
+      // small screens so nothing gets clipped when it can't fit one viewport.
+      height: { xs: 'auto', md: '100vh' },
+      minHeight: { xs: '100vh', md: 0 },
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: { xs: 'visible', md: 'hidden' },
+      position: 'relative',
+    }}>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0.5, p: 0.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: '100%' }, minHeight: { md: 0 }, gap: 0.5, p: 0.5 }}>
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0 }}>
           <DashboardToolbar
@@ -528,8 +538,9 @@ export default function GenerationMixPage() {
           </Box>
         )}
 
-        {/* Charts area — tabbed active chart + donut detail panel */}
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 1 }}>
+        {/* Charts area — tabbed active chart + donut detail panel.
+            Row on desktop, stacked column on small screens. */}
+        <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1 }}>
           {!hasData && !activeLoading ? (
             <Alert severity="info" sx={{ mx: 0.5, alignSelf: 'flex-start' }}>
               {t('noData')}
@@ -561,8 +572,9 @@ export default function GenerationMixPage() {
                 <Paper
                   variant="outlined"
                   sx={{
-                    flex: '3 1 500px',
-                    minHeight: 0,
+                    flex: { xs: '0 0 auto', md: '3 1 500px' },
+                    minWidth: 0,
+                    minHeight: { xs: 420, md: 0 },
                     p: 1.5,
                     display: 'flex',
                     flexDirection: 'column',
@@ -583,7 +595,7 @@ export default function GenerationMixPage() {
                       ))}
                     </Box>
                   </Box>
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
+                  <Box sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
                     <GenerationMixLightweightChart
                       timeseriesData={areaData}
                       comparisonItems={comparisonItems}
@@ -599,13 +611,15 @@ export default function GenerationMixPage() {
                 </Paper>
               )}
 
-              {/* Donut panel + lock indicator + outage detail */}
+              {/* Donut panel + lock indicator + outage detail.
+                  Sidebar on desktop, full-width card below charts on small screens. */}
               <Paper
                 variant="outlined"
                 sx={{
-                  flex: '1 1 220px',
-                  maxWidth: 280,
-                  minHeight: 0,
+                  flex: { xs: '0 0 auto', md: '1 1 220px' },
+                  maxWidth: { xs: 'none', md: 280 },
+                  minWidth: 0,
+                  minHeight: { xs: 360, md: 0 },
                   p: 1.5,
                   display: 'flex',
                   flexDirection: 'column',

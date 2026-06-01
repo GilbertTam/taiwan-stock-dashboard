@@ -3,6 +3,16 @@
   "subtitle": "9-area weather data × map visualization (default today + tomorrow forecast)",
   "leftPanelTitle": "Regional Value Map",
   "rightPanelTitle": "Windy Satellite Map",
+  "leftPanelSource": "Per-area observed + forecast",
+  "rightPanelSource": "Windy · ECMWF model",
+  "whyDiffer": {
+    "trigger": "Why differ from Windy?",
+    "title": "Why values differ from Windy",
+    "intro": "The two panels serve different purposes and are not meant for cell-by-cell comparison:",
+    "source": "Different source/model: left = per-area observations + numerical forecast; right = Windy's ECMWF continuous model.",
+    "resolution": "Different spatial resolution: left = 9 regional representative values; right = continuous-grid interpolation.",
+    "time": "Independent timelines: Windy uses its own time bar and may not match the left slider."
+  },
   "windyDisclaimer": "Source: Windy.com (ECMWF model) | Windy's timeline is independent — use its bottom control bar",
   "dataset": {
     "label": "Granularity",

@@ -3,10 +3,35 @@
 import { useState, useEffect, ReactNode, createContext, useContext } from 'react';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { createTheme } from '@mui/material/styles';
+import { createTheme, responsiveFontSizes } from '@mui/material/styles';
+
+// ── Shared typography scale ──────────────────────────────────────────────
+// Establishes a single, slightly-larger type system across the whole app.
+// Base `fontSize` is bumped from MUI's default 14 → 15 (≈+7%), which scales
+// every variant (h1-h6, body, caption, button…) proportionally. A CJK-aware
+// system font stack keeps Japanese / Traditional-Chinese glyphs consistent
+// with the surrounding Latin text instead of falling back per-glyph.
+const sharedTypography = {
+  fontFamily: [
+    'system-ui',
+    '-apple-system',
+    '"Segoe UI"',
+    'Roboto',
+    '"Helvetica Neue"',
+    'Arial',
+    '"Hiragino Sans"',
+    '"Noto Sans JP"',
+    '"Noto Sans TC"',
+    '"Microsoft JhengHei"',
+    '"Microsoft YaHei"',
+    'sans-serif',
+  ].join(','),
+  fontSize: 15,
+};
 
 // 創建主題
-const darkTheme = createTheme({
+const darkThemeBase = createTheme({
+  typography: sharedTypography,
   palette: {
     mode: 'dark',
     primary: {
@@ -69,7 +94,8 @@ const darkTheme = createTheme({
   },
 });
 
-const lightTheme = createTheme({
+const lightThemeBase = createTheme({
+  typography: sharedTypography,
   palette: {
     mode: 'light',
     primary: {
@@ -83,8 +109,10 @@ const lightTheme = createTheme({
       paper: 'rgba(255, 255, 255, 0.8)',
     },
     text: {
+      // Darkened from #666666 → #4b5563 (≈6.5:1 on the #f0f2f5 background)
+      // so secondary/explanatory text is clearly legible in the light theme.
       primary: '#1a1a1a',
-      secondary: '#666666',
+      secondary: '#4b5563',
     },
   },
   components: {
@@ -129,6 +157,13 @@ const lightTheme = createTheme({
     },
   },
 });
+
+// Scale heading sizes down on smaller breakpoints so the larger base type
+// never overflows narrow screens. Restricted to headings to keep body / table
+// text stable across breakpoints.
+const RESPONSIVE_HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
+const darkTheme = responsiveFontSizes(darkThemeBase, { variants: [...RESPONSIVE_HEADINGS] });
+const lightTheme = responsiveFontSizes(lightThemeBase, { variants: [...RESPONSIVE_HEADINGS] });
 
 export type Locale = 'zh-TW' | 'en' | 'ja';
 export type LocalePreference = Locale | 'system';
