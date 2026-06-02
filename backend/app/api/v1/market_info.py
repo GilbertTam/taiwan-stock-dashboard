@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.services.es_service import es_service
-from app.schemas.market_info import APIResponse
+from app.schemas.market_info import APIResponse, UnitAvailabilityResponse
 from app.api.v1.auth import get_current_user
 from app.core.logging import logger
 from app.core.validators import validate_dates
@@ -74,6 +74,38 @@ def hjks(
     es = es_service
     data = es.get_hjks_outages(start_date, end_date, area_name)
     return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/hjks-units", response_model=APIResponse)
+def hjks_units(
+    start_date: str,
+    end_date: str,
+    area_name: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    """Generator unit master registry (hjks_unit). Capacity normalized to MW (max_capacity_mw)."""
+    validate_dates(start_date, end_date)
+    es = es_service
+    data = es.get_hjks_units(start_date, end_date, area_name)
+    return {"result": "Success", "code": 0, "count": len(data), "data": data}
+
+@router.get("/hjks-unit-availability", response_model=UnitAvailabilityResponse)
+def hjks_unit_availability(
+    start_date: str,
+    end_date: str,
+    area_name: Optional[str] = None,
+    interval_minutes: int = 30,
+    current_user = Depends(get_current_user)
+):
+    """Per-timestamp, per-area operating/stopped capacity timeline.
+
+    Joins hjks_unit (total fleet capacity) with hjks_outage (capacity removed over time).
+    """
+    validate_dates(start_date, end_date)
+    if interval_minutes <= 0:
+        raise HTTPException(status_code=400, detail="interval_minutes must be a positive integer")
+    es = es_service
+    data = es.get_unit_availability_timeline(start_date, end_date, interval_minutes, area_name)
+    return {"result": "Success", "code": 0, "count": len(data["timeline"]), "data": data}
 
 @router.get("/interconnection", response_model=APIResponse)
 def interconnection(

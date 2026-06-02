@@ -648,11 +648,11 @@ export const RevenueSummaryChart: React.FC<RevenueSummaryChartProps> = ({
                     borderBottom: '1px solid', borderColor: 'divider',
                     bgcolor: 'var(--card-bg)', flexShrink: 0,
                 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
                         {(ganttData?.optimal?.length ?? 0) > 0 ? t('summary.revenueBasis') : t('summary.assumedActual')}
                     </Typography>
                     <PriceBasisSelector />
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', opacity: 0.7 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.74rem' }}>
                         {priceBasis === 'actual'
                             ? t('summary.basisDescActual')
                             : t('summary.basisDescModel', { model: priceBasisOptions.find(o => o.id === priceBasis)?.label })

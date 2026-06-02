@@ -36,10 +36,13 @@ import { useMarketDataContext } from '@/context/MarketDataContext';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 
 import { useTheme } from '@/app/ThemeProvider';
-import { fetchOcctoArea, fetchHjksOutages } from '@/services';
+import { fetchOcctoArea, fetchHjksOutages, fetchUnitAvailabilityTimeline } from '@/services';
 import OutagesPanel from '@/components/market/outages/OutagesPanel';
-import type { OcctoAreaData, HjksOutage } from '@/types';
+import type { OcctoAreaData, HjksOutage, UnitAvailabilityTimeline } from '@/types';
 import GenerationMixLightweightChart, { GEN_SOURCES as GEN_SOURCES_LW } from '@/components/market/generation-mix/GenerationMixLightweightChart';
+import { type UnitCapacityMetric } from '@/components/market/generation-mix/UnitCapacityTimelineChart';
+import LinkedGenerationTimeline from '@/components/market/generation-mix/LinkedGenerationTimeline';
+import { AreaButtonGroup } from '@/components/selectors/AreaButtonGroup';
 import { useTranslation } from 'react-i18next';
 import { getAreaName } from '@/utils/areaI18n';
 
@@ -178,6 +181,9 @@ export default function GenerationMixPage() {
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
   const [lockedOutages, setLockedOutages] = useState<HjksOutage[]>([]);
   const [lockedTime, setLockedTime] = useState<number | null>(null);
+  // Unit operating/stopped capacity timeline (all 9 areas; hjks_unit ⋈ hjks_outage)
+  const [unitAvailability, setUnitAvailability] = useState<UnitAvailabilityTimeline | null>(null);
+  const [unitMetric, setUnitMetric] = useState<UnitCapacityMetric>('operating');
 
   // ── Timeseries data (fetched independently per area, not via context scope) ──
   const [timeseriesOcctoData, setTimeseriesOcctoData] = useState<OcctoAreaData[]>([]);
@@ -253,6 +259,27 @@ export default function GenerationMixPage() {
       setOutagesExpanded(true);
     }
   }, [outages.length]);
+
+  // ── Unit availability timeline (selected area, stacked by fuel; timeseries) ──
+  const unitAvailAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (pageMode !== 'timeseries' || !startDate || !endDate || !selectedArea) {
+      setUnitAvailability(null);
+      return;
+    }
+    unitAvailAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    unitAvailAbortRef.current = ctrl;
+    fetchUnitAvailabilityTimeline({
+      start_date: format(startDate, 'yyyyMMdd'),
+      end_date: format(endDate, 'yyyyMMdd'),
+      area_name: selectedArea,
+      interval_minutes: 30,
+    })
+      .then((data) => { if (!ctrl.signal.aborted) setUnitAvailability(data); })
+      .catch((err) => { if (!ctrl.signal.aborted) { console.error('Failed to fetch unit availability:', err); setUnitAvailability(null); } });
+    return () => ctrl.abort();
+  }, [pageMode, startDate, endDate, selectedArea]);
 
   // ── Timeseries: sort the independently-fetched area data ───────────────────
   const areaData: OcctoAreaData[] = useMemo(() => {
@@ -384,9 +411,19 @@ export default function GenerationMixPage() {
   const hasData = pageMode === 'timeseries' ? areaData.length > 0 : comparisonItems.length > 0;
 
   return (
-    <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+    <Box sx={{
+      width: '100%',
+      // App-shell (no page scroll) on desktop; scrollable stacked layout on
+      // small screens so nothing gets clipped when it can't fit one viewport.
+      height: { xs: 'auto', md: '100vh' },
+      minHeight: { xs: '100vh', md: 0 },
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: { xs: 'visible', md: 'hidden' },
+      position: 'relative',
+    }}>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', gap: 0.5, p: 0.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: '100%' }, minHeight: { md: 0 }, gap: 0.5, p: 0.5 }}>
         {/* Toolbar */}
         <Box sx={{ flexShrink: 0 }}>
           <DashboardToolbar
@@ -438,31 +475,11 @@ export default function GenerationMixPage() {
           </Box>
         </Box>
 
-        {/* Row B: Area chip selector (timeseries mode only) */}
+        {/* Row B: Area selector (timeseries mode only) — matches the forecast page */}
         {pageMode === 'timeseries' && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.5, flexWrap: 'wrap', flexShrink: 0 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>{t('selectArea')}</Typography>
-            {areas.map((area) => (
-              <Chip
-                key={area.name}
-                label={getAreaName(t, area.name)}
-                size="small"
-                variant={selectedArea === area.name ? 'filled' : 'outlined'}
-                onClick={() => handleAreaChange({ target: { value: area.name } } as any)}
-                sx={{
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  fontSize: 11,
-                  height: 22,
-                  ...(selectedArea === area.name && {
-                    backgroundColor: 'rgba(0,204,122,0.2)',
-                    borderColor: 'rgba(0,204,122,0.5)',
-                    color: '#00cc7a',
-                    fontWeight: 700,
-                  }),
-                }}
-              />
-            ))}
+            <AreaButtonGroup areas={areas} selectedArea={selectedArea ?? ''} onAreaChange={handleAreaChange} />
           </Box>
         )}
 
@@ -521,8 +538,9 @@ export default function GenerationMixPage() {
           </Box>
         )}
 
-        {/* Charts area */}
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 1 }}>
+        {/* Charts area — tabbed active chart + donut detail panel.
+            Row on desktop, stacked column on small screens. */}
+        <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1 }}>
           {!hasData && !activeLoading ? (
             <Alert severity="info" sx={{ mx: 0.5, alignSelf: 'flex-start' }}>
               {t('noData')}
@@ -533,55 +551,75 @@ export default function GenerationMixPage() {
             </Box>
           ) : (
             <>
-              {/* Stacked bar chart — Lightweight Charts (no ECharts flicker) */}
-              <Paper
-                variant="outlined"
-                sx={{
-                  flex: '3 1 500px',
-                  minHeight: 0,
-                  p: 1.5,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  borderRadius: 1.5,
-                }}
-              >
-                {/* Title + inline legend */}
-                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                    {pageMode === 'timeseries' ? t('sourceTimeseries') : t('regionAvgMix')}
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px' }}>
-                    {GEN_SOURCES.map((s) => (
-                      <Box key={s.key as string} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: s.color, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t(s.labelKey)}</Typography>
-                      </Box>
-                    ))}
+              {pageMode === 'timeseries' ? (
+                /* Linked pair: OCCTO stacked mix (top) + HJKS outage timeline (bottom) */
+                <LinkedGenerationTimeline
+                  areaData={areaData}
+                  unitAvailability={unitAvailability}
+                  unitMetric={unitMetric}
+                  setUnitMetric={setUnitMetric}
+                  outages={outages}
+                  isDark={isDark}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onHoverIndexChange={setHoverIndex}
+                  onHoverOutagesChange={setHoveredOutages}
+                  onClickChange={handleChartClick}
+                  lockedBarTime={lockedTime}
+                />
+              ) : (
+                /* Comparison mode — single stacked chart (X = area, no timeline/sync) */
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    flex: { xs: '0 0 auto', md: '3 1 500px' },
+                    minWidth: 0,
+                    minHeight: { xs: 420, md: 0 },
+                    p: 1.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    borderRadius: 1.5,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {t('regionAvgMix')}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px' }}>
+                      {GEN_SOURCES.map((s) => (
+                        <Box key={s.key as string} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: s.color, flexShrink: 0 }} />
+                          <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1 }}>{t(s.labelKey)}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
                   </Box>
-                </Box>
-                <Box sx={{ flex: 1, minHeight: 0 }}>
-                  <GenerationMixLightweightChart
-                    timeseriesData={areaData}
-                    comparisonItems={comparisonItems}
-                    mode={pageMode}
-                    isDark={isDark}
-                    onHoverIndexChange={setHoverIndex}
-                    onHoverOutagesChange={setHoveredOutages}
-                    onClickChange={handleChartClick}
-                    outages={outages}
-                    lockedBarTime={lockedTime}
-                  />
-                </Box>
-              </Paper>
+                  <Box sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+                    <GenerationMixLightweightChart
+                      timeseriesData={areaData}
+                      comparisonItems={comparisonItems}
+                      mode={pageMode}
+                      isDark={isDark}
+                      onHoverIndexChange={setHoverIndex}
+                      onHoverOutagesChange={setHoveredOutages}
+                      onClickChange={handleChartClick}
+                      outages={outages}
+                      lockedBarTime={lockedTime}
+                    />
+                  </Box>
+                </Paper>
+              )}
 
-              {/* Donut panel + lock indicator + outage detail */}
+              {/* Donut panel + lock indicator + outage detail.
+                  Sidebar on desktop, full-width card below charts on small screens. */}
               <Paper
                 variant="outlined"
                 sx={{
-                  flex: '1 1 220px',
-                  maxWidth: 280,
-                  minHeight: 0,
+                  flex: { xs: '0 0 auto', md: '1 1 220px' },
+                  maxWidth: { xs: 'none', md: 280 },
+                  minWidth: 0,
+                  minHeight: { xs: 360, md: 0 },
                   p: 1.5,
                   display: 'flex',
                   flexDirection: 'column',
@@ -679,7 +717,7 @@ export default function GenerationMixPage() {
 
         {/* Outages panel tab — collapsible, timeseries mode only */}
         {pageMode === 'timeseries' && (
-          <Paper variant="outlined" sx={{ flexShrink: 0, borderRadius: 1.5, overflow: 'hidden' }}>
+          <Paper variant="outlined" sx={{ flexShrink: 0, maxHeight: 280, borderRadius: 1.5, overflow: 'hidden' }}>
             <Box
               sx={{
                 display: 'flex',
@@ -717,7 +755,7 @@ export default function GenerationMixPage() {
               </IconButton>
             </Box>
             <Collapse in={outagesExpanded} timeout={0}>
-              <Box sx={{ px: 1.5, pb: 1.5, maxHeight: 480, overflowY: 'auto' }}>
+              <Box sx={{ px: 1.5, pb: 1.5, maxHeight: 240, overflowY: 'auto' }}>
                 <OutagesPanel
                   startDate={startDate}
                   endDate={endDate}

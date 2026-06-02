@@ -21,7 +21,10 @@ import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import {
   createChart,
+  LineSeries,
+  LineStyle,
   type IChartApi,
+  type ISeriesApi,
   type UTCTimestamp,
 } from 'lightweight-charts';
 import {
@@ -34,6 +37,7 @@ import {
   outageStopTypeColors,
   type OutageRangeZone,
 } from './OutageRangePrimitive';
+import type { LinkedChartHandle } from '@/hooks/useLinkedTimeScales';
 import type { OcctoAreaData, HjksOutage } from '@/types';
 
 const JST = 'Asia/Tokyo';
@@ -74,6 +78,19 @@ export interface GenerationMixLightweightChartProps {
   outages?: HjksOutage[];
   /** UTC-seconds timestamp of the locked bar — crosshair is pinned here while set */
   lockedBarTime?: number | null;
+  /** When false, only fit the chart once per instance (the linked layout drives the window after). */
+  autoFit?: boolean;
+  /** When false, hide this chart's time axis (the linked bottom chart owns the shared axis). */
+  showTimeAxis?: boolean;
+  /** Exposes the chart + main series so the linked layout can sync time-scale & crosshair. */
+  onChartReady?: (handle: LinkedChartHandle | null) => void;
+  /** Operable-capacity ceiling overlay (timeseries only): operating capacity (MW) per timestamp.
+   *  Drawn as a dashed line on the same price scale so outage-driven dips show against generation. */
+  ceilingData?: { datetime: string; value: number }[];
+  /** Colour for the ceiling line + its legend swatch. */
+  ceilingColor?: string;
+  /** Title shown on the ceiling line. */
+  ceilingLabel?: string;
 }
 
 /** Convert HjksOutage array to OutageRangeZone array for the primitive */
@@ -103,12 +120,25 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
   onClickChange,
   outages = [],
   lockedBarTime,
+  autoFit = true,
+  showTimeAxis = true,
+  onChartReady,
+  ceilingData,
+  ceilingColor = '#90a4ae',
+  ceilingLabel = '',
 }) => {
   const colors = useChartColors();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ReturnType<IChartApi['addCustomSeries']> | null>(null);
   const outagesPrimRef = useRef<OutageRangePrimitive | null>(null);
+  // Operable-capacity ceiling line (timeseries mode only).
+  const ceilingSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  // Whether this chart instance has been fitted once (so autoFit=false fits only on create).
+  const didFitRef = useRef(false);
+  // Stable ref to onChartReady so it never re-creates the chart.
+  const onChartReadyRef = useRef(onChartReady);
+  onChartReadyRef.current = onChartReady;
   // Keep a snapshot of the current chart data for crosshair index lookup
   const chartDataRef = useRef<StackedBarData[]>([]);
   // Stable ref to the current outages for crosshair lookup (no re-subscribe needed)
@@ -146,6 +176,27 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     }
   }, [mode, timeseriesData, comparisonItems]);
 
+  // ── Operable-capacity ceiling line data (timeseries mode only) ────────────
+  const ceilingDisplay = useMemo(() => {
+    if (mode !== 'timeseries' || !ceilingData?.length) return [];
+    const seen = new Set<number>();
+    const pts: { time: UTCTimestamp; value: number }[] = [];
+    for (const c of ceilingData) {
+      const t = Number(toDisplayTime(c.datetime));
+      if (!Number.isFinite(t) || seen.has(t)) continue;
+      seen.add(t);
+      pts.push({ time: t as UTCTimestamp, value: c.value });
+    }
+    pts.sort((a, b) => Number(a.time) - Number(b.time));
+    return pts;
+  }, [mode, ceilingData]);
+  const ceilingDisplayRef = useRef(ceilingDisplay);
+  ceilingDisplayRef.current = ceilingDisplay;
+  const ceilingColorRef = useRef(ceilingColor);
+  ceilingColorRef.current = ceilingColor;
+  const ceilingLabelRef = useRef(ceilingLabel);
+  ceilingLabelRef.current = ceilingLabel;
+
   // ── Create / destroy chart when mode or theme changes ────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
@@ -155,12 +206,15 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     const chart = createChart(
       containerRef.current,
       createFullChartOptions(colors, isDark, {
+        autoSize: true,
         rightPriceScale: {
           borderVisible: false,
+          minimumWidth: 72, // keep aligned with the linked OutageTimelineChart's price scale
           scaleMargins: { top: 0.05, bottom: 0.05 },
         },
         timeScale: {
           borderVisible: false,
+          visible: showTimeAxis,
           timeVisible: mode === 'timeseries',
           secondsVisible: false,
           ...(mode === 'comparison' && {
@@ -179,6 +233,7 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
       })
     );
     chartRef.current = chart;
+    didFitRef.current = false;
 
     const instance = new StackedBarSeries();
     const series = chart.addCustomSeries(instance, {
@@ -193,6 +248,23 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     const outagesPrim = new OutageRangePrimitive();
     (series as any).attachPrimitive(outagesPrim);
     outagesPrimRef.current = outagesPrim;
+
+    // Operable-capacity ceiling line (timeseries mode only) — same price scale as the bars,
+    // so an outage-driven dip in the ceiling shows directly against the generation stack.
+    if (mode === 'timeseries') {
+      const ceilingSeries = chart.addSeries(LineSeries, {
+        color: ceilingColorRef.current,
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        priceScaleId: 'right',
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+        title: ceilingLabelRef.current,
+      });
+      ceilingSeries.setData(ceilingDisplayRef.current);
+      ceilingSeriesRef.current = ceilingSeries;
+    }
 
     // Data is always set by the chartData effect below — no stale init here.
 
@@ -259,11 +331,21 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
       onClickRef.current?.(idx >= 0 ? idx : null, t, active);
     });
 
+    // Expose chart + series (and the stacked total at a time) for linked sync.
+    const priceAtTime = (time: number): number | null => {
+      const d = chartDataRef.current.find((x: any) => x.time === time);
+      if (!d) return null;
+      return (d.items as any[]).reduce((s: number, it: any) => s + (it.value || 0), 0);
+    };
+    onChartReadyRef.current?.({ chart, series: series as any, priceAtTime });
+
     return () => {
+      onChartReadyRef.current?.(null);
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
       outagesPrimRef.current = null;
+      ceilingSeriesRef.current = null;
     };
     // Recreate on theme flip or mode change only
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -274,8 +356,21 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     chartDataRef.current = chartData;
     if (!seriesRef.current || !chartRef.current) return;
     seriesRef.current.setData(chartData);
-    chartRef.current.timeScale().fitContent();
-  }, [chartData]);
+    // autoFit=false (linked layout) fits only once per instance so it doesn't fight the linked window.
+    if (autoFit || !didFitRef.current) {
+      chartRef.current.timeScale().fitContent();
+      didFitRef.current = true;
+    }
+  }, [chartData, autoFit]);
+
+  // ── Update operable-capacity ceiling line (no chart recreation) ───────────
+  useEffect(() => {
+    ceilingSeriesRef.current?.setData(ceilingDisplay);
+  }, [ceilingDisplay]);
+
+  useEffect(() => {
+    ceilingSeriesRef.current?.applyOptions({ color: ceilingColor, title: ceilingLabel });
+  }, [ceilingColor, ceilingLabel]);
 
   // ── Clear crosshair when lock is released ────────────────────────────────
   useEffect(() => {
@@ -296,7 +391,7 @@ export const GenerationMixLightweightChart: React.FC<GenerationMixLightweightCha
     prim.setZones(outagesToZones(outages));
   }, [outages, mode]);
 
-  return <Box ref={containerRef} sx={{ width: '100%', height: '100%', minHeight: 300 }} />;
+  return <Box ref={containerRef} sx={{ width: '100%', height: '100%', minHeight: 180 }} />;
 };
 
 export default GenerationMixLightweightChart;

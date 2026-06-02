@@ -85,14 +85,14 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* Typography tokens */
-  --font-size-xs: 12px;
-  --font-size-sm: 13px;
-  --font-size-md: 14px;
-  --font-size-lg: 16px;
-  --font-size-xl: 20px;
-  --font-size-2xl: 24px;
-  --line-height-tight: 1.2;
+  /* Typography tokens — bumped one step for app-wide readability */
+  --font-size-xs: 13px;
+  --font-size-sm: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 17px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 26px;
+  --line-height-tight: 1.25;
   --line-height-normal: 1.5;
 }
 
@@ -101,10 +101,10 @@
   --background: #f0f2f5;
   --foreground: #1a1a1a;
 
-  /* Text Colors */
+  /* Text Colors — secondary darkened for legibility on the light background */
   --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --muted: #666666;
+  --text-secondary: #4b5563;
+  --muted: #4b5563;
 
   /* UI Components */
   --card-bg: rgba(255, 255, 255, 0.8);
@@ -186,7 +186,7 @@
 
   --color-success: var(--success);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 

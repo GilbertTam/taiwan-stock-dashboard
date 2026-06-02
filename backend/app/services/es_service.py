@@ -56,6 +56,49 @@ def _downsample_by_interval(
         out.append(rec)
     return out
 
+# Canonical fuel-category keys + display order. These MUST match the frontend
+# GEN_SOURCES keys so the unit-capacity chart reuses the same colours/labels as
+# the OCCTO generation-mix chart.
+FUEL_ORDER = [
+    'nuclear_power',
+    'thermal',
+    'hydropower',
+    'geothermal_power',
+    'biomass',
+    'solar_power_generation_actual',
+    'wind_power_generation_actual',
+    'pumped_storage',
+    'battery_storage',
+    'others',
+]
+
+
+def _fuel_category(fmt: Optional[str]) -> str:
+    """Map an HJKS ``format`` string (Japanese, e.g. '火力（ガス）') to a canonical
+    fuel-category key matching the frontend GEN_SOURCES."""
+    f = fmt or ''
+    if '原子' in f:
+        return 'nuclear_power'
+    if '揚水' in f:
+        return 'pumped_storage'
+    if '水力' in f:
+        return 'hydropower'
+    if '地熱' in f:
+        return 'geothermal_power'
+    if 'バイオ' in f or '生質' in f or '生物' in f:
+        return 'biomass'
+    if '太陽' in f:
+        return 'solar_power_generation_actual'
+    if '風力' in f:
+        return 'wind_power_generation_actual'
+    if '蓄電' in f or '電池' in f:
+        return 'battery_storage'
+    if ('火力' in f or '汽力' in f or 'ガス' in f or '石炭' in f or '石油' in f
+            or 'コンバインド' in f or '内燃' in f or 'タービン' in f or 'ＬＮＧ' in f or 'LNG' in f):
+        return 'thermal'
+    return 'others'
+
+
 class ESService:
     def __init__(self) -> None:
         self.host = f"{settings.ELASTICSEARCH_HOST}:{settings.ELASTICSEARCH_PORT}"
@@ -74,6 +117,7 @@ class ESService:
         self.jepx_system_index = indices['jepx_system']
         self.imbalance_index = indices['imbalance']
         self.hjks_index = indices['hjks']
+        self.hjks_unit_index = indices['hjks_unit']
         self.interconnection_index = indices['interconnection']
         self.intraday_index = indices['intraday']
         self.earthquake_index = indices['earthquake']
@@ -255,6 +299,186 @@ class ESService:
         results = [hit.to_dict() for hit in response]
         _warn_if_truncated(results)
         return results
+
+    def get_hjks_units(self, start_date: str, end_date: str, area_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Query the hjks_unit generator master registry.
+
+        Returns active units whose validity window (start_date..end_date) overlaps the
+        requested range. ``max_capacity`` is stored in kW in this index; we expose a
+        normalized ``max_capacity_mw`` (kW / 1000) so downstream code only ever sees MW,
+        consistent with hjks_outage's ``down_capacity`` (already MW).
+        """
+        s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
+        e_date = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
+
+        s = Search(using=self.client, index=self.hjks_unit_index)
+        s = s.filter('term', is_active=True)
+        # Validity-window overlap: unit started on/before range end AND ends on/after range start.
+        s = s.filter('range', **{'start_date': {'lte': e_date}})
+        s = s.filter('range', **{'end_date': {'gte': s_date}})
+
+        if area_name:
+            s = s.filter('term', area=area_name)
+
+        s = s.extra(size=MAX_ES_RESULTS)
+        s = s.sort('plantcd')
+        response = s.execute()
+
+        results: List[Dict[str, Any]] = []
+        for hit in response:
+            doc = hit.to_dict()
+            raw_cap = doc.get('max_capacity')
+            try:
+                doc['max_capacity_mw'] = float(raw_cap) / 1000.0 if raw_cap is not None else 0.0
+            except (TypeError, ValueError):
+                doc['max_capacity_mw'] = 0.0
+            area = doc.get('area')
+            doc['area'] = area.lower() if isinstance(area, str) else area
+            results.append(doc)
+        _warn_if_truncated(results)
+        return results
+
+    @staticmethod
+    def _parse_naive_dt(value: Any) -> Optional[datetime]:
+        """Parse a JST-local datetime string (no tz suffix) to a naive datetime."""
+        if not value:
+            return None
+        try:
+            return datetime.strptime(str(value).replace('T', ' ')[:19], "%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            try:
+                return datetime.fromisoformat(str(value))
+            except (ValueError, TypeError):
+                return None
+
+    def get_unit_availability_timeline(
+        self,
+        start_date: str,
+        end_date: str,
+        interval_minutes: int = 30,
+        area_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Build a per-timestamp operating/stopped capacity timeline, stacked by fuel type.
+
+        Scope follows ``area_name`` (the OCCTO area selection); within that scope the
+        breakdown is by fuel category (matching the OCCTO generation-mix sources):
+
+            total[fuel]     = sum of active units' max_capacity_mw (constant over window)
+            stopped[fuel](t)= sum of down_capacity (MW) of outages overlapping [t, t+interval)
+            available(t)    = max(0, total - stopped)
+
+        Aggregation uses a per-fuel difference array over bucket indices, so cost is
+        O(units + outages + buckets) rather than buckets x outages.
+        """
+        if interval_minutes <= 0:
+            interval_minutes = 30
+
+        # ── 1. Load unit registry → per-fuel total capacity + per-unit lookup ───────
+        units = self.get_hjks_units(start_date, end_date, area_name)
+        total_capacity: Dict[str, float] = {}
+        unit_count: Dict[str, int] = {}
+        cap_lookup: Dict[tuple, float] = {}
+        for u in units:
+            fuel = _fuel_category(u.get('format'))
+            cap = float(u.get('max_capacity_mw') or 0.0)
+            total_capacity[fuel] = total_capacity.get(fuel, 0.0) + cap
+            unit_count[fuel] = unit_count.get(fuel, 0) + 1
+            cap_lookup[(u.get('plantcd'), u.get('unit_name'))] = cap
+
+        # ── 2. Bucket grid (JST-local naive datetimes) ──────────────────────────────
+        base = datetime.strptime(start_date, "%Y%m%d")
+        grid_end = datetime.strptime(end_date, "%Y%m%d") + timedelta(days=1)
+        interval = timedelta(minutes=interval_minutes)
+        interval_secs = interval_minutes * 60
+        num_buckets = max(0, int((grid_end - base).total_seconds() // interval_secs))
+
+        # ── 3. Load outages → per-fuel difference arrays (capacity + count) ─────────
+        outages = self.get_hjks_outages(start_date, end_date, area_name)
+        dropped_outages = 0
+        cap_diff: Dict[str, List[float]] = {}
+        cnt_diff: Dict[str, List[float]] = {}
+
+        def _ensure_fuel(k: str) -> None:
+            if k not in cap_diff:
+                cap_diff[k] = [0.0] * (num_buckets + 1)
+                cnt_diff[k] = [0.0] * (num_buckets + 1)
+
+        # Ensure every fuel that has units gets arrays even with no outages.
+        for k in total_capacity:
+            _ensure_fuel(k)
+
+        for o in outages:
+            s_dt = self._parse_naive_dt(o.get('start_datetime'))
+            e_dt = self._parse_naive_dt(o.get('end_datetime'))
+            if s_dt is None or e_dt is None or e_dt <= s_dt:
+                dropped_outages += 1
+                continue
+            fuel = _fuel_category(o.get('format'))
+            # Resolve removed capacity (MW). down_capacity may be null → fall back.
+            down = o.get('down_capacity')
+            if down is None:
+                down = cap_lookup.get((o.get('plantcd'), o.get('unit_name')))
+            if down is None:
+                down = o.get('max_capacity')
+            try:
+                down_mw = float(down) if down is not None else 0.0
+            except (TypeError, ValueError):
+                down_mw = 0.0
+
+            # Bucket index range whose [bucket_start, bucket_end) overlaps [s_dt, e_dt).
+            s_off = (s_dt - base).total_seconds()
+            e_off = (e_dt - base).total_seconds()
+            i_start = int(s_off // interval_secs)
+            if i_start < 0:
+                i_start = 0
+            # last bucket with bucket_start < e_off  →  ceil(e_off/interval) - 1
+            i_end = int(-(-e_off // interval_secs)) - 1
+            if i_end >= num_buckets:
+                i_end = num_buckets - 1
+            if i_end < i_start or i_start >= num_buckets:
+                continue
+            _ensure_fuel(fuel)
+            cap_diff[fuel][i_start] += down_mw
+            cap_diff[fuel][i_end + 1] -= down_mw
+            cnt_diff[fuel][i_start] += 1
+            cnt_diff[fuel][i_end + 1] -= 1
+
+        # ── 4. Prefix-sum diffs → per-bucket stopped capacity/count, build timeline ──
+        ordered_keys = [k for k in FUEL_ORDER if k in cap_diff]
+        ordered_keys += [k for k in cap_diff if k not in FUEL_ORDER]
+
+        running_cap: Dict[str, float] = {k: 0.0 for k in cap_diff}
+        running_cnt: Dict[str, float] = {k: 0.0 for k in cap_diff}
+        timeline: List[Dict[str, Any]] = []
+        for i in range(num_buckets):
+            bucket_dt = base + i * interval
+            point: Dict[str, Any] = {}
+            for k in ordered_keys:
+                running_cap[k] += cap_diff[k][i]
+                running_cnt[k] += cnt_diff[k][i]
+                total = total_capacity.get(k, 0.0)
+                stopped = running_cap[k]
+                point[k] = {
+                    'total_capacity_mw': round(total, 3),
+                    'stopped_capacity_mw': round(stopped, 3),
+                    'available_capacity_mw': round(max(0.0, total - stopped), 3),
+                    'unit_count': unit_count.get(k, 0),
+                    'stopped_unit_count': int(running_cnt[k]),
+                }
+            timeline.append({
+                'datetime': bucket_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                'data': point,
+            })
+
+        return {
+            'start_date': start_date,
+            'end_date': end_date,
+            'interval_minutes': interval_minutes,
+            'area': area_name,
+            'keys': ordered_keys,
+            'timeline': timeline,
+            'meta': {'dropped_outages': dropped_outages, 'unit_total': len(units)},
+        }
 
     def get_interconnection_flows(self, start_date: str, end_date: str, line_name: Optional[str] = None, interval_minutes: Optional[int] = None) -> List[Dict[str, Any]]:
         s_date = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")

@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     ES_INDEX_JEPX_SYSTEM: str = "jepx_spot_system"
     ES_INDEX_IMBALANCE: str = "imbalance"
     ES_INDEX_HJKS: str = "hjks_outage"
+    ES_INDEX_HJKS_UNIT: str = "hjks_unit"
     ES_INDEX_INTERCONNECTION: str = "occto_inter"
     ES_INDEX_INTRADAY: str = "jepx_intraday"
     ES_INDEX_EARTHQUAKE: str = "jma_earthquake_actual"
@@ -108,6 +109,7 @@ class Settings(BaseSettings):
             'jepx_system': self.ES_INDEX_JEPX_SYSTEM,
             'imbalance': self.ES_INDEX_IMBALANCE,
             'hjks': self.ES_INDEX_HJKS,
+            'hjks_unit': self.ES_INDEX_HJKS_UNIT,
             'interconnection': self.ES_INDEX_INTERCONNECTION,
             'intraday': self.ES_INDEX_INTRADAY,
             'earthquake': self.ES_INDEX_EARTHQUAKE,

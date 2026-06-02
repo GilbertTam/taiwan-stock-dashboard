@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Snackbar, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, Snackbar, Stack, Tooltip, Typography } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useTranslation } from 'react-i18next';
 import { DashboardToolbar } from '@/components/navigation/DashboardToolbar';
 import { LoadingOverlay } from '@/components/overlay/LoadingOverlay';
@@ -46,6 +47,64 @@ function pickValueAt(
     }
     if (!best || bestDist > maxAgeMs) return null;
     return best.value;
+}
+
+/**
+ * Discreet, discoverable explainer for why the left (our regional data) and
+ * right (Windy / ECMWF) panels show different values — so side-by-side
+ * viewing builds trust instead of inviting "which one is wrong?" doubt.
+ * Renders an info chip that reveals the reasons on hover/tap.
+ */
+function WhyDifferTooltip() {
+    const { t } = useTranslation('weatherMap');
+    return (
+        <Tooltip
+            arrow
+            enterTouchDelay={0}
+            leaveTouchDelay={8000}
+            title={
+                <Box sx={{ py: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, mb: 0.5 }}>
+                        {t('whyDiffer.title')}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.76rem', mb: 0.75, opacity: 0.9 }}>
+                        {t('whyDiffer.intro')}
+                    </Typography>
+                    <Box component="ul" sx={{ m: 0, pl: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {(['source', 'resolution', 'time'] as const).map((k) => (
+                            <Typography key={k} component="li" sx={{ fontSize: '0.76rem', lineHeight: 1.5 }}>
+                                {t(`whyDiffer.${k}`)}
+                            </Typography>
+                        ))}
+                    </Box>
+                </Box>
+            }
+        >
+            <Box
+                role="button"
+                tabIndex={0}
+                sx={{
+                    ml: 'auto',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.4,
+                    px: 0.75,
+                    height: 22,
+                    fontSize: '0.7rem',
+                    color: 'text.secondary',
+                    border: '1px dashed',
+                    borderColor: 'var(--card-border)',
+                    borderRadius: '4px',
+                    cursor: 'help',
+                    whiteSpace: 'nowrap',
+                    '&:hover': { color: 'text.primary', borderColor: 'text.secondary' },
+                }}
+            >
+                <InfoOutlinedIcon sx={{ fontSize: '0.95rem' }} />
+                {t('whyDiffer.trigger')}
+            </Box>
+        </Tooltip>
+    );
 }
 
 export function WeatherMapView() {
@@ -278,10 +337,17 @@ export function WeatherMapView() {
                         borderBottom: { xs: '1px solid var(--card-border)', md: 'none' },
                     }}
                 >
-                    <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid var(--card-border)' }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, py: 1, borderBottom: '1px solid var(--card-border)', flexWrap: 'wrap', rowGap: 0.5 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {t('weatherMap:leftPanelTitle')}
                         </Typography>
+                        <Chip
+                            size="small"
+                            variant="outlined"
+                            label={t('weatherMap:leftPanelSource')}
+                            sx={{ height: 20, fontSize: '0.68rem', '& .MuiChip-label': { px: 0.75 } }}
+                        />
+                        <WhyDifferTooltip />
                     </Stack>
                     <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
                         {error ? (
@@ -303,10 +369,16 @@ export function WeatherMapView() {
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                    <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid var(--card-border)' }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, py: 1, borderBottom: '1px solid var(--card-border)', flexWrap: 'wrap', rowGap: 0.5 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {t('weatherMap:rightPanelTitle')}
                         </Typography>
+                        <Chip
+                            size="small"
+                            variant="outlined"
+                            label={t('weatherMap:rightPanelSource')}
+                            sx={{ height: 20, fontSize: '0.68rem', color: 'var(--secondary)', borderColor: 'var(--secondary)', '& .MuiChip-label': { px: 0.75 } }}
+                        />
                     </Stack>
                     <Box sx={{ flex: 1, minHeight: 0 }}>
                         <WindyOverlayPanel
