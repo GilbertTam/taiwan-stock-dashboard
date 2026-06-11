@@ -1,13 +1,6 @@
 {
   "sidebar": {
-    "overview": "現貨總覽",
-    "forecast": "市場分析",
-    "generationMix": "發電組合",
-    "siteRevenue": "收益模擬",
-    "weather": "天氣分析",
-    "weatherMap": "天氣地圖",
-    "dailyCompare": "疊圖比較",
-    "dataStatus": "資料狀態",
+    "overview": "總覽",
     "adminPage": "管理頁面",
     "settings": "個人設定",
     "logout": "登出",
@@ -29,7 +22,6 @@
     "accountMenu": "帳戶選單"
   },
   "mobileMenu": {
-    "guest": "訪客",
-    "marketInfo": "市場資訊"
+    "guest": "訪客"
   }
 }

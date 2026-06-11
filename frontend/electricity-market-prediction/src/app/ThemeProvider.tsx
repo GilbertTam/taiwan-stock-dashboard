@@ -165,18 +165,17 @@ const RESPONSIVE_HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
 const darkTheme = responsiveFontSizes(darkThemeBase, { variants: [...RESPONSIVE_HEADINGS] });
 const lightTheme = responsiveFontSizes(lightThemeBase, { variants: [...RESPONSIVE_HEADINGS] });
 
-export type Locale = 'zh-TW' | 'en' | 'ja';
+export type Locale = 'zh-TW' | 'en';
 export type LocalePreference = Locale | 'system';
 export type ThemePreference = 'dark' | 'light' | 'system';
 
-const SUPPORTED_LOCALES: Locale[] = ['zh-TW', 'en', 'ja'];
-const VALID_LOCALE_PREFS: LocalePreference[] = ['zh-TW', 'en', 'ja', 'system'];
+const SUPPORTED_LOCALES: Locale[] = ['zh-TW', 'en'];
+const VALID_LOCALE_PREFS: LocalePreference[] = ['zh-TW', 'en', 'system'];
 const VALID_THEME_PREFS: ThemePreference[] = ['dark', 'light', 'system'];
 
 function getSystemLocale(): Locale {
   if (typeof window === 'undefined') return 'zh-TW';
   const lang = navigator.language;
-  if (lang.startsWith('ja')) return 'ja';
   if (lang.startsWith('en')) return 'en';
   if (lang.startsWith('zh')) return 'zh-TW';
   return 'zh-TW';

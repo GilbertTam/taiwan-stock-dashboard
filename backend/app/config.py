@@ -1,7 +1,6 @@
-import os
 import warnings
-from typing import List, Union, Dict, Any
-from pydantic import AnyHttpUrl, EmailStr, validator
+from typing import List, Union
+from pydantic import AnyHttpUrl, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _INSECURE_DEFAULT_KEY = "django-insecure-h0usnb4^27w+^)i*)f24$i$@#*(^*D(*)W&*(&cj42wsi1n@0&+7@G)"
@@ -21,7 +20,7 @@ class Settings(BaseSettings):
     ENV: str = "development"
 
     API_V1_STR: str = "/api"
-    PROJECT_NAME: str = "JEPX Spot Price Dashboard API"
+    PROJECT_NAME: str = "Taiwan Stock Watchlist Dashboard API"
 
     # SECURITY
     SECRET_KEY: str = _INSECURE_DEFAULT_KEY
@@ -70,60 +69,6 @@ class Settings(BaseSettings):
     # Using SQLite by default to match legacy setup
     DATABASE_URL: str = "sqlite+aiosqlite:///./db.sqlite3"
 
-    # ELASTICSEARCH
-    ELASTICSEARCH_HOST: str = "localhost"
-    ELASTICSEARCH_PORT: str = "9200"
-    ELASTICSEARCH_USERNAME: str = ""
-    ELASTICSEARCH_PASSWORD: str = ""
-    
-    # Elasticsearch Index Names
-    ES_INDEX_PREDICTION: str = "prediction"
-    ES_INDEX_JEPX: str = "jepx_spot_area_price"
-    ES_INDEX_JEPX_SYSTEM: str = "jepx_spot_system"
-    ES_INDEX_IMBALANCE: str = "imbalance"
-    ES_INDEX_HJKS: str = "hjks_outage"
-    ES_INDEX_HJKS_UNIT: str = "hjks_unit"
-    ES_INDEX_INTERCONNECTION: str = "occto_inter"
-    ES_INDEX_INTRADAY: str = "jepx_intraday"
-    ES_INDEX_EARTHQUAKE: str = "jma_earthquake_actual"
-    ES_INDEX_OCCTO_AREA: str = "occto_area"
-    ES_INDEX_OCCTO_INTER: str = "occto_inter"
-    ES_INDEX_OCCTO_EVENT: str = "occto_event"
-    ES_INDEX_TDGC: str = "tdgc"
-    ES_INDEX_WEATHER_ACTUAL_HOURLY: str = "weather_actual_hourly"
-    ES_INDEX_WEATHER_ACTUAL_DAILY: str = "weather_actual_daily"
-    ES_INDEX_WEATHER_FORECAST_HOURLY: str = "weather_forecast_hourly"
-    ES_INDEX_WEATHER_FORECAST_DAILY: str = "weather_forecast_daily"
-    ES_INDEX_BATTERY_DATA: str = "battery_data"
-    ES_INDEX_BID_PLANS: str = "bid_plans"
-
-    @property
-    def ELASTICSEARCH_URL(self) -> str:
-        return f"{self.ELASTICSEARCH_HOST}:{self.ELASTICSEARCH_PORT}"
-
-    @property
-    def ELASTICSEARCH_INDICES(self) -> Dict[str, str]:
-        return {
-            'prediction': self.ES_INDEX_PREDICTION,
-            'jepx': self.ES_INDEX_JEPX,
-            'jepx_system': self.ES_INDEX_JEPX_SYSTEM,
-            'imbalance': self.ES_INDEX_IMBALANCE,
-            'hjks': self.ES_INDEX_HJKS,
-            'hjks_unit': self.ES_INDEX_HJKS_UNIT,
-            'interconnection': self.ES_INDEX_INTERCONNECTION,
-            'intraday': self.ES_INDEX_INTRADAY,
-            'earthquake': self.ES_INDEX_EARTHQUAKE,
-            'occto_area': self.ES_INDEX_OCCTO_AREA,
-            'occto_inter': self.ES_INDEX_OCCTO_INTER,
-            'occto_event': self.ES_INDEX_OCCTO_EVENT,
-            'tdgc': self.ES_INDEX_TDGC,
-            'weather_actual': self.ES_INDEX_WEATHER_ACTUAL_HOURLY,
-            'weather_actual_daily': self.ES_INDEX_WEATHER_ACTUAL_DAILY,
-            'weather_forecast': self.ES_INDEX_WEATHER_FORECAST_HOURLY,
-            'weather_forecast_daily': self.ES_INDEX_WEATHER_FORECAST_DAILY,
-            'battery_data': self.ES_INDEX_BATTERY_DATA,
-            'bid_plans': self.ES_INDEX_BID_PLANS,
-        }
 
 settings = Settings()
 

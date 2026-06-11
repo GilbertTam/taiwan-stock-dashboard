@@ -3,5 +3,3 @@
  */
 
 export { default as DashboardLayout } from './DashboardLayout';
-export { ResizableLayout } from './ResizableLayout';
-export { DashboardSubPageLayout } from './DashboardSubPageLayout';

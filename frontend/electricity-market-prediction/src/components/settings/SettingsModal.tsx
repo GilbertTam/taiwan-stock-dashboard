@@ -72,7 +72,6 @@ function GradientBar() {
 const LOCALE_LABELS: Record<Exclude<LocalePreference, 'system'>, string> = {
   'zh-TW': '繁體中文',
   en: 'English',
-  ja: '日本語',
 };
 
 const THEME_ICONS: Record<ThemePreference, typeof DarkModeIcon> = {

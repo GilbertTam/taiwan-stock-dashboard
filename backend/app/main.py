@@ -101,7 +101,7 @@ async def ensure_tables():
     """
     from app.db import engine, Base
     # Import all models so Base.metadata sees them before create_all runs.
-    from app.models import User, UserPreset, OAuthAccount, AppSettings, UserPreference  # noqa: F401
+    from app.models import User, OAuthAccount, AppSettings, UserPreference  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

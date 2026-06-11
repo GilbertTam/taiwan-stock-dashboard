@@ -6,8 +6,8 @@ import { ThemeProvider } from './ThemeProvider';
 import { I18nProvider } from './I18nProvider';
 
 export const metadata = {
-  title: 'HDJP Electricity Market Dashboard',
-  description: 'Insight of Japan Electricity Market',
+  title: '台股觀測站 Dashboard',
+  description: 'Taiwan Stock Watchlist Member Dashboard',
 };
 
 export default function RootLayout({

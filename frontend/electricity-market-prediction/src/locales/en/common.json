@@ -9,113 +9,14 @@
   "retry": "Retry",
   "comingSoon": "Coming Soon",
   "admin": "Admin",
-  "toolbar": {
-    "zoomIn": "Zoom in (Ctrl +)",
-    "zoomOut": "Zoom out (Ctrl -)",
-    "fitScreen": "Fit to screen",
-    "download": "Download",
-    "downloadAsPng": "Download as PNG",
-    "downloadAsSvg": "Download as SVG",
-    "downloadAsCsv": "Download as CSV",
-    "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen",
-    "settings": "Settings"
-  },
-  "nav": {
-    "prevDay": "Previous day",
-    "nextDay": "Next day",
-    "refreshData": "Refresh data"
-  },
-  "dateRangePicker": {
-    "selectStartDate": "Select start date",
-    "selectEndDate": "Select end date"
-  },
   "auth": {
     "loginFailed": "Login failed. Please check your credentials.",
     "hidePassword": "Hide password",
     "showPassword": "Show password"
   },
-  "about": {
-    "title": "About",
-    "heroTitle": "Japan Electric Power Spot Market Data Visualization",
-    "heroDesc": "Real-time prices, forecasts, and battery revenue analysis.",
-    "dataSources": "Data Sources",
-    "dataSourcesDesc": "Data is provided through the backend API and includes the following categories:",
-    "dataSourcesFooter": "All data is sourced from publicly available Japanese electricity market information.",
-    "dataItems": {
-      "spotPrice": "Area & spot prices (real-time and historical prices per region)",
-      "forecast": "Forecast models & results (custom model prediction data)",
-      "imbalance": "Imbalance",
-      "interconnection": "Interconnection flow",
-      "outage": "Outage information (HJKS)",
-      "occto": "OCCTO (area / interconnection / events)",
-      "weather": "Actual & forecast weather",
-      "earthquake": "Earthquake information"
-    },
-    "chartTools": "Charts & Frontend Tools",
-    "chartToolsDesc": "This system uses the following open-source and third-party tools for charts and UI:",
-    "tools": {
-      "echarts": "Chart library",
-      "lwc": "Financial chart component",
-      "mui": "UI component library",
-      "nextjs": "React framework"
-    },
-    "techStack": "Tech Stack",
-    "techStackDesc": "Project tech stack aligned with README:",
-    "stack": {
-      "frontend": "Frontend",
-      "backend": "Backend",
-      "database": "Database",
-      "optimization": "Optimization",
-      "infrastructure": "Infrastructure"
-    },
-    "dbItems": {
-      "sqlite": "SQLite (user data)",
-      "elasticsearch": "Elasticsearch (market & forecast data)"
-    }
-  },
-  "selectArea": "Select Area",
-  "selectAreaDescription": "Select the area to analyze",
-  "currentSelection": "Current selection",
   "errorDisplay": {
     "title": "Data Loading Failed",
     "defaultMessage": "An unknown error occurred",
     "retry": "Try Again"
-  },
-  "presets": {
-    "title": "Presets",
-    "save": "Save Current",
-    "noPresets": "No saved presets",
-    "enterName": "Enter preset name",
-    "confirmSave": "Save",
-    "load": "Load",
-    "update": "Update with current",
-    "rename": "Rename",
-    "delete": "Delete",
-    "setDefault": "Set as default",
-    "removeDefault": "Remove default",
-    "defaultBadge": "Default",
-    "deleteConfirm": "Delete \"{{name}}\"?",
-    "namePlaceholder": "My preset",
-    "maxReached": "Max {{max}} presets",
-    "previewMetric": "Metric",
-    "previewAreas": "Areas",
-    "previewSources": "Sources",
-    "previewModels": "Models",
-    "previewFields": "Fields",
-    "previewFieldCount": "selected",
-    "previewLayers": "Layers"
-  },
-  "areas": {
-    "hokkaido": "Hokkaido",
-    "tohoku": "Tohoku",
-    "tokyo": "Tokyo",
-    "chubu": "Chubu",
-    "hokuriku": "Hokuriku",
-    "kansai": "Kansai",
-    "chugoku": "Chugoku",
-    "shikoku": "Shikoku",
-    "kyushu": "Kyushu",
-    "system": "System-wide"
   }
 }

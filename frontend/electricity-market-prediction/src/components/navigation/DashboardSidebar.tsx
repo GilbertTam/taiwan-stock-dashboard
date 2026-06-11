@@ -3,17 +3,10 @@
 import React, { useState } from 'react';
 import { Box, Typography, ButtonBase, Avatar, Divider } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import PublicIcon from '@mui/icons-material/Public';
-import StorefrontIcon from '@mui/icons-material/Storefront';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
-import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
-import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
-import LayersIcon from '@mui/icons-material/Layers';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
@@ -28,14 +21,7 @@ import { useTranslation } from 'react-i18next';
 type NavItem = { key: string; labelKey: string; path: string; Icon: React.ElementType };
 
 const BASE_NAV_ITEMS: NavItem[] = [
-    { key: 'home',            labelKey: 'sidebar.overview',      path: '/dashboard',                  Icon: DashboardIcon          },
-    { key: 'price',           labelKey: 'sidebar.forecast',      path: '/dashboard/forecast',         Icon: TrendingUpIcon         },
-    { key: 'generation-mix',  labelKey: 'sidebar.generationMix', path: '/dashboard/generation-mix',   Icon: EnergySavingsLeafIcon  },
-    { key: 'revenue-simulation', labelKey: 'sidebar.siteRevenue', path: '/dashboard/revenue-simulation', Icon: StorefrontIcon         },
-    { key: 'weather',         labelKey: 'sidebar.weather',       path: '/dashboard/weather',          Icon: WbSunnyIcon            },
-    { key: 'weather-map',     labelKey: 'sidebar.weatherMap',    path: '/dashboard/weather-map',      Icon: PublicIcon             },
-    { key: 'daily-compare',   labelKey: 'sidebar.dailyCompare',  path: '/dashboard/daily-compare',    Icon: LayersIcon             },
-    { key: 'data-status',     labelKey: 'sidebar.dataStatus',    path: '/dashboard/data-status',      Icon: MonitorHeartIcon       },
+    { key: 'home', labelKey: 'sidebar.overview', path: '/dashboard', Icon: DashboardIcon },
 ];
 
 // Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.
@@ -57,7 +43,6 @@ const THEME_OPTIONS: { value: ThemePreference; Icon: React.ElementType }[] = [
 const LANG_OPTIONS: { value: LocalePreference; label: string }[] = [
     { value: 'zh-TW',  label: '中' },
     { value: 'en',     label: 'EN' },
-    { value: 'ja',     label: '日' },
     { value: 'system', label: 'Auto' },
 ];
 
@@ -171,7 +156,7 @@ export function DashboardSidebar() {
         setThemePreference(next);
     };
     const cycleLang = () => {
-        const order: LocalePreference[] = ['zh-TW', 'en', 'ja', 'system'];
+        const order: LocalePreference[] = ['zh-TW', 'en', 'system'];
         const next = order[(order.indexOf(localePreference) + 1) % order.length];
         setLocale(next);
     };
@@ -213,7 +198,7 @@ export function DashboardSidebar() {
             >
                 {/* Fixed icon slot */}
                 <Box sx={{ width: ICON_SLOT_W, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                    <ElectricBoltIcon
+                    <ShowChartIcon
                         className="brand-icon"
                         sx={{ fontSize: 18, color: '#00cc7a', transition: 'color 0.15s ease', filter: 'drop-shadow(0 0 6px rgba(0,204,122,0.4))' }}
                     />
@@ -223,14 +208,13 @@ export function DashboardSidebar() {
                         fontSize: 12,
                         fontWeight: 800,
                         color: 'var(--foreground)',
-                        fontFamily: 'monospace',
                         letterSpacing: 1.5,
                         whiteSpace: 'nowrap',
                         opacity: expanded ? 1 : 0,
                         transition: 'opacity 0.15s ease',
                     }}
                 >
-                    HDRE
+                    台股觀測站
                 </Typography>
             </ButtonBase>
 
@@ -248,12 +232,7 @@ export function DashboardSidebar() {
 
                     const isActive =
                         pathname === path ||
-                        (key === 'price'              && matchesPathOrSubpath('/dashboard/forecast'))            ||
-                        (key === 'generation-mix'     && matchesPathOrSubpath('/dashboard/generation-mix'))      ||
-                        (key === 'weather'            && matchesPathOrSubpath('/dashboard/weather'))             ||
-                        (key === 'weather-map'        && matchesPathOrSubpath('/dashboard/weather-map'))         ||
-                        (key === 'revenue-simulation' && matchesPathOrSubpath('/dashboard/revenue-simulation')) ||
-                        (key === 'admin'              && matchesPathOrSubpath('/dashboard/admin'));
+                        (key === 'admin' && matchesPathOrSubpath('/dashboard/admin'));
 
                     return (
                         <ButtonBase

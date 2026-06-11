@@ -1,13 +1,6 @@
 {
   "sidebar": {
-    "overview": "Spot Overview",
-    "forecast": "Market Analysis",
-    "generationMix": "Generation Mix",
-    "siteRevenue": "Revenue Simulation",
-    "weather": "Weather",
-    "weatherMap": "Weather Map",
-    "dailyCompare": "Daily Compare",
-    "dataStatus": "Data Status",
+    "overview": "Overview",
     "adminPage": "Administration",
     "settings": "Settings",
     "logout": "Logout",
@@ -29,7 +22,6 @@
     "accountMenu": "Account Menu"
   },
   "mobileMenu": {
-    "guest": "Guest",
-    "marketInfo": "Market Info"
+    "guest": "Guest"
   }
 }
