@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, ButtonBase, Avatar, Divider } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
@@ -22,6 +23,7 @@ type NavItem = { key: string; labelKey: string; path: string; Icon: React.Elemen
 
 const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'home', labelKey: 'sidebar.overview', path: '/dashboard', Icon: DashboardIcon },
+    { key: 'daily', labelKey: 'sidebar.daily', path: '/dashboard/daily', Icon: TrendingUpIcon },
 ];
 
 // Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.

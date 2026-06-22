@@ -6,6 +6,7 @@ from app.api.v1 import (
     preferences,
     setup,
     users,
+    stock,
 )
 
 api_router = APIRouter()
@@ -18,3 +19,4 @@ api_router.include_router(oauth.router, prefix="/auth/oauth", tags=["oauth"])
 api_router.include_router(account.router, prefix="/account", tags=["account"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
+api_router.include_router(stock.router, prefix="/stock", tags=["stock"])

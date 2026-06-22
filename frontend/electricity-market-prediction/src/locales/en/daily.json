@@ -1,0 +1,27 @@
+{
+  "title": "Limit-Up Today",
+  "stats": { "total": "Total", "twse": "TWSE", "tpex": "TPEx", "shown": "Shown" },
+  "market": { "all": "All", "twse": "TWSE", "tpex": "TPEx" },
+  "mode": { "base": "Sector", "sub": "Sub-industry" },
+  "modeHint": {
+    "base": "Base sector (TWSE official)",
+    "sub": "Sub-industry (MoneyDJ)"
+  },
+  "search": "Search code / name",
+  "all": "All",
+  "columns": {
+    "market": "Mkt", "code": "Code", "name": "Name", "close": "Close",
+    "changePercent": "Chg%", "volume": "Vol(lots)",
+    "foreign": "Foreign", "trust": "Trust", "dealer": "Dealer",
+    "sub": "Sub-ind.", "base": "Sector"
+  },
+  "broker": {
+    "institutional": "Institutional Net (lots)",
+    "list": "Broker Net",
+    "buyTop": "Buy Top15", "sellTop": "Sell Top15",
+    "bubble": "Broker Bubble",
+    "empty": "Broker-branch data not connected. TWSE OpenAPI has none; plug a branch source.",
+    "bubbleEmpty": "Awaiting broker data"
+  },
+  "state": { "loadFailed": "Load failed", "retry": "Retry", "empty": "No limit-up stocks for this filter" }
+}

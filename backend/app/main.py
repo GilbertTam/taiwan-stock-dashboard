@@ -101,10 +101,34 @@ async def ensure_tables():
     """
     from app.db import engine, Base
     # Import all models so Base.metadata sees them before create_all runs.
-    from app.models import User, OAuthAccount, AppSettings, UserPreference  # noqa: F401
+    from app.models import (  # noqa: F401
+        User,
+        OAuthAccount,
+        AppSettings,
+        UserPreference,
+        Stock,
+        BrokerSnapshot,
+        BrokerEntry,
+        DailyLimitUpSnapshot,
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Pre-build sector maps asynchronously at startup
+    import threading
+    from app.services import stock_sector
+    threading.Thread(target=stock_sector.ensure_loaded, daemon=True).start()
+
+    # Start the daily 14:45 broker batch scheduler (Asia/Taipei)
+    from app.services.scheduler import start_scheduler
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+async def stop_background_jobs():
+    from app.services.scheduler import stop_scheduler
+    stop_scheduler()
 
 
 @app.get("/")

@@ -1,0 +1,27 @@
+{
+  "title": "當日漲停",
+  "stats": { "total": "總漲停", "twse": "上市", "tpex": "上櫃", "shown": "當前顯示" },
+  "market": { "all": "全部", "twse": "上市", "tpex": "上櫃" },
+  "mode": { "base": "基礎分類", "sub": "子產業細分" },
+  "modeHint": {
+    "base": "基礎分類（TWSE 官方產業別）",
+    "sub": "子產業細分（MoneyDJ）"
+  },
+  "search": "搜尋代號 / 名稱",
+  "all": "全部",
+  "columns": {
+    "market": "所", "code": "代號", "name": "名稱", "close": "收盤",
+    "changePercent": "漲跌%", "volume": "量(張)",
+    "foreign": "外資", "trust": "投信", "dealer": "自營",
+    "sub": "子族群", "base": "族群"
+  },
+  "broker": {
+    "institutional": "法人三大籌碼（張）",
+    "list": "券商買賣超",
+    "buyTop": "買超 Top15", "sellTop": "賣超 Top15",
+    "bubble": "主力動向泡泡圖",
+    "empty": "分點資料尚未接入。TWSE OpenAPI 不提供券商分點，需另接分點來源。",
+    "bubbleEmpty": "待分點資料接入後啟用"
+  },
+  "state": { "loadFailed": "載入失敗", "retry": "重試", "empty": "此條件下沒有漲停股" }
+}

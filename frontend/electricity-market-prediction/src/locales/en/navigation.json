@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "overview": "Overview",
+    "daily": "Limit-Up",
     "adminPage": "Administration",
     "settings": "Settings",
     "logout": "Logout",
