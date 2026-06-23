@@ -108,9 +108,29 @@ def ensure_loaded(force_rebuild: bool = False) -> None:
                 _moneydj_lookup = {}
 
 
+def _safe_str(v) -> str:
+    """把 None / NaN(float) / pd.NA / 任意值 統一轉成可被 pydantic 接受的 str。
+
+    起因:moneydj/twse lookup 用 pandas DataFrame,缺值是 numpy.nan (float NaN),
+    直接給 pydantic str 欄會炸 (`Input should be a valid string, input_type=float`)。
+    """
+    if v is None:
+        return ""
+    # NaN 自己不等於自己;str(nan) 會回 'nan' 字串(也不要)
+    if isinstance(v, float) and v != v:
+        return ""
+    s = str(v).strip()
+    if s.lower() in ("nan", "nat", "none", "<na>"):
+        return ""
+    return s
+
+
 def classify(code: str, name: str) -> tuple[str, str]:
-    """回傳 (concept_reason=基礎分類TWSE, concept=子產業MoneyDJ)。"""
+    """回傳 (concept_reason=基礎分類TWSE, concept=子產業MoneyDJ)。
+
+    保證回 str(不會是 None / NaN),pydantic 直送進 DailyStock 不會炸。
+    """
     ensure_loaded()
     base, _market = twse.get_sector(code, name, _twse_lookup or {})
     _main, sub = moneydj.get_moneydj_sector(code, _moneydj_lookup or {})
-    return base, sub
+    return _safe_str(base), _safe_str(sub)

@@ -129,6 +129,12 @@ async def ensure_tables():
 async def stop_background_jobs():
     from app.services.scheduler import stop_scheduler
     stop_scheduler()
+    # 關掉 TPEX Camoufox 共用 session(若曾開過)
+    try:
+        from app.services.broker_crawlers import shutdown_tpex_session
+        await shutdown_tpex_session()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @app.get("/")

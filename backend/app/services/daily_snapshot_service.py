@@ -103,3 +103,73 @@ async def save_today_snapshot() -> dict:
 
     logger.info("daily_snapshot: saved %s (total=%d)", today, resp.total)
     return {"date": today.isoformat(), "total": resp.total, "saved": True}
+
+
+async def backfill_institutionals_for_date(date_str: str) -> dict:
+    """重新抓指定日期的 TWSE+TPEX 三大法人,in-place 更新該日 snapshot。
+
+    只動 foreign / trust / dealer 三欄,price / volume / sector / brokers 都不動。
+    回傳:{date, total, matched, updated, missing}
+      matched = inst 端點有資料的 stock 數
+      updated = snapshot 內被更新的 stock 數
+      missing = snapshot 內有但 inst 端點沒給的 stock 數
+    """
+    from app.services import stock_daily
+
+    target = _parse_iso_date(date_str)
+    if target is None:
+        raise ValueError(f"invalid date format: {date_str}")
+
+    async with AsyncSessionLocal() as db:
+        snap = await get_by_date(db, target)
+    if snap is None:
+        raise LookupError(f"no snapshot for {date_str}")
+
+    inst_map = await stock_daily.fetch_historical_institutionals(date_str)
+
+    updated = 0
+    missing = 0
+    for s in snap.stocks:
+        flow = inst_map.get(s.code)
+        if flow is None:
+            missing += 1
+            continue
+        s.foreign = int(flow.get("foreign", 0))
+        s.trust = int(flow.get("trust", 0))
+        s.dealer = int(flow.get("dealer", 0))
+        updated += 1
+
+    # 寫回(snapshot 結構不變,只是 stocks 裡的數字被更新)
+    async with AsyncSessionLocal() as db:
+        await upsert_snapshot(db, target, snap)
+        await db.commit()
+
+    logger.info(
+        "backfill institutionals %s: matched=%d updated=%d missing=%d total=%d",
+        date_str, len(inst_map), updated, missing, len(snap.stocks),
+    )
+    return {
+        "date": date_str,
+        "total": len(snap.stocks),
+        "matched": len(inst_map),
+        "updated": updated,
+        "missing": missing,
+    }
+
+
+async def backfill_institutionals_range(days: int) -> list[dict]:
+    """從今日往回 N 天逐日 backfill;沒有 snapshot 的日期 skip。"""
+    today = _today_tpe()
+    results: list[dict] = []
+    for delta in range(1, days + 1):
+        d = today - timedelta(days=delta)
+        date_str = d.isoformat()
+        try:
+            r = await backfill_institutionals_for_date(date_str)
+            results.append({"date": date_str, "status": "ok", **r})
+        except LookupError:
+            results.append({"date": date_str, "status": "no_snapshot"})
+        except Exception as e:  # noqa: BLE001
+            logger.exception("backfill %s raised", date_str)
+            results.append({"date": date_str, "status": "error", "error": str(e)})
+    return results

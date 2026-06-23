@@ -273,7 +273,7 @@ export function BrokerSection({
     const load = useCallback(async (isPoll = false) => {
         if (!isPoll) setLoading(true);
         try {
-            const res = await fetchBrokers(stock.code, tradeDate ?? undefined);
+            const res = await fetchBrokers(stock.code, tradeDate ?? undefined, stock.market);
             setSnap(res);
             // 歷史模式不輪詢(backend 不會主動爬)
             if (!isHistory && res.status === 'pending') {
@@ -311,7 +311,7 @@ export function BrokerSection({
         if (isHistory) return;
         setLoading(true);
         try {
-            const res = await refreshBrokers(stock.code);
+            const res = await refreshBrokers(stock.code, stock.market);
             setSnap(res);
             pollCount.current = 0;
             setPollCountState(0);

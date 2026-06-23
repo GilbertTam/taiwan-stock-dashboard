@@ -77,6 +77,39 @@ async def manual_snapshot() -> dict:
     return await daily_snapshot_service.save_today_snapshot()
 
 
+@router.post("/daily/snapshot/{date}/refill-institutionals")
+async def refill_institutionals(date: str) -> dict:
+    """重抓指定歷史日期的三大法人,in-place 更新該日 snapshot。
+
+    - 只動 foreign / trust / dealer 三欄,price / volume / sector 都不動
+    - TWSE 走 T86 歷史端點(date param),TPEX 走 dailyTrade 歷史(best effort)
+    - 該日 snapshot 不存在 → 404
+    """
+    try:
+        return await daily_snapshot_service.backfill_institutionals_for_date(date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/daily/snapshot/refill-institutionals/recent")
+async def refill_institutionals_recent(
+    days: int = Query(7, ge=1, le=60, description="從今日往回 N 天逐日 backfill;沒 snapshot 的日期 skip"),
+) -> dict:
+    """一鍵 backfill 過去 N 天的三大法人。
+
+    - days 範圍 1-60
+    - 每個日期獨立執行,單天失敗不影響其他天
+    - 沒 snapshot 的日期會在結果裡標 status='no_snapshot'
+    """
+    results = await daily_snapshot_service.backfill_institutionals_range(days)
+    summary = {"ok": 0, "no_snapshot": 0, "error": 0}
+    for r in results:
+        summary[r["status"]] = summary.get(r["status"], 0) + 1
+    return {"days_requested": days, "summary": summary, "results": results}
+
+
 @router.post("/daily/sectors/rebuild")
 async def rebuild_sectors() -> dict:
     stock_sector.ensure_loaded(force_rebuild=True)
@@ -133,6 +166,7 @@ def _parse_date(value: Optional[str]) -> Optional[date]:
 async def get_brokers(
     code: str,
     date: Optional[str] = Query(None, description="YYYY-MM-DD;預設最新 snapshot,歷史日期不會觸發新抓取"),
+    market: Optional[str] = Query(None, description="twse / tpex;前端傳入確保路由正確"),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """讀分點快照。
@@ -149,7 +183,7 @@ async def get_brokers(
     if snap is None:
         # 只在 date 是 today 或 沒帶 date 時才觸發背景抓取
         if target_date is None or target_date == today:
-            await broker_service.schedule_crawl(code)
+            await broker_service.schedule_crawl(code, market=market or "")
             return BrokerSnapshotResponse(code=code, status=SnapshotStatus.PENDING)
         # 歷史日期但 DB 無資料 → 回 failed 讓前端顯示「該日無分點資料」
         return BrokerSnapshotResponse(
@@ -169,9 +203,14 @@ async def get_brokers(
 @router.post("/daily/brokers/{code}/refresh", response_model=BrokerSnapshotResponse)
 async def refresh_brokers(
     code: str,
+    market: Optional[str] = Query(None, description="twse / tpex;前端傳入確保路由正確"),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """強制重抓單檔。即使今日已是 ok,也會重新抓。歷史日期沒有此語意(BSR 只有今日)。"""
+    """強制重抓單檔。即使今日已是 ok,也會重新抓。歷史日期沒有此語意(BSR 只有今日)。
+
+    market:前端從 DailyStock 直接帶,避免 backend 從可能 stale 的 Stock 表
+    猜錯路由(例如舊版誤把上櫃股 1595/3288 標 'twse',導致重抓還是走 TWSE BSR 一直失敗)。
+    """
     today = _today_tpe()
     snap = await broker_service.get_snapshot(db, code, today)
     if snap is not None:
@@ -179,8 +218,72 @@ async def refresh_brokers(
         snap.error = None
         await db.commit()
 
-    await broker_service.schedule_crawl(code)
+    await broker_service.schedule_crawl(code, market=market or "")
     return BrokerSnapshotResponse(code=code, status=SnapshotStatus.PENDING)
+
+
+@router.post("/daily/brokers/recrawl-broken-today")
+async def recrawl_broken_today() -> dict:
+    """強制重抓今日「ok 但內容壞掉」的 snapshot 一次性清掉。
+
+    用途:部署新版 parser 後,把舊版寫進去的壞 snapshot
+    (broker_name == code、buy/sell 全 0、buy 總和 != sell 總和)
+    重新抓取。後續排程器 retry job(每 10 分鐘)也會自動處理,
+    這支 API 主要供「想立刻清掉、不想等到下次 retry tick」時用。
+    """
+    items = await broker_service.list_today_broken_ok()
+    queued = []
+    for item in items:
+        result = await broker_service.force_recrawl(
+            item["code"], name=item["name"], market=item["market"],
+        )
+        if result == "pending":
+            queued.append(item["code"])
+    return {
+        "trade_date": _today_tpe().isoformat(),
+        "detected_broken": len(items),
+        "requeued": queued,
+    }
+
+
+@router.post("/daily/brokers/recrawl-all-non-ok-today")
+async def recrawl_all_non_ok_today() -> dict:
+    """強制重抓今日所有「不是 ok」的 snapshot — 比 recrawl-broken-today 更積極。
+
+    範圍涵蓋:
+      - status == failed(不論 error 原因,包含原本被歸為「不可重試」的
+        PARSE_EMPTY / NO_DATA — 因為這常常是舊版 parser bug 造成的假性永久失敗)
+      - status == pending(卡死的)
+      - status == ok 但內容壞掉的(同 recrawl-broken-today 邏輯,順便一起清)
+
+    用於部署新版 parser/crawler 後一次清掉所有可疑資料,
+    回傳分桶讓使用者知道處理了幾檔。
+    """
+    non_ok_items = await broker_service.list_today_non_ok()
+    broken_ok_items = await broker_service.list_today_broken_ok()
+
+    # 合併 + 去重(同 code 只 force_recrawl 一次)
+    seen: set[str] = set()
+    all_items: list[dict] = []
+    for item in non_ok_items + broken_ok_items:
+        if item["code"] not in seen:
+            seen.add(item["code"])
+            all_items.append(item)
+
+    queued: list[str] = []
+    for item in all_items:
+        result = await broker_service.force_recrawl(
+            item["code"], name=item["name"], market=item["market"],
+        )
+        if result == "pending":
+            queued.append(item["code"])
+
+    return {
+        "trade_date": _today_tpe().isoformat(),
+        "detected_non_ok": len(non_ok_items),
+        "detected_broken_ok": len(broken_ok_items),
+        "requeued": queued,
+    }
 
 
 @router.post("/daily/brokers/batch-crawl", response_model=BrokerBatchCrawlResponse)

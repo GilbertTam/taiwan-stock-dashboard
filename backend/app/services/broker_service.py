@@ -42,6 +42,7 @@ from app.models.broker import (
 from app.services.broker_crawlers import (
     BsrFailureReason,
     analyze_broker_full_ex,
+    analyze_tpex_broker_full_ex,
 )
 
 # 把 crawler 給的 reason code 翻成中文錯誤訊息給 UI 顯示
@@ -71,12 +72,15 @@ async def get_or_create_stock(
         db.add(stock)
         await db.flush()
     else:
-        # 補資料（name/market 之前可能是空字串）
+        # 補/修資料:
+        #   - name 之前可能空,有給就補
+        #   - market 改成「有給且跟既有不同」就 overwrite — 修舊版被錯標的 case
+        #     (例如舊版抓 1595 時 market 寫成 'twse' 或空,新版要能 fix 成 'tpex')
         changed = False
-        if name and not stock.name:
+        if name and stock.name != name:
             stock.name = name
             changed = True
-        if market and not stock.market:
+        if market and stock.market != market:
             stock.market = market
             changed = True
         if changed:
@@ -284,6 +288,107 @@ async def list_today_failed_retryable() -> list[dict]:
     return out
 
 
+async def list_today_broken_ok() -> list[dict]:
+    """列出今日 status=ok 但內容明顯壞掉的 snapshot — 需要強制重抓。
+
+    壞掉判定(命中任一即視為壞):
+      1. broker_name == broker_code 比例 ≥ 50%  — 舊 parser nested table bug
+      2. buy 總和 != sell 總和(BSR 內部買賣股數必相等的 invariant)
+      3. 所有 entries 的 buy == 0 AND sell == 0
+
+    回傳 [{code, name, market}] 給 force_recrawl 用。
+    """
+    today = datetime.now(TPE).date()
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(BrokerSnapshot, Stock)
+            .join(Stock, Stock.id == BrokerSnapshot.stock_id)
+            .where(
+                BrokerSnapshot.trade_date == today,
+                BrokerSnapshot.status == SnapshotStatus.OK,
+            )
+        )
+        snapshots = res.all()
+
+    out: list[dict] = []
+    async with AsyncSessionLocal() as db:
+        for snap, stock in snapshots:
+            r = await db.execute(
+                select(
+                    BrokerEntry.broker_code,
+                    BrokerEntry.broker_name,
+                    BrokerEntry.buy,
+                    BrokerEntry.sell,
+                )
+                .where(BrokerEntry.snapshot_id == snap.id)
+            )
+            entries = r.all()
+            n = len(entries)
+            if n < 5:
+                # 太少筆數可能是該股當日真的沒人交易,別誤判
+                continue
+
+            same_count = sum(1 for code, name, _, _ in entries if (name or "") == code)
+            buy_sum = sum(float(buy or 0) for _, _, buy, _ in entries)
+            sell_sum = sum(float(sell or 0) for _, _, _, sell in entries)
+            all_zero = all((float(b or 0) == 0 and float(s or 0) == 0) for _, _, b, s in entries)
+
+            broken = (
+                (same_count / n) >= 0.5
+                or abs(buy_sum - sell_sum) > 0.01
+                or all_zero
+            )
+            if broken:
+                logger.info(
+                    "broken-ok detected: %s — entries=%d same_name_ratio=%.2f buy_sum=%.1f sell_sum=%.1f",
+                    stock.code, n, same_count / n, buy_sum, sell_sum,
+                )
+                out.append({"code": stock.code, "name": stock.name, "market": stock.market})
+
+    return out
+
+
+async def list_today_non_ok() -> list[dict]:
+    """列出今日所有 status != ok 的 snapshot(failed 不論原因 + pending 卡死)。
+
+    比 list_today_failed_retryable 更積極,不過濾 error reason。
+    用於部署新版 parser / crawler 後,使用者想一次清掉所有非 ok 的 snapshot。
+    """
+    today = datetime.now(TPE).date()
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(BrokerSnapshot, Stock)
+            .join(Stock, Stock.id == BrokerSnapshot.stock_id)
+            .where(
+                BrokerSnapshot.trade_date == today,
+                BrokerSnapshot.status != SnapshotStatus.OK,
+            )
+        )
+        rows = res.all()
+    return [
+        {"code": s.code, "name": s.name, "market": s.market}
+        for _snap, s in rows
+    ]
+
+
+async def force_recrawl(code: str, *, name: str = "", market: str = "") -> str:
+    """強制重抓單檔 — 把今日 snapshot 改 pending 後再排背景抓。
+
+    用於:
+      - 舊 parser 寫的 ok 但壞掉的資料(broker_name == code 等)
+      - 使用者按 重新抓取 button(refresh 端點背後也用這個)
+    """
+    today = datetime.now(TPE).date()
+    async with AsyncSessionLocal() as db:
+        snap = await get_snapshot(db, code, today)
+        if snap is not None:
+            snap.status = SnapshotStatus.PENDING
+            snap.error = None
+            await db.commit()
+
+    return await schedule_crawl(code, name=name, market=market)
+
+
 async def fetch_top(
     db: AsyncSession, snapshot_id: int, n: int = 15,
 ) -> tuple[list[BrokerEntry], list[BrokerEntry], list[BrokerEntry]]:
@@ -369,16 +474,28 @@ async def _crawl_one(code: str, name: str, market: str) -> None:
             return
 
         # 2. 真正抓取(限制並發 + 整體超時)
+        # 依 market 路由:tpex → Camoufox CSV;其他 (twse / 空) → TWSE BSR
         payload = None
         error_msg: str | None = None
+        is_tpex = (market or "").lower() == "tpex"
         async with _sem:
-            logger.info("crawl start: %s (timeout=%ds, max_retry=%d)",
-                        code, CRAWL_TIMEOUT_S, BSR_MAX_RETRY)
+            logger.info(
+                "crawl start: %s market=%s (timeout=%ds, max_retry=%d)",
+                code, market or "twse", CRAWL_TIMEOUT_S, BSR_MAX_RETRY,
+            )
             try:
-                payload, reason = await asyncio.wait_for(
-                    asyncio.to_thread(analyze_broker_full_ex, code, BSR_MAX_RETRY),
-                    timeout=CRAWL_TIMEOUT_S,
-                )
+                if is_tpex:
+                    # TPEX Camoufox 是 async,不需 to_thread
+                    payload, reason = await asyncio.wait_for(
+                        analyze_tpex_broker_full_ex(code, max_retry=3),
+                        timeout=CRAWL_TIMEOUT_S,
+                    )
+                else:
+                    # TWSE BSR 是 sync(requests + ddddocr),用 thread 卸下
+                    payload, reason = await asyncio.wait_for(
+                        asyncio.to_thread(analyze_broker_full_ex, code, BSR_MAX_RETRY),
+                        timeout=CRAWL_TIMEOUT_S,
+                    )
                 if payload is None:
                     error_msg = _REASON_MESSAGES.get(reason or "", "資料來源回空")
                     logger.info("crawl no payload: %s reason=%s", code, reason)
@@ -420,6 +537,9 @@ async def schedule_crawl(
       'pending'         → 剛入隊或正在跑
       'already_ok'      → 今日已有 ok snapshot,沒重抓
       'already_pending' → 正在處理中
+
+    market 自動補:沒給時從 Stock 表查(batch_schedule 跑過後 Stock 已 warm),
+    讓 _crawl_one 能正確路由到 TWSE BSR 或 TPEX Camoufox。
     """
     today = datetime.now(TPE).date()
 
@@ -429,6 +549,34 @@ async def schedule_crawl(
             return "already_ok"
         if (code, today) in _in_flight:
             return "already_pending"
+
+    # market 解析優先序:
+    #   1. 呼叫端傳入(前端 BrokerSection 一定知道,最權威)
+    #   2. 今日 daily_limit_up_snapshot(該日的官方 market 分類,比 Stock 新)
+    #   3. Stock 表(可能 stale)
+    # 這個順序是因為:舊版 Stock 可能誤標(例如 1595 上櫃股被標 'twse'),
+    # 而 daily snapshot 是當日從 TWSE/TPEX OpenAPI 重新分類的,可信度最高。
+    if not market:
+        try:
+            from app.services import daily_snapshot_service
+            async with AsyncSessionLocal() as db:
+                snap_resp = await daily_snapshot_service.get_by_date(db, today)
+            if snap_resp:
+                for s in snap_resp.stocks:
+                    if s.code == code:
+                        market = s.market or ""
+                        name = name or (s.name or "")
+                        break
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not market or not name:
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(select(Stock).where(Stock.code == code))
+            stock = res.scalars().first()
+            if stock:
+                market = market or (stock.market or "")
+                name = name or (stock.name or "")
 
     # 持有 task ref 避免 GC;callback 中自動移除
     task = asyncio.create_task(_crawl_one(code, name, market))

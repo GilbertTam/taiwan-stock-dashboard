@@ -47,6 +47,52 @@ async def _job_daily_snapshot() -> None:
         logger.exception("scheduler: daily snapshot failed")
 
 
+async def _job_daily_snapshot_chase_today() -> None:
+    """每 10 分鐘 (15:00-21:00) — 等 TWSE/TPEX Date 推進到今日後再 snapshot。
+
+    背景:14:35 主 snapshot job 跑時,TWSE OpenAPI 常常還沒推進到當日資料,
+    導致 snapshot 的 trade_date 仍是「最近交易日」(昨天/上週五),
+    使用者看到的「今日漲停」實際是昨日清單。
+
+    本 job 每 10 分鐘 fetch 一次 live 結果:
+      - 看 response.date(取自 TWSE Date 民國 → 西元)是否 == today
+      - 不是 → 還沒更新,noop;TWSE 多半 17-20 點之間會 push 完
+      - 是   → 此日期 DB 還沒對應 snapshot → upsert(覆寫舊的、新增今日)
+                若已有 snapshot 也 upsert(同日重新整理)
+    """
+    import os as _os
+    from app.db import AsyncSessionLocal
+    from app.services import daily_snapshot_service, stock_daily
+
+    today_str = datetime.now(_TPE).strftime("%Y-%m-%d")
+
+    try:
+        resp = await stock_daily.get_daily_limit_up(market="all", _from_snapshot_job=True)
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: chase-today fetch failed")
+        return
+
+    if resp.date != today_str:
+        logger.debug(
+            "scheduler: chase-today — TWSE Date still %s != today %s, noop",
+            resp.date, today_str,
+        )
+        return
+
+    # TWSE 已推進到今日 → upsert snapshot(順便覆寫舊的)
+    from app.services.daily_snapshot_service import _parse_iso_date, upsert_snapshot
+    target = _parse_iso_date(today_str)
+    if target is None:
+        return
+    async with AsyncSessionLocal() as db:
+        await upsert_snapshot(db, target, resp)
+        await db.commit()
+    logger.info(
+        "scheduler: chase-today — TWSE Date matched, snapshot saved (%s, total=%d)",
+        today_str, resp.total,
+    )
+
+
 async def _job_daily_broker_batch() -> None:
     """14:50 — 對今日漲停清單批次排程抓 broker 分點。"""
     from app.services import broker_service, stock_daily
@@ -76,31 +122,55 @@ async def _job_daily_broker_batch() -> None:
 
 
 async def _job_retry_failed_brokers() -> None:
-    """每 10 分鐘 — 自動重排今日所有「可重試」的 failed snapshots。
+    """每 10 分鐘 — 自動重排今日:
+      A. 「可重試的 failed」  — 一般 schedule_crawl (in_flight dedup)
+      B. 「ok 但壞掉的」     — force_recrawl(先把 ok 改 pending 再排)
 
-    可重試 = NETWORK_ERROR / CAPTCHA_EXHAUSTED / DB lock / 超時 等暫時性失敗
-    不可重試 = NO_DATA(BSR 站明確說沒資料)、PARSE_EMPTY
-    判斷邏輯在 broker_service._is_retryable_failure 內(用 error 字串比對)。
+    A 的判定 = NETWORK_ERROR / CAPTCHA_EXHAUSTED / DB lock / 超時等暫時性失敗
+              不可重試 = NO_DATA、PARSE_EMPTY(BSR 確認永久狀態)
+    B 的判定 = broker_name == code 比例 ≥ 50% 或 buy 總和 != sell 總和 或 全 0
+              用於 parser 修 bug 後撈回舊版寫的壞資料
     """
     from app.services import broker_service
 
+    # A. 一般 failed retryable
     try:
-        items = await broker_service.list_today_failed_retryable()
+        failed_items = await broker_service.list_today_failed_retryable()
     except Exception:  # noqa: BLE001
-        logger.exception("scheduler: list failed retryable raised")
+        logger.exception("scheduler: list_today_failed_retryable raised")
+        failed_items = []
+
+    # B. ok 但內容壞掉的(舊 parser bug 過版本)
+    try:
+        broken_items = await broker_service.list_today_broken_ok()
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: list_today_broken_ok raised")
+        broken_items = []
+
+    if not failed_items and not broken_items:
+        logger.debug("scheduler: retry — nothing to do")
         return
 
-    if not items:
-        logger.debug("scheduler: retry — no failed retryable snapshots")
-        return
+    # A: 走 batch_schedule(內部用 schedule_crawl,撞 already_ok 會 skip)
+    failed_result = (
+        await broker_service.batch_schedule(failed_items) if failed_items
+        else {"queued": [], "skipped_ok": [], "skipped_pending": []}
+    )
+    # B: 一個個 force_recrawl
+    broken_queued = []
+    for item in broken_items:
+        result = await broker_service.force_recrawl(
+            item["code"], name=item["name"], market=item["market"],
+        )
+        if result == "pending":
+            broken_queued.append(item["code"])
 
-    result = await broker_service.batch_schedule(items)
     logger.info(
-        "scheduler: retry — re-queued=%d skipped_ok=%d skipped_pending=%d total_failed=%d",
-        len(result["queued"]),
-        len(result["skipped_ok"]),
-        len(result["skipped_pending"]),
-        len(items),
+        "scheduler: retry — failed_requeued=%d failed_total=%d  broken_requeued=%d broken_total=%d",
+        len(failed_result["queued"]),
+        len(failed_items),
+        len(broken_queued),
+        len(broken_items),
     )
 
 
@@ -137,11 +207,21 @@ def start_scheduler() -> None:
         misfire_grace_time=300,
         coalesce=True,
     )
+    # Chase-today:每 10 分鐘(15:00-21:00)等 TWSE Date 推進到今日後 snapshot。
+    # 14:35 主 job 跑時常常 OpenAPI 還沒更新到今日,這個 job 補上「等更新」的循環。
+    sched.add_job(
+        _job_daily_snapshot_chase_today,
+        CronTrigger(minute="*/10", hour="15-21", timezone=_TPE),
+        id="daily_snapshot_chase_today",
+        replace_existing=True,
+        misfire_grace_time=300,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
-        "retry */10min @ 09-21 (Asia/Taipei)"
+        "retry */10min @ 09-21, chase-today */10min @ 15-21 (Asia/Taipei)"
     )
 
 

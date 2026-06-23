@@ -30,3 +30,7 @@ lxml
 apscheduler>=3.10
 ddddocr>=1.5
 Pillow>=10
+# TPEX broker crawler — Camoufox = patched Firefox + Playwright + anti-Cloudflare
+# 注意:Dockerfile build 時要跑 `python -m camoufox fetch` 預下載 Firefox binary,
+# 否則第一次抓 TPEX 會超慢(線上下載 + 解壓 ~200MB)。
+camoufox>=0.4

@@ -50,17 +50,28 @@ export const triggerSnapshot = async (): Promise<{ date: string; total: number; 
 export const fetchBrokers = async (
     code: string,
     date?: string,
+    market?: string,
 ): Promise<BrokerSnapshotResponse> => {
     const api = createApiInstance();
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    if (market) params.market = market;
     const response = await api.get<BrokerSnapshotResponse>(`/stock/daily/brokers/${code}`, {
-        params: date ? { date } : undefined,
+        params: Object.keys(params).length > 0 ? params : undefined,
     });
     return response.data;
 };
 
-export const refreshBrokers = async (code: string): Promise<BrokerSnapshotResponse> => {
+export const refreshBrokers = async (
+    code: string,
+    market?: string,
+): Promise<BrokerSnapshotResponse> => {
     const api = createApiInstance();
-    const response = await api.post<BrokerSnapshotResponse>(`/stock/daily/brokers/${code}/refresh`);
+    const response = await api.post<BrokerSnapshotResponse>(
+        `/stock/daily/brokers/${code}/refresh`,
+        null,
+        { params: market ? { market } : undefined },
+    );
     return response.data;
 };
 

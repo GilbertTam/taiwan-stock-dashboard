@@ -256,15 +256,30 @@ class BsrAnalyzer:
         )
         return None
 
-    # ── Step 2: HTML 解析（兩段式） ──
+    # ── Step 2: HTML 解析(兩段式) ──
     def _parse_html(self, html_text: str):
+        """BSR HTML 解析。
+
+        BSR 把分點明細放在「外層 wrapper table 內含多個 leaf 子 table」的結構。
+        原本用 `tbl.find_all('td')` 會撈到所有 nested td、用 list 切 5 個一塊,
+        遇到 7610 / 6531 之類巢狀深一點的頁面就全部對錯位 — 變成 broker_name
+        == broker_code、buy/sell 都 0、price 為 0 之類的全壞結果。
+
+        修法:
+          1. 只解析 LEAF table(該 table 內不再嵌 table)
+          2. 用 tr.find_all('td', recursive=False) 拿直接子 td(skip nested)
+          3. 嚴格要求 len(row_tds) == 5 才當資料列(其他長度直接 skip)
+        """
         soup = BeautifulSoup(html_text, "html.parser")
 
-        # 市場資訊（含交易日期、OHLC）
+        # 找出所有「最內層」table — 即不再含子 table 的 table
+        all_leaf_tables = [t for t in soup.find_all("table") if not t.find("table")]
+
+        # 市場資訊(含交易日期、OHLC) — info table 通常本身就是 leaf
         info_tbl = soup.find("table", id="Table1") or soup.find("table", id="table1")
-        if info_tbl:
+        if info_tbl is not None and info_tbl.find("table") is None:
             for tr in info_tbl.find_all("tr"):
-                tds = tr.find_all("td")
+                tds = tr.find_all("td", recursive=False)
                 for i in range(0, len(tds) - 1, 2):
                     k = tds[i].get_text(strip=True).rstrip(":：")
                     v = tds[i + 1].get_text(strip=True)
@@ -273,13 +288,13 @@ class BsrAnalyzer:
 
         # Pass 1: 建立 code → name 全域對照
         code_name_map: dict[str, dict] = {}
-        for tbl in soup.find_all("table"):
+        for tbl in all_leaf_tables:
             for tr in tbl.find_all("tr"):
-                tds = tr.find_all("td")
-                if len(tds) < 5:
+                row_tds = tr.find_all("td", recursive=False)
+                if len(row_tds) != 5:
                     continue
-                for i, td in enumerate(tds):
-                    raw = td.get_text(strip=True)
+                for i, td in enumerate(row_tds):
+                    raw = td.get_text(" ", strip=True).replace("　", " ").strip()
                     m = re.match(r'^([A-Z0-9a-z]{4})\s+(.+)$', raw)
                     if m:
                         code = m.group(1).upper()
@@ -294,11 +309,12 @@ class BsrAnalyzer:
 
         # Pass 2: 解明細
         records = []
-        for tbl in soup.find_all("table"):
-            tds = tbl.find_all("td")
+        for tbl in all_leaf_tables:
             current_name: dict[str, dict] = {}
-            for i in range(0, len(tds) - 4, 5):
-                row_tds = tds[i:i + 5]
+            for tr in tbl.find_all("tr"):
+                row_tds = tr.find_all("td", recursive=False)
+                if len(row_tds) != 5:
+                    continue
                 seq_str = row_tds[0].get_text(strip=True)
                 broker_raw = row_tds[1].get_text(" ", strip=True)
                 price_str = row_tds[2].get_text(strip=True)
@@ -311,7 +327,7 @@ class BsrAnalyzer:
                 parity = 'odd' if (seq % 2) == 1 else 'even'
                 other = 'even' if parity == 'odd' else 'odd'
 
-                broker_clean = broker_raw.replace('\u3000', ' ').strip()
+                broker_clean = broker_raw.replace("　", " ").strip()
                 m_full = re.match(r'^([A-Z0-9a-z]{4})\s+(.+)$', broker_clean)
                 m_plain = re.match(r'^([A-Z0-9a-z]{4})$', broker_clean)
 
@@ -336,7 +352,7 @@ class BsrAnalyzer:
                     continue
 
                 try:
-                    price = float(price_str)
+                    price = float(price_str.replace(',', ''))
                     buy = _to_int(buy_str)
                     sell = _to_int(sell_str)
                 except ValueError:
@@ -350,6 +366,12 @@ class BsrAnalyzer:
                     'buy_shares': buy,
                     'sell_shares': sell,
                 })
+
+        if not records:
+            logger.warning(
+                "BSR %s: parsed 0 records from %d leaf tables",
+                self.stock_id, len(all_leaf_tables),
+            )
 
         self._df = (
             pd.DataFrame(records)
