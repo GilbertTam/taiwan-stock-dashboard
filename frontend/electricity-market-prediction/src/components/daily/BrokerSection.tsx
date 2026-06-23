@@ -39,86 +39,120 @@ function PanelHeading({ children }: { children: React.ReactNode }) {
     );
 }
 
-function InstitutionalPanel({ stock }: { stock: DailyStock }) {
-    const items: [string, number][] = [
-        ['外資', stock.foreign],
-        ['投信', stock.trust],
-        ['自營商', stock.dealer],
-    ];
+/**
+ * 一列券商 = 6 欄:券商 | 淨(買超/賣超) | 買均 | 買張 | 賣張 | 賣均
+ * 沒有買 / 沒有賣的欄位顯示 — 。
+ */
+function BrokerRow({ b }: { b: BrokerEntryOut }) {
+    const hasBuy = b.buy > 0;
+    const hasSell = b.sell > 0;
+    const cellBase = {
+        py: 0.25,
+        fontSize: 11.5,
+        fontFamily: 'monospace',
+        fontVariantNumeric: 'tabular-nums' as const,
+        whiteSpace: 'nowrap' as const,
+    };
     return (
-        <Box>
-            <PanelHeading>法人三大籌碼（張）</PanelHeading>
-            <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
-                {items.map(([label, v]) => (
-                    <Box key={label} sx={{ display: 'flex', flexDirection: 'column', minWidth: 64 }}>
-                        <Typography sx={{ fontSize: 11, color: 'var(--muted)' }}>{label}</Typography>
-                        <Typography sx={{ fontSize: 18, fontWeight: 700, color: netColor(v) }}>
-                            {formatLots(v)}
-                        </Typography>
-                    </Box>
-                ))}
-            </Box>
-        </Box>
-    );
-}
-
-function BrokerLine({ b, side }: { b: BrokerEntryOut; side: 'buy' | 'sell' }) {
-    const lots = side === 'buy' ? b.buy : b.sell;
-    const avg = side === 'buy' ? b.buy_avg : b.sell_avg;
-    return (
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 1, py: 0.25, fontSize: 12 }}>
-            <Box sx={{ color: 'var(--foreground)' }}>
+        <>
+            {/* 券商 */}
+            <Box sx={{ py: 0.25, fontSize: 12, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <Box component="span" sx={{ color: 'var(--muted)', mr: 0.5, fontFamily: 'monospace', fontSize: 10.5 }}>
                     {b.broker_code}
                 </Box>
-                {b.broker_name}
+                <Box component="span" sx={{ color: 'var(--foreground)' }}>{b.broker_name}</Box>
             </Box>
-            <Box sx={{ color: netColor(b.net), fontWeight: 600, textAlign: 'right' }}>
+            {/* 淨 */}
+            <Box sx={{ ...cellBase, color: netColor(b.net), fontWeight: 700, textAlign: 'right' }}>
                 {formatLots(b.net)}
             </Box>
-            <Box sx={{ color: 'var(--muted)', fontSize: 11, textAlign: 'right', minWidth: 36 }}>
-                {avg ? `@${avg.toFixed(2)}` : ''}
+            {/* 買均 */}
+            <Box sx={{ ...cellBase, color: hasBuy ? 'var(--foreground)' : 'var(--muted)', textAlign: 'right' }}>
+                {hasBuy && b.buy_avg ? b.buy_avg.toFixed(2) : '—'}
             </Box>
+            {/* 買張 */}
+            <Box sx={{ ...cellBase, color: hasBuy ? '#FF4444' : 'var(--muted)', textAlign: 'right' }}>
+                {hasBuy ? `+${b.buy.toLocaleString('en-US')}` : '—'}
+            </Box>
+            {/* 賣張 */}
+            <Box sx={{ ...cellBase, color: hasSell ? '#22C55E' : 'var(--muted)', textAlign: 'right' }}>
+                {hasSell ? `+${b.sell.toLocaleString('en-US')}` : '—'}
+            </Box>
+            {/* 賣均 */}
+            <Box sx={{ ...cellBase, color: hasSell ? 'var(--foreground)' : 'var(--muted)', textAlign: 'right' }}>
+                {hasSell && b.sell_avg ? b.sell_avg.toFixed(2) : '—'}
+            </Box>
+        </>
+    );
+}
+
+function BrokerTable({ title, rows, accent }: {
+    title: string;
+    rows: BrokerEntryOut[];
+    accent: 'buy' | 'sell';
+}) {
+    const headColor = accent === 'buy' ? '#FF4444' : '#22C55E';
+    const headerSx = {
+        py: 0.5,
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: 'var(--muted)',
+        letterSpacing: 0.3,
+        borderBottom: '1px solid var(--card-border)',
+    };
+    return (
+        <Box>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: headColor, mb: 0.5 }}>
+                {title}
+            </Typography>
+            {rows.length === 0 ? (
+                <Typography sx={{ fontSize: 12, color: 'var(--muted)' }}>—</Typography>
+            ) : (
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(96px,1fr) 56px 56px 56px 56px 56px',
+                        columnGap: 1,
+                    }}
+                >
+                    <Box sx={headerSx}>券商</Box>
+                    <Box sx={{ ...headerSx, textAlign: 'right' }}>
+                        {accent === 'buy' ? '買超' : '賣超'}
+                    </Box>
+                    <Box sx={{ ...headerSx, textAlign: 'right' }}>買均</Box>
+                    <Box sx={{ ...headerSx, textAlign: 'right' }}>買張</Box>
+                    <Box sx={{ ...headerSx, textAlign: 'right' }}>賣張</Box>
+                    <Box sx={{ ...headerSx, textAlign: 'right' }}>賣均</Box>
+                    {rows.map((b) => <BrokerRow key={b.broker_code} b={b} />)}
+                </Box>
+            )}
         </Box>
     );
 }
 
 function BrokerListPanel({ snap, loading }: { snap: BrokerSnapshotResponse | null; loading: boolean }) {
-    const renderList = (title: string, rows: BrokerEntryOut[], side: 'buy' | 'sell') => (
-        <Box>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'var(--foreground)', mb: 0.5 }}>
-                {title}
-            </Typography>
-            {rows.length === 0
-                ? <Typography sx={{ fontSize: 12, color: 'var(--muted)' }}>—</Typography>
-                : rows.map((b) => <BrokerLine key={b.broker_code} b={b} side={side} />)
-            }
-        </Box>
-    );
     return (
         <Box>
             <PanelHeading>券商買賣超</PanelHeading>
-            {loading
-                ? <Typography sx={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>讀取中…</Typography>
-                : (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                        {renderList('買超 Top15', snap?.buyTop ?? [], 'buy')}
-                        {renderList('賣超 Top15', snap?.sellTop ?? [], 'sell')}
-                    </Box>
-                )
-            }
+            {loading ? (
+                <Typography sx={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>讀取中…</Typography>
+            ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                    <BrokerTable title="買超 Top15" rows={snap?.buyTop ?? []} accent="buy" />
+                    <BrokerTable title="賣超 Top15" rows={snap?.sellTop ?? []} accent="sell" />
+                </Box>
+            )}
         </Box>
     );
 }
 
 function BubblePanel({ snap }: { snap: BrokerSnapshotResponse | null }) {
-    const entries = snap?.all ?? [];
-    const ready = entries.length > 0;
+    const ready = snap != null && (snap.all?.length ?? 0) > 0;
     return (
         <Box>
             <PanelHeading>主力動向泡泡圖</PanelHeading>
             {ready ? (
-                <BrokerBubbleChart entries={entries} />
+                <BrokerBubbleChart snap={snap!} />
             ) : (
                 <Box
                     sx={{
@@ -180,23 +214,32 @@ function StatusBanner({
         );
     }
     if (snap.status === 'failed') {
+        // 「查無資料」/「無分點」這類是 BSR 站確認該股當日無分點,自動重試也是同樣結果
+        const isPermanent = !!snap.error && /查無|無分點|解析為空/.test(snap.error);
         return (
-            <Box sx={{ gridColumn: '1 / -1', mb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography sx={{ fontSize: 12, color: '#FF6B6B' }}>
-                    分點資料抓取失敗{snap.error ? `:${snap.error}` : ''}
+            <Box sx={{ gridColumn: '1 / -1', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontSize: 12, color: '#FF6B6B' }}>
+                        分點資料抓取失敗{snap.error ? `:${snap.error}` : ''}
+                    </Typography>
+                    <ButtonBase
+                        onClick={onRefresh}
+                        disabled={loading}
+                        sx={{
+                            px: 1.25, py: 0.5, borderRadius: '6px',
+                            border: '1px solid var(--primary)',
+                            color: 'var(--primary)', fontSize: 11,
+                            display: 'flex', alignItems: 'center', gap: 0.5,
+                        }}
+                    >
+                        <RefreshIcon sx={{ fontSize: 13 }} /> 重新抓取
+                    </ButtonBase>
+                </Box>
+                <Typography sx={{ fontSize: 10.5, color: 'var(--muted)', mt: 0.5 }}>
+                    {isPermanent
+                        ? '此為 BSR 站永久性回應(該股當日確認無分點),不會自動重試。'
+                        : '系統每 10 分鐘自動重試,直到當日成功抓取為止。也可按 重新抓取 立即重抓。'}
                 </Typography>
-                <ButtonBase
-                    onClick={onRefresh}
-                    disabled={loading}
-                    sx={{
-                        px: 1.25, py: 0.5, borderRadius: '6px',
-                        border: '1px solid var(--primary)',
-                        color: 'var(--primary)', fontSize: 11,
-                        display: 'flex', alignItems: 'center', gap: 0.5,
-                    }}
-                >
-                    <RefreshIcon sx={{ fontSize: 13 }} /> 重新抓取
-                </ButtonBase>
             </Box>
         );
     }
@@ -290,7 +333,8 @@ export function BrokerSection({
                 background: 'var(--subtle-bg)',
                 borderTop: '1px solid var(--card-border)',
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '0.8fr 1.2fr 1fr' },
+                // 左 = 券商買賣超 Top15 雙欄表;右 = 泡泡圖
+                gridTemplateColumns: { xs: '1fr', md: '1.4fr 1fr' },
                 gap: 3,
             }}
         >
@@ -302,7 +346,6 @@ export function BrokerSection({
                 pollMax={POLL_MAX_TRIES}
                 onRefresh={onRefresh}
             />
-            <InstitutionalPanel stock={stock} />
             <BrokerListPanel snap={snap} loading={loading && !snap} />
             <BubblePanel snap={snap} />
         </Box>

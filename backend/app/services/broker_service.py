@@ -240,6 +240,50 @@ async def mark_failed(db: AsyncSession, snapshot_id: int, error: str) -> None:
     await db.flush()
 
 
+# 不可重試的失敗訊息片段(BSR 真的沒資料 / 解析空) — 重試也是同樣結果
+_NON_RETRYABLE_ERROR_HINTS = (
+    "查無",          # NO_DATA: BSR 站明確回查無資料
+    "無分點",         # NO_DATA: 「該日期無分點快照」(歷史日期)
+    "解析為空",       # PARSE_EMPTY
+    "parsed empty",  # 備用英文版本
+)
+
+
+def _is_retryable_failure(error: str | None) -> bool:
+    """判斷一筆 failed snapshot 是否值得自動重試。
+
+    可重試 = 暫時性失敗(網路斷、驗證碼解不出、超時、DB lock 等)
+    不可重試 = BSR 端明確說沒資料 / 解析結果空(就算重抓也一樣)
+    """
+    if not error:
+        return True  # 沒寫原因預設可重試
+    return not any(hint in error for hint in _NON_RETRYABLE_ERROR_HINTS)
+
+
+async def list_today_failed_retryable() -> list[dict]:
+    """列出今日(Asia/Taipei)所有「值得重試」的 failed snapshots。
+
+    給 scheduler 的 retry job 用。回傳 [{code, name, market}] 給 batch_schedule 吃。
+    """
+    today = datetime.now(TPE).date()
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(BrokerSnapshot, Stock)
+            .join(Stock, Stock.id == BrokerSnapshot.stock_id)
+            .where(
+                BrokerSnapshot.trade_date == today,
+                BrokerSnapshot.status == SnapshotStatus.FAILED,
+            )
+        )
+        rows = res.all()
+
+    out: list[dict] = []
+    for snap, stock in rows:
+        if _is_retryable_failure(snap.error):
+            out.append({"code": stock.code, "name": stock.name, "market": stock.market})
+    return out
+
+
 async def fetch_top(
     db: AsyncSession, snapshot_id: int, n: int = 15,
 ) -> tuple[list[BrokerEntry], list[BrokerEntry], list[BrokerEntry]]:
