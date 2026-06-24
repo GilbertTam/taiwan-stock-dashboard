@@ -59,38 +59,48 @@ async def _job_daily_snapshot_chase_today() -> None:
       - 不是 → 還沒更新,noop;TWSE 多半 17-20 點之間會 push 完
       - 是   → 此日期 DB 還沒對應 snapshot → upsert(覆寫舊的、新增今日)
                 若已有 snapshot 也 upsert(同日重新整理)
+
+    全程 try/except 兜底 — 任何 fetch/parse/DB write 失敗都吞掉,不讓
+    APScheduler 收到 raised exception 變成 ERROR 級 log 干擾真正問題。
     """
-    import os as _os
-    from app.db import AsyncSessionLocal
-    from app.services import daily_snapshot_service, stock_daily
-
     today_str = datetime.now(_TPE).strftime("%Y-%m-%d")
-
     try:
-        resp = await stock_daily.get_daily_limit_up(market="all", _from_snapshot_job=True)
-    except Exception:  # noqa: BLE001
-        logger.exception("scheduler: chase-today fetch failed")
-        return
+        from app.db import AsyncSessionLocal
+        from app.services import stock_daily
+        from app.services.daily_snapshot_service import _parse_iso_date, upsert_snapshot
 
-    if resp.date != today_str:
-        logger.debug(
-            "scheduler: chase-today — TWSE Date still %s != today %s, noop",
-            resp.date, today_str,
+        try:
+            resp = await stock_daily.get_daily_limit_up(market="all", _from_snapshot_job=True)
+        except Exception:  # noqa: BLE001
+            logger.exception("scheduler: chase-today fetch failed")
+            return
+
+        if resp.date != today_str:
+            logger.debug(
+                "scheduler: chase-today — TWSE Date still %s != today %s, noop",
+                resp.date, today_str,
+            )
+            return
+
+        # TWSE 已推進到今日(或 Yahoo fallback 已提供 today 資料)→ upsert
+        target = _parse_iso_date(today_str)
+        if target is None:
+            return
+        try:
+            async with AsyncSessionLocal() as db:
+                await upsert_snapshot(db, target, resp)
+                await db.commit()
+        except Exception:  # noqa: BLE001
+            logger.exception("scheduler: chase-today DB upsert failed")
+            return
+
+        logger.info(
+            "scheduler: chase-today — date matched today=%s, snapshot saved (total=%d)",
+            today_str, resp.total,
         )
-        return
-
-    # TWSE 已推進到今日 → upsert snapshot(順便覆寫舊的)
-    from app.services.daily_snapshot_service import _parse_iso_date, upsert_snapshot
-    target = _parse_iso_date(today_str)
-    if target is None:
-        return
-    async with AsyncSessionLocal() as db:
-        await upsert_snapshot(db, target, resp)
-        await db.commit()
-    logger.info(
-        "scheduler: chase-today — TWSE Date matched, snapshot saved (%s, total=%d)",
-        today_str, resp.total,
-    )
+    except Exception:  # noqa: BLE001
+        # 最外層兜底:不該到這裡,但保險不讓 APScheduler 看到 raised exception
+        logger.exception("scheduler: chase-today outer failure")
 
 
 async def _job_daily_broker_batch() -> None:
@@ -147,7 +157,14 @@ async def _job_retry_failed_brokers() -> None:
         logger.exception("scheduler: list_today_broken_ok raised")
         broken_items = []
 
-    if not failed_items and not broken_items:
+    # C. 卡在 pending 超過 5 分鐘的(通常是 container 重啟造成的孤兒)
+    try:
+        stuck_items = await broker_service.list_today_stuck_pending(min_age_minutes=5)
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: list_today_stuck_pending raised")
+        stuck_items = []
+
+    if not failed_items and not broken_items and not stuck_items:
         logger.debug("scheduler: retry — nothing to do")
         return
 
@@ -164,13 +181,20 @@ async def _job_retry_failed_brokers() -> None:
         )
         if result == "pending":
             broken_queued.append(item["code"])
+    # C: orphan pending → 同樣 force_recrawl 重新接續
+    stuck_queued = []
+    for item in stuck_items:
+        result = await broker_service.force_recrawl(
+            item["code"], name=item["name"], market=item["market"],
+        )
+        if result == "pending":
+            stuck_queued.append(item["code"])
 
     logger.info(
-        "scheduler: retry — failed_requeued=%d failed_total=%d  broken_requeued=%d broken_total=%d",
-        len(failed_result["queued"]),
-        len(failed_items),
-        len(broken_queued),
-        len(broken_items),
+        "scheduler: retry — failed=%d/%d broken=%d/%d stuck_pending=%d/%d",
+        len(failed_result["queued"]), len(failed_items),
+        len(broken_queued), len(broken_items),
+        len(stuck_queued), len(stuck_items),
     )
 
 

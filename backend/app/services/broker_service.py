@@ -348,6 +348,34 @@ async def list_today_broken_ok() -> list[dict]:
     return out
 
 
+async def list_today_stuck_pending(min_age_minutes: int = 5) -> list[dict]:
+    """列出今日 status=pending 但停留超過 N 分鐘的 snapshot — 通常是孤兒 (orphan)。
+
+    成因:backend container 重啟時,正在跑的 background task 被 kill,
+    DB 內 snapshot 留 pending 但沒人接續,前端永遠輪詢看到 pending。
+    retry job 或 startup hook 拿這個清單重新 schedule_crawl。
+
+    min_age_minutes 預設 5 分鐘 (典型抓取 < 4 分鐘);調太小會誤殺正在跑的。
+    """
+    today = datetime.now(TPE).date()
+    cutoff = datetime.now(TPE) - timedelta(minutes=min_age_minutes)
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(
+            select(BrokerSnapshot, Stock)
+            .join(Stock, Stock.id == BrokerSnapshot.stock_id)
+            .where(
+                BrokerSnapshot.trade_date == today,
+                BrokerSnapshot.status == SnapshotStatus.PENDING,
+                BrokerSnapshot.fetched_at < cutoff,
+            )
+        )
+        rows = res.all()
+    return [
+        {"code": s.code, "name": s.name, "market": s.market}
+        for _snap, s in rows
+    ]
+
+
 async def list_today_non_ok() -> list[dict]:
     """列出今日所有 status != ok 的 snapshot(failed 不論原因 + pending 卡死)。
 
