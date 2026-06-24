@@ -101,10 +101,70 @@ async def ensure_tables():
     """
     from app.db import engine, Base
     # Import all models so Base.metadata sees them before create_all runs.
-    from app.models import User, OAuthAccount, AppSettings, UserPreference  # noqa: F401
+    from app.models import (  # noqa: F401
+        User,
+        OAuthAccount,
+        AppSettings,
+        UserPreference,
+        Stock,
+        BrokerSnapshot,
+        BrokerEntry,
+        DailyLimitUpSnapshot,
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Pre-build sector maps asynchronously at startup
+    import threading
+    from app.services import stock_sector
+    threading.Thread(target=stock_sector.ensure_loaded, daemon=True).start()
+
+    # Start the daily 14:45 broker batch scheduler (Asia/Taipei)
+    from app.services.scheduler import start_scheduler
+    start_scheduler()
+
+    # 重啟後馬上 reschedule 卡在 pending 的 snapshot —
+    # 容器重啟會把 background task 全部 kill,DB 內 status=pending 的 snapshot
+    # 變成「孤兒」(沒人接續抓取),前端輪詢會永遠看到 pending。
+    # 這裡用 asyncio.create_task 非阻塞地在背景跑,不擋 startup。
+    async def _reschedule_orphan_pendings():
+        import asyncio
+        # 等 5 秒讓 scheduler / DB 都初始化完
+        await asyncio.sleep(5)
+        try:
+            from app.services import broker_service
+            stuck = await broker_service.list_today_stuck_pending(min_age_minutes=0)
+            if stuck:
+                queued = []
+                for item in stuck:
+                    result = await broker_service.force_recrawl(
+                        item["code"], name=item["name"], market=item["market"],
+                    )
+                    if result == "pending":
+                        queued.append(item["code"])
+                from loguru import logger as _logger
+                _logger.info(
+                    "startup: rescheduled %d/%d orphan pending snapshots (%s)",
+                    len(queued), len(stuck), queued[:5],
+                )
+        except Exception:  # noqa: BLE001
+            from loguru import logger as _logger
+            _logger.exception("startup: reschedule orphan pendings failed")
+    import asyncio as _asyncio
+    _asyncio.create_task(_reschedule_orphan_pendings())
+
+
+@app.on_event("shutdown")
+async def stop_background_jobs():
+    from app.services.scheduler import stop_scheduler
+    stop_scheduler()
+    # 關掉 TPEX Camoufox 共用 session(若曾開過)
+    try:
+        from app.services.broker_crawlers import shutdown_tpex_session
+        await shutdown_tpex_session()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @app.get("/")

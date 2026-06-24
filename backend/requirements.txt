@@ -21,3 +21,16 @@ httpx==0.27.0
 loguru==0.7.2
 
 python-dotenv==1.0.1
+
+# Daily limit-up + broker crawler (TWSE/TPEX OpenAPI, MoneyDJ, BSR)
+requests
+beautifulsoup4
+pandas
+lxml
+apscheduler>=3.10
+ddddocr>=1.5
+Pillow>=10
+# TPEX broker crawler — Camoufox = patched Firefox + Playwright + anti-Cloudflare
+# 注意:Dockerfile build 時要跑 `python -m camoufox fetch` 預下載 Firefox binary,
+# 否則第一次抓 TPEX 會超慢(線上下載 + 解壓 ~200MB)。
+camoufox>=0.4

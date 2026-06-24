@@ -9,7 +9,16 @@ from alembic import context
 
 from app.config import settings
 from app.db import Base
-from app.models import User, OAuthAccount, AppSettings  # Import all models here
+from app.models import (  # Import all models here so Base.metadata sees them
+    User,
+    OAuthAccount,
+    AppSettings,
+    UserPreference,
+    Stock,
+    BrokerSnapshot,
+    BrokerEntry,
+    DailyLimitUpSnapshot,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
