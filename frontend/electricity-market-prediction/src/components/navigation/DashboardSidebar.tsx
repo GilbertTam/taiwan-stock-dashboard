@@ -8,6 +8,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import PodcastsIcon from '@mui/icons-material/Podcasts';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
@@ -24,6 +25,7 @@ type NavItem = { key: string; labelKey: string; path: string; Icon: React.Elemen
 const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'home', labelKey: 'sidebar.overview', path: '/dashboard', Icon: DashboardIcon },
     { key: 'daily', labelKey: 'sidebar.daily', path: '/dashboard/daily', Icon: TrendingUpIcon },
+    { key: 'podcast', labelKey: 'sidebar.podcast', path: '/dashboard/podcast', Icon: PodcastsIcon },
 ];
 
 // Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.
@@ -234,7 +236,8 @@ export function DashboardSidebar() {
 
                     const isActive =
                         pathname === path ||
-                        (key === 'admin' && matchesPathOrSubpath('/dashboard/admin'));
+                        (key === 'admin' && matchesPathOrSubpath('/dashboard/admin')) ||
+                        (key === 'podcast' && matchesPathOrSubpath('/dashboard/podcast'));
 
                     return (
                         <ButtonBase

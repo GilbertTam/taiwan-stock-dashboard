@@ -10,6 +10,7 @@ import zhTWDashboard from '@/locales/zh-TW/dashboard.json';
 import zhTWAccount from '@/locales/zh-TW/account.json';
 import zhTWAdmin from '@/locales/zh-TW/admin.json';
 import zhTWDaily from '@/locales/zh-TW/daily.json';
+import zhTWPodcast from '@/locales/zh-TW/podcast.json';
 
 import enCommon from '@/locales/en/common.json';
 import enNavigation from '@/locales/en/navigation.json';
@@ -19,6 +20,7 @@ import enDashboard from '@/locales/en/dashboard.json';
 import enAccount from '@/locales/en/account.json';
 import enAdmin from '@/locales/en/admin.json';
 import enDaily from '@/locales/en/daily.json';
+import enPodcast from '@/locales/en/podcast.json';
 
 i18n
   .use(LanguageDetector)
@@ -34,6 +36,7 @@ i18n
         account: zhTWAccount,
         admin: zhTWAdmin,
         daily: zhTWDaily,
+        podcast: zhTWPodcast,
       },
       en: {
         common: enCommon,
@@ -44,6 +47,7 @@ i18n
         account: enAccount,
         admin: enAdmin,
         daily: enDaily,
+        podcast: enPodcast,
       },
     },
     fallbackLng: 'zh-TW',

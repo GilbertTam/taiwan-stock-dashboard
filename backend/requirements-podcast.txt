@@ -1,0 +1,21 @@
+# 財經 Podcast 爬蟲（backend/scripts/podcast_agent.py）專用相依。
+# 核心 FastAPI 後端「只讀」這些資料，不需要安裝以下任何套件；
+# 只有實際執行爬蟲（monitor / gooaye）才需要：
+#
+#   pip install -r backend/requirements-podcast.txt
+#   export ANTHROPIC_API_KEY=...
+
+# Claude 分析
+anthropic
+
+# YouTube RSS + 字幕
+feedparser
+youtube-transcript-api
+
+# 股癌 HTTP / HTML（requests / beautifulsoup4 已在主 requirements.txt）
+lxml                       # BeautifulSoup 解析 sitemap.xml 用 "xml" parser 需要
+
+# ── 選用：無字幕影片的 Whisper 轉錄路徑（較重，可不裝）──
+# yt-dlp
+# faster-whisper
+# opencc                   # 繁簡轉換（s2twp）

@@ -1,0 +1,34 @@
+{
+  "page": {
+    "title": "財經節目",
+    "subtitle": "追蹤財經 YouTuber / Podcast 的個股與族群觀點",
+    "empty": "尚無節目資料，請先執行爬蟲同步",
+    "error": "載入失敗",
+    "retry": "重試"
+  },
+  "card": {
+    "episodes": "{{count}} 集",
+    "updated": "更新 {{date}}",
+    "latestPrefix": "最新一集",
+    "topMentions": "熱門標的",
+    "noMentions": "尚無標的資料"
+  },
+  "detail": {
+    "back": "返回節目列表",
+    "topMentions": "熱門標的",
+    "summary": "AI 摘要",
+    "timeline": "段落時間軸",
+    "mentions": "提及個股 / 族群",
+    "watchOriginal": "觀看原片",
+    "noEpisodes": "此頻道尚無集數"
+  },
+  "sentiment": {
+    "bullish": "看好",
+    "bearish": "看壞",
+    "neutral": "中立"
+  },
+  "type": {
+    "stock": "個股",
+    "sector": "族群"
+  }
+}

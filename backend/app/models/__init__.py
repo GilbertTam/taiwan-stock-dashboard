@@ -4,3 +4,4 @@ from .app_settings import AppSettings
 from .user_preference import UserPreference
 from .broker import Stock, BrokerSnapshot, BrokerEntry
 from .daily_snapshot import DailyLimitUpSnapshot
+from .podcast import PodcastVideo, PodcastSegment, PodcastMention

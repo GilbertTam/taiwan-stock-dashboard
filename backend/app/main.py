@@ -110,6 +110,9 @@ async def ensure_tables():
         BrokerSnapshot,
         BrokerEntry,
         DailyLimitUpSnapshot,
+        PodcastVideo,
+        PodcastSegment,
+        PodcastMention,
     )
 
     async with engine.begin() as conn:

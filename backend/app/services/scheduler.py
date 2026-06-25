@@ -198,6 +198,38 @@ async def _job_retry_failed_brokers() -> None:
     )
 
 
+def _run_podcast_sync_blocking() -> None:
+    """同步執行 podcast 增量同步（在 worker thread 跑）。
+
+    只跑「免 API key」的兩條來源：股癌 gooaye + PodSight 回填。
+    YouTube monitor（需 ANTHROPIC_API_KEY + 額外相依）刻意不在此，留待另行排程。
+    爬蟲是同步 sqlite3，放在 asyncio.to_thread 的 worker thread 執行，
+    不阻塞 FastAPI event loop（避免重演 broker 爬蟲卡 healthcheck 的問題）。
+    """
+    import scripts.podcast_agent as pa
+
+    config = pa.AgentConfig.from_env()
+    pipe = pa.PodcastAgentPipeline(config)
+    try:
+        pipe.run_gooaye_sync(use_sitemap=False)
+        for slug, channel in config.podsight_channels.items():
+            pipe.run_podsight_sync(slug, channel)
+    finally:
+        pipe.repo.close()
+
+
+async def _job_podcast_sync() -> None:
+    """08:30 / 20:30 (Asia/Taipei) — podcast 來源增量同步（gooaye + PodSight，免 key）。"""
+    import asyncio
+
+    logger.info("scheduler: podcast sync starting")
+    try:
+        await asyncio.to_thread(_run_podcast_sync_blocking)
+        logger.info("scheduler: podcast sync done")
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: podcast sync failed")
+
+
 def start_scheduler() -> None:
     """在 FastAPI startup hook 呼叫。Idempotent。"""
     global _scheduler
@@ -241,11 +273,22 @@ def start_scheduler() -> None:
         misfire_grace_time=300,
         coalesce=True,
     )
+    # Podcast 來源增量同步：每天 08:30 / 20:30 跑 gooaye + PodSight(免 key)。
+    # 這些是「每日節目」,RSS/列表一天才更新,兩個時段足夠且省資源。
+    sched.add_job(
+        _job_podcast_sync,
+        CronTrigger(hour="8,20", minute=30, timezone=_TPE),
+        id="podcast_sync",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
-        "retry */10min @ 09-21, chase-today */10min @ 15-21 (Asia/Taipei)"
+        "retry */10min @ 09-21, chase-today */10min @ 15-21, "
+        "podcast sync @ 08:30/20:30 (Asia/Taipei)"
     )
 
 

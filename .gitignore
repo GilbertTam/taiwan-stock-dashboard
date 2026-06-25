@@ -15,6 +15,8 @@ log
 logs
 db.sqlite3
 db.sqlite3-journal
+# Runtime data artifacts (爬蟲逐字稿 / 快取 / podcast md)，不進版控
+backend/data/
 .DS_Store
 desktop.ini
 00*_*.py
