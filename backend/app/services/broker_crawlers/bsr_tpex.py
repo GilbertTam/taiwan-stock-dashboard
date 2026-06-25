@@ -150,17 +150,78 @@ async def _ensure_session() -> bool:
         return False
 
 
+def _kill_stray_camoufox() -> int:
+    """SIGKILL 殘留的 Camoufox 行程（孤兒 Firefox）。回傳殺掉的行程數。
+
+    為什麼需要：當 _browser_ctx.__aexit__ 失敗或逾時（例如 driver 連線已斷、
+    或 OOM killer 殺了瀏覽器子行程），對應的 OS Firefox 行程不會自己消失，
+    會變孤兒常駐吃記憶體；下次 _ensure_session 又開一個新的 → 越積越多 → OOM。
+
+    安全性：_close_session 一律在 _browser_lock 內呼叫，當下不該有任何「使用中」
+    的瀏覽器，故把所有 camoufox 行程清掉是安全的。只在 Linux(/proc 存在)執行；
+    dev(macOS)的 graceful close 已足夠，且無 /proc。
+    """
+    import os
+    import signal
+
+    if not os.path.isdir("/proc"):
+        return 0
+    killed = 0
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                cmdline = f.read()
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        if b"camoufox" in cmdline:
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+                killed += 1
+            except (ProcessLookupError, PermissionError):
+                pass
+    if killed:
+        logger.warning("TPEX: SIGKILL %d 個殘留 camoufox 行程", killed)
+    return killed
+
+
 async def _close_session() -> None:
     global _browser_ctx, _browser, _page, _session_ready
     try:
         if _browser_ctx is not None:
-            await _browser_ctx.__aexit__(None, None, None)
-    except Exception:  # noqa: BLE001
-        logger.exception("TPEX: session close failed")
-    _browser_ctx = None
-    _browser = None
-    _page = None
-    _session_ready = False
+            # 加 timeout:driver 連線已斷時 __aexit__ 可能 hang,別卡死
+            await asyncio.wait_for(_browser_ctx.__aexit__(None, None, None), timeout=10)
+    except Exception:  # noqa: BLE001  (含 asyncio.TimeoutError)
+        logger.warning("TPEX: graceful close 失敗/逾時,改強制清行程")
+    finally:
+        _browser_ctx = None
+        _browser = None
+        _page = None
+        _session_ready = False
+        # 強制清掉殘留 Firefox 孤兒(graceful close 失敗時 OS 行程不會自己消失)
+        _kill_stray_camoufox()
+
+
+async def reap_idle_session() -> None:
+    """背景閒置回收:閒置超過 TTL 就主動關閉 Camoufox,把記憶體還回去。
+
+    由 scheduler 每分鐘呼叫。在 _browser_lock 內關閉,絕不打斷進行中的抓取。
+    原本 TTL 只在「下一次抓取進來」才惰性重建,閒置期間瀏覽器一直常駐吃記憶體;
+    這個 reaper 補上「沒人用就關掉」的主動回收。
+    """
+    global _session_ready, _last_use_time
+    import time as _time
+
+    # 快速預檢(無鎖):沒 session 或還沒閒置就直接返回,避免無謂搶鎖
+    if not _session_ready:
+        return
+    if (_time.monotonic() - _last_use_time) <= _SESSION_TTL_S:
+        return
+    async with _browser_lock:
+        if _session_ready and (_time.monotonic() - _last_use_time) > _SESSION_TTL_S:
+            logger.info("TPEX: idle reaper 關閉 session(閒置 >%ds)", _SESSION_TTL_S)
+            await _close_session()
 
 
 # ── CSV 解析 ────────────────────────────────────────────────────

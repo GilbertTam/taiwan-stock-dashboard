@@ -238,6 +238,16 @@ def _run_podcast_sync_blocking() -> None:
         pipe.repo.close()
 
 
+async def _job_reap_tpex_session() -> None:
+    """每分鐘 — TPEX Camoufox 閒置回收(>TTL 沒用就關,釋放記憶體,避免行程累積 OOM)。"""
+    from app.services.broker_crawlers import bsr_tpex
+
+    try:
+        await bsr_tpex.reap_idle_session()
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: reap tpex session failed")
+
+
 async def _job_podcast_sync() -> None:
     """08:30 / 20:30 (Asia/Taipei) — podcast 來源增量同步（gooaye + PodSight，免 key）。"""
     import asyncio
@@ -303,12 +313,22 @@ def start_scheduler() -> None:
         misfire_grace_time=3600,
         coalesce=True,
     )
+    # TPEX Camoufox 閒置回收:每分鐘檢查,閒置 >TTL 就關掉瀏覽器釋放記憶體。
+    # max_instances=1 避免上一輪還卡在 _browser_lock 時又疊一輪。
+    sched.add_job(
+        _job_reap_tpex_session,
+        CronTrigger(minute="*", timezone=_TPE),
+        id="reap_tpex_session",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
-        "podcast sync @ 08:30/20:30 (Asia/Taipei)"
+        "podcast sync @ 08:30/20:30, reap-tpex */1min (Asia/Taipei)"
     )
 
 
