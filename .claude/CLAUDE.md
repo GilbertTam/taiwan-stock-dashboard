@@ -275,3 +275,21 @@ Steps 3's sub-items above are the same 9-file touch pattern used by interconnect
 ### Environment Variables
 
 Copy `.env.example` to `.env`. Key variables: `ELASTICSEARCH_HOST`, `ELASTICSEARCH_PORT`, `SECRET_KEY`, `DATABASE_URL`.
+
+### Operations — 維運注意
+
+**CRITICAL: 後端必須單一 uvicorn worker 跑（`UVICORN_WORKERS=1`，見 `backend/docker-entrypoint.sh`）。不要改回多 worker。**
+
+本 app 有多個「每行程一份」的單例，多 worker 會各跑一份、互相打架且爆記憶體：
+
+- **APScheduler**（`app/services/scheduler.py`）在每個 worker 各啟動一份 → 每個 cron job（daily snapshot / broker batch / retry / podcast sync）重複跑 N 次，且 SQLite 互相搶寫鎖。
+- **TPEX Camoufox 共用 browser session**（`app/services/broker_crawlers/bsr_tpex.py`）+ **broker `Semaphore(1)`**（`broker_service.py`）都是 process 內單例；N worker = N 個 Firefox + 併發控制失效。
+- **SQLite 單寫者**：多 worker 併發寫易 `database is locked`。
+
+曾發生的事故（供回溯）：`--workers 4` 時 4 份 Camoufox + 4× 記憶體 → 容器 `OOMKilled`，OOM killer 殺掉瀏覽器子行程，log 出現 `TargetClosedError` / `Connection closed while reading from the driver` / `write EPIPE`，且每個 scheduler job 錯誤 4 連發。改 `--workers 1` 後 idle 記憶體從 ~1900MiB 降到 ~115MiB。
+
+要橫向擴充 web 吞吐，正解是把 **web** 與 **scheduler/crawler** 拆成不同服務（各自單行程），而非靠 uvicorn workers。
+
+**Camoufox 防護**（`bsr_tpex.py`）：`_close_session` 會在 graceful close 失敗/逾時時 `SIGKILL` 殘留的 camoufox 孤兒行程（/proc 掃描，僅 Linux）；`reap_idle_session()` 由 scheduler 每分鐘呼叫，閒置超過 `_SESSION_TTL_S` 就主動關瀏覽器釋放記憶體。動到 broker 抓取時別把這些拿掉。
+
+**容器記憶體**：`backend-api` `mem_limit: 2g`（`docker-compose.yml`）。單行程下 idle ~115MiB、單檔抓取尖峰 ~600MiB，2g 為充足 headroom。
