@@ -76,10 +76,29 @@ async def _job_daily_snapshot_chase_today() -> None:
             return
 
         if resp.date != today_str:
-            logger.debug(
-                "scheduler: chase-today — TWSE Date still %s != today %s, noop",
-                resp.date, today_str,
-            )
+            # 主資料(STOCK_DAY_ALL)還沒推進今日,但 T86 法人可能已推。
+            # 嘗試 inst-only backfill:既有 today snapshot 內把 foreign/trust/dealer
+            # 用今日 T86 補上,close/volume 等價量欄維持不動(等下個 tick 整體覆寫)。
+            try:
+                from app.services.daily_snapshot_service import backfill_institutionals_for_date
+                res = await backfill_institutionals_for_date(today_str)
+                if res.get("updated", 0) > 0:
+                    logger.info(
+                        "scheduler: chase-today inst-only backfill — updated=%d/%d (TWSE STOCK_DAY_ALL 仍 stale=%s)",
+                        res["updated"], res.get("total", 0), resp.date,
+                    )
+                else:
+                    logger.debug(
+                        "scheduler: chase-today — TWSE Date %s != today %s, T86 today also empty, noop",
+                        resp.date, today_str,
+                    )
+            except LookupError:
+                # today snapshot 不存在(早盤前或 Yahoo fallback 也失敗) → 沒得 backfill
+                logger.debug(
+                    "scheduler: chase-today — no today snapshot to backfill",
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("scheduler: chase-today inst-only backfill failed")
             return
 
         # TWSE 已推進到今日(或 Yahoo fallback 已提供 today 資料)→ upsert
