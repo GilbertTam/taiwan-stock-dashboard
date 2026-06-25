@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
