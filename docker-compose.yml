@@ -53,7 +53,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    mem_limit: 1g
+    # 2g:TPEX Camoufox(Firefox headless)常駐 + 抓取尖峰會逼近 1g 上限,
+    # 曾 OOMKilled 殺掉瀏覽器子行程(TargetClosedError/EPIPE)。給足 headroom。
+    mem_limit: 2g
     environment:
       - DEBUG=${DEBUG}
       - SECRET_KEY=${SECRET_KEY:-secret-key}
