@@ -9,6 +9,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import PodcastsIcon from '@mui/icons-material/Podcasts';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
@@ -26,6 +27,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'home', labelKey: 'sidebar.overview', path: '/dashboard', Icon: DashboardIcon },
     { key: 'daily', labelKey: 'sidebar.daily', path: '/dashboard/daily', Icon: TrendingUpIcon },
     { key: 'podcast', labelKey: 'sidebar.podcast', path: '/dashboard/podcast', Icon: PodcastsIcon },
+    { key: 'revenue', labelKey: 'sidebar.revenue', path: '/dashboard/revenue', Icon: ReceiptLongIcon },
 ];
 
 // Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.
@@ -237,7 +239,8 @@ export function DashboardSidebar() {
                     const isActive =
                         pathname === path ||
                         (key === 'admin' && matchesPathOrSubpath('/dashboard/admin')) ||
-                        (key === 'podcast' && matchesPathOrSubpath('/dashboard/podcast'));
+                        (key === 'podcast' && matchesPathOrSubpath('/dashboard/podcast')) ||
+                        (key === 'revenue' && matchesPathOrSubpath('/dashboard/revenue'));
 
                     return (
                         <ButtonBase

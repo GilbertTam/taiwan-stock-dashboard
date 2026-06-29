@@ -5,3 +5,4 @@ from .user_preference import UserPreference
 from .broker import Stock, BrokerSnapshot, BrokerEntry
 from .daily_snapshot import DailyLimitUpSnapshot
 from .podcast import PodcastVideo, PodcastSegment, PodcastMention
+from .revenue import MonthlyRevenue

@@ -117,11 +117,7 @@ class PodcastMention(Base):
     target = Column(String, nullable=False, index=True)  # 標的名稱，如 "台積電"
     target_type = Column(String)                         # "stock" / "sector"
     ticker = Column(String, index=True)                  # 代號，如 "2330" / "NVDA"
-    sentiment = Column(String, index=True)               # Sentiment.*
+    sentiment = Column(String, index=True)               # Sentiment.*（index=True 已建索引）
     reason = Column(Text)                                # 一句話理由
 
     video = relationship("PodcastVideo", back_populates="mentions")
-
-    __table_args__ = (
-        Index("ix_podcast_mentions_sentiment", "sentiment"),
-    )

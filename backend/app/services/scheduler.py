@@ -248,6 +248,18 @@ async def _job_reap_tpex_session() -> None:
         logger.exception("scheduler: reap tpex session failed")
 
 
+async def _job_revenue_sync() -> None:
+    """月營收同步 — 抓 TWSE/TPEX OpenAPI 入庫(含新申報偵測)。"""
+    from app.services import revenue_service
+
+    logger.info("scheduler: revenue sync starting")
+    try:
+        result = await revenue_service.sync_monthly_revenue()
+        logger.info("scheduler: revenue sync done: %s", result.model_dump())
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: revenue sync failed")
+
+
 async def _job_podcast_sync() -> None:
     """08:30 / 20:30 (Asia/Taipei) — podcast 來源增量同步（gooaye + PodSight，免 key）。"""
     import asyncio
@@ -323,12 +335,31 @@ def start_scheduler() -> None:
         max_instances=1,
         coalesce=True,
     )
+    # 月營收同步:每月 1-10 號公告期 08-22 點每 10 分鐘高頻抓(偵測新申報);
+    # 另每天 21:05 保底一次,確保月中資料新鮮。
+    sched.add_job(
+        _job_revenue_sync,
+        CronTrigger(day="1-10", hour="8-22", minute="*/10", timezone=_TPE),
+        id="revenue_sync_window",
+        replace_existing=True,
+        misfire_grace_time=600,
+        coalesce=True,
+    )
+    sched.add_job(
+        _job_revenue_sync,
+        CronTrigger(hour=21, minute=5, timezone=_TPE),
+        id="revenue_sync_daily",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
-        "podcast sync @ 08:30/20:30, reap-tpex */1min (Asia/Taipei)"
+        "podcast sync @ 08:30/20:30, reap-tpex */1min, "
+        "revenue */10min @ day1-10 + daily 21:05 (Asia/Taipei)"
     )
 
 

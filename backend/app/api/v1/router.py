@@ -8,6 +8,7 @@ from app.api.v1 import (
     users,
     stock,
     podcast,
+    revenue,
 )
 
 api_router = APIRouter()
@@ -22,3 +23,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
 api_router.include_router(stock.router, prefix="/stock", tags=["stock"])
 api_router.include_router(podcast.router, prefix="/podcast", tags=["podcast"])
+api_router.include_router(revenue.router, prefix="/revenue", tags=["revenue"])

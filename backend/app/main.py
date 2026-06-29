@@ -113,6 +113,7 @@ async def ensure_tables():
         PodcastVideo,
         PodcastSegment,
         PodcastMention,
+        MonthlyRevenue,
     )
 
     async with engine.begin() as conn:
