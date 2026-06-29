@@ -335,11 +335,11 @@ def start_scheduler() -> None:
         max_instances=1,
         coalesce=True,
     )
-    # 月營收同步:每月 1-10 號公告期 08-22 點每 10 分鐘高頻抓(偵測新申報);
+    # 月營收同步:每月 1-10 號公告期 08-22 點每 20 分鐘抓(偵測新申報,降低系統負載);
     # 另每天 21:05 保底一次,確保月中資料新鮮。
     sched.add_job(
         _job_revenue_sync,
-        CronTrigger(day="1-10", hour="8-22", minute="*/10", timezone=_TPE),
+        CronTrigger(day="1-10", hour="8-22", minute="*/20", timezone=_TPE),
         id="revenue_sync_window",
         replace_existing=True,
         misfire_grace_time=600,
@@ -359,7 +359,7 @@ def start_scheduler() -> None:
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
         "podcast sync @ 08:30/20:30, reap-tpex */1min, "
-        "revenue */10min @ day1-10 + daily 21:05 (Asia/Taipei)"
+        "revenue */20min @ day1-10 + daily 21:05 (Asia/Taipei)"
     )
 
 
