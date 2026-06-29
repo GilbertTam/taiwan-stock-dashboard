@@ -110,6 +110,35 @@ async def refill_institutionals_recent(
     return {"days_requested": days, "summary": summary, "results": results}
 
 
+@router.post("/daily/snapshot/{date}/refill-all")
+async def refill_full(date: str) -> dict:
+    """完整重抓指定歷史日的 OHLCV + 法人,覆寫該日 snapshot。
+
+    跟 refill-institutionals 不同:這個是「全砍重來」 — 適合修舊版 Yahoo fallback
+    寫的 snapshot 缺 volume / TPEX 法人空 / 漲停清單不完整等狀況。
+
+    來源:TWSE MI_INDEX (歷史 OHLCV) + TWSE T86 (歷史法人) + TPEX dailyQuotes
+          (歷史 OHLCV,民國年) + TPEX dailyTrade (歷史法人)
+    若 endpoint 回空就 skip,不寫空 snapshot 覆寫原有資料。
+    """
+    try:
+        return await daily_snapshot_service.backfill_full_for_date(date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/daily/snapshot/refill-all/recent")
+async def refill_full_recent(
+    days: int = Query(7, ge=1, le=60, description="從今日往回 N 天完整重抓並覆寫"),
+) -> dict:
+    """一鍵完整重抓過去 N 天的 OHLCV + 法人。"""
+    results = await daily_snapshot_service.backfill_full_range(days)
+    summary: dict[str, int] = {}
+    for r in results:
+        summary[r["status"]] = summary.get(r["status"], 0) + 1
+    return {"days_requested": days, "summary": summary, "results": results}
+
+
 @router.post("/daily/sectors/rebuild")
 async def rebuild_sectors() -> dict:
     stock_sector.ensure_loaded(force_rebuild=True)

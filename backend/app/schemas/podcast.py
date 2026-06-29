@@ -57,6 +57,14 @@ class ChannelSummaryOut(BaseModel):
     top_mentions: list[TopMention] = Field(default_factory=list)
 
 
+class QAOut(BaseModel):
+    """節目精選問答。"""
+    idx: Optional[int] = None
+    question: Optional[str] = None
+    answer: Optional[str] = None
+    off_topic: bool = False
+
+
 class EpisodeOut(BaseModel):
     """頻道詳情中的一集 / 一支影片。"""
     video_id: str
@@ -69,6 +77,31 @@ class EpisodeOut(BaseModel):
     topics: list[str] = Field(default_factory=list)
     segments: list[SegmentOut] = Field(default_factory=list)
     mentions: list[MentionOut] = Field(default_factory=list)
+    qa: list[QAOut] = Field(default_factory=list)
+
+
+class StockEpisodeOut(BaseModel):
+    """某個股/族群在某集的表態(點標籤看集數用)。"""
+    channel: str
+    video_id: str
+    title: Optional[str] = None
+    published: Optional[str] = None
+    url: Optional[str] = None
+    target: str
+    target_type: Optional[str] = None
+    ticker: Optional[str] = None
+    sentiment: SentimentLiteral = "中立"
+    reason: Optional[str] = None
+
+
+class StockEpisodesResponse(BaseModel):
+    """GET /api/podcast/stocks/{key} 回傳。"""
+    key: str
+    name: Optional[str] = None
+    ticker: Optional[str] = None
+    total: int = 0
+    sentiment: SentimentCounts = Field(default_factory=SentimentCounts)
+    episodes: list[StockEpisodeOut] = Field(default_factory=list)
 
 
 class ChannelDetailResponse(BaseModel):

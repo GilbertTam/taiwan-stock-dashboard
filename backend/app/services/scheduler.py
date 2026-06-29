@@ -221,19 +221,33 @@ async def _job_retry_failed_brokers() -> None:
 def _run_podcast_sync_blocking() -> None:
     """同步執行 podcast 增量同步（在 worker thread 跑）。
 
-    只跑「免 API key」的兩條來源：股癌 gooaye + PodSight 回填。
-    YouTube monitor（需 ANTHROPIC_API_KEY + 額外相依）刻意不在此，留待另行排程。
+    跑「免 API key / 免 LLM」的三條來源：
+      - 股癌 gooaye 逐字稿增量
+      - PodSight 回填（游庭皓等 YouTube 頻道歷史摘要）
+      - aistockmap 結構化分析（股癌個股輿情 / 產業主題 / QA）
+    YouTube monitor（需 OpenRouter/Anthropic key + 額外相依）刻意不在此。
     爬蟲是同步 sqlite3，放在 asyncio.to_thread 的 worker thread 執行，
     不阻塞 FastAPI event loop（避免重演 broker 爬蟲卡 healthcheck 的問題）。
+    每條獨立 try/except，一條失敗不影響其他。
     """
     import scripts.podcast_agent as pa
 
     config = pa.AgentConfig.from_env()
     pipe = pa.PodcastAgentPipeline(config)
     try:
-        pipe.run_gooaye_sync(use_sitemap=False)
-        for slug, channel in config.podsight_channels.items():
-            pipe.run_podsight_sync(slug, channel)
+        try:
+            pipe.run_gooaye_sync(use_sitemap=False)
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: gooaye failed")
+        try:
+            for slug, channel in config.podsight_channels.items():
+                pipe.run_podsight_sync(slug, channel)
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: podsight failed")
+        try:
+            pipe.run_aistockmap_sync("Gooaye", "Gooaye 股癌")
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: aistockmap failed")
     finally:
         pipe.repo.close()
 
@@ -246,6 +260,18 @@ async def _job_reap_tpex_session() -> None:
         await bsr_tpex.reap_idle_session()
     except Exception:  # noqa: BLE001
         logger.exception("scheduler: reap tpex session failed")
+
+
+async def _job_fill_missing_snapshots() -> None:
+    """半夜 — 自動補洞:補回最近缺漏交易日的當日漲停 snapshot(輕量,離峰執行)。"""
+    from app.services import daily_snapshot_service
+
+    logger.info("scheduler: fill missing snapshots starting")
+    try:
+        result = await daily_snapshot_service.fill_missing_snapshots(lookback_days=10)
+        logger.info("scheduler: fill missing snapshots done: %s", result)
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: fill missing snapshots failed")
 
 
 async def _job_revenue_sync() -> None:
@@ -353,13 +379,23 @@ def start_scheduler() -> None:
         misfire_grace_time=3600,
         coalesce=True,
     )
+    # 自動補洞:每天 03:30(離峰)補回最近缺漏交易日的當日漲停 snapshot。
+    sched.add_job(
+        _job_fill_missing_snapshots,
+        CronTrigger(hour=3, minute=30, timezone=_TPE),
+        id="fill_missing_snapshots",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
         "podcast sync @ 08:30/20:30, reap-tpex */1min, "
-        "revenue */20min @ day1-10 + daily 21:05 (Asia/Taipei)"
+        "revenue */20min @ day1-10 + daily 21:05, "
+        "fill-missing @ 03:30 (Asia/Taipei)"
     )
 
 

@@ -22,6 +22,13 @@
     "watchOriginal": "觀看原片",
     "noEpisodes": "此頻道尚無集數"
   },
+  "qa": {
+    "title": "QA 精選"
+  },
+  "stockEpisodes": {
+    "count": "共 {{count}} 集講過",
+    "empty": "查無提及此標的的集數"
+  },
   "sentiment": {
     "bullish": "看好",
     "bearish": "看壞",

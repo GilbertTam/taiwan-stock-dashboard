@@ -120,8 +120,10 @@ class AgentConfig:
     gooaye_dir: str = "data/gooaye"
     save_markdown: bool = True
 
-    # Claude 設定（需環境變數 ANTHROPIC_API_KEY）
-    claude_model: str = "claude-sonnet-4-6"   # 想省錢可換 "claude-haiku-4-5-20251001"
+    # LLM 設定。優先用 OpenRouter(OPENROUTER_API_KEY,OpenAI 相容);否則退回
+    # Anthropic 直連(ANTHROPIC_API_KEY)。
+    claude_model: str = "claude-sonnet-4-6"   # Anthropic 直連時用
+    openrouter_model: str = "anthropic/claude-sonnet-4.6"  # 可用 OPENROUTER_MODEL 覆寫(省錢可換 anthropic/claude-haiku-4.5)
     max_tokens: int = 2000
     max_transcript_chars: int = 120_000        # 逐字稿截斷上限，避免極長影片爆量
 
@@ -188,7 +190,9 @@ class PodcastRepository:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")    # 與後端一致，讀寫不互鎖
-            conn.execute("PRAGMA busy_timeout=5000")   # 與 API 同時寫時等 5s 而非立刻炸鎖
+            # 與 API(uvicorn)是不同 process,同時寫 sqlite 會序列化;給 30s 等 API 寫完
+            # (monitor 逐部 LLM 慢、API 有 broker/排程在寫,5s 不夠會 database is locked)
+            conn.execute("PRAGMA busy_timeout=30000")
             conn.execute("PRAGMA foreign_keys=ON")
             self._conn = conn
             self.init_schema()
@@ -232,6 +236,15 @@ class PodcastRepository:
                 sentiment   TEXT,
                 reason      TEXT
             );
+            CREATE TABLE IF NOT EXISTS podcast_qa (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                video_id  TEXT NOT NULL REFERENCES podcast_videos(video_id) ON DELETE CASCADE,
+                idx       INTEGER,
+                question  TEXT,
+                answer    TEXT,
+                off_topic INTEGER DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS ix_podcast_qa_video ON podcast_qa(video_id);
             CREATE INDEX IF NOT EXISTS ix_podcast_videos_channel_published
                 ON podcast_videos(channel, published);
             CREATE INDEX IF NOT EXISTS ix_podcast_mentions_target    ON podcast_mentions(target);
@@ -341,6 +354,40 @@ class PodcastRepository:
                 (video_id, target, target_type, ticker, sentiment, reason)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
+            rows,
+        )
+        self.conn.commit()
+
+    def get_video(self, video_id: str) -> Optional[dict]:
+        """取單一影片的 meta(供強制重跑用)。不存在回 None。"""
+        cur = self.conn.execute(
+            "SELECT video_id, channel, title, published, url, status "
+            "FROM podcast_videos WHERE video_id = ?",
+            (video_id,),
+        )
+        r = cur.fetchone()
+        return dict(r) if r else None
+
+    def clear_video_children(self, video_id: str) -> None:
+        """刪掉某影片的 segments / mentions(強制重跑前先清,避免重複堆疊)。"""
+        self.conn.execute("DELETE FROM podcast_segments WHERE video_id = ?", (video_id,))
+        self.conn.execute("DELETE FROM podcast_mentions WHERE video_id = ?", (video_id,))
+        self.conn.commit()
+
+    def clear_qa(self, video_id: str) -> None:
+        self.conn.execute("DELETE FROM podcast_qa WHERE video_id = ?", (video_id,))
+        self.conn.commit()
+
+    def insert_qa(self, video_id: str, qa_items: list[dict]) -> None:
+        """批次寫入精選問答。qa_items: [{idx, question, answer, off_topic}]"""
+        rows = [
+            (video_id, q.get("idx"), q.get("question"), q.get("answer"),
+             1 if q.get("off_topic") else 0)
+            for q in qa_items
+        ]
+        self.conn.executemany(
+            "INSERT INTO podcast_qa (video_id, idx, question, answer, off_topic) "
+            "VALUES (?, ?, ?, ?, ?)",
             rows,
         )
         self.conn.commit()
@@ -707,6 +754,97 @@ class PodSightScraper:
 
 
 # ════════════════════════════════════════════════════════════
+#  aistockmap 抓取（股癌結構化分析:產業主題 / 個股輿情 / QA,免 LLM）
+# ════════════════════════════════════════════════════════════
+
+class AiStockMapScraper:
+    """aistockmap.com 已把股癌每集結構化分析好,直接抓取免打 LLM。
+
+    資料在 Next.js RSC streaming(self.__next_f.push([1,"…"]))。每集物件含:
+      number / date / url / summary
+      topics[]:        {topicId, category, conviction, sentiment, note}     產業主題
+      stockAnalysis[]: {tickers[], names[], sentiment, conviction, risk, analysis, ...} 個股輿情
+      qa[]:            {index, question, answerPoints[], keyTakeaway, offTopic}  精選問答
+    """
+
+    BASE = "https://aistockmap.com/influencer/{slug}/"
+    topic_names: dict = {}
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "zh-TW,zh;q=0.9",
+    }
+
+    @staticmethod
+    def _extract_objs(blob: str, anchor: str) -> list[str]:
+        """以 anchor(某 key)為錨,用大括號配對切出其所在的 JSON 物件字串。"""
+        out = []
+        for m in re.finditer(re.escape(anchor), blob):
+            # 往左找物件起點 {
+            k, bal, start = m.start(), 0, None
+            while k >= 0:
+                ch = blob[k]
+                if ch == "}":
+                    bal += 1
+                elif ch == "{":
+                    if bal == 0:
+                        start = k
+                        break
+                    bal -= 1
+                k -= 1
+            if start is None:
+                continue
+            # 從 start 往右配對 }
+            depth = 0
+            for e in range(start, len(blob)):
+                if blob[e] == "{":
+                    depth += 1
+                elif blob[e] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        out.append(blob[start:e + 1])
+                        break
+        return out
+
+    def fetch_influencer(self, slug: str) -> list[dict]:
+        """抓某 influencer 頁,回傳每集 dict 清單(依 number 升冪)。"""
+        import requests
+        url = self.BASE.format(slug=slug)
+        print(f"📡 抓取 aistockmap:{url}")
+        resp = requests.get(url, headers=self.HEADERS, timeout=30)
+        resp.raise_for_status()
+        html = resp.text
+
+        # 1) 串接 RSC chunks,逐 chunk 用 json.loads 反跳脫(保留 UTF-8 中文)
+        chunks = re.findall(
+            r'self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)', html
+        )
+        blob = "".join(json.loads(c) for c in chunks)
+
+        # 1b) 題材字典:topicId → 可讀名稱(shortname),供 sector 標的顯示
+        self.topic_names = {}
+        for m in re.finditer(
+            r'"([a-zA-Z0-9_-]+)":\{"id":"\1","shortname":"((?:[^"\\]|\\.)*)"', blob
+        ):
+            self.topic_names[m.group(1)] = m.group(2)
+
+        # 2) 以 "stockAnalysis": 為錨切出每集物件,逐一 json.loads
+        episodes: dict[int, dict] = {}
+        for raw in self._extract_objs(blob, '"stockAnalysis":'):
+            try:
+                d = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            num = d.get("number")
+            if isinstance(num, int):
+                episodes[num] = d
+        result = [episodes[k] for k in sorted(episodes)]
+        print(f"✅ aistockmap 解析到 {len(result)} 集")
+        return result
+
+
+# ════════════════════════════════════════════════════════════
 #  Claude 分析（取代原 pipeline.py 的 AI 部分）
 # ════════════════════════════════════════════════════════════
 
@@ -778,10 +916,39 @@ class ClaudeAnalyzer:
     def client(self):
         if self._client is None:
             from anthropic import Anthropic
-            if not os.environ.get("ANTHROPIC_API_KEY"):
-                raise SystemExit("請先設定環境變數 ANTHROPIC_API_KEY 以執行 Claude 分析")
             self._client = Anthropic()
         return self._client
+
+    def _call_llm(self, prompt: str) -> str:
+        """回傳模型輸出文字。優先 OpenRouter(OpenAI 相容,用 requests,免裝 SDK),
+        否則退回 Anthropic 直連。"""
+        or_key = os.environ.get("OPENROUTER_API_KEY")
+        if or_key:
+            import requests
+            model = os.environ.get("OPENROUTER_MODEL") or self.config.openrouter_model
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {or_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": self.config.max_tokens,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            msg = self.client.messages.create(
+                model=self.config.claude_model,
+                max_tokens=self.config.max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return "".join(b.text for b in msg.content if b.type == "text")
+        raise SystemExit("請設定 OPENROUTER_API_KEY 或 ANTHROPIC_API_KEY 以執行分析")
 
     def to_traditional(self, text: str) -> str:
         """繁簡轉換（OpenCC）；未安裝則原樣回傳。"""
@@ -811,12 +978,7 @@ class ClaudeAnalyzer:
         """送逐字稿給 Claude，回傳 {summary, topics, segments, mentions}。"""
         subset = transcript[: self.config.max_transcript_chars]
         prompt = EXTRACT_PROMPT.format(title=title, transcript=subset)
-        msg = self.client.messages.create(
-            model=self.config.claude_model,
-            max_tokens=self.config.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = "".join(b.text for b in msg.content if b.type == "text")
+        raw = self._call_llm(prompt)
         data = self._parse_json(raw)
         data.setdefault("summary", "")
         data.setdefault("topics", [])
@@ -838,6 +1000,7 @@ class PodcastAgentPipeline:
         self.youtube = YouTubeScraper()
         self.gooaye = GooayeScraper()
         self.podsight = PodSightScraper()
+        self.aistockmap = AiStockMapScraper()
         self.analyzer = ClaudeAnalyzer(config)
 
     # ── YouTube 監控 + Claude 入庫 ─────────────────────
@@ -930,6 +1093,44 @@ class PodcastAgentPipeline:
             done += 1
 
         print(f"\n完成。本次新增分析 {done} 支。")
+
+    def reprocess_videos(self, video_ids: list[str]) -> None:
+        """強制重新分析指定影片(忽略 is_processed),覆寫 summary/segments/mentions。
+
+        用途:某部影片想重跑情緒解讀時用。一般 monitor 會跳過已處理的影片,
+        只有這裡會無視已處理狀態、重抓字幕重新分析並覆寫。
+        """
+        for vid in video_ids:
+            row = self.repo.get_video(vid)
+            if not row:
+                print(f"  ✗ {vid} 不在 DB(請先 monitor 過,或確認是 YouTube 11 碼 ID)")
+                continue
+            v = Video(
+                video_id=vid, channel=row.get("channel") or "",
+                title=row.get("title") or "", published=row.get("published") or "",
+                url=row.get("url") or "",
+            )
+            print(f"▶ 強制重跑:{v.title} ({vid})")
+            try:
+                transcript = self.youtube.get_transcript(vid, self.config.transcript_languages)
+            except Exception as e:  # noqa: BLE001
+                print(f"  ✗ 字幕抓取失敗,跳過:{type(e).__name__} {e}")
+                continue
+            transcript = self.analyzer.to_traditional(transcript)
+            try:
+                data = self.analyzer.extract(v.title, transcript)
+            except Exception as e:  # noqa: BLE001
+                print(f"  ✗ 分析失敗:{e}")
+                continue
+
+            v.status = "done"
+            v.summary = data["summary"]
+            v.topics = data["topics"]
+            self.repo.clear_video_children(vid)   # 先清舊的再寫,避免重複堆疊
+            self.repo.upsert_video(v)
+            self.repo.insert_segments(vid, self._to_segments(data["segments"]))
+            self.repo.insert_mentions(vid, self._to_mentions(data["mentions"]))
+            print(f"  ✓ 重跑完成:{len(data['segments'])} 段 / {len(data['mentions'])} 標的")
 
     @staticmethod
     def _to_segments(raw: list[dict]) -> list[Segment]:
@@ -1032,6 +1233,76 @@ class PodcastAgentPipeline:
             time.sleep(self.config.delay)
 
         print(f"\n🎉 PodSight 回填完成：新增 {done} 集（頻道：{channel_name}）")
+
+    # ── aistockmap 結構化分析回填(股癌:產業/個股輿情/QA,免 LLM)──
+    @staticmethod
+    def _map_sentiment(s: str) -> str:
+        return {"bullish": "樂觀", "bearish": "悲觀"}.get((s or "").lower(), "中立")
+
+    def run_aistockmap_sync(self, slug: str = "Gooaye", channel_name: str = "Gooaye 股癌") -> None:
+        """用 aistockmap 的結構化分析,補上股癌每集的個股輿情 / 產業主題 / QA。
+
+        對齊既有 gooaye 集(video_id=gooaye_EPxxxx);先清該集 mentions+qa 再寫,idempotent。
+        """
+        episodes = self.aistockmap.fetch_influencer(slug)
+        enriched = 0
+        for ep in episodes:
+            num = ep.get("number")
+            if not isinstance(num, int):
+                continue
+            video_id = f"gooaye_EP{num:04d}"
+
+            # 集不存在則建基本列(以 aistockmap summary)
+            if not self.repo.is_processed(video_id):
+                self.repo.upsert_video(Video(
+                    video_id=video_id, channel=channel_name,
+                    title=ep.get("title") or f"EP{num}",
+                    published=(ep.get("date") or ""), url=ep.get("url") or "",
+                    status="done", summary=ep.get("summary") or "",
+                ))
+
+            # 個股輿情 + 產業主題 → mentions
+            mentions: list[Mention] = []
+            for sa in ep.get("stockAnalysis") or []:
+                names = sa.get("names") or []
+                tickers = sa.get("tickers") or []
+                mentions.append(Mention(
+                    target=(names[0] if names else (tickers[0] if tickers else "?")),
+                    target_type="stock",
+                    ticker=(tickers[0] if tickers else None),
+                    sentiment=self._map_sentiment(sa.get("sentiment")),
+                    reason=sa.get("analysis") or sa.get("risk") or "",
+                ))
+            for tp in ep.get("topics") or []:
+                tid = tp.get("topicId") or ""
+                target = self.aistockmap.topic_names.get(tid) or tp.get("category") or tid or "?"
+                mentions.append(Mention(
+                    target=target,
+                    target_type="sector", ticker=None,
+                    sentiment=self._map_sentiment(tp.get("sentiment")),
+                    reason=tp.get("note") or "",
+                ))
+
+            # QA 精選
+            qa_items = []
+            for q in ep.get("qa") or []:
+                ans = q.get("keyTakeaway") or ""
+                if not ans and q.get("answerPoints"):
+                    ans = "；".join(str(p) for p in q["answerPoints"])
+                qa_items.append({
+                    "idx": q.get("index"), "question": q.get("question"),
+                    "answer": ans, "off_topic": q.get("offTopic"),
+                })
+
+            # 先清再寫(idempotent)
+            self.repo.clear_video_children(video_id)
+            self.repo.clear_qa(video_id)
+            self.repo.insert_mentions(video_id, mentions)
+            self.repo.insert_qa(video_id, qa_items)
+            print(f"  ✓ EP{num}: {len(mentions)} 標的 / {len(qa_items)} QA")
+            enriched += 1
+
+        print(f"\n🎉 aistockmap 回填完成：{enriched} 集（頻道：{channel_name}）")
 
     # ── 股癌增量同步 ───────────────────────────────────
     def run_gooaye_sync(self, use_sitemap: bool = False) -> None:
@@ -1247,13 +1518,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="財經 Podcast / YouTube 監控分析系統")
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("monitor", help="YouTube 頻道監控 + Claude 分析入庫")
+    sub.add_parser("monitor", help="YouTube 頻道監控 + Claude 分析入庫(跳過已處理)")
+
+    rp = sub.add_parser("reprocess", help="強制重新分析指定影片(覆寫,忽略已處理)")
+    rp.add_argument("video_ids", nargs="+", help="YouTube 11 碼影片 ID(可多個)")
     sub.add_parser("gooaye", help="股癌 SPA(JSON/MD) 逐字稿增量同步")
     sub.add_parser("gooaye-sitemap", help="股癌 Sitemap(HTML) 歷史逐字稿增量同步")
 
     ps = sub.add_parser("podsight", help="用 PodSight 既有摘要回填 YouTube 頻道歷史（免 API key）")
     ps.add_argument("slug", nargs="?", default="yutinghao", help="PodSight slug，預設 yutinghao")
     ps.add_argument("channel", nargs="?", default="游庭皓的財經皓角", help="入庫頻道顯示名")
+
+    am = sub.add_parser("aistockmap", help="用 aistockmap 結構化分析回填股癌個股輿情/產業/QA（免 LLM）")
+    am.add_argument("slug", nargs="?", default="Gooaye", help="aistockmap influencer slug，預設 Gooaye")
+    am.add_argument("channel", nargs="?", default="Gooaye 股癌", help="入庫頻道顯示名")
 
     q = sub.add_parser("query", help="查詢統計報表")
     q.add_argument("kind", nargs="?", default="top",
@@ -1265,12 +1543,16 @@ def main() -> None:
 
     if args.command == "monitor":
         PodcastAgentPipeline(config).run_youtube_monitor()
+    elif args.command == "reprocess":
+        PodcastAgentPipeline(config).reprocess_videos(args.video_ids)
     elif args.command == "gooaye":
         PodcastAgentPipeline(config).run_gooaye_sync(use_sitemap=False)
     elif args.command == "gooaye-sitemap":
         PodcastAgentPipeline(config).run_gooaye_sync(use_sitemap=True)
     elif args.command == "podsight":
         PodcastAgentPipeline(config).run_podsight_sync(args.slug, args.channel)
+    elif args.command == "aistockmap":
+        PodcastAgentPipeline(config).run_aistockmap_sync(args.slug, args.channel)
     elif args.command == "query":
         reporter = QueryReporter(PodcastRepository(config.db_path or resolve_db_path()))
         if args.kind == "stock":

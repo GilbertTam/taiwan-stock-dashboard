@@ -17,6 +17,7 @@ from app.db import get_db
 from app.schemas.podcast import (
     ChannelDetailResponse,
     ChannelListResponse,
+    StockEpisodesResponse,
     TopMentionsResponse,
 )
 from app.services import podcast_service
@@ -41,6 +42,12 @@ async def channel_detail(
     if detail.episode_count == 0:
         raise HTTPException(status_code=404, detail=f"no episodes for channel: {channel}")
     return detail
+
+
+@router.get("/stocks/{key}", response_model=StockEpisodesResponse)
+async def stock_episodes(key: str, db: AsyncSession = Depends(get_db)) -> Any:
+    """點個股標籤 → 跨所有頻道列出講過該標的的集數。key 可為代號或名稱。"""
+    return await podcast_service.get_stock_episodes(db, key)
 
 
 @router.get("/mentions/top", response_model=TopMentionsResponse)

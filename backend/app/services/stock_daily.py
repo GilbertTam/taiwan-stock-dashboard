@@ -224,6 +224,147 @@ async def _fetch_tpex_inst_for_date(
     return out
 
 
+async def _fetch_mi_index_for_date(
+    client: httpx.AsyncClient, date_str: str,
+) -> list[dict]:
+    """TWSE MI_INDEX 歷史:每日全市場 OHLCV per-stock。
+
+    URL: https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date=YYYYMMDD
+        &type=ALLBUT0999&response=json
+    回 {tables: [...]},table[8] 是「每日收盤行情(全部)」共 ~1300+ 筆,
+    fields = [證券代號, 證券名稱, 成交股數, 成交筆數, 成交金額,
+              開盤價, 最高價, 最低價, 收盤價, 漲跌(+/-), 漲跌價差, ...]
+
+    回 list[dict] 對齊 STOCK_DAY_ALL 既有結構(讓 _build_twse_stocks 直接吃):
+      {Code, Name, ClosingPrice, Change, TradeVolume}
+    """
+    date_compact = date_str.replace("-", "")
+    url = (
+        f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
+        f"?response=json&date={date_compact}&type=ALLBUT0999"
+    )
+    try:
+        r = await client.get(url, timeout=25)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("MI_INDEX historical %s fetch failed: %s", date_str, e)
+        return []
+
+    tables = data.get("tables") if isinstance(data, dict) else None
+    if not tables:
+        return []
+
+    # 找含「證券代號」+「成交股數」+「收盤價」的 stock-level table
+    for t in tables:
+        fields = t.get("fields") or []
+        rows = t.get("data") or []
+        if not fields or not rows:
+            continue
+        if "證券代號" not in fields or "成交股數" not in fields:
+            continue
+        try:
+            i_code = fields.index("證券代號")
+            i_name = fields.index("證券名稱")
+            i_vol = fields.index("成交股數")
+            i_close = fields.index("收盤價")
+            # 漲跌(+/-) 是 "+" 或 "-",漲跌價差 是絕對值;乘起來得 signed change
+            i_sign = fields.index("漲跌(+/-)") if "漲跌(+/-)" in fields else -1
+            i_diff = fields.index("漲跌價差") if "漲跌價差" in fields else -1
+        except ValueError:
+            continue
+
+        out: list[dict] = []
+        for row in rows:
+            if len(row) <= max(i_vol, i_close, i_diff if i_diff >= 0 else 0):
+                continue
+            # 漲跌:有可能 image tag 包符號,純文字情況下 +/-/nothing
+            sign_raw = row[i_sign] if i_sign >= 0 else ""
+            diff_raw = row[i_diff] if i_diff >= 0 else "0"
+            sign = "+" if ("+" in str(sign_raw) or "X" in str(sign_raw)) else "-" if "-" in str(sign_raw) else ""
+            change_str = f"{sign}{str(diff_raw).replace(',','')}"
+            out.append({
+                "Code": str(row[i_code]).strip(),
+                "Name": str(row[i_name]).strip(),
+                "ClosingPrice": str(row[i_close]).replace(",", ""),
+                "Change": change_str,
+                "TradeVolume": str(row[i_vol]).replace(",", ""),
+            })
+        logger.info("MI_INDEX historical %s: parsed %d stocks", date_str, len(out))
+        return out
+
+    return []
+
+
+async def _fetch_tpex_quotes_for_date(
+    client: httpx.AsyncClient, date_str: str,
+) -> list[dict]:
+    """TPEX dailyQuotes 歷史:每日全市場 OHLCV (民國年)。
+
+    URL: https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date=YYY/MM/DD
+         &type=AL&response=json
+    table[0] 是「上櫃股票行情」,fields:
+      [代號, 名稱, 收盤, 漲跌, 開盤, 最高, 最低, 均價, 成交股數, 成交金額,
+       成交筆數, 最後揭示買價, 最後揭示買量, 最後揭示賣價, 最後揭示賣量, 發行股數, 次日漲停價, 次日跌停價]
+
+    回對齊 TPEX OpenAPI 的 list[dict] 讓 _build_tpex_stocks 吃:
+      {SecuritiesCompanyCode, CompanyName, Close, Change, TradingShares}
+    """
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d")
+        roc_date = f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
+    except ValueError:
+        return []
+
+    url = (
+        f"https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes"
+        f"?date={roc_date}&type=AL&response=json"
+    )
+    try:
+        r = await client.get(url, timeout=25)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("TPEX quotes historical %s fetch failed: %s", date_str, e)
+        return []
+
+    tables = data.get("tables") if isinstance(data, dict) else None
+    if not tables:
+        return []
+    t0 = tables[0]
+    fields = t0.get("fields") or []
+    rows = t0.get("data") or []
+    if not fields or not rows:
+        return []
+
+    try:
+        i_code = fields.index("代號") if "代號" in fields else 0
+        i_name = fields.index("名稱") if "名稱" in fields else 1
+        i_close = fields.index("收盤") if "收盤" in fields else 2
+        i_change = fields.index("漲跌") if "漲跌" in fields else 3
+        i_vol = fields.index("成交股數") if "成交股數" in fields else 8
+    except (ValueError, IndexError):
+        return []
+
+    out: list[dict] = []
+    for row in rows:
+        if len(row) <= max(i_vol, i_close):
+            continue
+        # 過濾非 4-digit 純數字股號(濾掉 ETF/權證等)
+        code = str(row[i_code]).strip()
+        if not code.isdigit() or len(code) != 4:
+            continue
+        out.append({
+            "SecuritiesCompanyCode": code,
+            "CompanyName": str(row[i_name]).strip(),
+            "Close": str(row[i_close]).replace(",", ""),
+            "Change": str(row[i_change]).strip().replace(",", ""),
+            "TradingShares": str(row[i_vol]).replace(",", ""),
+        })
+    logger.info("TPEX quotes historical %s: parsed %d stocks", date_str, len(out))
+    return out
+
+
 async def fetch_historical_institutionals(date_str: str) -> dict[str, dict]:
     """抓指定日期的 TWSE+TPEX 三大法人,合併成 {code: {foreign, trust, dealer}}。
 
@@ -551,6 +692,54 @@ async def get_daily_limit_up(
         tpex=sum(1 for s in stocks if s.market == "tpex"),
     )
 
+    return DailyLimitUpResponse(
+        date=date_str,
+        updatedAt=now.isoformat(),
+        total=len(stocks),
+        breakdown=breakdown,
+        baseSectors=[SectorOption(name=k, count=v) for k, v in base_counter.most_common()],
+        subSectors=[SectorOption(name=k, count=v) for k, v in sub_counter.most_common()],
+        stocks=sorted(stocks, key=lambda s: (s.market, s.code)),
+    )
+
+
+async def rebuild_for_date(date_str: str) -> DailyLimitUpResponse:
+    """重抓指定歷史日期的完整資料 (OHLCV + 法人) 並重新跑漲停判定。
+
+    用於修舊版 Yahoo fallback 寫的 snapshot 缺 volume / TPEX 法人空 等狀況 —
+    一次重抓 TWSE MI_INDEX + T86 + TPEX dailyQuotes + TPEX 3insti,
+    用既有的 _build_twse_stocks / _build_tpex_stocks 重組漲停清單,
+    回傳完整 DailyLimitUpResponse 讓上層 upsert 覆寫該日 snapshot。
+
+    輸入 date_str: 'YYYY-MM-DD'
+    """
+    now = datetime.now(TPE)
+    stocks: list[DailyStock] = []
+    async with httpx.AsyncClient(headers={"User-Agent": "twstock-dashboard/1.0"}) as client:
+        # TWSE
+        twse_all = await _fetch_mi_index_for_date(client, date_str)
+        twse_t86 = await _fetch_t86_for_date(client, date_str)
+        if twse_all:
+            stocks += _build_twse_stocks(twse_all, _parse_t86(twse_t86))
+        # TPEX
+        tpex_q = await _fetch_tpex_quotes_for_date(client, date_str)
+        tpex_inst = await _fetch_tpex_inst_for_date(client, date_str)
+        # TPEX historical inst 已直接回 {code:{foreign,trust,dealer}} 不是 list[dict]
+        if tpex_q:
+            # 把 tpex_inst (已是 dict) 直接餵 _build_tpex_stocks
+            # _build_tpex_stocks 期待 inst 是 dict[code]={foreign,trust,dealer} → 對齊
+            stocks += _build_tpex_stocks(tpex_q, tpex_inst)
+
+    base_counter = Counter(s.concept_reason for s in stocks if s.concept_reason)
+    sub_counter = Counter(s.concept for s in stocks if s.concept)
+    breakdown = MarketBreakdown(
+        twse=sum(1 for s in stocks if s.market == "twse"),
+        tpex=sum(1 for s in stocks if s.market == "tpex"),
+    )
+    logger.info(
+        "rebuild_for_date %s: total=%d (twse=%d tpex=%d)",
+        date_str, len(stocks), breakdown.twse, breakdown.tpex,
+    )
     return DailyLimitUpResponse(
         date=date_str,
         updatedAt=now.isoformat(),

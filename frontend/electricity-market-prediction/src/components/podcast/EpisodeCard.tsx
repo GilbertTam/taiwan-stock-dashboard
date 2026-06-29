@@ -20,9 +20,11 @@ interface Props {
 export function EpisodeCard({ episode }: Props) {
     const { t } = useTranslation('podcast');
     const [open, setOpen] = useState(false);
+    const [qaOpen, setQaOpen] = useState(false);
 
     const date = episode.published ? episode.published.slice(0, 10) : '—';
     const hasTimeline = episode.segments.length > 0;
+    const hasQA = episode.qa.length > 0;
 
     return (
         <Box
@@ -138,6 +140,45 @@ export function EpisodeCard({ episode }: Props) {
                                     {s.content && (
                                         <Typography sx={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, mt: 0.25 }}>
                                             {s.content}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            ))}
+                        </Box>
+                    </Collapse>
+                </Box>
+            )}
+
+            {/* QA 精選（可展開）*/}
+            {hasQA && (
+                <Box sx={{ mt: 1.5 }}>
+                    <ButtonBase
+                        onClick={() => setQaOpen((v) => !v)}
+                        sx={{
+                            display: 'flex', alignItems: 'center', gap: 0.5,
+                            fontSize: 12, fontWeight: 600, color: 'var(--primary)',
+                            borderRadius: '6px', px: 0.5, py: 0.25,
+                        }}
+                    >
+                        {t('qa.title')}（{episode.qa.length}）
+                        <ExpandMoreIcon
+                            sx={{
+                                fontSize: 18,
+                                transform: qaOpen ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.2s ease',
+                            }}
+                        />
+                    </ButtonBase>
+                    <Collapse in={qaOpen}>
+                        <Box sx={{ mt: 1, pl: 1, borderLeft: '2px solid var(--card-border)' }}>
+                            {episode.qa.map((q, i) => (
+                                <Box key={i} sx={{ mb: 1.25 }}>
+                                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.4 }}>
+                                        Q{q.idx ?? i + 1}. {q.question}
+                                    </Typography>
+                                    {q.answer && (
+                                        <Typography sx={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, mt: 0.25 }}>
+                                            {q.answer}
                                         </Typography>
                                     )}
                                 </Box>

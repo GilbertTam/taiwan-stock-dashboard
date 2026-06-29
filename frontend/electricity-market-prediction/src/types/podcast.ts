@@ -46,6 +46,13 @@ export interface ChannelSummary {
     top_mentions: TopMention[];
 }
 
+export interface QA {
+    idx: number | null;
+    question: string | null;
+    answer: string | null;
+    off_topic: boolean;
+}
+
 export interface Episode {
     video_id: string;
     channel: string | null;
@@ -57,6 +64,29 @@ export interface Episode {
     topics: string[];
     segments: Segment[];
     mentions: Mention[];
+    qa: QA[];
+}
+
+export interface StockEpisode {
+    channel: string;
+    video_id: string;
+    title: string | null;
+    published: string | null;
+    url: string | null;
+    target: string;
+    target_type: string | null;
+    ticker: string | null;
+    sentiment: Sentiment;
+    reason: string | null;
+}
+
+export interface StockEpisodesResponse {
+    key: string;
+    name: string | null;
+    ticker: string | null;
+    total: number;
+    sentiment: SentimentCounts;
+    episodes: StockEpisode[];
 }
 
 export interface ChannelListResponse {

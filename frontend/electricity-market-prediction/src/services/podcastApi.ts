@@ -11,6 +11,7 @@ import { createApiInstance } from './apiClient';
 import type {
     ChannelDetailResponse,
     ChannelListResponse,
+    StockEpisodesResponse,
     TopMentionsResponse,
 } from '@/types/podcast';
 
@@ -28,6 +29,14 @@ export const fetchChannelDetail = async (
         `/podcast/channels/${encodeURIComponent(channel)}`,
     );
     return response.data;
+};
+
+export const fetchStockEpisodes = async (key: string): Promise<StockEpisodesResponse> => {
+    const api = createApiInstance();
+    const res = await api.get<StockEpisodesResponse>(
+        `/podcast/stocks/${encodeURIComponent(key)}`,
+    );
+    return res.data;
 };
 
 export const fetchTopMentions = async (

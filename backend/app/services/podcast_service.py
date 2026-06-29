@@ -20,8 +20,11 @@ from app.schemas.podcast import (
     ChannelSummaryOut,
     EpisodeOut,
     MentionOut,
+    QAOut,
     SegmentOut,
     SentimentCounts,
+    StockEpisodeOut,
+    StockEpisodesResponse,
     TopMention,
 )
 
@@ -186,6 +189,13 @@ async def get_channel_detail(db: AsyncSession, channel: str) -> ChannelDetailRes
                     )
                     for m in v.mentions
                 ],
+                qa=[
+                    QAOut(
+                        idx=q.idx, question=q.question, answer=q.answer,
+                        off_topic=bool(q.off_topic),
+                    )
+                    for q in sorted(v.qa, key=lambda q: (q.idx if q.idx is not None else 0))
+                ],
             )
         )
 
@@ -215,3 +225,56 @@ async def top_mentions(
     res = await db.execute(q)
     video_ids = [vid for (vid,) in res.all()]
     return await _top_mentions_for_videos(db, video_ids, limit=25)
+
+
+async def get_stock_episodes(db: AsyncSession, key: str) -> StockEpisodesResponse:
+    """點個股標籤 → 跨所有頻道列出講過該標的的集數。
+
+    key 可為代號(ticker)或名稱;以 ticker 為主鍵聚合(NVIDIA/輝達 同 NVDA 併在一起)。
+    """
+    key = (key or "").strip()
+    if not key:
+        return StockEpisodesResponse(key=key)
+
+    # 先看 key 是不是某個 ticker(精準);是的話用 ticker 撈(同義名都進來)
+    res = await db.execute(
+        select(PodcastMention, PodcastVideo)
+        .join(PodcastVideo, PodcastVideo.video_id == PodcastMention.video_id)
+        .where(
+            (PodcastMention.ticker == key)
+            | (PodcastMention.target == key)
+            | (PodcastMention.target.like(f"%{key}%"))
+        )
+        .where(PodcastVideo.status.in_(_ANALYZED))
+    )
+    rows = res.all()
+
+    # 若 key 命中某 ticker,收斂到「同 ticker」的所有列(把同義名也一起帶出)
+    tickers = {m.ticker for m, _ in rows if m.ticker}
+    name = None
+    counts = _empty_counts()
+    episodes: list[StockEpisodeOut] = []
+    seen: set[tuple[str, str]] = set()
+    for m, v in rows:
+        dedup = (v.video_id, m.target)
+        if dedup in seen:
+            continue
+        seen.add(dedup)
+        if name is None:
+            name = m.target
+        if m.sentiment in counts:
+            counts[m.sentiment] += 1
+        episodes.append(StockEpisodeOut(
+            channel=v.channel or "", video_id=v.video_id, title=v.title,
+            published=v.published, url=v.url, target=m.target,
+            target_type=m.target_type, ticker=m.ticker,
+            sentiment=m.sentiment if m.sentiment in counts else "中立",
+            reason=m.reason,
+        ))
+
+    episodes.sort(key=lambda e: (e.published or ""), reverse=True)
+    return StockEpisodesResponse(
+        key=key, name=name,
+        ticker=(sorted(tickers)[0] if len(tickers) == 1 else None),
+        total=len(episodes), sentiment=_to_counts(counts), episodes=episodes,
+    )

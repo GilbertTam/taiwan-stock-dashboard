@@ -75,6 +75,12 @@ class PodcastVideo(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    qa = relationship(
+        "PodcastQA",
+        back_populates="video",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     __table_args__ = (
         Index("ix_podcast_videos_channel_published", "channel", "published"),
@@ -121,3 +127,23 @@ class PodcastMention(Base):
     reason = Column(Text)                                # 一句話理由
 
     video = relationship("PodcastVideo", back_populates="mentions")
+
+
+class PodcastQA(Base):
+    """節目精選問答（QA）。目前由 aistockmap 結構化資料匯入（股癌）。"""
+
+    __tablename__ = "podcast_qa"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    video_id = Column(
+        String,
+        ForeignKey("podcast_videos.video_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    idx = Column(Integer)            # 該集內的順序
+    question = Column(Text)
+    answer = Column(Text)           # keyTakeaway 或 answerPoints 併接
+    off_topic = Column(Integer, default=0)  # 是否離題閒聊（0/1）
+
+    video = relationship("PodcastVideo", back_populates="qa")
