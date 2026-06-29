@@ -252,6 +252,34 @@ def _run_podcast_sync_blocking() -> None:
         pipe.repo.close()
 
 
+def _run_youtube_monitor_blocking() -> None:
+    """同步執行 YouTube monitor(在 worker thread 跑)。增量:只分析未處理的新影片。"""
+    import scripts.podcast_agent as pa
+
+    config = pa.AgentConfig.from_env()
+    pipe = pa.PodcastAgentPipeline(config)
+    try:
+        pipe.run_youtube_monitor()
+    finally:
+        pipe.repo.close()
+
+
+async def _job_youtube_monitor() -> None:
+    """每日 — YouTube 監控 + LLM 分析(增量,只分析新影片;需 OpenRouter/Anthropic key)。"""
+    import asyncio
+    import os
+
+    if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")):
+        logger.info("scheduler: youtube monitor skipped — 無 LLM key")
+        return
+    logger.info("scheduler: youtube monitor starting")
+    try:
+        await asyncio.to_thread(_run_youtube_monitor_blocking)
+        logger.info("scheduler: youtube monitor done")
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: youtube monitor failed")
+
+
 async def _job_reap_tpex_session() -> None:
     """每分鐘 — TPEX Camoufox 閒置回收(>TTL 沒用就關,釋放記憶體,避免行程累積 OOM)。"""
     from app.services.broker_crawlers import bsr_tpex
@@ -388,6 +416,17 @@ def start_scheduler() -> None:
         misfire_grace_time=3600,
         coalesce=True,
     )
+    # YouTube monitor + LLM 分析:每天 14:00(早晨節目 + 字幕已就緒)。
+    # 增量:只分析新影片(已處理跳過),成本受限於當日新片(~1-2 部);無 key 自動略過。
+    sched.add_job(
+        _job_youtube_monitor,
+        CronTrigger(hour=14, minute=0, timezone=_TPE),
+        id="youtube_monitor",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
@@ -395,7 +434,7 @@ def start_scheduler() -> None:
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
         "podcast sync @ 08:30/20:30, reap-tpex */1min, "
         "revenue */20min @ day1-10 + daily 21:05, "
-        "fill-missing @ 03:30 (Asia/Taipei)"
+        "fill-missing @ 03:30, youtube-monitor @ 14:00 (Asia/Taipei)"
     )
 
 
