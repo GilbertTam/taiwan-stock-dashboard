@@ -1,0 +1,52 @@
+{
+  "page": {
+    "title": "月營收",
+    "empty": "查無符合條件的營收資料",
+    "error": "載入失敗"
+  },
+  "stats": {
+    "dataMonth": "資料月份",
+    "announced": "公布家數",
+    "newToday": "今日新申報",
+    "avgYoy": "平均 YoY",
+    "shown": "當前顯示"
+  },
+  "filter": {
+    "all": "全部",
+    "twse": "上市",
+    "tpex": "上櫃",
+    "newOnly": "僅新申報",
+    "minYoy": "YoY ≥",
+    "minMom": "MoM ≥",
+    "search": "搜尋代號 / 名稱",
+    "allIndustries": "全部產業"
+  },
+  "sort": {
+    "new": "最新公布",
+    "yoy": "YoY",
+    "mom": "MoM",
+    "revenue": "營收"
+  },
+  "table": {
+    "code": "代號",
+    "name": "名稱",
+    "industry": "產業",
+    "reportDate": "出表日",
+    "revenue": "當月營收",
+    "mom": "MoM",
+    "yoy": "YoY",
+    "cumRevenue": "累計營收",
+    "cumYoy": "累計 YoY",
+    "newBadge": "新"
+  },
+  "history": {
+    "title": "歷史營收",
+    "empty": "無歷史資料",
+    "month": "年月",
+    "revenueM": "營收(百萬)",
+    "mom": "MoM%",
+    "yoy": "YoY%",
+    "showAll": "顯示全部 ({{count}} 筆)",
+    "collapse": "收合"
+  }
+}

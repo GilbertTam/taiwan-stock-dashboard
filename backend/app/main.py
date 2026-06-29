@@ -110,6 +110,11 @@ async def ensure_tables():
         BrokerSnapshot,
         BrokerEntry,
         DailyLimitUpSnapshot,
+        PodcastVideo,
+        PodcastSegment,
+        PodcastMention,
+        PodcastQA,
+        MonthlyRevenue,
     )
 
     async with engine.begin() as conn:
@@ -153,6 +158,62 @@ async def ensure_tables():
             _logger.exception("startup: reschedule orphan pendings failed")
     import asyncio as _asyncio
     _asyncio.create_task(_reschedule_orphan_pendings())
+
+    # 啟動時自動補洞:修補因 stack 當掉/漏跑而缺的當日漲停 snapshot。
+    # 當日漲停來源(OpenAPI)只回最新交易日,漏掉的日子要靠歷史 OHLCV 重建。
+    # 非阻塞背景跑,不擋 startup。
+    async def _fill_missing_snapshots_on_startup():
+        import asyncio
+        await asyncio.sleep(8)  # 等 DB / scheduler 初始化
+        try:
+            from app.services import daily_snapshot_service
+            result = await daily_snapshot_service.fill_missing_snapshots(lookback_days=10)
+            from loguru import logger as _logger
+            _logger.info("startup: fill_missing_snapshots {}", result)
+        except Exception:  # noqa: BLE001
+            from loguru import logger as _logger
+            _logger.exception("startup: fill_missing_snapshots failed")
+    _asyncio.create_task(_fill_missing_snapshots_on_startup())
+
+    # 啟動時補月營收歷史:t187ap05 OpenAPI 只給當月,歷史靠 MOPS 回填。
+    # 若 DB 為空先 sync 當月;歷史月數太薄(<12)才 backfill(有 guard,不會每次重打)。
+    async def _ensure_revenue_history_on_startup():
+        import asyncio
+        await asyncio.sleep(12)
+        try:
+            from app.services import revenue_service
+            from app.db import AsyncSessionLocal
+            from loguru import logger as _logger
+            async with AsyncSessionLocal() as db:
+                months = (await revenue_service.list_months(db)).months
+            if not months:
+                await revenue_service.sync_monthly_revenue()
+                async with AsyncSessionLocal() as db:
+                    months = (await revenue_service.list_months(db)).months
+            if len(months) < 12:
+                r = await revenue_service.backfill_history(months=24)
+                _logger.info("startup: revenue backfill filled {} months", len(r["months"]))
+            else:
+                _logger.info("startup: revenue history ok ({} months), skip backfill", len(months))
+        except Exception:  # noqa: BLE001
+            from loguru import logger as _logger
+            _logger.exception("startup: revenue backfill failed")
+    _asyncio.create_task(_ensure_revenue_history_on_startup())
+
+    # 啟動時催一次 podcast 增量(gooaye + PodSight):漏掉的集數立即補,不必等 08:30。
+    # 增量(跳過已抓),有資料時很輕(各 1 個列表請求);丟 worker thread 不擋 loop。
+    async def _podcast_catchup_on_startup():
+        import asyncio
+        await asyncio.sleep(20)
+        try:
+            from app.services.scheduler import _run_podcast_sync_blocking
+            from loguru import logger as _logger
+            await asyncio.to_thread(_run_podcast_sync_blocking)
+            _logger.info("startup: podcast catch-up done")
+        except Exception:  # noqa: BLE001
+            from loguru import logger as _logger
+            _logger.exception("startup: podcast catch-up failed")
+    _asyncio.create_task(_podcast_catchup_on_startup())
 
 
 @app.on_event("shutdown")

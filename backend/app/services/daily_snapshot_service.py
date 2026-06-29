@@ -157,6 +157,103 @@ async def backfill_institutionals_for_date(date_str: str) -> dict:
     }
 
 
+async def backfill_full_for_date(date_str: str) -> dict:
+    """重抓指定歷史日期的完整資料(OHLCV + 法人 + 漲停判定)並覆寫該日 snapshot。
+
+    跟 backfill_institutionals_for_date 不同:
+      - inst-only 版本只更新 foreign/trust/dealer,保留原 price/volume/brokers
+      - 本版完整重抓並重組,適合修復「Yahoo fallback 寫的 volume=0」這類舊資料
+
+    用 stock_daily.rebuild_for_date 重組,直接 upsert 替換整份 payload。
+    回傳 {date, total, breakdown, replaced: True}。
+    """
+    from app.services import stock_daily
+
+    target = _parse_iso_date(date_str)
+    if target is None:
+        raise ValueError(f"invalid date format: {date_str}")
+
+    resp = await stock_daily.rebuild_for_date(date_str)
+    if resp.total == 0:
+        # 不寫空清單蓋掉原有資料 — 可能該日 endpoint 暫時失效或非交易日
+        logger.warning("backfill_full %s: rebuild returned 0 stocks, skipping upsert", date_str)
+        return {"date": date_str, "total": 0, "replaced": False, "skipped": True}
+
+    async with AsyncSessionLocal() as db:
+        await upsert_snapshot(db, target, resp)
+        await db.commit()
+
+    logger.info(
+        "backfill_full %s: replaced snapshot total=%d twse=%d tpex=%d",
+        date_str, resp.total, resp.breakdown.twse, resp.breakdown.tpex,
+    )
+    return {
+        "date": date_str,
+        "total": resp.total,
+        "twse": resp.breakdown.twse,
+        "tpex": resp.breakdown.tpex,
+        "replaced": True,
+    }
+
+
+async def backfill_full_range(days: int) -> list[dict]:
+    """從今日往回 N 天逐日 backfill_full;沒有 snapshot 或 endpoint 空都記錄狀態。"""
+    today = _today_tpe()
+    results: list[dict] = []
+    for delta in range(1, days + 1):
+        d = today - timedelta(days=delta)
+        date_str = d.isoformat()
+        try:
+            r = await backfill_full_for_date(date_str)
+            results.append({"date": date_str, "status": "ok", **r})
+        except Exception as e:  # noqa: BLE001
+            logger.exception("backfill_full %s raised", date_str)
+            results.append({"date": date_str, "status": "error", "error": str(e)})
+    return results
+
+
+async def fill_missing_snapshots(lookback_days: int = 10) -> dict:
+    """偵測最近 N 天「缺漏的交易日」snapshot,自動 backfill_full 補回。
+
+    用途:容器啟動時 + 每日半夜自動修補(stack 當掉/漏跑 14:35 即時 snapshot 時)。
+    規則:
+      - 只看「過去的工作日(週一~五)」且 DB 沒有的日期(今日由 14:35 即時 job 負責,不補)
+      - 非交易日(假日)backfill_full 會回 total=0 → 不寫入,歸為 empty(視為已處理)
+    回傳 {filled, empty, errors}。
+    """
+    today = _today_tpe()
+    async with AsyncSessionLocal() as db:
+        existing = {
+            d.isoformat()
+            for (d,) in (
+                await db.execute(select(DailyLimitUpSnapshot.trade_date))
+            ).all()
+        }
+
+    filled: list[str] = []
+    empty: list[str] = []
+    errors: list[str] = []
+    for delta in range(1, lookback_days + 1):
+        d = today - timedelta(days=delta)
+        if d.weekday() >= 5:        # 週六(5)/週日(6) 跳過
+            continue
+        ds = d.isoformat()
+        if ds in existing:
+            continue
+        try:
+            r = await backfill_full_for_date(ds)
+            (filled if r.get("total", 0) > 0 else empty).append(ds)
+        except Exception as e:  # noqa: BLE001
+            logger.exception("fill_missing %s raised", ds)
+            errors.append(ds)
+
+    logger.info(
+        "fill_missing_snapshots: filled=%s empty=%s errors=%s",
+        filled, empty, errors,
+    )
+    return {"filled": filled, "empty": empty, "errors": errors}
+
+
 async def backfill_institutionals_range(days: int) -> list[dict]:
     """從今日往回 N 天逐日 backfill;沒有 snapshot 的日期 skip。"""
     today = _today_tpe()

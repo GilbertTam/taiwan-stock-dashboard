@@ -275,3 +275,47 @@ Steps 3's sub-items above are the same 9-file touch pattern used by interconnect
 ### Environment Variables
 
 Copy `.env.example` to `.env`. Key variables: `ELASTICSEARCH_HOST`, `ELASTICSEARCH_PORT`, `SECRET_KEY`, `DATABASE_URL`.
+
+### Operations — 維運注意
+
+**CRITICAL: 後端必須單一 uvicorn worker 跑（`UVICORN_WORKERS=1`，見 `backend/docker-entrypoint.sh`）。不要改回多 worker。**
+
+本 app 有多個「每行程一份」的單例，多 worker 會各跑一份、互相打架且爆記憶體：
+
+- **APScheduler**（`app/services/scheduler.py`）在每個 worker 各啟動一份 → 每個 cron job（daily snapshot / broker batch / retry / podcast sync）重複跑 N 次，且 SQLite 互相搶寫鎖。
+- **TPEX Camoufox 共用 browser session**（`app/services/broker_crawlers/bsr_tpex.py`）+ **broker `Semaphore(1)`**（`broker_service.py`）都是 process 內單例；N worker = N 個 Firefox + 併發控制失效。
+- **SQLite 單寫者**：多 worker 併發寫易 `database is locked`。
+
+曾發生的事故（供回溯）：`--workers 4` 時 4 份 Camoufox + 4× 記憶體 → 容器 `OOMKilled`，OOM killer 殺掉瀏覽器子行程，log 出現 `TargetClosedError` / `Connection closed while reading from the driver` / `write EPIPE`，且每個 scheduler job 錯誤 4 連發。改 `--workers 1` 後 idle 記憶體從 ~1900MiB 降到 ~115MiB。
+
+要橫向擴充 web 吞吐，正解是把 **web** 與 **scheduler/crawler** 拆成不同服務（各自單行程），而非靠 uvicorn workers。
+
+**Camoufox 防護**（`bsr_tpex.py`）：`_close_session` 會在 graceful close 失敗/逾時時 `SIGKILL` 殘留的 camoufox 孤兒行程（/proc 掃描，僅 Linux）；`reap_idle_session()` 由 scheduler 每分鐘呼叫，閒置超過 `_SESSION_TTL_S` 就主動關瀏覽器釋放記憶體。動到 broker 抓取時別把這些拿掉。
+
+**容器記憶體**：`backend-api` `mem_limit: 2g`（`docker-compose.yml`）。單行程下 idle ~115MiB、單檔抓取尖峰 ~600MiB，2g 為充足 headroom。
+
+### 資料庫 — 單一 SQLite、各 feature 分表
+
+全站共用**同一個 SQLite**（`DATABASE_URL=sqlite+aiosqlite:///./db.sqlite3`，即 `backend/db.sqlite3`，bind-mount 進容器 `/app/db.sqlite3`）。沒有第二個 DB；各功能是同一庫的不同表：
+
+| 表 | 功能 / 頁面 |
+|---|---|
+| `users` / `oauth_accounts` / `app_settings` / `user_preferences` / `user_presets` | 認證 / 帳戶 / 設定 |
+| `stocks` / `broker_snapshots` / `broker_entries` / `daily_limit_up_snapshots` | 當日漲停 `/dashboard/daily` |
+| `podcast_videos` / `podcast_segments` / `podcast_mentions` | 財經節目 `/dashboard/podcast` |
+| `monthly_revenue` | 月營收 `/dashboard/revenue` |
+
+注意:podcast 爬蟲（`scripts/podcast_agent.py`，同步 sqlite3）與 web 後端（async SQLAlchemy）寫的是**同一個檔**；爬蟲連線開了 WAL + `busy_timeout=5000` 避免與 API 併發寫撞鎖。
+
+### 月營收 (Revenue) — `/dashboard/revenue`
+
+**資料來源（自包含,不耦合旁邊的 stock_mops 專案）**：TWSE/TPEX OpenAPI 月營收 `t187ap05`，三來源欄位名相同、一套 parser：
+- TWSE 上市 `https://openapi.twse.com.tw/v1/opendata/t187ap05_L`
+- TWSE 其他 `https://openapi.twse.com.tw/v1/opendata/t187ap05_P`
+- TPEX 上櫃 `https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O`
+
+**後端**：`models/revenue.py`(`MonthlyRevenue`)、`services/revenue_service.py`(`sync_monthly_revenue` 抓取+upsert、`list_revenue`/`list_months`/`list_industries`)、`api/v1/revenue.py`(`GET /revenue/monthly|months|industries`、`POST /revenue/sync`)。金額單位**仟元**；`資料年月` 民國轉 `YYYY-MM`。
+
+**新申報偵測**：upsert by `(code, year_month)`，insert 設 `first_seen_at`、update 不動;`first_seen_at=今日` 即「新申報」。OpenAPI 在公告期會逐步長出資料,靠高頻同步 + diff 達成「剛公布」近似(非交易所逐筆時間戳)。
+
+**排程**（`scheduler.py`，單 worker）：每月 **1–10 號公告期 08–22 點每 20 分鐘**同步（偵測新申報；刻意不到 10 分鐘以降系統負載）+ 每日 **21:05** 保底一次。

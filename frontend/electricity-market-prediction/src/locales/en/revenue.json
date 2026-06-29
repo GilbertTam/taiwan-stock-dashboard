@@ -1,0 +1,52 @@
+{
+  "page": {
+    "title": "Monthly Revenue",
+    "empty": "No revenue data matches the filters",
+    "error": "Failed to load"
+  },
+  "stats": {
+    "dataMonth": "Data month",
+    "announced": "Announced",
+    "newToday": "New today",
+    "avgYoy": "Avg YoY",
+    "shown": "Shown"
+  },
+  "filter": {
+    "all": "All",
+    "twse": "TWSE",
+    "tpex": "TPEx",
+    "newOnly": "New only",
+    "minYoy": "YoY ≥",
+    "minMom": "MoM ≥",
+    "search": "Search code / name",
+    "allIndustries": "All industries"
+  },
+  "sort": {
+    "new": "Latest",
+    "yoy": "YoY",
+    "mom": "MoM",
+    "revenue": "Revenue"
+  },
+  "table": {
+    "code": "Code",
+    "name": "Name",
+    "industry": "Industry",
+    "reportDate": "Filed",
+    "revenue": "Revenue",
+    "mom": "MoM",
+    "yoy": "YoY",
+    "cumRevenue": "Cumulative",
+    "cumYoy": "Cum YoY",
+    "newBadge": "NEW"
+  },
+  "history": {
+    "title": "Revenue History",
+    "empty": "No history",
+    "month": "Month",
+    "revenueM": "Revenue (M)",
+    "mom": "MoM%",
+    "yoy": "YoY%",
+    "showAll": "Show all ({{count}})",
+    "collapse": "Collapse"
+  }
+}

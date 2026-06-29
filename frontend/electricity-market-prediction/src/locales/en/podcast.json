@@ -1,0 +1,41 @@
+{
+  "page": {
+    "title": "Podcasts",
+    "subtitle": "Track stock & sector views from finance YouTubers / podcasts",
+    "empty": "No program data yet — run the crawler sync first",
+    "error": "Failed to load",
+    "retry": "Retry"
+  },
+  "card": {
+    "episodes": "{{count}} episodes",
+    "updated": "Updated {{date}}",
+    "latestPrefix": "Latest episode",
+    "topMentions": "Top mentions",
+    "noMentions": "No mentions yet"
+  },
+  "detail": {
+    "back": "Back to programs",
+    "topMentions": "Top mentions",
+    "summary": "AI summary",
+    "timeline": "Timeline",
+    "mentions": "Mentioned stocks / sectors",
+    "watchOriginal": "Watch original",
+    "noEpisodes": "No episodes for this channel"
+  },
+  "qa": {
+    "title": "Q&A Highlights"
+  },
+  "stockEpisodes": {
+    "count": "{{count}} episodes",
+    "empty": "No episodes mention this"
+  },
+  "sentiment": {
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutral": "Neutral"
+  },
+  "type": {
+    "stock": "Stock",
+    "sector": "Sector"
+  }
+}

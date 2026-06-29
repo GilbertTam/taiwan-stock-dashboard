@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -76,10 +77,29 @@ async def _job_daily_snapshot_chase_today() -> None:
             return
 
         if resp.date != today_str:
-            logger.debug(
-                "scheduler: chase-today — TWSE Date still %s != today %s, noop",
-                resp.date, today_str,
-            )
+            # 主資料(STOCK_DAY_ALL)還沒推進今日,但 T86 法人可能已推。
+            # 嘗試 inst-only backfill:既有 today snapshot 內把 foreign/trust/dealer
+            # 用今日 T86 補上,close/volume 等價量欄維持不動(等下個 tick 整體覆寫)。
+            try:
+                from app.services.daily_snapshot_service import backfill_institutionals_for_date
+                res = await backfill_institutionals_for_date(today_str)
+                if res.get("updated", 0) > 0:
+                    logger.info(
+                        "scheduler: chase-today inst-only backfill — updated=%d/%d (TWSE STOCK_DAY_ALL 仍 stale=%s)",
+                        res["updated"], res.get("total", 0), resp.date,
+                    )
+                else:
+                    logger.debug(
+                        "scheduler: chase-today — TWSE Date %s != today %s, T86 today also empty, noop",
+                        resp.date, today_str,
+                    )
+            except LookupError:
+                # today snapshot 不存在(早盤前或 Yahoo fallback 也失敗) → 沒得 backfill
+                logger.debug(
+                    "scheduler: chase-today — no today snapshot to backfill",
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("scheduler: chase-today inst-only backfill failed")
             return
 
         # TWSE 已推進到今日(或 Yahoo fallback 已提供 today 資料)→ upsert
@@ -198,6 +218,114 @@ async def _job_retry_failed_brokers() -> None:
     )
 
 
+def _run_podcast_sync_blocking() -> None:
+    """同步執行 podcast 增量同步（在 worker thread 跑）。
+
+    跑「免 API key / 免 LLM」的三條來源：
+      - 股癌 gooaye 逐字稿增量
+      - PodSight 回填（游庭皓等 YouTube 頻道歷史摘要）
+      - aistockmap 結構化分析（股癌個股輿情 / 產業主題 / QA）
+    YouTube monitor（需 OpenRouter/Anthropic key + 額外相依）刻意不在此。
+    爬蟲是同步 sqlite3，放在 asyncio.to_thread 的 worker thread 執行，
+    不阻塞 FastAPI event loop（避免重演 broker 爬蟲卡 healthcheck 的問題）。
+    每條獨立 try/except，一條失敗不影響其他。
+    """
+    import scripts.podcast_agent as pa
+
+    config = pa.AgentConfig.from_env()
+    pipe = pa.PodcastAgentPipeline(config)
+    try:
+        try:
+            pipe.run_gooaye_sync(use_sitemap=False)
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: gooaye failed")
+        try:
+            for slug, channel in config.podsight_channels.items():
+                pipe.run_podsight_sync(slug, channel)
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: podsight failed")
+        try:
+            pipe.run_aistockmap_sync("Gooaye", "Gooaye 股癌")
+        except Exception:  # noqa: BLE001
+            logger.exception("podcast sync: aistockmap failed")
+    finally:
+        pipe.repo.close()
+
+
+def _run_youtube_monitor_blocking() -> None:
+    """同步執行 YouTube monitor(在 worker thread 跑)。增量:只分析未處理的新影片。"""
+    import scripts.podcast_agent as pa
+
+    config = pa.AgentConfig.from_env()
+    pipe = pa.PodcastAgentPipeline(config)
+    try:
+        pipe.run_youtube_monitor()
+    finally:
+        pipe.repo.close()
+
+
+async def _job_youtube_monitor() -> None:
+    """每日 — YouTube 監控 + LLM 分析(增量,只分析新影片;需 OpenRouter/Anthropic key)。"""
+    import asyncio
+    import os
+
+    if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")):
+        logger.info("scheduler: youtube monitor skipped — 無 LLM key")
+        return
+    logger.info("scheduler: youtube monitor starting")
+    try:
+        await asyncio.to_thread(_run_youtube_monitor_blocking)
+        logger.info("scheduler: youtube monitor done")
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: youtube monitor failed")
+
+
+async def _job_reap_tpex_session() -> None:
+    """每分鐘 — TPEX Camoufox 閒置回收(>TTL 沒用就關,釋放記憶體,避免行程累積 OOM)。"""
+    from app.services.broker_crawlers import bsr_tpex
+
+    try:
+        await bsr_tpex.reap_idle_session()
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: reap tpex session failed")
+
+
+async def _job_fill_missing_snapshots() -> None:
+    """半夜 — 自動補洞:補回最近缺漏交易日的當日漲停 snapshot(輕量,離峰執行)。"""
+    from app.services import daily_snapshot_service
+
+    logger.info("scheduler: fill missing snapshots starting")
+    try:
+        result = await daily_snapshot_service.fill_missing_snapshots(lookback_days=10)
+        logger.info("scheduler: fill missing snapshots done: %s", result)
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: fill missing snapshots failed")
+
+
+async def _job_revenue_sync() -> None:
+    """月營收同步 — 抓 TWSE/TPEX OpenAPI 入庫(含新申報偵測)。"""
+    from app.services import revenue_service
+
+    logger.info("scheduler: revenue sync starting")
+    try:
+        result = await revenue_service.sync_monthly_revenue()
+        logger.info("scheduler: revenue sync done: %s", result.model_dump())
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: revenue sync failed")
+
+
+async def _job_podcast_sync() -> None:
+    """08:30 / 20:30 (Asia/Taipei) — podcast 來源增量同步（gooaye + PodSight，免 key）。"""
+    import asyncio
+
+    logger.info("scheduler: podcast sync starting")
+    try:
+        await asyncio.to_thread(_run_podcast_sync_blocking)
+        logger.info("scheduler: podcast sync done")
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: podcast sync failed")
+
+
 def start_scheduler() -> None:
     """在 FastAPI startup hook 呼叫。Idempotent。"""
     global _scheduler
@@ -241,11 +369,72 @@ def start_scheduler() -> None:
         misfire_grace_time=300,
         coalesce=True,
     )
+    # Podcast 來源增量同步：每天 08:30 / 20:30 跑 gooaye + PodSight(免 key)。
+    # 這些是「每日節目」,RSS/列表一天才更新,兩個時段足夠且省資源。
+    sched.add_job(
+        _job_podcast_sync,
+        CronTrigger(hour="8,20", minute=30, timezone=_TPE),
+        id="podcast_sync",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    # TPEX Camoufox 閒置回收:每分鐘檢查,閒置 >TTL 就關掉瀏覽器釋放記憶體。
+    # max_instances=1 避免上一輪還卡在 _browser_lock 時又疊一輪。
+    sched.add_job(
+        _job_reap_tpex_session,
+        CronTrigger(minute="*", timezone=_TPE),
+        id="reap_tpex_session",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # 月營收同步:每月 1-10 號公告期 08-22 點每 20 分鐘抓(偵測新申報,降低系統負載);
+    # 另每天 21:05 保底一次,確保月中資料新鮮。
+    sched.add_job(
+        _job_revenue_sync,
+        CronTrigger(day="1-10", hour="8-22", minute="*/20", timezone=_TPE),
+        id="revenue_sync_window",
+        replace_existing=True,
+        misfire_grace_time=600,
+        coalesce=True,
+    )
+    sched.add_job(
+        _job_revenue_sync,
+        CronTrigger(hour=21, minute=5, timezone=_TPE),
+        id="revenue_sync_daily",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    # 自動補洞:每天 03:30(離峰)補回最近缺漏交易日的當日漲停 snapshot。
+    sched.add_job(
+        _job_fill_missing_snapshots,
+        CronTrigger(hour=3, minute=30, timezone=_TPE),
+        id="fill_missing_snapshots",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+    # YouTube monitor + LLM 分析:每天 14:00(早晨節目 + 字幕已就緒)。
+    # 增量:只分析新影片(已處理跳過),成本受限於當日新片(~1-2 部);無 key 自動略過。
+    sched.add_job(
+        _job_youtube_monitor,
+        CronTrigger(hour=14, minute=0, timezone=_TPE),
+        id="youtube_monitor",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
-        "retry */10min @ 09-21, chase-today */10min @ 15-21 (Asia/Taipei)"
+        "retry */10min @ 09-21, chase-today */10min @ 15-21, "
+        "podcast sync @ 08:30/20:30, reap-tpex */1min, "
+        "revenue */20min @ day1-10 + daily 21:05, "
+        "fill-missing @ 03:30, youtube-monitor @ 14:00 (Asia/Taipei)"
     )
 
 
