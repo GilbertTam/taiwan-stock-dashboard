@@ -31,11 +31,22 @@
     "code": "代號",
     "name": "名稱",
     "industry": "產業",
+    "reportDate": "出表日",
     "revenue": "當月營收",
     "mom": "MoM",
     "yoy": "YoY",
     "cumRevenue": "累計營收",
     "cumYoy": "累計 YoY",
     "newBadge": "新"
+  },
+  "history": {
+    "title": "歷史營收",
+    "empty": "無歷史資料",
+    "month": "年月",
+    "revenueM": "營收(百萬)",
+    "mom": "MoM%",
+    "yoy": "YoY%",
+    "showAll": "顯示全部 ({{count}} 筆)",
+    "collapse": "收合"
   }
 }

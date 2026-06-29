@@ -31,11 +31,22 @@
     "code": "Code",
     "name": "Name",
     "industry": "Industry",
+    "reportDate": "Filed",
     "revenue": "Revenue",
     "mom": "MoM",
     "yoy": "YoY",
     "cumRevenue": "Cumulative",
     "cumYoy": "Cum YoY",
     "newBadge": "NEW"
+  },
+  "history": {
+    "title": "Revenue History",
+    "empty": "No history",
+    "month": "Month",
+    "revenueM": "Revenue (M)",
+    "mom": "MoM%",
+    "yoy": "YoY%",
+    "showAll": "Show all ({{count}})",
+    "collapse": "Collapse"
   }
 }

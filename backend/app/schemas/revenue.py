@@ -24,6 +24,7 @@ class MonthlyRevenueOut(BaseModel):
     cum_revenue: Optional[int] = None     # 當月累計營收
     cum_yoy_pct: Optional[float] = None   # 累計前期比較增減(%)
     note: str = ""
+    report_date: Optional[str] = None     # 出表日(官方產製日) "YYYY-MM-DD"
     first_seen_at: Optional[datetime] = None
     is_new: bool = False                  # first_seen_at 為今日 → 新申報
 
@@ -51,6 +52,23 @@ class MonthsResponse(BaseModel):
 class IndustriesResponse(BaseModel):
     """GET /api/revenue/industries — 產業別清單。"""
     industries: list[str] = Field(default_factory=list)
+
+
+class RevenueHistoryPoint(BaseModel):
+    """單月歷史點(直方圖/歷史表用)。"""
+    year_month: str
+    revenue: Optional[int] = None     # 仟元
+    mom_pct: Optional[float] = None
+    yoy_pct: Optional[float] = None
+
+
+class RevenueHistoryResponse(BaseModel):
+    """GET /api/revenue/history/{code} 回傳。"""
+    code: str
+    name: str = ""
+    market: str = ""
+    industry: str = ""
+    points: list[RevenueHistoryPoint] = Field(default_factory=list)  # 依年月升冪
 
 
 class RevenueSyncResult(BaseModel):

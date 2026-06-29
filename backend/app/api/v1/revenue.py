@@ -16,6 +16,7 @@ from app.db import get_db
 from app.schemas.revenue import (
     IndustriesResponse,
     MonthsResponse,
+    RevenueHistoryResponse,
     RevenueListResponse,
     RevenueSyncResult,
 )
@@ -42,6 +43,12 @@ async def monthly(
     )
 
 
+@router.get("/history/{code}", response_model=RevenueHistoryResponse)
+async def history(code: str, db: AsyncSession = Depends(get_db)) -> Any:
+    """單一公司歷史月營收(直方圖 + 歷史表)。"""
+    return await revenue_service.get_history(db, code)
+
+
 @router.get("/months", response_model=MonthsResponse)
 async def months(db: AsyncSession = Depends(get_db)) -> Any:
     return await revenue_service.list_months(db)
@@ -59,3 +66,9 @@ async def industries(
 async def sync() -> Any:
     """手動抓取入庫。平時由 scheduler 在公告期自動跑。"""
     return await revenue_service.sync_monthly_revenue()
+
+
+@router.post("/backfill")
+async def backfill(months: int = Query(24, ge=1, le=60)) -> Any:
+    """一次性回填過去 N 個月歷史月營收(MOPS),供歷史直方圖。重量級,管理用。"""
+    return await revenue_service.backfill_history(months=months)

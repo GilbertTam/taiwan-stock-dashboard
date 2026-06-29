@@ -31,3 +31,12 @@ export function fmtRevenue(thousandNtd: number | null | undefined): string {
     const wan = thousandNtd / 10;            // 仟元 → 萬
     return `${Math.round(wan).toLocaleString('en-US')} 萬`;
 }
+
+/** 營收(仟元)→ 百萬(1 位小數),對齊歷史表「營收(百萬)」。 */
+export function fmtMillion(thousandNtd: number | null | undefined): string {
+    if (thousandNtd == null) return '—';
+    return (thousandNtd / 1000).toLocaleString('en-US', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    });
+}

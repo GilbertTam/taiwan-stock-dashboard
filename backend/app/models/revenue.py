@@ -38,6 +38,7 @@ class MonthlyRevenue(Base):
 
     year_month = Column(String, nullable=False, index=True)  # 正規化 "YYYY-MM"
     roc_year_month = Column(String, nullable=False, default="")  # 原始民國 "11505"
+    report_date = Column(String, default="")  # 出表日(官方產製日)正規化 "YYYY-MM-DD"
 
     # 金額:仟元。用 Numeric 避免大數浮點漂移;可為 None(來源缺值)
     revenue = Column(Numeric(20, 0))             # 當月營收

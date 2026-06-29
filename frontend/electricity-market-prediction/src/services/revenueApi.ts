@@ -12,6 +12,7 @@ import { createApiInstance } from './apiClient';
 import type {
     IndustriesResponse,
     MonthsResponse,
+    RevenueHistoryResponse,
     RevenueListResponse,
     RevenueSort,
 } from '@/types/revenue';
@@ -43,6 +44,12 @@ export const fetchMonthlyRevenue = async (
             sort: params.sort ?? 'first_seen',
         },
     });
+    return res.data;
+};
+
+export const fetchRevenueHistory = async (code: string): Promise<RevenueHistoryResponse> => {
+    const api = createApiInstance();
+    const res = await api.get<RevenueHistoryResponse>(`/revenue/history/${encodeURIComponent(code)}`);
     return res.data;
 };
 
