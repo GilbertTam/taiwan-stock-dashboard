@@ -23,10 +23,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools && \
     pip install -r requirements.txt
 
-# 輕量 podcast 相依:YouTube monitor 用(RSS + 字幕)。LLM 走 OpenRouter(requests)
-# 不需 anthropic SDK;重型(faster-whisper/opencc/yt-dlp)刻意不裝,見 requirements-podcast.txt。
+# podcast 相依:YouTube monitor/backfill 用(RSS + 字幕 + 全頻道枚舉)。
+# LLM 走 OpenRouter(requests)不需 anthropic SDK;faster-whisper/opencc 仍不裝。
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install feedparser youtube-transcript-api
+    pip install feedparser youtube-transcript-api yt-dlp
 
 # 預下載 Camoufox 用的 patched Firefox(避免 runtime 第一次抓 TPEX 時下載 ~200MB)
 RUN python -m camoufox fetch || true

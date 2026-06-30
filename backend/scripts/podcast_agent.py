@@ -1133,6 +1133,81 @@ class PodcastAgentPipeline:
             print(f"  ✓ 重跑完成:{len(data['segments'])} 段 / {len(data['mentions'])} 標的")
 
     @staticmethod
+    def _parse_date_from_title(title: str) -> str:
+        """從標題開頭的日期取 ISO YYYY-MM-DD(游庭皓:'2026/6/29(一)…')。取不到回 ''。"""
+        m = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})", title or "")
+        if not m:
+            return ""
+        y, mo, d = (int(x) for x in m.groups())
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+
+    def run_youtube_backfill(self, channel_id: str, channel_name: str,
+                             limit: Optional[int] = None, tab: str = "videos") -> None:
+        """用 yt-dlp 列頻道某 tab 的影片,逐部抓字幕 + LLM 分析(全頻道輿情回填)。
+
+        tab: "videos"(一般上傳)或 "streams"(直播,如游庭皓早晨財經速解讀)。
+        增量:已處理(is_processed)跳過;無字幕標 no_transcript 不打 LLM;
+        成功分析後 supersede 同日 PodSight(YouTube 為準)。長時間,逐部容錯。
+        """
+        from youtube_transcript_api._errors import (
+            YouTubeTranscriptApiException, NoTranscriptFound,
+            TranscriptsDisabled, VideoUnavailable,
+        )
+
+        url = f"https://www.youtube.com/channel/{channel_id}/{tab}"
+        print(f"📡 yt-dlp 列出頻道影片:{url}")
+        videos = self.youtube.get_channel_videos_yt_dlp(url)
+        print(f"✅ 頻道共 {len(videos)} 部")
+
+        todo = [v for v in videos if not self.repo.is_processed(v.video_id)]
+        if limit:
+            todo = todo[:limit]
+        print(f"🚀 需處理 {len(todo)} 部(已處理 {len(videos) - len([v for v in videos if not self.repo.is_processed(v.video_id)])} 跳過)")
+
+        done = no_tr = failed = 0
+        for i, v in enumerate(todo, 1):
+            v.channel = channel_name
+            v.published = self._parse_date_from_title(v.title)
+            print(f"[{i:3d}/{len(todo)}] {v.title[:38]} ({v.video_id})", flush=True)
+            try:
+                transcript = self.youtube.get_transcript(v.video_id, self.config.transcript_languages)
+            except (NoTranscriptFound, TranscriptsDisabled, VideoUnavailable):
+                v.status = "no_transcript"
+                self.repo.upsert_video(v)
+                no_tr += 1
+                print("    ⏭ 無字幕,跳過(不打 LLM)")
+                continue
+            except YouTubeTranscriptApiException as e:
+                print(f"    ⚠ 字幕暫抽不到,下次再說:{type(e).__name__}")
+                continue
+            except Exception as e:  # noqa: BLE001
+                print(f"    ⚠ 字幕錯誤:{e}")
+                continue
+
+            transcript = self.analyzer.to_traditional(transcript)
+            try:
+                data = self.analyzer.extract(v.title, transcript)
+            except Exception as e:  # noqa: BLE001
+                print(f"    ✗ 分析失敗,跳過:{e}")
+                failed += 1
+                continue
+
+            v.status = "done"
+            v.summary = data["summary"]
+            v.topics = data["topics"]
+            self.repo.clear_video_children(v.video_id)
+            self.repo.upsert_video(v)
+            self.repo.insert_segments(v.video_id, self._to_segments(data["segments"]))
+            self.repo.insert_mentions(v.video_id, self._to_mentions(data["mentions"]))
+            superseded = self.repo.supersede_backfill(v.channel, (v.published or "")[:10])
+            done += 1
+            print(f"    ✓ {len(data['mentions'])} 標的"
+                  + (f" / 取代同日回填 {superseded}" if superseded else ""))
+            time.sleep(self.config.delay)
+
+        print(f"\n🎉 回填完成:分析 {done} / 無字幕 {no_tr} / 失敗 {failed}（頻道：{channel_name}）")
+
+    @staticmethod
     def _to_segments(raw: list[dict]) -> list[Segment]:
         return [Segment(
             start=s.get("start", ""), end=s.get("end", ""), title=s.get("title", ""),
@@ -1522,6 +1597,13 @@ def main() -> None:
 
     rp = sub.add_parser("reprocess", help="強制重新分析指定影片(覆寫,忽略已處理)")
     rp.add_argument("video_ids", nargs="+", help="YouTube 11 碼影片 ID(可多個)")
+
+    mb = sub.add_parser("monitor-backfill", help="yt-dlp 列全頻道影片,逐部 LLM 分析(全頻道輿情回填)")
+    mb.add_argument("channel_id", help="UC 開頭頻道 ID")
+    mb.add_argument("channel", help="入庫頻道顯示名")
+    mb.add_argument("--limit", type=int, default=None, help="只處理最新 N 部(預設全部)")
+    mb.add_argument("--tab", default="videos", choices=["videos", "streams"],
+                    help="videos=一般上傳;streams=直播(游庭皓早晨節目用 streams)")
     sub.add_parser("gooaye", help="股癌 SPA(JSON/MD) 逐字稿增量同步")
     sub.add_parser("gooaye-sitemap", help="股癌 Sitemap(HTML) 歷史逐字稿增量同步")
 
@@ -1545,6 +1627,9 @@ def main() -> None:
         PodcastAgentPipeline(config).run_youtube_monitor()
     elif args.command == "reprocess":
         PodcastAgentPipeline(config).reprocess_videos(args.video_ids)
+    elif args.command == "monitor-backfill":
+        PodcastAgentPipeline(config).run_youtube_backfill(
+            args.channel_id, args.channel, limit=args.limit, tab=args.tab)
     elif args.command == "gooaye":
         PodcastAgentPipeline(config).run_gooaye_sync(use_sitemap=False)
     elif args.command == "gooaye-sitemap":
