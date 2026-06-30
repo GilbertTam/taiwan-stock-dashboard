@@ -2,12 +2,15 @@
 
 /**
  * 庫藏股主表。欄位:代號/名稱、買回目的、董事會決議日、預定買回期間、
- * 預定股數(張)、價格區間、已買回進度、狀態 badge(新公告/執行中/完成)。
+ * 預定股數(張)、價格區間、狀態 badge(新公告/執行中/完成)。
+ * 決議日 / 預定期間 / 預定股數 / 價格區間 / 狀態 可點表頭排序(client-side)。
  */
-import React from 'react';
-import { Box, Typography } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Box, Typography, ButtonBase } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import { useTranslation } from 'react-i18next';
-import type { TreasuryBuyback } from '@/types/treasury';
+import type { TreasuryBuyback, TreasuryStatus } from '@/types/treasury';
 import { STATUS_COLOR, STATUS_I18N, fmtShares, fmtPriceRange } from './treasuryFormat';
 
 interface Props {
@@ -16,7 +19,23 @@ interface Props {
 
 const COLS = '96px 1fr 130px 100px 170px 110px 110px 96px';
 
-function HeaderCell({ label, align = 'right' }: { label: string; align?: 'left' | 'right' }) {
+type SortKey = 'board_date' | 'period' | 'planned_shares' | 'price' | 'status';
+type SortDir = 'asc' | 'desc';
+
+const STATUS_RANK: Record<TreasuryStatus, number> = { 新公告: 0, 執行中: 1, 完成: 2 };
+
+/** 取排序值;字串/數字皆可,null/'' 一律排到底。 */
+function sortVal(r: TreasuryBuyback, key: SortKey): number | string | null {
+    switch (key) {
+        case 'board_date': return r.board_date || null;
+        case 'period': return r.period_end || null;
+        case 'planned_shares': return r.planned_shares;
+        case 'price': return r.price_high ?? r.price_low;
+        case 'status': return STATUS_RANK[r.status];
+    }
+}
+
+function StaticHeader({ label, align = 'right' }: { label: string; align?: 'left' | 'right' }) {
     return (
         <Typography sx={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, textAlign: align }}>
             {label}
@@ -24,7 +43,31 @@ function HeaderCell({ label, align = 'right' }: { label: string; align?: 'left' 
     );
 }
 
-function StatusBadge({ status }: { status: TreasuryBuyback['status'] }) {
+function SortHeader({
+    label, active, dir, align = 'right', onClick,
+}: {
+    label: string; active: boolean; dir: SortDir; align?: 'left' | 'right'; onClick: () => void;
+}) {
+    const Arrow = dir === 'asc' ? ArrowDropUpIcon : ArrowDropDownIcon;
+    return (
+        <ButtonBase
+            disableRipple
+            onClick={onClick}
+            sx={{
+                display: 'flex', alignItems: 'center', gap: 0,
+                justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+                fontSize: 11, fontWeight: 700,
+                color: active ? 'var(--primary)' : 'var(--muted)',
+                '&:hover': { color: 'var(--primary)' },
+            }}
+        >
+            {label}
+            <Arrow sx={{ fontSize: 16, opacity: active ? 1 : 0.35 }} />
+        </ButtonBase>
+    );
+}
+
+function StatusBadge({ status }: { status: TreasuryStatus }) {
     const { t } = useTranslation('treasury');
     const color = STATUS_COLOR[status];
     return (
@@ -43,6 +86,38 @@ function StatusBadge({ status }: { status: TreasuryBuyback['status'] }) {
 
 export function TreasuryTable({ items }: Props) {
     const { t } = useTranslation('treasury');
+    const [sortKey, setSortKey] = useState<SortKey>('board_date');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+    const onSort = (key: SortKey) => {
+        if (key === sortKey) {
+            setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(key);
+            setSortDir('desc');
+        }
+    };
+
+    const sorted = useMemo(() => {
+        const arr = [...items];
+        const mul = sortDir === 'asc' ? 1 : -1;
+        arr.sort((a, b) => {
+            const va = sortVal(a, sortKey);
+            const vb = sortVal(b, sortKey);
+            // null 一律排到底(不受 asc/desc 影響)
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            if (va < vb) return -1 * mul;
+            if (va > vb) return 1 * mul;
+            return 0;
+        });
+        return arr;
+    }, [items, sortKey, sortDir]);
+
+    const sh = (key: SortKey, label: string, align: 'left' | 'right' = 'right') => (
+        <SortHeader label={label} active={sortKey === key} dir={sortDir} align={align} onClick={() => onSort(key)} />
+    );
 
     return (
         <Box sx={{ border: '1px solid var(--card-border)', borderRadius: 2, overflow: 'hidden', background: 'var(--card-bg)' }}>
@@ -53,17 +128,17 @@ export function TreasuryTable({ items }: Props) {
                     background: 'var(--subtle-bg)', position: 'sticky', top: 0, zIndex: 1,
                 }}
             >
-                <HeaderCell label={t('table.code')} align="left" />
-                <HeaderCell label={t('table.name')} align="left" />
-                <HeaderCell label={t('table.purpose')} align="left" />
-                <HeaderCell label={t('table.boardDate')} align="left" />
-                <HeaderCell label={t('table.period')} align="left" />
-                <HeaderCell label={t('table.plannedShares')} />
-                <HeaderCell label={t('table.priceRange')} />
-                <HeaderCell label={t('table.status')} align="right" />
+                <StaticHeader label={t('table.code')} align="left" />
+                <StaticHeader label={t('table.name')} align="left" />
+                <StaticHeader label={t('table.purpose')} align="left" />
+                {sh('board_date', t('table.boardDate'), 'left')}
+                {sh('period', t('table.period'), 'left')}
+                {sh('planned_shares', t('table.plannedShares'))}
+                {sh('price', t('table.priceRange'))}
+                {sh('status', t('table.status'))}
             </Box>
 
-            {items.map((r) => (
+            {sorted.map((r) => (
                 <Box
                     key={`${r.code}-${r.board_date}`}
                     sx={{
@@ -73,11 +148,9 @@ export function TreasuryTable({ items }: Props) {
                         '&:last-of-type': { borderBottom: 'none' },
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: 'var(--foreground)' }}>
-                            {r.code}
-                        </Typography>
-                    </Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: 'var(--foreground)' }}>
+                        {r.code}
+                    </Typography>
                     <Typography sx={{ fontSize: 13, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.name}
                     </Typography>
