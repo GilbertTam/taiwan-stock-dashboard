@@ -10,6 +10,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import PodcastsIcon from '@mui/icons-material/Podcasts';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import SavingsIcon from '@mui/icons-material/Savings';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
@@ -28,6 +29,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     { key: 'daily', labelKey: 'sidebar.daily', path: '/dashboard/daily', Icon: TrendingUpIcon },
     { key: 'podcast', labelKey: 'sidebar.podcast', path: '/dashboard/podcast', Icon: PodcastsIcon },
     { key: 'revenue', labelKey: 'sidebar.revenue', path: '/dashboard/revenue', Icon: ReceiptLongIcon },
+    { key: 'repurchase', labelKey: 'sidebar.repurchase', path: '/dashboard/repurchase', Icon: SavingsIcon },
 ];
 
 // Appended only for superusers; matched by `pathname.startsWith('/dashboard/admin')`.
@@ -240,7 +242,8 @@ export function DashboardSidebar() {
                         pathname === path ||
                         (key === 'admin' && matchesPathOrSubpath('/dashboard/admin')) ||
                         (key === 'podcast' && matchesPathOrSubpath('/dashboard/podcast')) ||
-                        (key === 'revenue' && matchesPathOrSubpath('/dashboard/revenue'));
+                        (key === 'revenue' && matchesPathOrSubpath('/dashboard/revenue')) ||
+                        (key === 'repurchase' && matchesPathOrSubpath('/dashboard/repurchase'));
 
                     return (
                         <ButtonBase

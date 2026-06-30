@@ -1,0 +1,40 @@
+{
+  "page": {
+    "title": "庫藏股",
+    "subtitle": "台股買回自家股份(MOPS)",
+    "empty": "查無符合條件的庫藏股",
+    "error": "載入失敗"
+  },
+  "stats": {
+    "executing": "執行中",
+    "newToday": "今日新公告",
+    "done": "已完成",
+    "shown": "當前顯示"
+  },
+  "filter": {
+    "active": "執行中+新公告",
+    "new": "新公告",
+    "executing": "執行中",
+    "done": "完成",
+    "all": "全部",
+    "allMarket": "全部",
+    "twse": "上市",
+    "tpex": "上櫃",
+    "search": "搜尋代號 / 名稱"
+  },
+  "status": {
+    "new": "新公告",
+    "executing": "執行中",
+    "done": "完成"
+  },
+  "table": {
+    "code": "代號",
+    "name": "名稱",
+    "purpose": "買回目的",
+    "boardDate": "決議日",
+    "period": "預定買回期間",
+    "plannedShares": "預定股數",
+    "priceRange": "價格區間",
+    "status": "狀態"
+  }
+}

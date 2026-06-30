@@ -1,0 +1,40 @@
+{
+  "page": {
+    "title": "Buybacks",
+    "subtitle": "Taiwan treasury stock buybacks (MOPS)",
+    "empty": "No buybacks match the filters",
+    "error": "Failed to load"
+  },
+  "stats": {
+    "executing": "Executing",
+    "newToday": "New today",
+    "done": "Completed",
+    "shown": "Shown"
+  },
+  "filter": {
+    "active": "Active+New",
+    "new": "New",
+    "executing": "Executing",
+    "done": "Done",
+    "all": "All",
+    "allMarket": "All",
+    "twse": "TWSE",
+    "tpex": "TPEx",
+    "search": "Search code / name"
+  },
+  "status": {
+    "new": "New",
+    "executing": "Executing",
+    "done": "Done"
+  },
+  "table": {
+    "code": "Code",
+    "name": "Name",
+    "purpose": "Purpose",
+    "boardDate": "Resolved",
+    "period": "Buyback period",
+    "plannedShares": "Planned",
+    "priceRange": "Price range",
+    "status": "Status"
+  }
+}

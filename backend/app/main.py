@@ -115,6 +115,7 @@ async def ensure_tables():
         PodcastMention,
         PodcastQA,
         MonthlyRevenue,
+        TreasuryBuyback,
     )
 
     async with engine.begin() as conn:
@@ -199,6 +200,28 @@ async def ensure_tables():
             from loguru import logger as _logger
             _logger.exception("startup: revenue backfill failed")
     _asyncio.create_task(_ensure_revenue_history_on_startup())
+
+    # 啟動時若庫藏股表為空,先 sync 一次(平時由排程每 30 分鐘更新)。
+    async def _ensure_treasury_on_startup():
+        import asyncio
+        await asyncio.sleep(14)
+        try:
+            from app.services import treasury_service
+            from app.models.treasury import TreasuryBuyback
+            from app.db import AsyncSessionLocal
+            from sqlalchemy import select, func as _f
+            from loguru import logger as _logger
+            async with AsyncSessionLocal() as db:
+                n = (await db.execute(select(_f.count()).select_from(TreasuryBuyback))).scalar() or 0
+            if n == 0:
+                r = await treasury_service.sync_treasury()
+                _logger.info("startup: treasury initial sync {}", r.model_dump())
+            else:
+                _logger.info("startup: treasury ok ({} rows), skip", n)
+        except Exception:  # noqa: BLE001
+            from loguru import logger as _logger
+            _logger.exception("startup: treasury sync failed")
+    _asyncio.create_task(_ensure_treasury_on_startup())
 
     # 啟動時催一次 podcast 增量(gooaye + PodSight):漏掉的集數立即補,不必等 08:30。
     # 增量(跳過已抓),有資料時很輕(各 1 個列表請求);丟 worker thread 不擋 loop。

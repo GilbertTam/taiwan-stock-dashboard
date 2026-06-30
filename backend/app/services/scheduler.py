@@ -302,6 +302,18 @@ async def _job_fill_missing_snapshots() -> None:
         logger.exception("scheduler: fill missing snapshots failed")
 
 
+async def _job_treasury_sync() -> None:
+    """庫藏股同步 — 抓 MOPS t35sc09 入庫(含新公告偵測)。"""
+    from app.services import treasury_service
+
+    logger.info("scheduler: treasury sync starting")
+    try:
+        result = await treasury_service.sync_treasury()
+        logger.info("scheduler: treasury sync done: %s", result.model_dump())
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduler: treasury sync failed")
+
+
 async def _job_revenue_sync() -> None:
     """月營收同步 — 抓 TWSE/TPEX OpenAPI 入庫(含新申報偵測)。"""
     from app.services import revenue_service
@@ -407,6 +419,16 @@ def start_scheduler() -> None:
         misfire_grace_time=3600,
         coalesce=True,
     )
+    # 庫藏股:每天 08-22 點每 30 分鐘抓 MOPS(realtime 感,偵測新公告)。
+    sched.add_job(
+        _job_treasury_sync,
+        CronTrigger(hour="8-22", minute="*/30", timezone=_TPE),
+        id="treasury_sync",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=600,
+        coalesce=True,
+    )
     # 自動補洞:每天 03:30(離峰)補回最近缺漏交易日的當日漲停 snapshot。
     sched.add_job(
         _job_fill_missing_snapshots,
@@ -433,7 +455,7 @@ def start_scheduler() -> None:
         "scheduler: started — snapshot @ 14:35, broker batch @ 14:50, "
         "retry */10min @ 09-21, chase-today */10min @ 15-21, "
         "podcast sync @ 08:30/20:30, reap-tpex */1min, "
-        "revenue */20min @ day1-10 + daily 21:05, "
+        "revenue */20min @ day1-10 + daily 21:05, treasury */30min @ 08-22, "
         "fill-missing @ 03:30, youtube-monitor @ 14:00 (Asia/Taipei)"
     )
 

@@ -12,6 +12,7 @@ import zhTWAdmin from '@/locales/zh-TW/admin.json';
 import zhTWDaily from '@/locales/zh-TW/daily.json';
 import zhTWPodcast from '@/locales/zh-TW/podcast.json';
 import zhTWRevenue from '@/locales/zh-TW/revenue.json';
+import zhTWTreasury from '@/locales/zh-TW/treasury.json';
 
 import enCommon from '@/locales/en/common.json';
 import enNavigation from '@/locales/en/navigation.json';
@@ -23,6 +24,7 @@ import enAdmin from '@/locales/en/admin.json';
 import enDaily from '@/locales/en/daily.json';
 import enPodcast from '@/locales/en/podcast.json';
 import enRevenue from '@/locales/en/revenue.json';
+import enTreasury from '@/locales/en/treasury.json';
 
 i18n
   .use(LanguageDetector)
@@ -40,6 +42,7 @@ i18n
         daily: zhTWDaily,
         podcast: zhTWPodcast,
         revenue: zhTWRevenue,
+        treasury: zhTWTreasury,
       },
       en: {
         common: enCommon,
@@ -52,6 +55,7 @@ i18n
         daily: enDaily,
         podcast: enPodcast,
         revenue: enRevenue,
+        treasury: enTreasury,
       },
     },
     fallbackLng: 'zh-TW',
